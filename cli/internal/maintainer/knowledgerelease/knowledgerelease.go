@@ -70,6 +70,12 @@ type Options struct {
 	// whether a live package exists (see NoLivePackage).
 	PreviousIndex string
 	FirstRelease  bool
+	// OldestClient is the oldest supported client version (the content of the
+	// version line of the pin file). While it is below cncfcheck.ListedFamilyFloor
+	// the listed-family attestations are removed from the package before it is
+	// built and signed; empty means unknown and removes them too. A value that
+	// is not a version is refused.
+	OldestClient string
 	// Revision is the positive knowledge revision; Version is the positive
 	// TUF version used for the targets, snapshot and timestamp roles. With a
 	// previous package it must exceed that package's timestamp version.
@@ -135,6 +141,10 @@ type Result struct {
 	EvidenceExpiresAt string `json:"evidenceExpiresAt"`
 	PackageDigest     string `json:"packageDigest"`
 	TimestampVersion  int64  `json:"timestampVersion"`
+	// ListedAttestationsExcluded is the number of changelog.listed_entries
+	// attestations left out of the package because the oldest supported
+	// client cannot read the family. They stay in the repository knowledge.
+	ListedAttestationsExcluded int `json:"listedAttestationsExcluded"`
 	// PreviousPackageDigest is the verified live package this release replaces.
 	PreviousPackageDigest string `json:"previousPackageDigest,omitempty"`
 }
@@ -173,6 +183,7 @@ type built struct {
 	all       []knowledgepublish.Target // every target, index first
 	admission cncfcheck.ExternalAdmission
 	digests   Digests
+	excluded  int // listed attestations left out of the targets
 }
 
 // ComputeDigests exports the targets without any key and returns their
@@ -214,22 +225,30 @@ func buildTargets(o Options) (built, error) {
 func buildProjectTargets(o Options) (built, error) {
 	var index cncfcheck.ExternalTarget
 	var projects []cncfcheck.ExternalTarget
+	var excluded int
 	var err error
 	if o.FirstRelease {
-		index, projects, err = buildFirst(o.Revision, nil)
+		index, projects, excluded, err = buildPinned(o.Revision, nil, o.OldestClient)
 	} else {
 		var previous []byte
 		if previous, err = read(o.PreviousIndex, cncfcheck.MaxExternalTargetBytes); err != nil {
 			return built{}, ErrRejected
 		}
 		// Refuses a revision that does not advance the previous index.
-		index, projects, err = buildFrom(o.Revision, previous)
+		index, projects, excluded, err = buildPinned(o.Revision, previous, o.OldestClient)
 	}
 	if err != nil {
 		// Includes cncfcheck.ErrDistributionsNotPublishable: distribution
 		// records have no project target yet, so the pack cannot be
 		// published in this layout.
 		return built{}, fmt.Errorf("build per-project targets: %w", errors.Join(ErrRejected, err))
+	}
+	raws := make([][]byte, 0, len(projects))
+	for _, project := range projects {
+		raws = append(raws, project.Bytes)
+	}
+	if err := checkListedShipping(index.Bytes, raws, o.OldestClient); err != nil {
+		return built{}, fmt.Errorf("listed family: %v: %w", err, ErrRejected)
 	}
 	parsed, err := cncfcheck.ParseExternalIndex(index.Bytes)
 	if err != nil {
@@ -250,7 +269,7 @@ func buildProjectTargets(o Options) (built, error) {
 	all := append([]knowledgepublish.Target{{Path: index.Path, Raw: index.Bytes}}, set...)
 	sum := sha256.Sum256(index.Bytes)
 	return built{target: index.Bytes, targetRel: index.Path, projects: set, all: all, admission: admission,
-		digests: Digests{ContentDigest: ContentDigest(all), IndexDigest: "sha256:" + hex.EncodeToString(sum[:]), EvidenceExpiresAt: evidence}}, nil
+		excluded: excluded, digests: Digests{ContentDigest: ContentDigest(all), IndexDigest: "sha256:" + hex.EncodeToString(sum[:]), EvidenceExpiresAt: evidence}}, nil
 }
 
 // Run builds, signs, verifies and writes one release. Every guard runs before
@@ -326,7 +345,7 @@ func Run(o Options) (Result, error) {
 	result := Result{
 		Expires: targetsExp, TimestampExpires: timestampExp, Receipt: receipt, Revision: o.Revision,
 		ContentDigest: b.digests.ContentDigest, IndexDigest: b.digests.IndexDigest, EvidenceExpiresAt: b.digests.EvidenceExpiresAt, PackageDigest: receipt.PackageDigest,
-		TimestampVersion: o.Version,
+		TimestampVersion: o.Version, ListedAttestationsExcluded: b.excluded,
 	}
 	if previous != nil {
 		result.PreviousPackageDigest = previous.PackageDigest
@@ -569,6 +588,6 @@ func wipe(b []byte) {
 
 // Test seams for the per-project builders.
 var (
-	buildFirst = cncfcheck.BuildEmbeddedExternalTargets
-	buildFrom  = cncfcheck.BuildEmbeddedExternalTargetsFrom
+	buildPinned         = cncfcheck.BuildEmbeddedExternalTargetsPinned
+	checkListedShipping = cncfcheck.CheckListedFamilyShipping
 )

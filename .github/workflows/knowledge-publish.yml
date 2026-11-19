@@ -438,6 +438,16 @@ jobs:
             layout=(--previous-index "${PREV_INDEX}")
           fi
 
+          # The oldest supported client decides whether the listed-family
+          # attestations ship: below the floor the publisher leaves them out
+          # and counts them. An unreadable pin file stops the run.
+          pinfile="${GITHUB_WORKSPACE}/cli/knowledge/oldest-supported-client.txt"
+          [ -f "${pinfile}" ] && [ "$(stat -c %s "${pinfile}")" -le 1024 ] || fail "cli/knowledge/oldest-supported-client.txt is missing or too large; nothing was signed."
+          [ "$(grep -c '' "${pinfile}")" = 2 ] || fail "cli/knowledge/oldest-supported-client.txt must hold exactly the lines ref= and version=; nothing was signed."
+          pinver="$(sed -n '2p' "${pinfile}")"
+          [[ "${pinver}" =~ ^version=v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z]+\.[0-9]+)?$ ]] || fail "the version line of cli/knowledge/oldest-supported-client.txt is not vMAJOR.MINOR.PATCH[-pre.N]; nothing was signed."
+          pinver="${pinver#version=}"
+
           now="$(date -u +%s)"
           cap="$(date -u -d "@$((now + 14 * 86400))" +%Y-%m-%dT%H:%M:%SZ)"
 
@@ -445,6 +455,7 @@ jobs:
             local out="$1"; shift
             "${maint}" knowledge-publish release --profile cncf-projects "${layout[@]}" \
               --revision "${revision}" --version "${version}" \
+              --oldest-client "${pinver}" \
               --root "${root}" --root-digest "${ROOT_DIGEST}" \
               --targets-key "${keys}/targets.key.pem" \
               --snapshot-key "${keys}/snapshot.key.pem" \
@@ -465,6 +476,9 @@ jobs:
             expires="$(jq -r '.expires' "${work}/final.json")"
             final="${work}/final"
           fi
+          listed_excluded="$(jq -r '.listedAttestationsExcluded' "${work}/$(basename "${final}").json")"
+          [[ "${listed_excluded}" =~ ^[0-9]+$ ]] || fail "the publish receipt does not carry the listed attestation count."
+          echo "- listed attestations left out of the package (oldest supported client ${pinver}): ${listed_excluded}" >> "${GITHUB_STEP_SUMMARY}"
           [[ "${expires}" > "$(date -u -d "@$((now + 86400))" +%Y-%m-%dT%H:%M:%SZ)" ]] \
             || fail "reviewed evidence expires within a day (${expires}); refresh the evidence before publishing."
 
@@ -589,6 +603,10 @@ jobs:
               jq -e '.status == "VERIFIED"' "${out}/receipt.json" > /dev/null || refuse
               echo "- oldest supported client ${OLDEST_VERSION} (${OLDEST_REF}) accepts the package" >> "${GITHUB_STEP_SUMMARY}"
             else
+              # A package that names a minimum client (the listed family) must
+              # never be refused by the oldest client: only the capability
+              # cause is a clean refusal here.
+              ! grep -q "upgrade prufyx to >=" "${out}/stderr.txt" || refuse
               [ "${orc}" = 15 ] && grep -q "too new for this prufyx\|KNOWLEDGE CAPABILITY MISMATCH" "${out}/stderr.txt" || refuse
               [ -n "${PREV_PKG}" ] && [ -n "${PREV_DIGEST}" ] || refuse
               "${out}/prufyx" db verify "${PREV_PKG}" --profile cncf-projects "${obootstrap[@]}" \

@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/buildidentity"
 )
 
 // Per-project layout. The CNCF knowledge database is published as one TUF
@@ -159,6 +161,9 @@ func parseExternalIndex(raw []byte, base *bundle) (ExternalIndex, error) {
 	}
 	canonical, err := json.Marshal(document)
 	if err != nil || !bytes.Equal(canonical, raw) {
+		return ExternalIndex{}, ErrInvalid
+	}
+	if document.MinClientVersion != "" && !buildidentity.ValidVersion(document.MinClientVersion) {
 		return ExternalIndex{}, ErrInvalid
 	}
 	if (document.Schema != ExternalIndexSchema && document.Schema != ExternalIndexSchemaRecords && document.Schema != ExternalIndexSchemaCommunity) || !validExternalRevision(document.Revision) || (document.Purpose != "operator_provided" && document.Purpose != "synthetic_test_only") || !ValidExternalIndexProjectCount(len(document.Projects)) {
@@ -549,14 +554,91 @@ func BuildEmbeddedExternalTargetsFrom(revision string, previousIndex []byte) (Ex
 }
 
 func buildEmbeddedExternalTargets(revision, purpose string, revisionFor func(string, func(string) ([]byte, error)) (string, error)) (ExternalTarget, []ExternalTarget, error) {
+	index, targets, _, err := buildEmbeddedPinned(revision, purpose, revisionFor, nil)
+	return index, targets, err
+}
+
+func buildEmbeddedPinned(revision, purpose string, revisionFor func(string, func(string) ([]byte, error)) (string, error), listed *listedPolicy) (ExternalTarget, []ExternalTarget, int, error) {
 	if !validExternalRevision(revision) {
-		return ExternalTarget{}, nil, ErrInvalid
+		return ExternalTarget{}, nil, 0, ErrInvalid
 	}
 	base, err := load()
 	if err != nil {
-		return ExternalTarget{}, nil, err
+		return ExternalTarget{}, nil, 0, err
 	}
-	return buildExternalTargets(base, revision, purpose, revisionFor)
+	return buildExternalTargetsPinned(base, revision, purpose, revisionFor, listed)
+}
+
+// BuildEmbeddedExternalTargetsPinned is BuildEmbeddedExternalTargets and
+// BuildEmbeddedExternalTargetsFrom (previousIndex nil starts a fresh layout)
+// for a publication to clients no older than oldestClient: listed-family
+// attestations are removed (ExcludeListedAttestations) before any target is
+// encoded, and the count is returned. oldestClient empty means unknown and
+// excludes; a value that is not a version is refused. A package that still
+// carries the family names ListedFamilyFloor as its minClientVersion.
+func BuildEmbeddedExternalTargetsPinned(revision string, previousIndex []byte, oldestClient string) (ExternalTarget, []ExternalTarget, int, error) {
+	if !validExternalRevision(revision) {
+		return ExternalTarget{}, nil, 0, ErrInvalid
+	}
+	base, err := load()
+	if err != nil {
+		return ExternalTarget{}, nil, 0, err
+	}
+	return buildPinnedFrom(base, revision, previousIndex, oldestClient)
+}
+
+func buildPinnedFrom(base bundle, revision string, previousIndex []byte, oldestClient string) (ExternalTarget, []ExternalTarget, int, error) {
+	policy := &listedPolicy{oldestClient: oldestClient}
+	if previousIndex == nil {
+		return buildExternalTargetsPinned(base, revision, "operator_provided", func(string, func(string) ([]byte, error)) (string, error) { return revision, nil }, policy)
+	}
+	previous, err := parseExternalIndex(previousIndex, &base)
+	if err != nil {
+		return ExternalTarget{}, nil, 0, err
+	}
+	prior, err := strconvRevision(previous.document.Revision)
+	if err != nil {
+		return ExternalTarget{}, nil, 0, err
+	}
+	next, err := strconvRevision(revision)
+	if err != nil || next <= prior {
+		return ExternalTarget{}, nil, 0, ErrInvalid
+	}
+	return buildExternalTargetsPinned(base, revision, previous.document.Purpose, func(project string, encode func(string) ([]byte, error)) (string, error) {
+		entry, ok := previous.Entry(project)
+		if !ok {
+			return revision, nil
+		}
+		raw, err := encode(entry.Revision)
+		if err != nil {
+			return "", err
+		}
+		if digest(raw) == entry.Digest {
+			return entry.Revision, nil
+		}
+		return revision, nil
+	}, policy)
+}
+
+func floorOf(p *listedPolicy) string {
+	if p == nil {
+		return ListedFamilyFloor
+	}
+	return p.floorValue()
+}
+
+// listedPolicy carries the oldest supported client into the target builders.
+// nil means no policy: nothing is excluded (the builders that predate it).
+type listedPolicy struct {
+	oldestClient string
+	floor        string // empty means ListedFamilyFloor; tests set another
+}
+
+func (p *listedPolicy) floorValue() string {
+	if p.floor != "" {
+		return p.floor
+	}
+	return ListedFamilyFloor
 }
 
 // ErrDistributionsNotPublishable is joined with ErrIntegrity when a source
@@ -577,12 +659,64 @@ var ErrRecordWithoutOwner = errors.New("a record names no single catalog project
 // is then a v2 index. A source pack holding distribution records is refused
 // rather than published without them.
 func buildExternalTargets(base bundle, revision, purpose string, revisionFor func(string, func(string) ([]byte, error)) (string, error)) (ExternalTarget, []ExternalTarget, error) {
+	index, targets, _, err := buildExternalTargetsPinned(base, revision, purpose, revisionFor, nil)
+	return index, targets, err
+}
+
+// BuildExternalTargetsFromPackPinned is BuildExternalTargetsFromPack for a
+// publication to clients no older than oldestClient (see
+// BuildEmbeddedExternalTargetsPinned). Like BuildExternalTargetsFromPack it is
+// not a publication path.
+func BuildExternalTargetsFromPackPinned(packRaw []byte, revision, oldestClient string) (ExternalTarget, []ExternalTarget, int, error) {
+	if !validExternalRevision(revision) {
+		return ExternalTarget{}, nil, 0, ErrInvalid
+	}
+	base, err := admitPack(packRaw)
+	if err != nil {
+		return ExternalTarget{}, nil, 0, err
+	}
+	return buildExternalTargetsPinned(base, revision, "operator_provided", func(string, func(string) ([]byte, error)) (string, error) {
+		return revision, nil
+	}, &listedPolicy{oldestClient: oldestClient})
+}
+
+// BuildExternalTargetsFromPackPinnedFrom is BuildExternalTargetsFromPackPinned
+// that keeps the revision of every project whose target bytes are unchanged
+// since previousIndex (nil starts a fresh layout). Like its siblings it is not
+// a publication path.
+func BuildExternalTargetsFromPackPinnedFrom(packRaw []byte, revision string, previousIndex []byte, oldestClient string) (ExternalTarget, []ExternalTarget, int, error) {
+	if !validExternalRevision(revision) {
+		return ExternalTarget{}, nil, 0, ErrInvalid
+	}
+	base, err := admitPack(packRaw)
+	if err != nil {
+		return ExternalTarget{}, nil, 0, err
+	}
+	return buildPinnedFrom(base, revision, previousIndex, oldestClient)
+}
+
+func buildExternalTargetsPinned(base bundle, revision, purpose string, revisionFor func(string, func(string) ([]byte, error)) (string, error), listed *listedPolicy) (ExternalTarget, []ExternalTarget, int, error) {
+	index, targets, excluded, err := buildExternalTargetsPolicy(base, revision, purpose, revisionFor, listed)
+	return index, targets, excluded, err
+}
+
+func buildExternalTargetsPolicy(base bundle, revision, purpose string, revisionFor func(string, func(string) ([]byte, error)) (string, error), listed *listedPolicy) (ExternalTarget, []ExternalTarget, int, error) {
 	if len(base.pack.Distributions) > 0 {
-		return ExternalTarget{}, nil, errors.Join(ErrIntegrity, ErrDistributionsNotPublishable)
+		return ExternalTarget{}, nil, 0, errors.Join(ErrIntegrity, ErrDistributionsNotPublishable)
 	}
 	capability, err := externalCapabilityDigest(base)
 	if err != nil {
-		return ExternalTarget{}, nil, ErrIntegrity
+		return ExternalTarget{}, nil, 0, ErrIntegrity
+	}
+	// Listed-family exclusion runs first, on the pack's own section, so every
+	// target, index and digest below is computed from the shipped content.
+	excluded := 0
+	if listed != nil {
+		kept, n, err := excludeListed(base.pack.LineAttestations, listed.oldestClient, listed.floorValue())
+		if err != nil {
+			return ExternalTarget{}, nil, 0, err
+		}
+		base.pack.LineAttestations, excluded = kept, n
 	}
 	// byProject holds every embedded rule: a project whose rules are all
 	// crossing rules keeps its target, and encodeExternalEnvelopeWithRecords
@@ -593,7 +727,7 @@ func buildExternalTargets(base bundle, revision, purpose string, revisionFor fun
 	}
 	records, err := splitRecords(base.pack, base.knowledgeProjects())
 	if err != nil {
-		return ExternalTarget{}, nil, errors.Join(ErrIntegrity, ErrRecordWithoutOwner)
+		return ExternalTarget{}, nil, 0, errors.Join(ErrIntegrity, ErrRecordWithoutOwner)
 	}
 	for project := range records {
 		if _, ok := byProject[project]; !ok {
@@ -606,9 +740,20 @@ func buildExternalTargets(base bundle, revision, purpose string, revisionFor fun
 	}
 	sort.Strings(projects)
 	if !ValidExternalIndexProjectCount(len(projects)) {
-		return ExternalTarget{}, nil, ErrIntegrity
+		return ExternalTarget{}, nil, 0, ErrIntegrity
 	}
 	index := externalIndexDocument{Schema: ExternalIndexSchema, Revision: revision, Purpose: purpose, EngineCapabilityDigest: capability}
+	// A package that carries the listed family names the floor: an older
+	// client reports it as too new (exit 15) before it reads any target.
+	for _, sections := range records {
+		if SectionCarriesListedFamily(sections.LineAttestations) {
+			if !buildidentity.ValidVersion(floorOf(listed)) {
+				return ExternalTarget{}, nil, 0, errors.Join(ErrIntegrity, ErrListedFloorInvalid)
+			}
+			index.MinClientVersion = floorOf(listed)
+			break
+		}
+	}
 	if len(records) > 0 {
 		index.Schema = ExternalIndexSchemaRecords
 	}
@@ -626,41 +771,41 @@ func buildExternalTargets(base bundle, revision, purpose string, revisionFor fun
 		}
 		projectRevision, err := revisionFor(project, encode)
 		if err != nil {
-			return ExternalTarget{}, nil, err
+			return ExternalTarget{}, nil, 0, err
 		}
 		if !validExternalRevision(projectRevision) {
-			return ExternalTarget{}, nil, ErrInvalid
+			return ExternalTarget{}, nil, 0, ErrInvalid
 		}
 		raw, err := encode(projectRevision)
 		if err != nil {
-			return ExternalTarget{}, nil, err
+			return ExternalTarget{}, nil, 0, err
 		}
 		bundle, err := parseExternalBundle(raw, &base)
 		if err != nil {
-			return ExternalTarget{}, nil, err
+			return ExternalTarget{}, nil, 0, err
 		}
 		admission, err := bundle.Admission()
 		if err != nil {
-			return ExternalTarget{}, nil, ErrIntegrity
+			return ExternalTarget{}, nil, 0, ErrIntegrity
 		}
 		index.Projects = append(index.Projects, ExternalIndexEntry{Project: project, TargetPath: ProjectTargetPath(project), Revision: projectRevision, Length: int64(len(raw)), Digest: digest(raw), RuleDigest: admission.RuleDigest, EvidenceExpiresAt: admission.EvidenceExpiresAt, Records: admission.HasRecords, Catalog: base.catalogOf(project)})
 		targets = append(targets, ExternalTarget{Path: ProjectTargetPath(project), Bytes: raw})
 	}
 	indexRaw, err := json.Marshal(index)
 	if err != nil {
-		return ExternalTarget{}, nil, ErrIntegrity
+		return ExternalTarget{}, nil, 0, ErrIntegrity
 	}
 	parsed, err := parseExternalIndex(indexRaw, &base)
 	if err != nil {
-		return ExternalTarget{}, nil, err
+		return ExternalTarget{}, nil, 0, err
 	}
 	for _, target := range targets {
 		project, _ := ProjectFromTargetPath(target.Path)
 		if _, err := AdmitExternalProjectTarget(parsed, project, target.Bytes); err != nil {
-			return ExternalTarget{}, nil, err
+			return ExternalTarget{}, nil, 0, err
 		}
 	}
-	return ExternalTarget{Path: ExternalIndexTargetPath, Bytes: indexRaw}, targets, nil
+	return ExternalTarget{Path: ExternalIndexTargetPath, Bytes: indexRaw}, targets, excluded, nil
 }
 
 // encodeExternalEnvelope writes one compact envelope over entries. The pack

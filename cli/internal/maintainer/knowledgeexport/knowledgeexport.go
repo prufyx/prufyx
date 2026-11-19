@@ -25,6 +25,10 @@ type Options struct {
 	// index; only the cncf-projects profile reads it. Projects whose target
 	// bytes are unchanged keep their previous revision.
 	PreviousIndex string
+	// OldestClient is the oldest supported client version: below the
+	// listed-family floor, or empty, listed attestations are left out of the
+	// targets, exactly as the release does, so both give the same digests.
+	OldestClient string
 }
 
 // ProfileCNCFProjects exports the per-project layout: Output is a new
@@ -52,13 +56,13 @@ func writeProjects(options Options) error {
 	var projects []cncfcheck.ExternalTarget
 	var err error
 	if options.PreviousIndex == "" {
-		index, projects, err = cncfcheck.BuildEmbeddedExternalTargets(options.Revision, nil)
+		index, projects, _, err = cncfcheck.BuildEmbeddedExternalTargetsPinned(options.Revision, nil, options.OldestClient)
 	} else {
 		var previous []byte
 		if previous, err = readBounded(options.PreviousIndex); err != nil {
 			return ErrRejected
 		}
-		index, projects, err = cncfcheck.BuildEmbeddedExternalTargetsFrom(options.Revision, previous)
+		index, projects, _, err = cncfcheck.BuildEmbeddedExternalTargetsPinned(options.Revision, previous, options.OldestClient)
 	}
 	if err != nil {
 		return ErrRejected
