@@ -1,0 +1,2 @@
+### Fixed
+- Do not report DOCUMENTS_TEMPLATED for a CustomResourceDefinition whose openAPIV3Schema `description` text holds literal `{{` or `${`, such as the cloudnative-pg chart CRDs. Only string `description` values of schema nodes are exempt; keys, `default`, `enum`, `pattern`, `example`, names, every other field and every other kind are still reported, so the custom-resource set of a scanned input is no longer dropped for documentation text.
