@@ -223,7 +223,7 @@ func TestKubernetesJumpKubeletSkew(t *testing.T) {
 		t.Fatalf("jump %+v", jump)
 	}
 	last := jump.Hops[3]
-	if last.To != "1.33.1" || last.Status != scanreport.JumpHopAttention || len(last.Entries) != 1 || !strings.Contains(last.Entries[0], "upgrade kubelets to >= 1.30.0") {
+	if last.To != "1.33.1" || last.Status != scanreport.JumpHopAttention || len(last.Entries) == 0 || !strings.Contains(last.Entries[0], "upgrade kubelets to a version between 1.30.0 and 1.32") {
 		t.Fatalf("last hop %+v", last)
 	}
 	for _, hop := range jump.Hops[:3] {
@@ -293,14 +293,20 @@ func TestKubernetesJumpKubeletWindowEveryHop(t *testing.T) {
 	if jump == nil || len(jump.Hops) != 4 || jump.Status == scanreport.JumpStepwisePass {
 		t.Fatalf("jump %+v", jump)
 	}
-	for _, hop := range jump.Hops {
-		if hop.Status != scanreport.JumpHopAttention || len(hop.Entries) != 1 || !strings.Contains(hop.Entries[0], "upgrade kubelets to >= 1.30.0 (the highest minimum across the hops) before the first hop") {
-			t.Fatalf("hop %+v", hop)
+	want := []string{"between 1.27.0 and 1.29.6", "between 1.28.0 and 1.30", "between 1.29.0 and 1.31", "between 1.30.0 and 1.32"}
+	for i, hop := range jump.Hops {
+		if hop.Status != scanreport.JumpHopAttention || len(hop.Entries) == 0 || !strings.Contains(hop.Entries[0], "before this hop ("+hop.From+" -> "+hop.To+"), upgrade kubelets to a version "+want[i]) {
+			t.Fatalf("hop %d %+v", i+1, hop)
+		}
+		for _, entry := range hop.Entries {
+			if strings.Contains(entry, "before the first hop") {
+				t.Fatalf("advice to roll ahead of the control plane: %q", entry)
+			}
 		}
 	}
-	first := jump.Hops[0].Entries[0]
-	if !strings.HasPrefix(first, "computed: declared kubelet 1.26.0 is outside the supported skew for 1.30;") {
-		t.Fatalf("first hop %q", first)
+	summary := jump.Hops[3].Entries[len(jump.Hops[3].Entries)-1]
+	if summary != "summary: kubelets must reach >= 1.30.0 by the hop to 1.33.1, rolled stepwise, never newer than the control plane" {
+		t.Fatalf("summary %q", summary)
 	}
 	// With the signed rule at the last hop, its rule id is cited there.
 	if !strings.Contains(jump.Hops[3].Entries[0], "kubelet-version-skew") && !strings.HasPrefix(jump.Hops[3].Entries[0], "computed:") {
