@@ -142,8 +142,13 @@ func TestScanAppMultiHopSequentialMajorWholeUpgradeRuleFires(t *testing.T) {
 	}
 }
 
-// Without a path policy the upgrade is the one direct hop, as before; a
-// record that is not current is a gap and never a direct hop.
+// Without a path policy the upgrade through several minor lines is
+// decomposed into the stepwise path (design DESIGN-JUMP-VERDICT, sections 1
+// and 9, Q4: stepwise is always an upstream-permitted path); it was one
+// direct hop before. A rule for the exact pair spans no single hop and is
+// judged on the whole upgrade, so the blocker is still found, as a
+// whole-upgrade finding. A record that is not current is a gap and never a
+// hop.
 func TestScanAppWithoutPathPolicyIsOneDirectHop(t *testing.T) {
 	base, _ := installPairs(t, [2]string{"1.1.0", "1.4.0"})
 	scan := func(k Knowledge) Result {
@@ -151,10 +156,10 @@ func TestScanAppWithoutPathPolicyIsOneDirectHop(t *testing.T) {
 	}
 	none := scan(policyKnowledge{Knowledge: base})
 	path := gwPath(t, none.Report)
-	if path.Policy != "" || len(path.Hops) != 1 || path.Hops[0].From.Version != "1.1.0" || path.Hops[0].To.Version != "1.4.0" {
+	if path.Policy != "" || len(path.Hops) != 3 || path.Hops[0].From.Version != "1.1.0" || path.Hops[2].To.Version != "1.4.0" || path.Jump == nil || len(path.Jump.Hops) != 3 {
 		t.Fatalf("path %+v", path)
 	}
-	if none.Exit != scanreport.ExitBlocked || len(none.Report.Findings) != 1 || none.Report.Findings[0].Hop.WholeUpgrade {
+	if none.Exit != scanreport.ExitBlocked || len(none.Report.Findings) != 1 || !none.Report.Findings[0].Hop.WholeUpgrade {
 		t.Fatalf("exit %d findings %+v", none.Exit, none.Report.Findings)
 	}
 

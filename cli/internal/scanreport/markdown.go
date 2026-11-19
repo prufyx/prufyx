@@ -119,6 +119,18 @@ func Markdown(report Report, options MarkdownOptions) []byte {
 		}
 	}
 
+	for _, path := range report.Paths {
+		if path.Jump == nil {
+			continue
+		}
+		line("")
+		line("## Jump %s", mdText(path.Component))
+		line("")
+		for _, text := range JumpLines(path.Component, path.From, path.To, *path.Jump) {
+			line("- %s", mdText(strings.TrimSpace(text)))
+		}
+	}
+
 	if len(report.Gaps) > 0 {
 		line("")
 		line("## "+labelNotChecked, len(report.Gaps))

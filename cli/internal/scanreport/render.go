@@ -91,6 +91,11 @@ func Human(report Report, options HumanOptions) []byte {
 		for _, text := range familyLines(path) {
 			line("%s", text)
 		}
+		if path.Jump != nil {
+			for _, text := range JumpLines(path.Component, path.From, path.To, *path.Jump) {
+				line("%s", text)
+			}
+		}
 	}
 	for _, finding := range report.Findings {
 		if !hasPath(report.Paths, finding.Component) {

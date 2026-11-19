@@ -110,6 +110,26 @@ type Route struct {
 	Stops     []string `json:"stops"`
 	Hops      int      `json:"hops"`
 	Gap       string   `json:"gap,omitempty"`
+	// HopTable lists every hop of a route of several hops with its own
+	// status, whatever the component: never one answer for the whole route
+	// without it.
+	HopTable []RouteHop `json:"hopTable,omitempty"`
+	// Jump is the scan's composed answer for the route, when it has one. It
+	// never changes a stage verdict, the plan verdict or the exit code.
+	Jump *scanreport.Jump `json:"jump,omitempty"`
+}
+
+// RouteHop is one hop of a route: its stage's status and what decides or
+// is missing.
+type RouteHop struct {
+	Index  int    `json:"index"`
+	From   string `json:"from"`
+	To     string `json:"to"`
+	Status string `json:"status"`
+	// RuleIDs are the rules that blocked the hop.
+	RuleIDs []string `json:"ruleIds,omitempty"`
+	// Reasons are the codes that keep the hop from PASS.
+	Reasons []string `json:"reasons,omitempty"`
 }
 
 // Order says why a stage sits where it does.
@@ -243,6 +263,10 @@ func Build(report scanreport.Report, latest []string, caps Capabilities) Plan {
 	components := len(latest)
 	for _, path := range paths {
 		route := Route{Component: path.Component, From: path.From, To: path.To, Policy: path.Policy, Stops: []string{}, Hops: len(path.Hops), Gap: path.Gap}
+		if path.Jump != nil {
+			jump := *path.Jump
+			route.Jump = &jump
+		}
 		for i, hop := range path.Hops {
 			if i < len(path.Hops)-1 {
 				route.Stops = append(route.Stops, hop.To.String())
@@ -268,6 +292,7 @@ func Build(report scanreport.Report, latest []string, caps Capabilities) Plan {
 	for i := range plan.Stages {
 		finishStage(&plan.Stages[i], caps)
 	}
+	hopTables(&plan)
 	finish(&plan, report, components)
 	attachProvider(&plan, report)
 	return plan
@@ -383,6 +408,36 @@ func placeLeftovers(plan *Plan, report scanreport.Report, used map[string]bool) 
 }
 
 func key(component, rule string) string { return component + "\x00" + rule }
+
+// hopTables gives every route of several hops its per-hop table, from the
+// stages of its component in plan order.
+func hopTables(plan *Plan) {
+	for i := range plan.Routes {
+		route := &plan.Routes[i]
+		if route.Hops < 2 {
+			continue
+		}
+		for _, stage := range plan.Stages {
+			if stage.Component != route.Component || stage.WholeUpgrade {
+				continue
+			}
+			hop := RouteHop{Index: len(route.HopTable) + 1, From: stage.From, To: stage.To}
+			switch stage.Verdict {
+			case VerdictPass, VerdictBlocked:
+				hop.Status = stage.Verdict
+			default:
+				hop.Status = "UNDECIDED"
+			}
+			for _, f := range stage.Findings {
+				hop.RuleIDs = append(hop.RuleIDs, f.RuleID)
+			}
+			if hop.Status != VerdictPass {
+				hop.Reasons = append(hop.Reasons, stage.Reasons...)
+			}
+			route.HopTable = append(route.HopTable, hop)
+		}
+	}
+}
 
 // finishStage derives the reasons and the verdict of a stage.
 func finishStage(stage *Stage, caps Capabilities) {

@@ -294,6 +294,9 @@
         },
         "chart": {
           "$ref": "#/$defs/pathChart"
+        },
+        "jump": {
+          "$ref": "#/$defs/jump"
         }
       }
     },
@@ -1433,6 +1436,154 @@
           "items": {
             "$ref": "#/$defs/citation"
           }
+        }
+      }
+    },
+    "jump": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "scope",
+        "objectSetDigest",
+        "releases",
+        "hops",
+        "decidedBy",
+        "missing"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "BLOCKED",
+            "ATTENTION",
+            "STEPWISE_PASS",
+            "UNKNOWN"
+          ]
+        },
+        "scope": {
+          "type": "string"
+        },
+        "objectSetDigest": {
+          "type": "string"
+        },
+        "releases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/jumpRelease"
+          }
+        },
+        "hops": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/jumpHop"
+          }
+        },
+        "decidedBy": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "missing": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/jumpMissing"
+          }
+        }
+      }
+    },
+    "jumpRelease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "line",
+        "version",
+        "commit"
+      ],
+      "properties": {
+        "line": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "commit": {
+          "type": "string"
+        }
+      }
+    },
+    "jumpHop": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "from",
+        "to",
+        "status"
+      ],
+      "properties": {
+        "index": {
+          "type": "integer"
+        },
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "BLOCKED",
+            "PASS",
+            "ATTENTION",
+            "UNDECIDED"
+          ]
+        },
+        "objectSetDigest": {
+          "type": "string"
+        },
+        "ruleIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "attestation": {
+          "$ref": "#/$defs/attestation"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "jumpMissing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hop",
+        "evidence",
+        "action"
+      ],
+      "properties": {
+        "hop": {
+          "type": "integer"
+        },
+        "evidence": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
         }
       }
     }

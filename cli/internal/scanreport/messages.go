@@ -124,6 +124,10 @@ const (
 	GapCustomResourceLineRelease    GapKey = ReasonLineNotAttested + "/custom-resources-release"
 	GapCustomResourceLineTrust      GapKey = ReasonLineNotAttested + "/custom-resources-trust-policy"
 	GapCustomResourceInstallProfile GapKey = ReasonLineNotAttested + "/custom-resources-install-profile"
+	// Hops of a jump through several minor lines that no review decides.
+	GapCustomResourceJumpNoReview GapKey = ReasonLineNotAttested + "/custom-resources-jump-no-review"
+	GapCustomResourceJumpRelease  GapKey = ReasonLineNotAttested + "/custom-resources-jump-release"
+	GapCustomResourceJumpOpen     GapKey = ReasonLineNotAttested + "/custom-resources-jump-undecided"
 	// GapChartValuesOnly: a declared chart hop, checked only against the
 	// rules about the chart's values and Kubernetes version.
 	GapChartValuesOnly GapKey = ReasonComponentNotCovered + "/chart-values-only"
@@ -292,6 +296,12 @@ var gapMessages = map[GapKey]gapMessage{
 		"add %[3]s to --require-basis, or check the %[1]s %[2]s CRDs by hand", 3},
 	GapCustomResourceInstallProfile: {"target CRDs or consumed versions do not match one reviewed profile of %[1]s %[2]s",
 		"import the complete target CRD source artifacts for this release and profile, then verify every consumed version is served; otherwise compare the target CRDs by hand", 2},
+	GapCustomResourceJumpNoReview: {"no review of the custom-resource versions of line %[1]s exists, so the hop into it is not decided",
+		"request coverage of line %[1]s, or check its CRDs by hand", 1},
+	GapCustomResourceJumpRelease: {"no release of line %[1]s is read by both its own review and the review of the next line, so the hop through it is not decided",
+		"use knowledge whose reviews of line %[1]s and the next line read a common release, or scan each minor upgrade by hand", 1},
+	GapCustomResourceJumpOpen: {"the hop into %[1]s is not decided by its review (the set is incomplete or a listed rule did not decide)",
+		"see the other gaps of this hop, or check the CRDs of %[1]s by hand", 1},
 	GapChartValuesOnly: {"%[1]s chart %[2]s: only its values and Kubernetes-version rules are checked, not the rest of the upgrade",
 		"verify the rest of the chart's upgrade notes and the %[1]s release notes by hand", 2},
 	GapHelmValuesNotComplete: {"%[1]s chart %[2]s: the supplied values are not declared complete, so no required key is confirmed",
