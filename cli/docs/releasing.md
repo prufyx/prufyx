@@ -339,6 +339,10 @@ accepted only together with an `archive-sha256` pin that the caller holds.
   signing trust root. The binary is built before any release statement that
   could name one exists, so this is expected for every CI build until the
   release signing flow is changed.
+- `"knowledgeRootDigest"`. The pinned knowledge root that verification uses,
+  read from `cli/internal/knowledgepin` at run time. Builds from this change on
+  print it; v0.1.0-beta.0 does not. It is separate from `trustRootDigest`,
+  which stays `UNPINNED` until release signing has a root.
 
 ## The embedded knowledge trust-root pin
 

@@ -47,7 +47,10 @@ on `prufyx_${TAG}_linux_amd64.deb` (or `.rpm`), then `sudo dpkg -i` it, or
 
 Step 2 needs the `gh` CLI and network access. `version` reports
 `"candidateOnly": true` and `"trustRootDigest": "UNPINNED"`: this is a candidate
-build, not maintainer-signed. No Windows archive is published. You can also
+build, not maintainer-signed. `trustRootDigest` stays `UNPINNED` until release
+signing has a root. `version` also shows `knowledgeRootDigest`, the pinned
+knowledge root that `db update` verifies with; the v0.1.0-beta.0 binary does
+not print it, but its verification still uses the compiled-in pin. No Windows archive is published. You can also
 build from source (see the [README](../../README.md)).
 
 Put the binary on your `PATH`, then `prufyx` prints a command overview and
@@ -230,8 +233,8 @@ expired rule, a missing declaration. Read the reason lines. Full tables:
   knowledge with a warning instead of failing (see `knowledge-updates.md`).
 - `prufyx db update` downloads a complete signed package and verifies it with
   TUF. With no arguments it targets the official `cncf-projects` feed and
-  needs the trust root pinned in the build. This build pins the official
-  root, so a no-argument `db update` fetches the signed package from the
+  needs the knowledge root pinned in the build. Builds pin the official
+  knowledge root (shown as `knowledgeRootDigest` in `prufyx version`), so a no-argument `db update` fetches the signed package from the
   official feed and refuses anything not signed from that root. If the feed cannot be
   reached, the download fails (`KNOWLEDGE_DOWNLOAD_FAILED`) and the
   embedded knowledge stays in use. The manual path is `prufyx db update --profile cncf --source URL
