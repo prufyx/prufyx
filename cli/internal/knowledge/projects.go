@@ -150,6 +150,18 @@ func unsupportedFailure(minVersion, format string, args ...any) error {
 // checkMinClient fails with an unsupported error when the index names a
 // minimum client version above this build. raw must be hash-verified.
 func checkMinClient(raw []byte) error {
+	return checkMinClientVerified(verifiedTarget{raw: raw})
+}
+
+// verifiedTarget is target content that the TUF updater has authenticated
+// under the pinned root (signed metadata, then length and digest). Only
+// verifier code constructs it, after DownloadTarget succeeds; the
+// capability and schema readers in verifySplitTargets accept nothing else,
+// so they cannot run on unauthenticated package bytes.
+type verifiedTarget struct{ raw []byte }
+
+func checkMinClientVerified(v verifiedTarget) error {
+	raw := v.raw
 	min, ok := cncfcheck.ExternalIndexMinClient(raw)
 	if !ok || buildidentity.MeetsMinimum(min) {
 		return nil
@@ -256,10 +268,33 @@ func validateSplitTargetsRole(targets *metadata.Metadata[metadata.TargetsType], 
 // downloads the selected project targets through the TUF updater. The set of
 // project targets in the index must equal the set in the targets role, with
 // identical lengths and digests. A nil selection downloads every project.
-func verifySplitTargets(u *updater.Updater, targets *metadata.Metadata[metadata.TargetsType], indexRaw []byte, targetDir string, only map[string]bool) (map[string][]byte, error) {
+func verifySplitTargets(u *updater.Updater, targets *metadata.Metadata[metadata.TargetsType], index0 verifiedTarget, targetDir string, only map[string]bool) (map[string][]byte, error) {
+	indexRaw := index0.raw
+	// Authenticate every signed project target before any manifest field is
+	// read: a flipped byte in a package that is also unreadable by this build
+	// is tampering, not a capability mismatch. A selective open (only != nil)
+	// reads a store that was verified in full at import and fetches just the
+	// selected targets below.
+	authenticated := map[string][]byte{}
+	if only == nil {
+		names := make([]string, 0, len(targets.Signed.Targets))
+		for name := range targets.Signed.Targets {
+			if name != ConstraintsProjectsIndexTargetPath {
+				names = append(names, name)
+			}
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			raw, err := downloadSplitTarget(u, name, targetDir)
+			if err != nil {
+				return nil, err
+			}
+			authenticated[name] = raw
+		}
+	}
 	// indexRaw was hash-verified by DownloadTarget: a failure to read it is
 	// a package this build does not understand, not tampering.
-	if err := checkMinClient(indexRaw); err != nil {
+	if err := checkMinClientVerified(index0); err != nil {
 		return nil, err
 	}
 	index, err := cncfcheck.ParseExternalIndex(indexRaw)
@@ -293,16 +328,12 @@ func verifySplitTargets(u *updater.Updater, targets *metadata.Metadata[metadata.
 		if only != nil && !only[entry.Project] {
 			continue
 		}
-		info, err := u.GetTargetInfo(entry.TargetPath)
-		if err != nil {
-			return nil, err
-		}
-		if len(info.Hashes) != 1 || len(info.Hashes["sha256"]) != sha256Size || info.Length > maxPackageEntry {
-			return nil, splitFailure("target %s hash or size policy", entry.TargetPath)
-		}
-		_, raw, err := u.DownloadTarget(info, filepath.Join(targetDir, "project-"+entry.Project+".json"), "https://offline.invalid/targets")
-		if err != nil {
-			return nil, &splitTargetError{reason: fmt.Sprintf("target %s is missing or does not match its signed length and hash", entry.TargetPath), cause: err}
+		raw, ok := authenticated[entry.TargetPath]
+		if !ok {
+			var err error
+			if raw, err = downloadSplitTarget(u, entry.TargetPath, targetDir); err != nil {
+				return nil, err
+			}
 		}
 		if !index.Readable(entry.Project) {
 			if _, err := cncfcheck.AdmitExternalProjectTarget(index, entry.Project, raw); !errors.Is(err, cncfcheck.ErrUnreadableTarget) {
@@ -329,6 +360,23 @@ func verifySplitTargets(u *updater.Updater, targets *metadata.Metadata[metadata.
 		projects[entry.Project] = append([]byte(nil), raw...)
 	}
 	return projects, nil
+}
+
+// downloadSplitTarget fetches one signed project target through the TUF
+// updater, which checks its signed length and digest.
+func downloadSplitTarget(u *updater.Updater, targetPath, targetDir string) ([]byte, error) {
+	info, err := u.GetTargetInfo(targetPath)
+	if err != nil {
+		return nil, err
+	}
+	if len(info.Hashes) != 1 || len(info.Hashes["sha256"]) != sha256Size || info.Length > maxPackageEntry {
+		return nil, splitFailure("target %s hash or size policy", targetPath)
+	}
+	_, raw, err := u.DownloadTarget(info, filepath.Join(targetDir, "project-"+filepath.Base(targetPath)), "https://offline.invalid/targets")
+	if err != nil {
+		return nil, &splitTargetError{reason: fmt.Sprintf("target %s is missing or does not match its signed length and hash", targetPath), cause: err}
+	}
+	return raw, nil
 }
 
 // advanceProjectFloors enforces one rollback floor per project. A project's

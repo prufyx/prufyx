@@ -153,7 +153,7 @@ func verifyPackageForProfileProjects(pkg importPackage, profile profileSpec, pri
 		return result, nil
 	}
 	if profile.split {
-		projects, err := verifySplitTargets(u, trusted.Targets[metadata.TARGETS], target, targetDir, only)
+		projects, err := verifySplitTargets(u, trusted.Targets[metadata.TARGETS], verifiedTarget{raw: target}, targetDir, only)
 		if err != nil {
 			result.refreshErr = err
 			return result, nil

@@ -164,6 +164,12 @@ change. Giving `--source` or `--release-plan` keeps the rules described above
   message does not say which side is newer: upgrade prufyx if it is older than
   the feed, otherwise the feed has not been republished for this release yet.
   The embedded knowledge and the current local database stay in use.
+  The capability and every other manifest field are read only after the package
+  size and format bounds, the expected archive digest, the signed metadata under
+  the pinned root and the signed length and digest of every project target have
+  passed. A package altered after signing is therefore an integrity failure
+  (exit `3`) even when it would also be a capability mismatch; exit `15` is only
+  for a correctly signed package this build cannot read.
   The capability changes when a project is added to the supported table, when a
   fact is registered, or when the engine changes; rule and attestation updates for
   existing projects do not change it.
