@@ -251,24 +251,28 @@ func TestFileRowPathClosedAlphabet(t *testing.T) {
 
 func jsonStr(s string) string { b, _ := json.Marshal(s); return string(b) }
 
+// rowsRechecked are the read-form rows whose fixtures were re-run over blobs
+// fetched by pinned id and verified (PRUFYX_ROW_BLOBS), at exactly this row
+// digest and fixture digest. It is reviewer-owned, like rowsBeforeData: a run
+// without blobs passes a read-form row only when it is here and both digests
+// still match, so a new row, a changed row or an edited fixture cannot pass
+// offline and needs the blob re-run (or a reviewer who re-ran it and updates
+// this list).
+var rowsRechecked = map[string]RecheckedRow{
+	"alertmanager": {RowDigest: "72ec19460e172522ea6203b6c0d2d67ce326131f1731bd0af83c4c865adaadda", FixtureDigest: "sha256:578e27e08e6116ea3272e05fbb1089a9876b39f772b35a32f2ba1b7eb5090e73"},
+	"prometheus":   {RowDigest: "d7d99823994415c019b8ade914dfea2b65d05e1edac8240eb76a826cce7b9ac7", FixtureDigest: "sha256:eff0f8dad6f786e841316143a70b0dc07f63e6b7d713ac094d6dd1ffc7851bba"},
+}
+
 // TestShippedRowFixtures recomputes every row's fixture check: one fixture per
 // row, no orphan, the row digest recomputed from targets.json (never read from
-// a pin), an optional digest-only pins file compared against both. When the
-// blobs are supplied (PRUFYX_ROW_BLOBS, a directory of files named by blob
-// id), the one reader is re-run over blobs fetched by pinned id and verified;
-// a blob that does not verify fails the test.
+// a pin), an optional digest-only pins file compared against both. With the
+// blobs supplied (PRUFYX_ROW_BLOBS, a directory of files named by blob id) the
+// one reader is re-run over blobs fetched by pinned id and verified; a blob
+// that does not verify fails the test. Without them the re-run is a visible
+// skip, and a read-form row passes only when it is on rowsRechecked at the
+// digests it was re-checked at (CheckRowsOffline).
 func TestShippedRowFixtures(t *testing.T) {
-	if err := LoadError(); err != nil {
-		t.Fatal(err)
-	}
-	digests, err := RowDigests()
-	if err != nil {
-		t.Fatal(err)
-	}
-	fixtures, err := LoadRowFixtures(os.DirFS("testdata"), RowFixtureDir, Reviewed, digests)
-	if err != nil {
-		t.Fatal(err)
-	}
+	rows, digests, fixtures := shipped(t)
 	var pins []byte
 	if b, err := os.ReadFile(filepath.Join("testdata", RowPinsFile)); err == nil {
 		pins = b
@@ -280,16 +284,21 @@ func TestShippedRowFixtures(t *testing.T) {
 	}
 	dir := os.Getenv("PRUFYX_ROW_BLOBS")
 	if dir == "" {
-		t.Log("offline: fixture structure and row digests recomputed; blobs not supplied, reader re-run not done")
+		if err := CheckRowsOffline(rows, digests, fixtures, rowsRechecked); err != nil {
+			t.Fatal(err)
+		}
 	}
-	for _, row := range Reviewed {
+	for _, row := range rows {
 		t.Run(row.Component, func(t *testing.T) {
 			fx := fixtures[row.Component]
 			if readsForm(row.Form) && fx.Status != RowPass {
 				t.Fatalf("a read row without a passing fixture: %s", fx.Status)
 			}
-			if dir == "" {
+			if !readsForm(row.Form) {
 				return
+			}
+			if dir == "" {
+				t.Skip("PRUFYX_ROW_BLOBS is not set: the reader re-run over pinned blobs was not done; passing offline rests on rowsRechecked")
 			}
 			if err := RecheckRowFixture(fx, row, digests[row.Component], DirBlobFetcher{Dir: dir}, zeroDigest); err != nil {
 				t.Fatal(err)

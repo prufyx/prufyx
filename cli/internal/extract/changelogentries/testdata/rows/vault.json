@@ -1,7 +1,7 @@
 {
   "schema": "prufyx.io/changelog-row-fixture/v1",
   "component": "vault",
-  "rowDigest": "sha256:d7306eb1d4989c353a244ab6fff8a1af80aa3ae98f69f4022cb38dd4b8d98a94",
+  "rowDigest": "9d0aa0aab11ea62e42438db3ea03d9575405594c03b06080966222dc7e946ac0",
   "form": "post-tag",
   "status": "SKIP",
   "window": 0,

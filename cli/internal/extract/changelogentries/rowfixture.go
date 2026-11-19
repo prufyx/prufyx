@@ -10,7 +10,8 @@ package changelogentries
 //
 // The fixture is never trusted:
 //
-//   - its row digest is recomputed from targets.json and must match;
+//   - its row digest is recomputed from targets.json (Target.RowDigest, the
+//     one row digest, also the one in the receipt) and must match;
 //   - its counts and status are recomputed from its own tag outcomes;
 //   - when blobs are available, the check is re-run with the one reader over
 //     blobs fetched by the pinned id and verified (git blob id, sha256, size);
@@ -19,8 +20,9 @@ package changelogentries
 //     pins file holds only component and row digest; it is compared, never
 //     believed, and carries no reader digest.
 //
-// The reader code digest is not part of any of it: a change of the reader
-// stales nothing stored in the repository.
+// The row digest covers the resolved style patterns, so changing a style
+// pattern stales the digest of every row that uses it and those fixtures must
+// be regenerated. The reader code digest is not part of any stored value.
 
 import (
 	"bytes"
@@ -57,12 +59,18 @@ const (
 	OutcomeWithheld = "withheld"
 )
 
-// MaxFixtureTags bounds the tags of one fixture.
-const MaxFixtureTags = 64
+// MaxFixtureTags bounds the tags of one fixture. The scope of a fixture is
+// every final tag of the newest FixtureLines release lines plus every tag of
+// the newest DefaultMinLocatedNewest versions.
+const (
+	MaxFixtureTags = 256
+	FixtureLines   = 5
+)
 
 var (
 	hex40RE      = regexp.MustCompile(`^[0-9a-f]{40}$`)
 	digestRE     = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+	rowDigestRE  = regexp.MustCompile(`^[0-9a-f]{64}$`)
 	fixtureTagRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$`)
 )
 
@@ -112,33 +120,54 @@ func readsForm(form string) bool {
 	return false
 }
 
-// RowDigest is the digest of a row as written in targets.json: the canonical
-// encoding of its data fields (style names, not the patterns they map to, so
-// that a reader change stales nothing).
-func RowDigest(r rowData) string {
-	b, _ := json.Marshal(r) // fixed struct order; cannot fail on these types
-	sum := sha256.Sum256(b)
-	return "sha256:" + hex.EncodeToString(sum[:])
-}
-
-// RowDigests recomputes the digest of every row of the embedded targets data.
+// RowDigests recomputes the digest of every row of the embedded table with
+// Target.RowDigest, the one row digest.
 func RowDigests() (map[string]string, error) {
 	if loadErr != nil {
 		return nil, loadErr
 	}
-	return rowDigestsOf(targetsJSON)
-}
-
-func rowDigestsOf(data []byte) (map[string]string, error) {
-	var doc targetsDoc
-	if err := json.Unmarshal(data, &doc); err != nil {
-		return nil, err
-	}
-	out := make(map[string]string, len(doc.Rows))
-	for _, r := range doc.Rows {
-		out[r.Component] = RowDigest(r)
+	out := make(map[string]string, len(Reviewed))
+	for _, t := range Reviewed {
+		out[t.Component] = t.RowDigest()
 	}
 	return out, nil
+}
+
+// fixtureScope is the set of final tags a fixture holds: every tag of the
+// newest DefaultMinLocatedNewest versions plus every final tag of the newest
+// FixtureLines release lines (major.minor), sorted by name. It is idempotent.
+func fixtureScope(finals []string) []string {
+	sorted := append([]string(nil), finals...)
+	sortNewestFirst(sorted)
+	keep := map[string]bool{}
+	for _, g := range newestVersions(finals, DefaultMinLocatedNewest) {
+		for _, n := range g {
+			keep[n] = true
+		}
+	}
+	line := func(n string) string {
+		v, _ := tagVersion(n)
+		p := strings.SplitN(v, ".", 3)
+		return p[0] + "." + p[1]
+	}
+	lines := map[string]bool{}
+	for _, n := range sorted {
+		l := line(n)
+		if !lines[l] && len(lines) < FixtureLines {
+			lines[l] = true
+		}
+	}
+	for _, n := range sorted {
+		if lines[line(n)] {
+			keep[n] = true
+		}
+	}
+	out := make([]string, 0, len(keep))
+	for n := range keep {
+		out = append(out, n)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // ParseRowFixture reads one fixture strictly: unknown fields, duplicate keys
@@ -170,8 +199,8 @@ func (fx *RowFixture) validate() error {
 	if len(fx.Component) > 63 || !componentSlugRE.MatchString(fx.Component) {
 		return errors.New("component is not a slug")
 	}
-	if !digestRE.MatchString(fx.RowDigest) {
-		return errors.New("rowDigest is not a sha256 digest")
+	if !rowDigestRE.MatchString(fx.RowDigest) {
+		return errors.New("rowDigest is not a hex sha256 row digest")
 	}
 	known := false
 	for _, f := range []string{FormFile, FormPerLineFile, FormPerVersionFile, FormGithubRelease, FormPostTag, FormDocsPage, FormMonorepo} {
@@ -241,12 +270,14 @@ func (fx *RowFixture) validate() error {
 		names = append(names, tg.Name)
 	}
 	groups := newestVersions(names, DefaultMinLocatedNewest)
-	n := 0
-	for _, g := range groups {
-		n += len(g)
+	scope := fixtureScope(names)
+	if len(scope) != len(names) || fx.Window != len(groups) {
+		return fmt.Errorf("window %d over %d tags is not the scope (newest %d versions and every tag of the newest %d lines)", fx.Window, len(fx.Tags), DefaultMinLocatedNewest, FixtureLines)
 	}
-	if n != len(fx.Tags) || fx.Window != len(groups) {
-		return fmt.Errorf("window %d over %d tags is not the newest %d versions", fx.Window, len(fx.Tags), DefaultMinLocatedNewest)
+	for i := range scope {
+		if scope[i] != names[i] {
+			return errors.New("tags are not the fixture scope")
+		}
 	}
 	if fx.Window != fx.WindowLocated || located != len(fx.Tags) || fx.Status != RowPass {
 		return errors.New("a stored fixture must be a passing one: every tag of the window located, status PASS")
@@ -451,18 +482,19 @@ func sha256Digest(data []byte) string {
 // fixtureSource serves the tags and the verified blobs of one fixture. A read
 // that the fixture did not record is an error, never "absent".
 type fixtureSource struct {
+	repo  extract.RepoRef
 	fx    *RowFixture
 	blobs map[string][]byte // by blob id, verified
 }
 
-// OpenFixtureSource fetches every blob the fixture pins by id and verifies it
+// OpenFixtureSourceFor fetches every blob the fixture pins by id and verifies it
 // (git blob id, sha256, size). A nil fetcher, a fetch error or a mismatch
 // refuses the whole fixture: nothing partial is served.
-func OpenFixtureSource(fx *RowFixture, f BlobFetcher) (extract.PinnedReader, extract.TagSource, error) {
+func OpenFixtureSourceFor(fx *RowFixture, repo extract.RepoRef, f BlobFetcher) (extract.PinnedReader, extract.TagSource, error) {
 	if f == nil {
 		return nil, nil, fmt.Errorf("%w: no blob source", ErrUnverifiedBlob)
 	}
-	s := &fixtureSource{fx: fx, blobs: map[string][]byte{}}
+	s := &fixtureSource{repo: repo, fx: fx, blobs: map[string][]byte{}}
 	for _, tg := range fx.Tags {
 		for _, rd := range tg.Reads {
 			if rd.BlobID == "" {
@@ -485,6 +517,9 @@ func OpenFixtureSource(fx *RowFixture, f BlobFetcher) (extract.PinnedReader, ext
 }
 
 func (s *fixtureSource) Tags(repo extract.RepoRef) ([]extract.Tag, error) {
+	if repo.Key != s.repo.Key {
+		return nil, fmt.Errorf("tags of repo %q: the fixture is for %q", repo.Key, s.repo.Key)
+	}
 	out := make([]extract.Tag, 0, len(s.fx.Tags))
 	for _, tg := range s.fx.Tags {
 		out = append(out, extract.Tag{Name: tg.Name, Commit: tg.Commit})
@@ -493,6 +528,9 @@ func (s *fixtureSource) Tags(repo extract.RepoRef) ([]extract.Tag, error) {
 }
 
 func (s *fixtureSource) Read(repo extract.RepoRef, commit, p string) ([]byte, error) {
+	if repo.Key != s.repo.Key {
+		return nil, fmt.Errorf("read of repo %q: the fixture is for %q", repo.Key, s.repo.Key)
+	}
 	for _, tg := range s.fx.Tags {
 		if tg.Commit != commit {
 			continue
@@ -526,7 +564,7 @@ func RecheckRowFixture(fx *RowFixture, row Target, digest string, f BlobFetcher,
 	if !readsForm(row.Form) {
 		return nil
 	}
-	rd, tags, err := OpenFixtureSource(fx, f)
+	rd, tags, err := OpenFixtureSourceFor(fx, row.Repo, f)
 	if err != nil {
 		return err
 	}
@@ -614,11 +652,7 @@ func BuildRowFixture(src interface {
 		commit[tg.Name] = tg.Commit
 		finals = append(finals, tg.Name)
 	}
-	var names []string
-	for _, g := range newestVersions(finals, DefaultMinLocatedNewest) {
-		names = append(names, g...)
-	}
-	sort.Strings(names)
+	names := fixtureScope(finals)
 	rec := &recordingReader{inner: src, reads: map[string]map[string]RowFixtureRead{}}
 	fx.Window = len(newestVersions(names, DefaultMinLocatedNewest))
 	for _, n := range names {
@@ -656,4 +690,57 @@ func (fx *RowFixture) Bytes() ([]byte, error) {
 		return nil, err
 	}
 	return append(b, '\n'), nil
+}
+
+// FixtureDigest is the sha256 of the canonical rendering of a fixture.
+func FixtureDigest(fx *RowFixture) (string, error) {
+	b, err := fx.Bytes()
+	if err != nil {
+		return "", err
+	}
+	return sha256Digest(b), nil
+}
+
+// RecheckedRow is a reviewer-owned record of a row whose fixture was re-run
+// over verified blobs: the row digest and the fixture digest it was proved at.
+type RecheckedRow struct {
+	RowDigest     string
+	FixtureDigest string
+}
+
+// CheckRowsOffline is what a run without blobs may conclude. A fixture holds
+// only what its author wrote, and offline nothing is re-run, so a read-form
+// row passes only when it is on the reviewer-owned list with exactly the row
+// digest and fixture digest it was re-checked at; any other read-form row (new,
+// changed, or with an edited fixture) fails here and needs the blob re-run. A
+// read-form row needs a fixture of its own form that is not SKIP. A row of a
+// form that is not read claims nothing and needs only its fixture.
+func CheckRowsOffline(rows []Target, digests map[string]string, fixtures map[string]*RowFixture, rechecked map[string]RecheckedRow) error {
+	for _, row := range rows {
+		fx := fixtures[row.Component]
+		if fx == nil {
+			return fmt.Errorf("row %q has no fixture", row.Component)
+		}
+		if err := fx.MatchRow(row, digests[row.Component]); err != nil {
+			return err
+		}
+		if !readsForm(row.Form) {
+			continue
+		}
+		if fx.Status != RowPass {
+			return fmt.Errorf("read-form row %q has a %s fixture", row.Component, fx.Status)
+		}
+		rc, ok := rechecked[row.Component]
+		if !ok {
+			return fmt.Errorf("row %q is not on the re-checked list: it needs the blob re-run (set PRUFYX_ROW_BLOBS)", row.Component)
+		}
+		fd, err := FixtureDigest(fx)
+		if err != nil {
+			return err
+		}
+		if rc.RowDigest != digests[row.Component] || rc.FixtureDigest != fd {
+			return fmt.Errorf("row %q changed since it was re-checked (row or fixture digest differs): it needs the blob re-run", row.Component)
+		}
+	}
+	return nil
 }

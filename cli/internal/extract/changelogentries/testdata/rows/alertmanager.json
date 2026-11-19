@@ -1,14 +1,66 @@
 {
   "schema": "prufyx.io/changelog-row-fixture/v1",
   "component": "alertmanager",
-  "rowDigest": "sha256:a822979d71cb8e2888fc41591ba8a719c6b8bb88c8998c5c7ae7386379c158de",
+  "rowDigest": "72ec19460e172522ea6203b6c0d2d67ce326131f1731bd0af83c4c865adaadda",
   "form": "changelog-file",
   "status": "PASS",
   "window": 8,
   "windowLocated": 8,
-  "located": 8,
+  "located": 12,
   "withheld": {},
   "tags": [
+    {
+      "name": "v0.31.0",
+      "commit": "0ae07a09fbb26a7738c867306f32b5f42583a7d2",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "8e0200f4f4ff1f0450e7db3ce89cf308a05c0983",
+          "sha256": "sha256:8b7b14b8b87ec1eaf16cb8a31fd3da6ccb7b8113def8aeabd2df9d319d86e553",
+          "size": 55619
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v0.31.1",
+      "commit": "7a639ba087d6e877038cabfdaa645230f79001b8",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "f10b018ba6df4fdb41a2c1eea4542f03841e3a77",
+          "sha256": "sha256:edefb4730e4e74c1b39db0b5ce7eb103230147852ec5b8df71a074ea60a3e6a3",
+          "size": 55781
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v0.32.0",
+      "commit": "685a2a1c6bb01b2c17bc1bfae995cb3416c1115e",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "3af6e90b5be596d65b7e20cd4387488e2771289d",
+          "sha256": "sha256:9f047f8fae7f72747153493f3e1026a9c13379e4dcc3f6acea3cab1b07763a7e",
+          "size": 58537
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v0.32.1",
+      "commit": "8768aa6f65f1a888b5aa5fbf877cf20ad45d1f61",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "f7ea9721ffd919640496fc797e1718a4564c2bee",
+          "sha256": "sha256:e30d693d1153f256836294f9782ab518da6a5227a3d3c114695c7589f42ebb4e",
+          "size": 58790
+        }
+      ],
+      "outcome": "located"
+    },
     {
       "name": "v0.32.2",
       "commit": "ce33c591ba11d7687c810f41304e3885713211a6",

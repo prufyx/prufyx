@@ -1,7 +1,7 @@
 {
   "schema": "prufyx.io/changelog-row-fixture/v1",
   "component": "csi-driver-smb",
-  "rowDigest": "sha256:7411f147497b537b5ffd1d05a53d64d4f5a27cae648e6852f1bfa976ea1172b3",
+  "rowDigest": "b75144c02e53f4cd9934d46c3cbaf818d74a7c39e086f7e54f31f5283bfe9fd7",
   "form": "github-release",
   "status": "SKIP",
   "window": 0,

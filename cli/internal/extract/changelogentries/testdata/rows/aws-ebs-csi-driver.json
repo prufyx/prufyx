@@ -1,7 +1,7 @@
 {
   "schema": "prufyx.io/changelog-row-fixture/v1",
   "component": "aws-ebs-csi-driver",
-  "rowDigest": "sha256:fdc7dc39d921f7e72aa1fbdf76ecc8a3f78f1956456637dc04b99c051aa2e306",
+  "rowDigest": "782882dd113c1d4fa961d6b84f56c58655452efcd8f2228eacf0521bdb6d045c",
   "form": "post-tag",
   "status": "SKIP",
   "window": 0,
