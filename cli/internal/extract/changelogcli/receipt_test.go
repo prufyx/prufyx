@@ -62,8 +62,8 @@ func TestReceiptHasNoChangelogText(t *testing.T) {
 
 func TestReceiptGoldenFormat(t *testing.T) {
 	d := strings.Repeat("ab", 32)
-	got := Receipt{Step: "check", Component: "notes", RowDigest: d, TagsDigest: d, MirrorDigest: "none", CodeDigest: d}.Line()
-	want := "receipt/v1 step=check component=notes rowDigest=" + d + " tagsDigest=" + d + " mirrorDigest=none codeDigest=" + d
+	got := Receipt{Step: "check", Component: "notes", RowDigest: d, TagsDigest: d, MirrorDigest: "none", CodeDigest: "sha256:" + d}.Line()
+	want := "receipt/v1 step=check component=notes rowDigest=" + d + " tagsDigest=" + d + " mirrorDigest=none codeDigest=sha256:" + d
 	if got != want {
 		t.Fatalf("got  %s\nwant %s", got, want)
 	}
@@ -109,7 +109,7 @@ func TestReceiptMissingMirrorIsExplicitNone(t *testing.T) {
 
 func TestParseReceiptRejects(t *testing.T) {
 	d := strings.Repeat("a", 64)
-	ok := "receipt/v1 step=check component=notes rowDigest=" + d + " tagsDigest=" + d + " mirrorDigest=none codeDigest=" + d
+	ok := "receipt/v1 step=check component=notes rowDigest=" + d + " tagsDigest=" + d + " mirrorDigest=none codeDigest=sha256:" + d
 	if _, err := ParseReceipt(ok); err != nil {
 		t.Fatal(err)
 	}
@@ -126,8 +126,10 @@ func TestParseReceiptRejects(t *testing.T) {
 		"bad step":       strings.Replace(ok, "step=check", "step=other", 1),
 		"bad component":  strings.Replace(ok, "component=notes", "component=No_Tes", 1),
 		"short row":      strings.Replace(ok, "rowDigest="+d, "rowDigest=abc", 1),
-		"upper code":     strings.Replace(ok, "codeDigest="+d, "codeDigest="+strings.ToUpper(d), 1),
+		"upper code":     strings.Replace(ok, "codeDigest=sha256:"+d, "codeDigest=sha256:"+strings.ToUpper(d), 1),
 		"bad mirror":     strings.Replace(ok, "mirrorDigest=none", "mirrorDigest=zz", 1),
+		"bare code":      strings.Replace(ok, "codeDigest=sha256:", "codeDigest=", 1),
+		"bare code":      strings.Replace(ok, "codeDigest=sha256:", "codeDigest=", 1),
 		"text":           ok + " " + secretText,
 	} {
 		if _, err := ParseReceipt(l); err == nil {
