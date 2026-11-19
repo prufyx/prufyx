@@ -762,6 +762,7 @@
             "EVIDENCE_EXPIRED",
             "INTERMEDIATE_LINE_NOT_COVERED_BY_RANGE",
             "LINE_NOT_ATTESTED",
+            "MAJOR_HOP_NOT_COVERED",
             "NO_REVIEWED_PATH_POLICY",
             "PATH_NOT_PLANNABLE",
             "PATH_POLICY_NOT_CURRENT",

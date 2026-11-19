@@ -153,6 +153,9 @@ func NewJump(hops []JumpHop, digest string, releases []JumpRelease, actions map[
 		}
 		evidence := strings.Join(hop.Reasons, ", ")
 		switch {
+		case digest == "" && hop.ObjectSetDigest == "" && evidence != "":
+			// A hop no evaluation read (a component scan does not cover): its
+			// reason is the evidence.
 		case digest == "" || hop.ObjectSetDigest != digest:
 			evidence = "the hop was not evaluated on the jump's object set"
 		case evidence == "":

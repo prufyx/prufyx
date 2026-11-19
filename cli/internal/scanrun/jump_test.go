@@ -300,9 +300,10 @@ func TestJumpNotDecomposed(t *testing.T) {
 	if jump != nil || len(path.Hops) != 1 || result.Exit == 0 {
 		t.Fatalf("direct policy: hops %d jump %+v exit %d", len(path.Hops), jump, result.Exit)
 	}
-	// Across a major line the last minor of the old major is unknown.
+	// Across a major line the path is split: the major hop is its own hop
+	// (see jump_majors_test.go), never a pass.
 	result = crdScan(t, jumpKnowledge(t, nil), []string{settingsDoc, kafkaV1Doc}, "--from", "strimzi=0.51.0", "--to", "strimzi=1.2.0", "--resource-scope-complete")
-	if _, jump := strimziJump(t, result.Report); jump != nil || result.Exit == 0 {
+	if path, jump := strimziJump(t, result.Report); jump == nil || len(path.Hops) != 3 || jump.Status != scanreport.JumpUnknown || result.Exit == 0 {
 		t.Fatalf("major: jump %+v exit %d", jump, result.Exit)
 	}
 	// One minor line: the single hop is not a jump.
