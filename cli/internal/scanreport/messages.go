@@ -716,7 +716,7 @@ const (
 	UsagePermissions             = "an input file's permissions are refused by --input-permissions %s; run chmod go-rwx on it, or use --input-permissions refuse-writable"
 	UsagePermissionsWrite        = "an input file is writable by other users; run chmod go-w on it"
 	UsageInputUnreadable         = "an input path cannot be read"
-	UsageInputLimit              = "the inputs exceed a size limit (8 MiB per file, 32 MiB in all, 2048 files, 8192 documents); split a large file into several files in a directory"
+	UsageInputLimit              = "the inputs exceed a size limit (8 MiB per file, 256 MiB in all, 16384 files, 65536 documents, 6000000 YAML nodes); split the input into several runs, for example one per namespace or per chart group, or a large file into several files in a directory"
 	UsageInputWindows            = "file and directory input is not supported on Windows; pipe the manifest on standard input (use -)"
 	UsageInputDecode             = "an input file is not valid YAML or JSON within the supported subset"
 	UsageInputRefused            = "an input file is refused: %s"

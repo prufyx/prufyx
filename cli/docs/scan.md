@@ -20,16 +20,23 @@ by a flag. A refusal is a usage error (exit code unchanged) naming the limit.
 | Limit | Value |
 |---|---|
 | Size of one file (or standard input) | 8 MiB |
-| Size of all files together | 32 MiB |
-| Files | 2048 |
-| YAML documents | 8192 |
-| YAML nodes over all files | 500000 |
+| Size of all files together | 256 MiB |
+| Files | 16384 |
+| YAML documents | 65536 |
+| YAML nodes over all files | 6000000 |
 | Nesting depth | 64 |
 
 A whole rendered apply set in one file (for example `helm template ... >
 rendered.yaml` of a large monitoring stack, about 3.5 MB) is within the limits.
 If a file is over 8 MiB, split it into several files in a directory and pass
-the directory.
+the directory. If another limit is exceeded, run `scan` once per namespace or
+per group of charts; the refusal names the limit that was reached.
+
+The node limit is checked from the bytes before anything is decoded and bounds
+memory: measured about 100 bytes per node kept and at most about 275 bytes per
+node while one file is decoded, so the process stays under 2 GiB at the limit
+(a 267 MiB, 9000-document set took about 25 s and 620 MB). The limits cover a
+set of 100 or more rendered charts and a cluster export of about 30000 objects.
 
 ## Example
 
