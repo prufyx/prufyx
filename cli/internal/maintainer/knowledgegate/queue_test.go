@@ -25,7 +25,7 @@ func qPRJSON(mod func(m map[string]any)) []byte {
 		"number": 42, "state": "open",
 		"user":   map[string]any{"login": "alice"},
 		"labels": []any{map[string]any{"name": "shadow"}},
-		"head":   map[string]any{"sha": qPR},
+		"head":   map[string]any{"sha": qPR, "repo": map[string]any{"full_name": "prufyx/prufyx"}},
 		"base":   map[string]any{"ref": "main", "repo": map[string]any{"full_name": "prufyx/prufyx"}},
 	}
 	if mod != nil {
@@ -89,7 +89,20 @@ func TestVerifyQueueFailsClosed(t *testing.T) {
 		"payload for another pull request": func(in *QueueInput) { in.PRJSON = qPRJSON(func(m map[string]any) { m["number"] = 43 }) },
 		"pull request closed":              func(in *QueueInput) { in.PRJSON = qPRJSON(func(m map[string]any) { m["state"] = "closed" }) },
 		"head mismatch": func(in *QueueInput) {
-			in.PRJSON = qPRJSON(func(m map[string]any) { m["head"] = map[string]any{"sha": third} })
+			in.PRJSON = qPRJSON(func(m map[string]any) {
+				m["head"] = map[string]any{"sha": third, "repo": map[string]any{"full_name": "prufyx/prufyx"}}
+			})
+		},
+		"fork head repo": func(in *QueueInput) {
+			in.PRJSON = qPRJSON(func(m map[string]any) {
+				m["head"] = map[string]any{"sha": qPR, "repo": map[string]any{"full_name": "mallory/prufyx"}}
+			})
+		},
+		"head repo missing (deleted fork)": func(in *QueueInput) {
+			in.PRJSON = qPRJSON(func(m map[string]any) { m["head"] = map[string]any{"sha": qPR, "repo": nil} })
+		},
+		"head repo field absent": func(in *QueueInput) {
+			in.PRJSON = qPRJSON(func(m map[string]any) { m["head"] = map[string]any{"sha": qPR} })
 		},
 		"head missing": func(in *QueueInput) { in.PRJSON = qPRJSON(func(m map[string]any) { delete(m, "head") }) },
 		"base ref not main": func(in *QueueInput) {
@@ -208,7 +221,7 @@ func TestQueueContextCommand(t *testing.T) {
 	payload := func(mod func(m map[string]any)) string {
 		m := map[string]any{
 			"number": 7, "state": "open", "user": map[string]any{"login": "alice"},
-			"labels": []any{}, "head": map[string]any{"sha": pr},
+			"labels": []any{}, "head": map[string]any{"sha": pr, "repo": map[string]any{"full_name": "prufyx/prufyx"}},
 			"base": map[string]any{"ref": "main", "repo": map[string]any{"full_name": "prufyx/prufyx"}},
 		}
 		if mod != nil {
@@ -239,7 +252,9 @@ func TestQueueContextCommand(t *testing.T) {
 		return code, out, se.String()
 	}
 	// Negative first.
-	if code, out, _ := run(payload(func(m map[string]any) { m["head"] = map[string]any{"sha": base} }), nil); code == 0 || fileExists(out) {
+	if code, out, _ := run(payload(func(m map[string]any) {
+		m["head"] = map[string]any{"sha": base, "repo": map[string]any{"full_name": "prufyx/prufyx"}}
+	}), nil); code == 0 || fileExists(out) {
 		t.Fatalf("head mismatch: code %d", code)
 	}
 	if code, out, _ := run(filepath.Join(t.TempDir(), "missing.json"), nil); code == 0 || fileExists(out) {
@@ -270,7 +285,7 @@ func TestQueueContextCommand(t *testing.T) {
 	var so, se bytes.Buffer
 	b, _ := json.Marshal(map[string]any{
 		"number": 7, "state": "open", "user": map[string]any{"login": "alice"}, "labels": []any{},
-		"head": map[string]any{"sha": pr2}, "base": map[string]any{"ref": "main", "repo": map[string]any{"full_name": "prufyx/prufyx"}},
+		"head": map[string]any{"sha": pr2, "repo": map[string]any{"full_name": "prufyx/prufyx"}}, "base": map[string]any{"ref": "main", "repo": map[string]any{"full_name": "prufyx/prufyx"}},
 	})
 	pf := filepath.Join(t.TempDir(), "pr.json")
 	_ = os.WriteFile(pf, b, 0o600)

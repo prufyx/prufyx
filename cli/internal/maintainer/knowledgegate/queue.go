@@ -86,7 +86,10 @@ type queuePR struct {
 		Name string `json:"name"`
 	} `json:"labels"`
 	Head *struct {
-		SHA string `json:"sha"`
+		SHA  string `json:"sha"`
+		Repo *struct {
+			FullName string `json:"full_name"`
+		} `json:"repo"`
 	} `json:"head"`
 	Base *struct {
 		Ref  string `json:"ref"`
@@ -188,6 +191,11 @@ func VerifyQueue(in QueueInput) (*QueueContext, error) {
 	}
 	if p.Head == nil || !fullSHARE.MatchString(p.Head.SHA) {
 		return nil, errors.New("the pull request head is missing")
+	}
+	// A change from a fork is never queued: refuse unless the head lives in
+	// the base repository. A missing head repository (deleted fork) fails.
+	if p.Head.Repo == nil || p.Head.Repo.FullName != in.Repo {
+		return nil, fmt.Errorf("pull request %d does not come from %s (fork pull requests are never queued)", pr, in.Repo)
 	}
 	if p.Head.SHA != in.Parents[1] {
 		return nil, errors.New("the reviewed head of the pull request is not the second parent of the queue commit (head mismatch)")

@@ -160,10 +160,12 @@ jobs:
       # repository; a read-only GitHub App installation token allows 5000.
       # The App is optional: without it the gate keeps the workflow token and
       # the lower request cap. Nothing from the change runs in this job, so
-      # the change never sees the token.
+      # the change never sees the token. A merge_group run takes its workflow
+      # file from the queued commit, so it never reads the App private key:
+      # it keeps the workflow token and the lower request budget.
       - name: Create the read-only App token
         id: app-token
-        if: vars.KNOWLEDGE_GATE_APP_ID != ''
+        if: vars.KNOWLEDGE_GATE_APP_ID != '' && github.event_name != 'merge_group'
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ vars.KNOWLEDGE_GATE_APP_ID }}
