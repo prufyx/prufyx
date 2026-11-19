@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -24,6 +25,9 @@ const (
 	// from a fork.
 	ciRunsOn = "${{ (github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON(vars.CI_RUNNER_LABELS || '\"ubuntu-24.04\"') || 'ubuntu-24.04' }}"
 	ciHosted = "ubuntu-24.04"
+	// ciWatchdog is the hosted job that ends a run stuck behind an offline
+	// self-hosted runner.
+	ciWatchdog = "runner-watchdog"
 )
 
 // ciMovable are the only jobs allowed to read CI_RUNNER_LABELS.
@@ -94,7 +98,7 @@ func ciSplitProblems(raw []byte) []string {
 				problems = append(problems, "job "+id+" must stay on "+ciHosted+" (hosted); only the test shards, race, staticcheck and govulncheck may move")
 			}
 		}
-		if strings.Contains(runs, "self-hosted") || strings.Contains(string(text), "self-hosted") {
+		if id != ciWatchdog && (strings.Contains(runs, "self-hosted") || strings.Contains(string(text), "self-hosted")) {
 			problems = append(problems, "job "+id+" names a self-hosted label in the file: labels come only from CI_RUNNER_LABELS")
 		}
 		if slow[id] != (job.If == ciSlowIf) {
@@ -158,7 +162,27 @@ func ciSplitProblems(raw []byte) []string {
 	if strings.Join(listed(fastEnv), ",") != strings.Join(wantFast, ",") || len(wantFast) == 0 {
 		problems = append(problems, "FAST_RESULTS must list exactly the other needs of the fan-in")
 	}
-	// Only ci.yml may read the runner variable.
+	wd, ok := wf.Jobs[ciWatchdog]
+	if !ok {
+		return append(problems, "no "+ciWatchdog+" job: an offline self-hosted runner would stall the fan-in")
+	}
+	if wd.If != "vars.CI_RUNNER_LABELS != ''" {
+		problems = append(problems, ciWatchdog+" must run exactly when CI_RUNNER_LABELS is set")
+	}
+	if wr, _ := wd.RunsOn.(string); wr != ciHosted {
+		problems = append(problems, ciWatchdog+" must run on the hosted runner")
+	}
+	if p, ok := wd.Permissions.(map[string]any); !ok || len(p) != 1 || p["actions"] != "write" {
+		problems = append(problems, ciWatchdog+" permissions must be exactly actions: write")
+	}
+	if secretRef.MatchString(string(mustYAML(wd))) || wd.Environment != nil {
+		problems = append(problems, ciWatchdog+" must not reference secrets or an environment")
+	}
+	for _, n := range needs {
+		if n == ciWatchdog {
+			problems = append(problems, "the fan-in must not wait for "+ciWatchdog)
+		}
+	}
 	return problems
 }
 
@@ -184,6 +208,10 @@ func TestCIFastSlowSplit(t *testing.T) {
 		"shard reads a secret":         strings.Replace(text, "          GROUP: ${{ matrix.group }}\n", "          GROUP: ${{ matrix.group }}\n          TOKEN: ${{ secrets.X }}\n", 1),
 		"shard gets an environment":    strings.Replace(text, "  test-core:\n", "  test-core:\n    environment: release\n", 1),
 		"shard widens its permissions": strings.Replace(text, "  test-core:\n", "  test-core:\n    permissions:\n      contents: write\n", 1),
+		"watchdog dropped":             strings.Replace(text, "  runner-watchdog:\n", "  runner-watchdog-x:\n", 1),
+		"watchdog always on":           strings.Replace(text, "    if: vars.CI_RUNNER_LABELS != ''\n", "", 1),
+		"watchdog broader permissions": strings.Replace(text, "    permissions:\n      actions: write\n", "    permissions:\n      actions: write\n      contents: write\n", 1),
+		"watchdog on a self-hosted":    strings.Replace(text, "    name: Runner watchdog\n    if: vars.CI_RUNNER_LABELS != ''\n    runs-on: ubuntu-24.04", "    name: Runner watchdog\n    if: vars.CI_RUNNER_LABELS != ''\n    runs-on: "+ciRunsOn, 1),
 		"workflow permissions widened": strings.Replace(text, "permissions:\n  contents: read\n", "permissions:\n  contents: write\n", 1),
 	}
 	for name, mutated := range broken {
@@ -339,6 +367,105 @@ func TestCIRestPartsPartition(t *testing.T) {
 	for p, n := range seen {
 		if n != 1 {
 			t.Errorf("package %s in %d parts", p, n)
+		}
+	}
+}
+
+func mustYAML(v any) []byte {
+	b, err := yaml.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+// ciWatchdogScript returns the run script of the runner watchdog.
+func ciWatchdogScript(t *testing.T) string {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "ci.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wf ciSplitFile
+	if err := yaml.Unmarshal(raw, &wf); err != nil {
+		t.Fatal(err)
+	}
+	for _, st := range wf.Jobs[ciWatchdog].Steps {
+		if st.Run != "" {
+			return st.Run
+		}
+	}
+	t.Fatal("no watchdog script")
+	return ""
+}
+
+// runWatchdog runs the watchdog script against a fake gh whose job list is
+// jobsOut (one JSON object per line) and whose api call may fail; it reports
+// the exit code and whether the run was cancelled.
+func runWatchdog(t *testing.T, jobsOut string, apiFails bool, maxMinutes string) (code int, cancelled bool) {
+	t.Helper()
+	for _, tool := range []string{"jq", "bash"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("%s is not installed", tool)
+		}
+	}
+	dir := t.TempDir()
+	cancelFile := filepath.Join(dir, "cancelled")
+	fail := "0"
+	if apiFails {
+		fail = "1"
+	}
+	gh := "#!/bin/bash\nif [ \"$1\" = api ]; then [ \"" + fail + "\" = 0 ] || exit 1; cat \"" + filepath.Join(dir, "jobs") + "\"; exit 0; fi\nif [ \"$1 $2\" = \"run cancel\" ]; then : > \"" + cancelFile + "\"; exit 0; fi\nexit 9\n"
+	for name, body := range map[string]string{"gh": gh, "sleep": "#!/bin/bash\nkill -TERM $PPID\n"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dir, "jobs"), []byte(jobsOut), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("bash", "-c", ciWatchdogScript(t))
+	cmd.Env = append(os.Environ(), "PATH="+dir+":"+os.Getenv("PATH"), "REPO=o/r", "RUN_ID=1", "MAX_QUEUE_MINUTES="+maxMinutes)
+	err := cmd.Run()
+	code = 0
+	if ee, ok := err.(*exec.ExitError); ok {
+		code = ee.ExitCode()
+	} else if err != nil {
+		t.Fatal(err)
+	}
+	_, statErr := os.Stat(cancelFile)
+	return code, statErr == nil
+}
+
+func TestCIRunnerWatchdog(t *testing.T) {
+	old := time.Now().Add(-45 * time.Minute).UTC().Format("2006-01-02T15:04:05Z")
+	recent := time.Now().Add(-2 * time.Minute).UTC().Format("2006-01-02T15:04:05Z")
+	job := func(name, status, label, at string) string {
+		return `{"name":"` + name + `","status":"` + status + `","labels":["` + label + `"],"created_at":"` + at + `"}` + "\n"
+	}
+	done := job("Runner watchdog", "in_progress", "ubuntu-24.04", old) + job("Test (core-evidence)", "completed", "self-hosted", old)
+	cases := []struct {
+		name       string
+		jobs       string
+		apiFails   bool
+		max        string
+		wantCancel bool
+		wantCode   int
+	}{
+		{"self-hosted job queued too long", done + job("Test (core-commands)", "queued", "self-hosted", old), false, "30", true, 1},
+		{"stale limit read from the variable", done + job("Test (core-commands)", "queued", "self-hosted", recent), false, "1", true, 1},
+		{"junk limit falls back to 30", done + job("Test (core-commands)", "queued", "self-hosted", old), false, "abc", true, 1},
+		{"job list unreadable", "", true, "30", true, 1},
+		{"job list not json", "not json\n", false, "30", true, 1},
+		// Nothing is stale: the script waits (the fake sleep ends it, exit -1).
+		{"recently queued self-hosted job", done + job("Test (core-commands)", "queued", "self-hosted", recent), false, "30", false, -1},
+		{"hosted job queued long is left to GitHub", done + job("Staticcheck", "queued", "ubuntu-24.04", old), false, "30", false, -1},
+		{"everything finished", done, false, "30", false, 0},
+	}
+	for _, c := range cases {
+		code, cancelled := runWatchdog(t, c.jobs, c.apiFails, c.max)
+		if cancelled != c.wantCancel || code != c.wantCode {
+			t.Errorf("%s: exit %d cancelled=%v, want exit %d cancelled=%v", c.name, code, cancelled, c.wantCode, c.wantCancel)
 		}
 	}
 }
