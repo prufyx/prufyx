@@ -36,6 +36,7 @@ type workflow struct {
 		Environment string            `yaml:"environment"`
 		Steps       []struct {
 			ID               string            `yaml:"id"`
+			If               string            `yaml:"if"`
 			Name             string            `yaml:"name"`
 			Uses             string            `yaml:"uses"`
 			Run              string            `yaml:"run"`
@@ -66,14 +67,12 @@ func TestWorkflowShape(t *testing.T) {
 	if _, ok := wf.On["pull_request"]; ok {
 		t.Fatal("pull_request would run the change's own workflow definition")
 	}
-	// No merge queue is in use: a merge_group run would take its workflow
-	// definition from the queued commit, and has no pull request author.
-	if _, ok := wf.On["merge_group"]; ok {
-		t.Fatal("merge_group runs the queued commit's own workflow definition")
-	}
+	// merge_group is allowed only in the checked, fail-closed form pinned by
+	// TestWorkflowMergeGroup: its run takes the queued commit's workflow
+	// definition and has no pull request payload.
 	for trigger := range wf.On {
 		switch trigger {
-		case "pull_request_target", "schedule", "workflow_dispatch":
+		case "pull_request_target", "merge_group", "schedule", "workflow_dispatch":
 		default:
 			t.Fatalf("unexpected trigger %s", trigger)
 		}
@@ -380,5 +379,157 @@ func TestWorkflowChecksPinnedCitationsOnSchedule(t *testing.T) {
 	}
 	if !strings.Contains(string(raw), "if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'\n        working-directory: base\n        env:\n          GITHUB_TOKEN: ${{ steps.app-token.outputs.token || github.token }}\n        run: |\n          set -euo pipefail\n          baselines=()\n          if [ -f cli/knowledge/repin-baselines.json ]; then\n            baselines=(--baselines cli/knowledge/repin-baselines.json)\n          fi\n          \"${RUNNER_TEMP}/prufyx-maintainer\" evidence repin \\\n            --pinned-only") {
 		t.Error("the pinned check must run on schedule and manual runs only")
+	}
+}
+
+// TestWorkflowMergeGroup pins the merge queue mode: the trigger exists, the
+// queue entry is read and verified before the gate runs, the gate is still
+// built from the group base, and no step can be skipped or turned into a
+// pass.
+func TestWorkflowMergeGroup(t *testing.T) {
+	t.Parallel()
+	raw, err := os.ReadFile(workflowPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wf workflow
+	if err := yaml.Unmarshal(raw, &wf); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := wf.On["merge_group"]; !ok {
+		t.Fatal("the gate must run on merge_group (it is a required check of the queue)")
+	}
+	code := yamlComment.ReplaceAllString(string(raw), "")
+	for _, forbidden := range []string{"continue-on-error", "neutral"} {
+		if strings.Contains(code, forbidden) {
+			t.Fatalf("the workflow contains %q: no step may be allowed to fail or report neutral", forbidden)
+		}
+	}
+	job := wf.Jobs["gate"]
+	if job.If != "" {
+		t.Fatalf("the gate job must not be conditional (a skipped required check can pass): %q", job.If)
+	}
+	if !strings.Contains(job.Env["HEAD_SHA"], "github.event.merge_group.head_sha") || !strings.Contains(job.Env["MQ_BASE_SHA"], "github.event.merge_group.base_sha") {
+		t.Fatal("a merge_group run checks the group head against the group base")
+	}
+	var all string
+	queueAt, exportAt := -1, -1
+	for i, s := range job.Steps {
+		all += s.Run + "\n"
+		if s.ID == "queue" {
+			queueAt = i
+			if s.If != "github.event_name == 'merge_group'" {
+				t.Fatalf("the queue step condition is %q", s.If)
+			}
+		}
+		if strings.Contains(s.Run, "gate export") && exportAt < 0 {
+			exportAt = i
+		}
+		if s.ID == "verify" && s.If != "" {
+			t.Fatal("the verify step must always run")
+		}
+	}
+	if queueAt < 0 || exportAt < 0 || queueAt > exportAt {
+		t.Fatalf("the queue entry must be verified before the trees are exported (queue %d, export %d)", queueAt, exportAt)
+	}
+	for _, want := range []string{
+		`gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr}" > "${RUNNER_TEMP}/queue-pr.json"`,
+		`gate queue-context`,
+		`--pr-json "${RUNNER_TEMP}/queue-pr.json"`,
+		`merge_group)`, `base="${MQ_BASE_SHA}"`,
+		`merge-base --is-ancestor refs/admission/main "${BASE_SHA}"`,
+		`compare_head="${QUEUE_PR_HEAD}"`,
+		`author="${QUEUE_AUTHOR}"`, `SHADOW_LABEL="${QUEUE_SHADOW}"`,
+		`The queue context is missing.`,
+		`The commit list or the daily count is missing in a queue run.`,
+	} {
+		if !strings.Contains(all, want) {
+			t.Fatalf("the merge queue mode no longer runs %s", want)
+		}
+	}
+	// The queue run never posts alarms, re-derives everything, or merges.
+	if !strings.Contains(wf.Jobs["alarm"].If, "github.event_name != 'merge_group'") {
+		t.Fatal("a queue run must not open alarm issues")
+	}
+	if strings.Contains(all, `"merge_group" ] ||`) {
+		t.Fatal("merge_group must not take the re-derivation path")
+	}
+}
+
+var nightlyWorkflowPath = filepath.Join(repoRoot, ".github", "workflows", "nightly-main.yml")
+
+func TestNightlyWorkflowShape(t *testing.T) {
+	t.Parallel()
+	raw, err := os.ReadFile(nightlyWorkflowPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wf workflow
+	if err := yaml.Unmarshal(raw, &wf); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := wf.On["merge_group"]; !ok {
+		t.Fatal("the nightly check must run on merge_group")
+	}
+	for trigger := range wf.On {
+		if trigger != "merge_group" && trigger != "pull_request" {
+			t.Fatalf("unexpected trigger %s", trigger)
+		}
+	}
+	code := yamlComment.ReplaceAllString(string(raw), "")
+	if strings.Contains(code, "continue-on-error") || strings.Contains(code, "neutral") || secretRef.MatchString(code) {
+		t.Fatal("no continue-on-error, neutral result or secret in the nightly check")
+	}
+	if len(wf.Permissions) != 3 || wf.Permissions["contents"] != "read" || wf.Permissions["actions"] != "read" || wf.Permissions["pull-requests"] != "read" {
+		t.Fatalf("permissions %v", wf.Permissions)
+	}
+	job := wf.Jobs["nightly"]
+	if len(wf.Jobs) != 1 || job.If != "" || job.Environment != "" {
+		t.Fatal("one unconditional job without an environment")
+	}
+	// Name of the required context.
+	if !strings.Contains(string(raw), "name: Nightly main\n\n#") && !strings.Contains(string(raw), "    name: Nightly main\n") {
+		t.Fatal("the job must be named Nightly main")
+	}
+	enforce := 0
+	for i, s := range job.Steps {
+		if strings.Contains(s.Run, "${{") {
+			t.Fatalf("%s: expressions must reach scripts through env", s.Name)
+		}
+		if i == 0 {
+			if s.ID != "mode" || s.If != "" || !strings.Contains(s.Run, "Unexpected event") || !strings.Contains(s.Run, "exit 1") {
+				t.Fatal("the first step must classify the event and fail on any other")
+			}
+			continue
+		}
+		if s.If != "steps.mode.outputs.enforce == 'true'" {
+			t.Fatalf("%s: every later step runs exactly when the queue entry is judged, got %q", s.Name, s.If)
+		}
+		enforce++
+		if s.Uses != "" {
+			if at := strings.Index(s.Uses, "@"); at < 0 || len(s.Uses[at+1:]) < 40 {
+				t.Fatalf("%s: action not pinned by commit", s.Name)
+			}
+		}
+		if strings.HasPrefix(s.Uses, "actions/checkout@") && (s.With["persist-credentials"] != false || s.With["ref"] != "${{ github.event.merge_group.base_sha }}") {
+			t.Fatalf("%s: checkout must be the group base without credentials", s.Name)
+		}
+	}
+	if enforce == 0 {
+		t.Fatal("no enforcing steps")
+	}
+	var all string
+	for _, s := range job.Steps {
+		all += s.Run + "\n"
+	}
+	for _, want := range []string{
+		`actions/workflows/ci.yml/runs?branch=main&event=schedule&status=completed`,
+		`gate queue-context`, `gate nightly --runs "${dir}/runs.json"`,
+		`head_sha=${PR_HEAD}`, `--select`, `--now "${now}" --fix --pr-head "${PR_HEAD}"`, `now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"`,
+		`The nightly-fix label could not be read.`,
+	} {
+		if !strings.Contains(all, want) {
+			t.Fatalf("the nightly check no longer runs %s", want)
+		}
 	}
 }

@@ -1,0 +1,155 @@
+name: Nightly main
+
+# Required check. A red nightly run of CI on main stops the merge queue: while
+# the latest completed scheduled run of ci.yml on main is not a success, every
+# queue group fails here. The one exception is the pull request that fixes it,
+# labelled nightly-fix, and only when that pull request's own latest ci.yml run
+# on its exact head finished with every job green, including each job that was
+# red in the nightly. The label alone changes nothing. A latest completed
+# nightly older than 36 hours (a disabled or stuck schedule) fails too, and so
+# does a cancelled one (it counts as red).
+#
+# Pull request event: reports a pass with a message, because the verdict is
+# about the queue group; the authoritative run is the merge_group one. The
+# merge_group job takes its definition from the queued commit, so this file can
+# be rewritten by the very change it judges. The group run does not protect
+# itself: the protection is the base-defined pull request gate, which must
+# require an owner trust-path approval for changes to this file, and the ruleset
+# must require that pull request Knowledge gate context. The queue merge method
+# must be "merge".
+
+on:
+  pull_request:
+    branches: [main]
+  merge_group:
+    types: [checks_requested]
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+concurrency:
+  group: nightly-main-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nightly:
+    name: Nightly main
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      EVENT: ${{ github.event_name }}
+      MQ_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+      MQ_BASE_REF: ${{ github.event.merge_group.base_ref }}
+      MQ_HEAD_REF: ${{ github.event.merge_group.head_ref }}
+      MQ_HEAD_SHA: ${{ github.event.merge_group.head_sha }}
+      QUEUE_REF: ${{ github.ref }}
+      QUEUE_RUN_SHA: ${{ github.sha }}
+    steps:
+      - name: Mode
+        id: mode
+        run: |
+          set -euo pipefail
+          case "${EVENT}" in
+            pull_request)
+              echo "The nightly stop is enforced when the pull request is in a merge queue group; nothing to check here."
+              echo "enforce=false" >> "${GITHUB_OUTPUT}"
+              ;;
+            merge_group)
+              echo "enforce=true" >> "${GITHUB_OUTPUT}"
+              ;;
+            *)
+              echo "Unexpected event ${EVENT}."
+              exit 1
+              ;;
+          esac
+
+      - name: Check out the group base (check code only)
+        if: steps.mode.outputs.enforce == 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.merge_group.base_sha }}
+          path: gate-src
+          persist-credentials: false
+
+      - name: Set up Go
+        if: steps.mode.outputs.enforce == 'true'
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: gate-src/cli/go.mod
+          cache: false
+
+      - name: Build the check from the group base
+        if: steps.mode.outputs.enforce == 'true'
+        working-directory: gate-src/cli
+        run: go build -buildvcs=false -trimpath -o "${RUNNER_TEMP}/prufyx-maintainer" ./cmd/prufyx-maintainer
+
+      - name: Read the queue entry
+        id: queue
+        if: steps.mode.outputs.enforce == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ref_re='^refs/heads/gh-readonly-queue/main/pr-([1-9][0-9]{0,8})-[0-9a-f]{40}$'
+          if ! [[ "${QUEUE_REF}" =~ ${ref_re} ]]; then
+            echo "The queue ref has an unexpected shape."
+            exit 1
+          fi
+          pr="${BASH_REMATCH[1]}"
+          objects="${RUNNER_TEMP}/objects.git"
+          git init -q --bare "${objects}"
+          git -C "${objects}" fetch --no-tags --quiet "https://github.com/${GITHUB_REPOSITORY}.git" "+${MQ_BASE_SHA}:refs/admission/base" "+${MQ_HEAD_SHA}:refs/admission/head"
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr}" > "${RUNNER_TEMP}/queue-pr.json"
+          # The same entry check as the knowledge gate (one pull request,
+          # reviewed head = second parent). Files that define the checks are
+          # refused there, so only the entry's labels matter here.
+          "${RUNNER_TEMP}/prufyx-maintainer" gate queue-context \
+            --repo "${GITHUB_REPOSITORY}" --ref "${QUEUE_REF}" --run-sha "${QUEUE_RUN_SHA}" \
+            --head-ref "${MQ_HEAD_REF}" --head-sha "${MQ_HEAD_SHA}" \
+            --base-ref "${MQ_BASE_REF}" --base-sha "${MQ_BASE_SHA}" \
+            --git-dir "${objects}" --pr-json "${RUNNER_TEMP}/queue-pr.json" \
+            --out "${RUNNER_TEMP}/queue-context.json"
+          echo "fix=$(jq -er 'if .nightlyFix == true then "true" else "false" end' "${RUNNER_TEMP}/queue-context.json")" >> "${GITHUB_OUTPUT}"
+          echo "pr_head=$(jq -er '.prHead' "${RUNNER_TEMP}/queue-context.json")" >> "${GITHUB_OUTPUT}"
+
+      - name: Verdict on the latest nightly run
+        if: steps.mode.outputs.enforce == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FIX: ${{ steps.queue.outputs.fix }}
+          PR_HEAD: ${{ steps.queue.outputs.pr_head }}
+        run: |
+          set -euo pipefail
+          tool="${RUNNER_TEMP}/prufyx-maintainer"
+          dir="${RUNNER_TEMP}/nightly"
+          mkdir -p "${dir}"
+          now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?branch=main&event=schedule&status=completed&per_page=100" > "${dir}/runs.json"
+          case "${FIX}" in
+            false)
+              "${tool}" gate nightly --runs "${dir}/runs.json" --now "${now}"
+              ;;
+            true)
+              # The exception: read the jobs of the latest nightly run and of
+              # the labelled head's latest run, then judge them together.
+              echo "The nightly-fix label is set on the pull request in this group (head ${PR_HEAD})."
+              gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${PR_HEAD}&status=completed&per_page=100" > "${dir}/pr-runs.json"
+              ids="$("${tool}" gate nightly --runs "${dir}/runs.json" --select --pr-runs "${dir}/pr-runs.json" --pr-head "${PR_HEAD}")"
+              nightly_id="$(printf '%s\n' "${ids}" | sed -n 's/^nightly=\([0-9][0-9]*\)$/\1/p')"
+              pr_id="$(printf '%s\n' "${ids}" | sed -n 's/^pr=\([0-9][0-9]*\)$/\1/p')"
+              if [ -z "${nightly_id}" ] || [ -z "${pr_id}" ]; then
+                echo "The runs to compare could not be selected."
+                exit 1
+              fi
+              gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${nightly_id}/jobs?per_page=100" > "${dir}/nightly-jobs.json"
+              gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${pr_id}/jobs?per_page=100" > "${dir}/pr-jobs.json"
+              "${tool}" gate nightly --runs "${dir}/runs.json" --now "${now}" --fix --pr-head "${PR_HEAD}" \
+                --nightly-jobs "${dir}/nightly-jobs.json" --pr-runs "${dir}/pr-runs.json" --pr-jobs "${dir}/pr-jobs.json"
+              ;;
+            *)
+              echo "The nightly-fix label could not be read."
+              exit 1
+              ;;
+          esac

@@ -28,6 +28,9 @@ const usage = `usage:
   prufyx-maintainer gate export   --git-dir DIR --commit SHA --out DIR
   prufyx-maintainer gate classify --base DIR --head DIR [--json]
   prufyx-maintainer gate daily-count --git-dir DIR --commits FILE [--bot-login LOGIN]
+  prufyx-maintainer gate queue-context --repo OWNER/NAME --ref REF --run-sha SHA --head-ref REF --head-sha SHA
+                                  --base-ref REF --base-sha SHA --git-dir DIR --pr-json FILE --out FILE
+  prufyx-maintainer gate nightly  --runs FILE --now RFC3339 [--select [--pr-runs FILE --pr-head SHA]] [--fix --pr-head SHA --nightly-jobs FILE --pr-runs FILE --pr-jobs FILE]
   prufyx-maintainer gate limits   --base DIR --head DIR [--max-loosening N] [--json]
                                   [--max-withdraw-percent N] [--max-withdraw-project N]
                                   [--daily-loosening-count N] [--max-daily-loosening N]
@@ -69,6 +72,10 @@ func mainWith(args []string, getenv func(string) string, stdout, stderr io.Write
 		code, err = cmdLimits(args[1:], layout, stdout)
 	case "verify":
 		code, err = cmdVerify(args[1:], layout, getenv, stdout)
+	case "queue-context":
+		code, err = cmdQueueContext(args[1:], stdout)
+	case "nightly":
+		code, err = cmdNightly(args[1:], stdout)
 	case "help", "-h", "--help":
 		fmt.Fprintln(stdout, usage)
 		return 0
