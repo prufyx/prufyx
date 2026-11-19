@@ -38,7 +38,7 @@ func testFetcher(t *testing.T) Fetcher {
 			switch path {
 			case "/repos/acme/sample":
 				return []byte(`{"id":7,"full_name":"acme/sample","html_url":"https://github.com/acme/sample","unexpected":"retained"}`), 200, nil
-			case "/repos/acme/sample/releases?per_page=30&page=1":
+			case "/repos/acme/sample/releases?per_page=100&page=1":
 				return []byte(`[{"id":9,"tag_name":"v1.2.3","published_at":"2026-09-12T10:00:00Z","body":"public notes","draft":false,"prerelease":false}]`), 200, nil
 			case "/repos/acme/sample/git/ref/tags/v1.2.3":
 				return []byte(`{"ref":"refs/tags/v1.2.3","object":{"type":"commit","sha":"` + testCommit + `"}}`), 200, nil
@@ -189,7 +189,7 @@ func TestProjectRunSyncRetainsAndVerifiesLargeReleaseList(t *testing.T) {
 		t.Fatalf("fixture bounds: %d", len(list))
 	}
 	fetch := FetchFunc(func(ctx context.Context, host, path string) ([]byte, int, error) {
-		if host == "api.github.com" && path == "/repos/acme/sample/releases?per_page=30&page=1" {
+		if host == "api.github.com" && path == "/repos/acme/sample/releases?per_page=100&page=1" {
 			return list, 200, nil
 		}
 		return testFetcher(t).Fetch(ctx, host, path)
@@ -500,7 +500,7 @@ func TestProject_LicenseTransportFailureIsNotAbsence(t *testing.T) {
 	}
 }
 
-func TestProject_LicenseIsBoundToFirstSelectedRelease(t *testing.T) {
+func TestProject_LicenseIsBoundToNewestSelectedRelease(t *testing.T) {
 	base := testFetcher(t)
 	secondCommit := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	fetch := FetchFunc(func(ctx context.Context, host, path string) ([]byte, int, error) {
@@ -510,7 +510,7 @@ func TestProject_LicenseIsBoundToFirstSelectedRelease(t *testing.T) {
 		if host == "api.github.com" && strings.HasSuffix(path, "/git/ref/tags/v1.2.4") {
 			return []byte(`{"ref":"refs/tags/v1.2.4","object":{"type":"commit","sha":"` + secondCommit + `"}}`), 200, nil
 		}
-		if host == "raw.githubusercontent.com" && path == "/acme/sample/"+testCommit+"/LICENSE" {
+		if host == "raw.githubusercontent.com" && path == "/acme/sample/"+secondCommit+"/LICENSE" {
 			return []byte("first license"), 200, nil
 		}
 		if host == "raw.githubusercontent.com" {
@@ -525,10 +525,10 @@ func TestProject_LicenseIsBoundToFirstSelectedRelease(t *testing.T) {
 	body := []byte("second license")
 	digest := sourcecorpus.SHA(body)
 	objects[digest] = body
-	snapshot["license"] = map[string]any{"kind": "license", "commit": secondCommit, "immutableURL": "https://github.com/acme/sample/blob/" + secondCommit + "/LICENSE", "fileDigest": digest, "object": "sha256/" + strings.TrimPrefix(digest, "sha256:"), "byteLength": int64(len(body)), "disposition": "NOT_REVIEWED"}
+	snapshot["license"] = map[string]any{"kind": "license", "commit": testCommit, "immutableURL": "https://github.com/acme/sample/blob/" + testCommit + "/LICENSE", "fileDigest": digest, "object": "sha256/" + strings.TrimPrefix(digest, "sha256:"), "byteLength": int64(len(body)), "disposition": "NOT_REVIEWED"}
 	directory := writeSnapshotFixture(t, snapshot, corpus, receipt, objects, "")
 	if _, _, err = VerifySnapshot(directory); err == nil {
-		t.Fatal("license from non-latest selected release accepted")
+		t.Fatal("license from non-newest selected release accepted")
 	}
 }
 
