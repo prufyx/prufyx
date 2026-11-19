@@ -5,8 +5,10 @@ package communityapp
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 const customResourceManifests = "apiVersion: kafka.strimzi.io/v1beta2\nkind: Kafka\nmetadata:\n  name: private-cluster\n  namespace: private-ns\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: private-app\n"
@@ -16,7 +18,7 @@ func customResourceArgs(path string, extra ...string) []string {
 }
 
 func customResourceArgsFor(project, from, to, path string, extra ...string) []string {
-	return append([]string{"check", "cncf", "--project", project, "--custom-resources", path, "--from", from, "--to", to, "--now", "2026-10-04T00:00:00Z"}, extra...)
+	return append([]string{"check", "cncf", "--project", project, "--custom-resources", path, "--from", from, "--to", to, "--now", batchPreReviewClock(project, "2026-10-04T00:00:00Z")}, extra...)
 }
 
 // kedaCustomResourceManifests are KEDA custom resources: KEDA has no
@@ -68,12 +70,13 @@ func TestCustomResourceCheckWithPublishedRules(t *testing.T) {
 		t.Skip("the embedded knowledge holds no Strimzi custom-resource rule yet (TestCustomResourceCheckWithoutPublishedRules covers Strimzi)")
 	}
 	path := writeCNCFFile(t, "manifests.yaml", []byte(customResourceManifests), 0o600)
-	// At a time inside the batch rules' review window.
+	// At the earliest time every Strimzi rule, the batch rules included, is
+	// in force: computed from the rule data.
 	args := func(extra ...string) []string {
 		out := customResourceArgs(path, extra...)
 		for i := range out {
-			if out[i] == "2026-10-04T00:00:00Z" {
-				out[i] = "2026-11-01T00:00:00Z"
+			if out[i] == "--now" && i+1 < len(out) {
+				out[i+1] = testclock.ProjectNewest("strimzi").Format(time.RFC3339)
 			}
 		}
 		return out

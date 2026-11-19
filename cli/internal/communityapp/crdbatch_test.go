@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"slices"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/extract/crdbatchids"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 // The custom-resource version-removal rules of the batch crdbatchids states
@@ -209,4 +211,41 @@ func batchClaimStatuses(t *testing.T, stdout string) map[string]string {
 		out[claim.RuleID] = claim.Status
 	}
 	return out
+}
+
+// exactClocks are evaluation clocks a test derived itself and that
+// floorNowArgs must keep as they are.
+var exactClocks sync.Map
+
+// exactClock registers at as a clock that is never floored and returns its text.
+func exactClock(at time.Time) string {
+	text := at.UTC().Format(time.RFC3339)
+	exactClocks.Store(text, true)
+	return text
+}
+
+// batchPreReviewClock is the clock of a test whose premise is that the
+// project's custom-resource batch rules are not yet reviewed: one hour before
+// the earliest review of the project's batch rules in the shipped pack,
+// computed from the rule data. A project without batch rules, or a pack that
+// does not hold the batch, keeps fallback.
+func batchPreReviewClock(project, fallback string) string {
+	if !crdbatchids.Shipped() {
+		return fallback
+	}
+	var oldest time.Time
+	for _, r := range crdbatchids.ProjectRules(project) {
+		reviewed, _ := testclock.RuleEvidence(r.ID)
+		at, err := time.Parse(time.RFC3339, reviewed)
+		if err != nil {
+			panic(err)
+		}
+		if oldest.IsZero() || at.Before(oldest) {
+			oldest = at
+		}
+	}
+	if oldest.IsZero() {
+		return fallback
+	}
+	return exactClock(oldest.Add(-time.Hour))
 }

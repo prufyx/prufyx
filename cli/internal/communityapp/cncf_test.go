@@ -47,14 +47,13 @@ func runCNCFCLIRaw(t *testing.T, args ...string) (int, string, string) {
 // --now at or after the review (an expiry premise) and every other command keep
 // their arguments.
 func floorNowArgs(args []string) []string {
-	// Only the community project commands are floored: they evaluate one rule
-	// set that the project names. The CNCF native checks pick rules by pair and
-	// need a clock per rule, which their own tests derive.
+	// Only the project and CNCF checks are floored: each evaluates the rules of
+	// the one project it names, from that project's own newest review.
 	sub := 1
 	for sub < len(args) && args[sub] == "--strict-exit" {
 		sub++
 	}
-	if len(args) <= sub || args[0] != "check" || args[sub] != "project" {
+	if len(args) <= sub || args[0] != "check" || (args[sub] != "project" && args[sub] != "cncf") {
 		return args
 	}
 	project := ""
@@ -70,14 +69,20 @@ func floorNowArgs(args []string) []string {
 		return args
 	}
 	out := append([]string(nil), args...)
+	floor := func(text string) string {
+		if _, exact := exactClocks.Load(text); exact {
+			return text
+		}
+		return testclock.FloorTextFor(project, text)
+	}
 	for i, arg := range out {
 		switch {
 		case (arg == "--now" || arg == "-now") && i+1 < len(out):
-			out[i+1] = testclock.FloorTextFor(project, out[i+1])
+			out[i+1] = floor(out[i+1])
 		case strings.HasPrefix(arg, "--now="):
-			out[i] = "--now=" + testclock.FloorTextFor(project, strings.TrimPrefix(arg, "--now="))
+			out[i] = "--now=" + floor(strings.TrimPrefix(arg, "--now="))
 		case strings.HasPrefix(arg, "-now="):
-			out[i] = "-now=" + testclock.FloorTextFor(project, strings.TrimPrefix(arg, "-now="))
+			out[i] = "-now=" + floor(strings.TrimPrefix(arg, "-now="))
 		}
 	}
 	return out
@@ -294,4 +299,19 @@ func TestCNCFCLIReplayRequiresExactCanonicalJSONAndPrivateReport(t *testing.T) {
 	if code != ExitUsage || stdout != "" || !strings.HasPrefix(stderr, "prufyx: CNCF replay report failed local admission: ") || !strings.Contains(stderr, "chmod 600") {
 		t.Fatalf("permissive replay code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
+}
+
+// effectiveNow is the --now the command runs at once floorNowArgs has moved it
+// (what a report states as "evaluated at"), or "" when args hold none.
+func effectiveNow(args []string) string {
+	floored := floorNowArgs(args)
+	for i, arg := range floored {
+		switch {
+		case (arg == "--now" || arg == "-now") && i+1 < len(floored):
+			return floored[i+1]
+		case strings.HasPrefix(arg, "--now="):
+			return strings.TrimPrefix(arg, "--now=")
+		}
+	}
+	return ""
 }

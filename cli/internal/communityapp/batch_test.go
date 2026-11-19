@@ -10,6 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 type failedBatchWriter struct{}
@@ -57,7 +60,7 @@ func TestBatchCheckCLIEmitsMachineActionableOutcomesWithoutPrivatePaths(t *testi
 		t.Fatal(err)
 	}
 	var stdout, stderr bytes.Buffer
-	exit := Run(t.Context(), floorNowArgs([]string{"check", "batch", "--plan", planPath, "--root", root, "--now", "2026-09-12T22:00:00Z", "--format", "json"}), &stdout, &stderr, "test")
+	exit := Run(t.Context(), floorNowArgs([]string{"check", "batch", "--plan", planPath, "--root", root, "--now", testclock.ProjectNewest("thanos").Format(time.RFC3339), "--format", "json"}), &stdout, &stderr, "test")
 	if exit != ExitOK || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"aggregateCategory":"PASS"`) || !strings.Contains(stdout.String(), `"outcome":"PASS"`) || strings.Contains(stdout.String(), root) || strings.Contains(stdout.String(), "input.json") {
 		t.Fatalf("exit=%d stdout=%s stderr=%s", exit, stdout.String(), stderr.String())
 	}
@@ -97,7 +100,7 @@ func TestBatchCheckCLIEvaluatesOpenTelemetryInternalMetricsRule(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stdout, stderr bytes.Buffer
-	exit := Run(t.Context(), floorNowArgs([]string{"check", "batch", "--plan", planPath, "--root", root, "--now", "2026-09-13T10:00:00Z", "--format", "json"}), &stdout, &stderr, "test")
+	exit := Run(t.Context(), floorNowArgs([]string{"check", "batch", "--plan", planPath, "--root", root, "--now", testclock.ProjectNewest("opentelemetry").Format(time.RFC3339), "--format", "json"}), &stdout, &stderr, "test")
 	if exit != ExitOK || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"aggregateCategory":"PASS"`) || !strings.Contains(stdout.String(), `"outcome":"PASS"`) || !strings.Contains(stdout.String(), `opentelemetry.internal-telemetry-default-bind`) || strings.Contains(stdout.String(), root) || strings.Contains(stdout.String(), "otel-input.json") {
 		t.Fatalf("exit=%d stdout=%s stderr=%s", exit, stdout.String(), stderr.String())
 	}
