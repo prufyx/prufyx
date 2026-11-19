@@ -274,3 +274,111 @@ Forms of result: `correct` means Prufyx and the oracle agree; `wrong PASS` means
 | `kube-state-metrics` | `4.24.0` | `4.24.0` | `scan` | correct | replay-on-target | `BLOCKED kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0` | `0cb78dceb65c` |
 
 Full digests of logs and inputs are in `qa-e2e.json`.
+
+# Kubernetes served-API check against upstream API lists (no clusters)
+
+Checked against the API list the target Kubernetes version serves (upstream swagger); not a cluster run; display only.
+
+Oracle: upstream swagger of the target Kubernetes tag, pinned by digest. These counts are separate from the kind runs above and are not added to them.
+
+Counts: 3001 cases from 27 public charts.
+
+| Result | Cases |
+|---|---|
+| correct PASS | 1686 |
+| correct BLOCK | 249 |
+| wrong PASS | 0 |
+| false alarm | 0 |
+| gap | 1041 |
+| tool refusal | 25 |
+
+A gap is not a pass. A tool refusal is a case Prufyx declined to evaluate; it is not a pass either.
+
+## Cases per reason code (a case may carry several)
+
+| Key | Cases |
+|---|---|
+| `ALPHA_API_NOT_COVERED` | 7 |
+| `API_VERSION_NOT_REVIEWED` | 708 |
+| `API_VERSION_NOT_SERVED` | 25 |
+| `DECLARATION_MISSING` | 36 |
+| `DOCUMENTS_NOT_EVALUATED` | 5 |
+| `DOCUMENTS_TEMPLATED` | 724 |
+| `LINE_NOT_ATTESTED` | 306 |
+| `RULE_NOT_DECIDED` | 25 |
+
+## Cases per Kubernetes hop
+
+| Key | Cases |
+|---|---|
+| `1.15 to 1.16` | 294 |
+| `1.16 to 1.17` | 16 |
+| `1.21 to 1.22` | 507 |
+| `1.22 to 1.23` | 28 |
+| `1.23 to 1.24` | 8 |
+| `1.24 to 1.25` | 516 |
+| `1.25 to 1.26` | 380 |
+| `1.26 to 1.27` | 390 |
+| `1.27 to 1.28` | 19 |
+| `1.28 to 1.29` | 406 |
+| `1.29 to 1.30` | 22 |
+| `1.30 to 1.31` | 8 |
+| `1.31 to 1.32` | 371 |
+| `1.32 to 1.33` | 20 |
+| `1.33 to 1.34` | 8 |
+| `1.34 to 1.35` | 8 |
+
+## Cases per chart
+
+| Key | Cases |
+|---|---|
+| `argo-cd` | 153 |
+| `argo-workflows` | 156 |
+| `cert-manager` | 158 |
+| `cluster-autoscaler` | 148 |
+| `crossplane` | 40 |
+| `external-dns` | 148 |
+| `external-secrets` | 40 |
+| `fluent-bit` | 147 |
+| `gatekeeper` | 139 |
+| `grafana` | 158 |
+| `ingress-nginx` | 159 |
+| `istio-base` | 43 |
+| `istio-istiod` | 40 |
+| `jaeger` | 148 |
+| `keda` | 148 |
+| `kube-prometheus-stack` | 51 |
+| `kube-state-metrics` | 157 |
+| `kyverno` | 102 |
+| `linkerd-control-plane` | 112 |
+| `loki` | 159 |
+| `longhorn` | 40 |
+| `metrics-server` | 148 |
+| `podinfo` | 40 |
+| `prometheus` | 159 |
+| `spire` | 41 |
+| `traefik` | 40 |
+| `velero` | 127 |
+
+## Pinned upstream API lists
+
+| Tag | Commit | swagger.json sha256 |
+|---|---|---|
+| `v1.16.0` | `2bd9643cee5b3b3a5ecbd3af49d09018f0773c77` | `77f32756bc407ab559e5a4a8b9a20eee026d2910cf32e3d5260b17c4077ee935` |
+| `v1.17.0` | `70132b0f130acc0bed193d9ba59dd186f0e634cf` | `363eba8edb97e92c1e3897b964b5a71bbebba0afeebb814bd3929c3d49b21cb7` |
+| `v1.22.0` | `c2b5237ccd9c0f1d600d3072634ca66cefdf272f` | `d6718670e062681e4dc9e2b9dadf2b311c147cfdabcac628b9018011165d8773` |
+| `v1.23.0` | `ab69524f795c42094a6630298ff53f3c3ebab7f4` | `4a744e0c28180c3fe90256d69ebdf57d31b8579d9d5dfcdff141cd4e2d7a3b4a` |
+| `v1.24.0` | `4ce5a8954017644c5420bae81d72b09b735c21f0` | `0d43576f2097092c8a3f203368a8edc0d605540c9757125dae116031f182e53a` |
+| `v1.25.0` | `a866cbe2e5bbaa01cfd5e969aa3e033f3282a8a2` | `96354682390d446dde77eb2246fe022baa89697133a8248612ca2573e4a12120` |
+| `v1.26.0` | `b46a3f887ca979b1a5d14fd39cb1af43e7e5d12d` | `a04c5cc1dcb45730940f1bd44a198369830934550b598ca0bccd09625af5dd60` |
+| `v1.27.0` | `1b4df30b3cdfeaba6024e81e559a6cd09a089d65` | `09a502c5b98190a3e47604d6df835f23e7a334dfbbc3fb80729f7bb2cabf8fc4` |
+| `v1.28.0` | `855e7c48de7388eb330da0f8d9d2394ee818fb8d` | `c3d62644ad31aeca618e6f640178caf39f917ba296b4919443d9838a22a10be1` |
+| `v1.29.0` | `3f7a50f38688eb332e2a1b013678c6435d539ae6` | `84c20b1e2bcedce1d9d09c03e0ccb02500cd96e62e4fa54651b0e97b3a211046` |
+| `v1.30.0` | `7c48c2bd72b9bf5c44d21d7338cc7bea77d0ad2a` | `94ca7544416a4f27d8cb3f8a332630d41325c5edeb2408a5aefe37ba3fd6af6d` |
+| `v1.31.0` | `9edcffcde5595e8a5b1a35f88c421764e575afce` | `ac357350d9d00ee233ea9a172d7c868201ff405332fec8ffe0fda25dee3e41b4` |
+| `v1.32.0` | `70d3cc986aa8221cd1dfb1121852688902d3bf53` | `0ba99bb42a1cf0bd35959fe82965f4eec50d404221ca299e9ef79b900e15dc00` |
+| `v1.33.0` | `60a317eadfcb839692a68eab88b2096f4d708f4f` | `2af5abf98554af1599e516f31f7f1698085e6faa12b816401f569c097b9f7ef6` |
+| `v1.34.0` | `f28b4c9efbca5c5c0af716d9f2d5702667ee8a45` | `d3b0cdc2fda15c753206d25ab459dc7c12df64e2fd652b6809687471ea751c37` |
+| `v1.35.0` | `66452049f3d692768c39c797b21b793dce80314e` | `483500149ee52ce5753d75f5639101d985bb4f5e902cc05b1ba7627465d62446` |
+
+Every case (chart, chart version, Kubernetes hop, result, reason codes) is listed in `qa-e2e.json` under `servedApi.checks`.

@@ -110,6 +110,8 @@ type Report struct {
 	SupersededBy       []string `json:"supersededBy"`
 	SupersededRuns     []string `json:"supersededRuns"`
 	Runs               []Run    `json:"runs"`
+	// ServedAPI is the separate served-API section; its counts are never added to the kind counts.
+	ServedAPI *ServedAPIReport `json:"servedApi,omitempty"`
 }
 
 var (
@@ -792,5 +794,8 @@ func markdown(rep *Report) string {
 		}
 	}
 	b.WriteString("\nFull digests of logs and inputs are in `qa-e2e.json`.\n")
+	if rep.ServedAPI != nil {
+		b.WriteString(servedMarkdown(rep.ServedAPI))
+	}
 	return b.String()
 }

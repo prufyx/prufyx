@@ -1,0 +1,3 @@
+### Added
+
+- `prufyx-maintainer qa-report` takes `--static-results` and `--static-digests` and adds a second, separate section to `cli/docs/generated/qa-e2e.{json,md}`: the Kubernetes served-API check against upstream API lists (no clusters). It is checked against the API list the target Kubernetes version serves (upstream swagger, pinned by digest); not a cluster run; display only. The TSV is read through a closed schema (unknown columns, result classes, reason codes or links are refused), only chart, chart version, Kubernetes hop, result class and reason codes are copied, and its counts are never added to the kind counts. It changes no verdict.
