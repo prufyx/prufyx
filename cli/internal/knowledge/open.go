@@ -5,7 +5,7 @@ package knowledge
 import (
 	"errors"
 	"fmt"
-	"github.com/prufyx/prufyx/cli/internal/knowledge/sealed"
+	"github.com/prufyx/prufyx/cli/internal/knowledge/internal/seal"
 	"path"
 	"reflect"
 	"strings"
@@ -191,7 +191,7 @@ func openRevision(req SelectionRequest, profile profileSpec, evaluatedAt time.Ti
 	if err != nil || binding != selection.TrustStateDigest {
 		return VerifiedRevision{}, ErrIntegrity
 	}
-	pinned, err := sealed.Pinned(target, selection.BundleDigest)
+	pinned, err := seal.Pinned(target, selection.BundleDigest)
 	if err != nil {
 		return VerifiedRevision{}, ErrIntegrity
 	}
@@ -366,7 +366,7 @@ func inspectProfile(storeRoot string, profile profileSpec) (Status, error) {
 				}
 				admissionOK := true
 				if profile.admit != nil {
-					pinned, pinErr := sealed.Pinned(target, selection.BundleDigest)
+					pinned, pinErr := seal.Pinned(target, selection.BundleDigest)
 					var admitted Admission
 					admissionErr := pinErr
 					if pinErr == nil {

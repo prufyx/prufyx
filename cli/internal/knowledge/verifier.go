@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/prufyx/prufyx/cli/internal/knowledge/internal/seal"
 	"github.com/prufyx/prufyx/cli/internal/knowledge/sealed"
 	"os"
 	"path/filepath"
@@ -149,7 +150,7 @@ func verifyPackageForProfileProjects(pkg importPackage, profile profileSpec, pri
 		result.refreshErr = fmt.Errorf("target hash policy: %w", ErrIntegrity)
 		return result, nil
 	}
-	sealedTarget, err := sealed.Download(u, info, filepath.Join(targetDir, "knowledge.json"), "https://offline.invalid/targets")
+	sealedTarget, err := seal.Download(u, info, filepath.Join(targetDir, "knowledge.json"), "https://offline.invalid/targets")
 	if err != nil {
 		result.refreshErr = err
 		return result, nil
