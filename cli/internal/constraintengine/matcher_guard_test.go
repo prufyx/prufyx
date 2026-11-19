@@ -26,8 +26,6 @@ import (
 //   - certmanagervalues: a separate, non-rule source contract.
 //   - checkroutemetadata: descriptor construction and result ordering.
 //   - supportinventory: release-transition bookkeeping for the inventory.
-//   - maintainer/targetdraft: tree-reference From/To are file paths inside a
-//     source tree (a reference edge and its sort order), not release versions.
 //   - rulecheck: the contribution validator's structural from != to check on
 //     a candidate rule. Its closed rule schema has no range field, so a
 //     contributed candidate can never carry a range.
@@ -93,8 +91,6 @@ var fromToEqualityAllowlist = map[string]int{
 	"internal/communityapp/project.go":                         2,
 	"internal/maintainer/rulecheck/rulecheck.go":               1,
 	"internal/maintainer/supportinventory/supportinventory.go": 1,
-	"internal/maintainer/targetdraft/derive.go":                1,
-	"internal/maintainer/targetdraft/treeref.go":               2,
 	"internal/projectprepare/fluent_bit.go":                    4,
 	"internal/projectprepare/loki_structured_metadata.go":      4,
 	"internal/projectprepare/mariadb.go":                       3,

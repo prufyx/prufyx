@@ -39,11 +39,11 @@ func TestReadTreeRefsLiteralSameTagOnly(t *testing.T) {
 	})
 	got := ReadTreeRefs(es, rd)
 	want := []TreeRef{
-		{From: "charts/x/Chart.yaml", To: "charts/x/crds/", Kind: RefChartCRDs},
-		{From: "deploy/kustomization.yaml", To: "base/", Kind: RefKustomizeBase},
-		{From: "deploy/kustomization.yaml", To: "config/crd/", Kind: RefKustomizeResource},
-		{From: "deploy/kustomization.yaml", To: "deploy/crd.yaml", Kind: RefKustomizeResource},
-		{From: "deploy/kustomization.yaml", To: "deploy/sub/", Kind: RefKustomizeResource},
+		{Referrer: "charts/x/Chart.yaml", Target: "charts/x/crds/", Kind: RefChartCRDs},
+		{Referrer: "deploy/kustomization.yaml", Target: "base/", Kind: RefKustomizeBase},
+		{Referrer: "deploy/kustomization.yaml", Target: "config/crd/", Kind: RefKustomizeResource},
+		{Referrer: "deploy/kustomization.yaml", Target: "deploy/crd.yaml", Kind: RefKustomizeResource},
+		{Referrer: "deploy/kustomization.yaml", Target: "deploy/sub/", Kind: RefKustomizeResource},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("refs\n got %+v\nwant %+v", got, want)
