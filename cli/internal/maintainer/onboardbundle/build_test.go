@@ -21,6 +21,15 @@ type fixtureOpts struct {
 	exact     bool     // v2 exact-tag snapshot
 	noLicence bool
 	noLog     bool
+	commits   []string                // real commit ids per tag; default fixCommit
+	logBody   func(tag string) string // upstream CHANGELOG bytes; default fixed text
+}
+
+func (o fixtureOpts) cid(i int) string {
+	if o.commits != nil {
+		return o.commits[i]
+	}
+	return fixCommit(i)
 }
 
 func fixCommit(i int) string { return fmt.Sprintf("%02x%038x", i+10, 0xabc) }
@@ -43,15 +52,18 @@ func fixtureFetcher(o fixtureOpts) projectonboarding.Fetcher {
 				tg := strings.TrimPrefix(path, base+"/git/ref/tags/")
 				for i, x := range o.tags {
 					if x == tg {
-						return []byte(`{"ref":"refs/tags/` + tg + `","object":{"type":"commit","sha":"` + fixCommit(i) + `"}}`), 200, nil
+						return []byte(`{"ref":"refs/tags/` + tg + `","object":{"type":"commit","sha":"` + o.cid(i) + `"}}`), 200, nil
 					}
 				}
 			}
 			return nil, 404, nil
 		}
 		for i := range o.tags {
-			pre := "/acme/sample/" + fixCommit(i) + "/"
+			pre := "/acme/sample/" + o.cid(i) + "/"
 			if path == pre+"CHANGELOG.md" && !o.noLog {
+				if o.logBody != nil {
+					return []byte(o.logBody(o.tags[i])), 200, nil
+				}
 				return []byte("# Changes " + o.tags[i] + "\n\n- item\n"), 200, nil
 			}
 			if path == pre+"LICENSE" && !o.noLicence {

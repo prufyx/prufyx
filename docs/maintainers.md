@@ -69,7 +69,14 @@ You need no access to anything except this public repository.
 3. Either build a bundle from your verified snapshot
    (`onboard-bundle build --snapshot <dir> --slug <slug> --spdx <id> --out ../contrib/onboard-bundles/<slug> --post-tag <path>`;
    the snapshot is self-consistent only. The import is planned to re-check tags, licence and changelog spans against upstream; today these declared values are checked only for format and by the human merge review.) and
-   validate it offline:
+   validate it offline. Optional: `--checkout <clone> --scan-path
+   <path>:<class>` records blob digests for files the snapshot already holds
+   (nothing else in the clone is read), and `--target-input <file>` shapes the
+   target skeleton. The target stays a `skeleton` either way, and the offline
+   target check it triggers (`pass` or `fail` in `receipt.json`) only means the
+   declaration is consistent with the snapshot, not that anything is true
+   upstream; coverage still comes only from the pipeline (details in the
+   [bundle README](../contrib/onboard-bundles/README.md#building-the-bundle-from-a-snapshot)):
 
    ```sh
    cd cli

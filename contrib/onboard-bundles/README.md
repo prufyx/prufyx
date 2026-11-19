@@ -54,6 +54,43 @@ go build -ldflags "-X github.com/prufyx/prufyx/cli/internal/buildidentity.Source
   --post-tag CHANGELOG.md --out ../contrib/onboard-bundles/<slug>
 ```
 
+Two optional inputs add more, both still offline:
+
+```sh
+./prufyx-maintainer onboard-bundle build ... \
+  --checkout <local clone> --scan-path CHANGELOG.md:copy:"one note" \
+  --target-input target-hint.json
+```
+
+- `--checkout DIR` with one or more `--scan-path PATH:CLASS[:NOTE]` (at most 20)
+  fills `scan-notes.json` evidence: for each built tag, the sha256 of the blob.
+  It is **limited to blobs the verified snapshot already holds** (the changelog
+  files and the licence). A path the snapshot holds no blob for is refused, as
+  is an absolute path, a dot segment or a glob. The clone is read as git
+  objects at the snapshot's commit ids only, never its working tree, config or
+  replace refs, and is never fetched. The tag must resolve to the snapshot
+  commit and the blob must hash to the snapshot's digest. The note is at most
+  300 characters from a restricted charset.
+- `--target-input FILE` is **your hint for the target skeleton**: strict JSON
+  (at most 256 KiB) with only `name`, `component`, `factProject`, `paths`,
+  `exclude` and `copiesEvidence`, each field capped and restricted to a
+  charset. It never makes a filled target: `status` stays `skeleton` and the
+  file cannot set a status, an origin, the project or the repository.
+  It cannot be combined with `--no-crds`.
+
+The **offline target check** runs only when `--target-input` is given and only
+on the declared target and the snapshot's own data: the built tags, the tag
+prefix and lowest line, and the changelog and licence files the snapshot holds.
+It fails on no paths, a duplicate path, a path that is a snapshot changelog or
+licence file, a path overlapping an exclusion in the same repository, and
+copies evidence that names an undeclared path or a tag that is not built. The
+result is written to `receipt.json` as `checks.targetCheckOffline` (`pass` or
+`fail`; `not-run` without `--target-input`) and the reasons are printed. `pass`
+means the declaration is self-consistent with the snapshot. It does not mean a
+path exists upstream, that the target is right, or that anything is verified
+against upstream, and it is not coverage. A later edit followed by `seal`
+resets the result to `not-run`.
+
 Where each field comes from:
 
 | Field | Source |
@@ -67,20 +104,22 @@ What the result does and does not say:
 
 - The snapshot is **self-consistent with its own digests**; it is not verified
   against upstream. The import is planned to re-check tags, licence and changelog spans against upstream; today these declared values are checked only for format and by the human merge review.
-- `target-draft.json` is always a **skeleton** (no paths, no exclusions, no
-  names). `build` never writes a filled target; coverage comes only from the
-  pipeline. `scan-notes.json` has no entries.
+- `target-draft.json` is always a **skeleton**: empty unless you pass
+  `--target-input`, and even then its `status` stays `skeleton`. `build` never
+  writes a filled target; coverage comes only from the pipeline.
+  `scan-notes.json` has no entries unless you pass `--checkout` with
+  `--scan-path`.
 - `build` never writes an origin, a review result or anything the import
   derives. The receipt is the integrity record described below.
 - It refuses a snapshot that fails verification, has extra or missing content,
   has no licence file, a tag you name that is not in the snapshot, a missing or
   unknown declared value (the message names the flag), a field over its limit
   (the same limits as `seal`), or an `--out` that already exists. On a refusal
-  nothing is written. `--checkout` evidence and a filled target are not
-  supported here.
+  nothing is written. A filled target is not supported here.
 - A snapshot with more than six release lines needs `--tags`.
 
-In your pull request text, list the values you declared (the table row above).
+In your pull request text, list the values you declared (the table row above)
+and every field of your `--target-input` and `--scan-path` notes.
 
 ## The receipt
 

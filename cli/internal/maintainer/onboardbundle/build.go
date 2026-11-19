@@ -71,6 +71,33 @@ optional (declared by you, never guessed):
   -tag-prefix P   tag prefix when it cannot be derived from the tags
   -min-from L     lowest supported release line, one of the built lines
   -no-crds        mark target-draft status no-crds (your declaration)
+  -checkout DIR   a local git clone (never fetched, working tree never read).
+                  With -scan-path it records, per built tag, the sha256 of
+                  blobs the SNAPSHOT already holds (changelog files, the
+                  licence); a path the snapshot holds no blob for is refused.
+                  The tag must resolve to the snapshot commit and the blob
+                  must hash to the snapshot's digest.
+  -scan-path P:CLASS[:NOTE]
+                  repeatable (at most 20); a plain repo-relative path, a
+                  schema class, an optional note (300 characters, restricted
+                  charset). Needs -checkout.
+  -target-input FILE
+                  your hint for the target skeleton: a JSON object with only
+                  name, component, factProject, paths, exclude,
+                  copiesEvidence (at most 256 KiB, strict JSON, capped
+                  fields). The status stays skeleton; the file can never make
+                  a filled target. Not combinable with -no-crds.
+
+With -target-input, an offline check runs on the declared target and the
+snapshot's own data only (built tags, prefix, lowest line, the changelog and
+licence files it holds): at least one path, no duplicates, no overlap with an
+exclusion, no path that is a snapshot changelog or licence file, copies
+evidence naming only declared paths and built tags. The result, pass or fail,
+is written to receipt.json checks.targetCheckOffline and the reasons are
+printed; without -target-input it is not-run. pass means the declaration is
+self-consistent with the snapshot. It does not verify anything upstream, does
+not show that a path exists, and is not coverage: coverage comes only from
+the pipeline.
 
 tool.prufyxCommit is the commit embedded in this binary at build time; a
 binary without one writes 0000...0000 (unverified).
@@ -96,6 +123,10 @@ func runBuild(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&o.TagPrefix, "tag-prefix", "", "")
 	fs.StringVar(&o.MinFrom, "min-from", "", "")
 	fs.BoolVar(&o.NoCRDs, "no-crds", false, "")
+	fs.StringVar(&o.Checkout, "checkout", "", "")
+	fs.StringVar(&o.TargetInput, "target-input", "", "")
+	var scanPaths multiFlag
+	fs.Var(&scanPaths, "scan-path", "")
 	fs.Var(&post, "post-tag", "")
 	fs.Var(&noPost, "no-post-tag", "")
 	if err := fs.Parse(args); err != nil {
@@ -114,6 +145,7 @@ func runBuild(args []string, stdout, stderr io.Writer) int {
 	if tagsCSV != "" {
 		o.Tags = strings.Split(tagsCSV, ",")
 	}
+	o.ScanPaths = scanPaths
 	o.PostTag = map[string]bool{}
 	for _, p := range post {
 		if _, dup := o.PostTag[p]; dup {
@@ -157,6 +189,9 @@ type BuildOptions struct {
 	TagPrefix   string
 	MinFrom     string
 	NoCRDs      bool
+	Checkout    string          // local clone; read only for blobs the snapshot holds
+	ScanPaths   []string        // PATH:CLASS[:NOTE], needs Checkout
+	TargetInput string          // maintainer hint file; shapes the skeleton only
 	PostTag     map[string]bool // changelog path -> postTag
 	ToolCommit  string          // build-embedded commit; anything but 40-hex is written as unverified
 }
@@ -239,7 +274,7 @@ func Build(o BuildOptions) (BuildResult, error) {
 	if err != nil {
 		return res, err
 	}
-	docs, notes, err := buildDocs(o, sv)
+	docs, notes, check, err := buildDocs(o, sv)
 	res.Notes = append(res.Notes, notes...)
 	if err != nil {
 		return res, err
@@ -280,7 +315,7 @@ func Build(o BuildOptions) (BuildResult, error) {
 	if !sealCommitRE.MatchString(tool) {
 		tool = unverifiedToolCommit
 	}
-	if _, err := Seal(stage, SealOptions{ToolCommit: tool, GeneratedAt: sv.ObservedAt}); err != nil {
+	if _, err := Seal(stage, SealOptions{ToolCommit: tool, GeneratedAt: sv.ObservedAt, TargetCheck: check}); err != nil {
 		return res, refuse("seal failed: %v", err)
 	}
 	findings, err := Validate(stage)
@@ -472,19 +507,20 @@ func lessVer(a, b snapTag) bool {
 	return a.Tag < b.Tag
 }
 
-func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, error) {
+func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, string, error) {
 	var notes []string
+	check := checkNotRun
 	if sv.Lic == nil {
-		return nil, notes, refuse("snapshot has no licence file; nothing is written")
+		return nil, notes, check, refuse("snapshot has no licence file; nothing is written")
 	}
 	// Select tags.
 	byTag := map[string]snapTag{}
 	for _, t := range sv.Tags {
 		if !buildTagRE.MatchString(t.Tag) || !sealCommitRE.MatchString(t.Commit) {
-			return nil, notes, refuse("snapshot tag %q is malformed", t.Tag)
+			return nil, notes, check, refuse("snapshot tag %q is malformed", t.Tag)
 		}
 		if _, dup := byTag[t.Tag]; dup {
-			return nil, notes, refuse("snapshot lists tag %q twice", t.Tag)
+			return nil, notes, check, refuse("snapshot lists tag %q twice", t.Tag)
 		}
 		byTag[t.Tag] = t
 	}
@@ -498,27 +534,27 @@ func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, error) {
 		for _, name := range o.Tags {
 			t, ok := byTag[name]
 			if !ok {
-				return nil, notes, refuse("--tags: %q is not a tag in the snapshot (no lookup is made)", name)
+				return nil, notes, check, refuse("--tags: %q is not a tag in the snapshot (no lookup is made)", name)
 			}
 			if seen[name] {
-				return nil, notes, refuse("--tags: %q given twice", name)
+				return nil, notes, check, refuse("--tags: %q given twice", name)
 			}
 			seen[name] = true
 			sel = append(sel, t)
 		}
 	}
 	if len(sel) == 0 {
-		return nil, notes, refuse("snapshot has no release tags")
+		return nil, notes, check, refuse("snapshot has no release tags")
 	}
 	commits := map[string]string{}
 	for i := range sel {
 		line, ver, ok := parseVersion(sel[i].Tag)
 		if !ok {
-			return nil, notes, refuse("cannot derive a release line (MAJOR.MINOR) from tag %q", sel[i].Tag)
+			return nil, notes, check, refuse("cannot derive a release line (MAJOR.MINOR) from tag %q", sel[i].Tag)
 		}
 		sel[i].line, sel[i].ver = line, ver
 		if other, dup := commits[sel[i].Commit]; dup {
-			return nil, notes, refuse("tags %q and %q point at the same commit", other, sel[i].Tag)
+			return nil, notes, check, refuse("tags %q and %q point at the same commit", other, sel[i].Tag)
 		}
 		commits[sel[i].Commit] = sel[i].Tag
 	}
@@ -535,14 +571,14 @@ func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, error) {
 		kept = append(kept, t)
 	}
 	if len(kept) > maxReleaseLines {
-		return nil, notes, refuse("%d release lines, more than %d; choose with --tags", len(kept), maxReleaseLines)
+		return nil, notes, check, refuse("%d release lines, more than %d; choose with --tags", len(kept), maxReleaseLines)
 	}
 	// Tag prefix.
 	prefix := o.TagPrefix
 	if prefix != "" {
 		for _, t := range kept {
 			if !strings.HasPrefix(t.Tag, prefix) {
-				return nil, notes, refuse("--tag-prefix %q is not a prefix of tag %q", prefix, t.Tag)
+				return nil, notes, check, refuse("--tag-prefix %q is not a prefix of tag %q", prefix, t.Tag)
 			}
 		}
 	} else {
@@ -556,16 +592,16 @@ func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, error) {
 				}
 			}
 			if cand == "\x00" || !buildPrefixRE.MatchString(cand) {
-				return nil, notes, refuse("tag prefix cannot be derived from the tags; give --tag-prefix")
+				return nil, notes, check, refuse("tag prefix cannot be derived from the tags; give --tag-prefix")
 			}
 			prefix = cand
 		}
 		if !buildPrefixRE.MatchString(prefix) {
-			return nil, notes, refuse("snapshot tag prefix %q is not allowed; give --tag-prefix", prefix)
+			return nil, notes, check, refuse("snapshot tag prefix %q is not allowed; give --tag-prefix", prefix)
 		}
 		for _, t := range kept {
 			if !strings.HasPrefix(t.Tag, prefix) {
-				return nil, notes, refuse("tag %q does not start with prefix %q; give --tag-prefix", t.Tag, prefix)
+				return nil, notes, check, refuse("tag %q does not start with prefix %q; give --tag-prefix", t.Tag, prefix)
 			}
 		}
 	}
@@ -576,7 +612,7 @@ func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, error) {
 	minFrom := asc[0].line
 	if o.MinFrom != "" {
 		if !lines[o.MinFrom] {
-			return nil, notes, refuse("--min-from %q is not one of the release lines built (%s)", o.MinFrom, strings.Join(lineList(kept), ", "))
+			return nil, notes, check, refuse("--min-from %q is not one of the release lines built (%s)", o.MinFrom, strings.Join(lineList(kept), ", "))
 		}
 		minFrom = o.MinFrom
 	}
@@ -603,19 +639,19 @@ func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, error) {
 	}
 	sort.Strings(paths)
 	if len(paths) > maxRelnoteRows {
-		return nil, notes, refuse("%d changelog paths, more than %d", len(paths), maxRelnoteRows)
+		return nil, notes, check, refuse("%d changelog paths, more than %d", len(paths), maxRelnoteRows)
 	}
 	relRows := []any{}
 	for _, p := range paths {
 		pt, ok := o.PostTag[p]
 		if !ok {
-			return nil, notes, refuse("--post-tag or --no-post-tag is required for changelog path %s (it cannot be seen from the snapshot)", p)
+			return nil, notes, check, refuse("--post-tag or --no-post-tag is required for changelog path %s (it cannot be seen from the snapshot)", p)
 		}
 		relRows = append(relRows, map[string]any{"path": p, "form": "changelog", "postTag": pt, "pairs": rows[p]})
 	}
 	for _, p := range sortedKeys(o.PostTag) {
 		if _, ok := rows[p]; !ok {
-			return nil, notes, refuse("--post-tag/--no-post-tag names %q, which is not a changelog path of this bundle", p)
+			return nil, notes, check, refuse("--post-tag/--no-post-tag names %q, which is not a changelog path of this bundle", p)
 		}
 	}
 	if len(relRows) == 0 {
@@ -631,6 +667,19 @@ func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, error) {
 	if o.NoCRDs {
 		status = "no-crds"
 	}
+	scan, err := scanEntries(o, sv, kept)
+	if err != nil {
+		return nil, notes, check, err
+	}
+	var ti *targetInput
+	if o.TargetInput != "" {
+		if o.NoCRDs {
+			return nil, notes, check, refuse("--target-input and --no-crds contradict each other")
+		}
+		if ti, err = loadTargetInput(o.TargetInput); err != nil {
+			return nil, notes, check, err
+		}
+	}
 	docs := map[string]any{
 		"project.json": map[string]any{
 			"schema": "prufyx.io/onboard-bundle/v1", "kind": "project",
@@ -644,7 +693,7 @@ func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, error) {
 			"schema": "prufyx.io/onboard-bundle/v1", "kind": "relnotes-sources", "rows": relRows,
 		},
 		"scan-notes.json": map[string]any{
-			"schema": "prufyx.io/onboard-bundle/v1", "kind": "scan-notes", "entries": []any{},
+			"schema": "prufyx.io/onboard-bundle/v1", "kind": "scan-notes", "entries": scan,
 		},
 		"target-draft.json": map[string]any{
 			"schema": "prufyx.io/onboard-bundle/v1", "kind": "target-draft", "status": status,
@@ -654,7 +703,21 @@ func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, error) {
 			},
 		},
 	}
-	return docs, notes, nil
+	if ti != nil {
+		// The input only shapes the skeleton; status stays "skeleton".
+		ti.apply(docs["target-draft.json"].(map[string]any))
+		var why []string
+		check, why = offlineTargetCheck(ti, repo, prefix, minFrom, kept, sv)
+		if check == checkPass {
+			notes = append(notes, "offline target check: pass (the declared target is consistent with the snapshot's tags and files; no path is verified to exist upstream; status stays skeleton)")
+		} else {
+			notes = append(notes, "offline target check: fail")
+			for _, w := range why {
+				notes = append(notes, "  - "+w)
+			}
+		}
+	}
+	return docs, notes, check, nil
 }
 
 func lineList(ts []snapTag) []string {

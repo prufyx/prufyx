@@ -112,6 +112,10 @@ type SealOptions struct {
 	ToolCommit  string // 40-hex, self-declared; required without an existing receipt
 	GeneratedAt string // UTC timestamp; required without an existing receipt
 	ForceReseal bool
+	// TargetCheck is checks.targetCheckOffline of a NEW receipt: "pass",
+	// "fail" or "not-run" (default). An existing receipt keeps its value
+	// unless the files changed, which resets it to not-run.
+	TargetCheck string
 }
 
 // SealResult carries the lines Seal reports (changes, notes).
@@ -135,6 +139,11 @@ func Seal(dir string, o SealOptions) (SealResult, error) {
 	}
 	if o.ToolCommit != "" && !sealCommitRE.MatchString(o.ToolCommit) {
 		return res, usageError{errors.New("--tool-commit must be 40 lowercase hex characters")}
+	}
+	switch o.TargetCheck {
+	case "", checkPass, checkFail, checkNotRun:
+	default:
+		return res, usageError{errors.New("target check result must be pass, fail or not-run")}
 	}
 	if o.GeneratedAt != "" && !sealTimeRE.MatchString(o.GeneratedAt) {
 		return res, usageError{errors.New("--generated-at must look like 2006-01-02T15:04:05Z")}
@@ -240,7 +249,7 @@ func Seal(dir string, o SealOptions) (SealResult, error) {
 			"generatedAt": o.GeneratedAt,
 			"tool":        map[string]any{"prufyxCommit": o.ToolCommit},
 			"review":      map[string]any{"state": "NOT_REVIEWED", "admissionState": "NOT_ADMITTED"},
-			"checks":      map[string]any{"targetCheckOffline": "not-run", "extractRun": "not-run", "dropped": []any{}},
+			"checks":      map[string]any{"targetCheckOffline": newTargetCheck(o.TargetCheck), "extractRun": "not-run", "dropped": []any{}},
 		}
 		res.Notes = append(res.Notes, "new receipt: tool.prufyxCommit is self-declared and unverified")
 	}
@@ -398,4 +407,11 @@ func fieldFindings(docs map[string]any) []string {
 		}
 	}
 	return out
+}
+
+func newTargetCheck(v string) string {
+	if v == "" {
+		return checkNotRun
+	}
+	return v
 }
