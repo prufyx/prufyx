@@ -76,10 +76,11 @@ const NewestLines = 5
 const (
 	MaxWindowTags  = 200
 	MaxWindowBlobs = 400
-	// MaxWindowBytes is deliberately unset: single-file changelogs grow with
-	// age and the value comes from measurement. While it is unset every floor
-	// derivation refuses with WANTS_TOO_LARGE:bytes.
-	MaxWindowBytes = 0
+	// MaxWindowBytes is set from the measurement of the real mirrors (window
+	// bytes of the floor derivation): the largest window read 6.06 MiB
+	// (openfga), so 16 MiB leaves 2.6x headroom. A zero or negative cap still
+	// refuses (Caps.check); it never means unlimited.
+	MaxWindowBytes = 16 << 20
 )
 
 // MaxFloorRetries is how many times a failed row steps to the next newer line

@@ -450,16 +450,46 @@ func TestCapsAtCapAndOver(t *testing.T) {
 	}
 }
 
-// The constants refuse until the byte cap is measured: never unlimited.
-func TestDefaultCapsRefuseWhileBytesUnset(t *testing.T) {
-	if MaxWindowTags != 200 || MaxWindowBlobs != 400 || MaxWindowBytes != 0 {
+// The constants are the measured caps; the default caps pass a normal window,
+// and an unset (zero) byte cap still refuses, tested through the parameter.
+func TestDefaultCapsAreMeasuredAndUnsetRefuses(t *testing.T) {
+	if MaxWindowTags != 200 || MaxWindowBlobs != 400 || MaxWindowBytes != 16<<20 {
 		t.Fatalf("cap constants changed: %d %d %d", MaxWindowTags, MaxWindowBlobs, MaxWindowBytes)
 	}
+	if c := DefaultCaps(); c != (Caps{200, 400, 16 << 20}) {
+		t.Fatalf("%+v", c)
+	}
 	f := newFix(ten()...)
-	_, err := DeriveRun(f.src, f.up, fRow, DefaultCaps())
+	if r, err := DeriveRun(f.src, f.up, fRow, DefaultCaps()); err != nil || r.Floor != "1.1" {
+		t.Fatalf("%v %+v", err, r)
+	}
+	unset := DefaultCaps()
+	unset.Bytes = 0
+	_, err := DeriveRun(f.src, f.up, fRow, unset)
 	var nr *NoRow
 	if !errors.As(err, &nr) || nr.Reason != "WANTS_TOO_LARGE:bytes" {
 		t.Fatalf("%v", err)
+	}
+	if _, why := VerifyFloor(f.src, f.up, withFloor(fRow, "1.1"), unset); len(why) != 1 || !strings.Contains(why[0], "WANTS_TOO_LARGE:bytes") {
+		t.Fatalf("%v", why)
+	}
+}
+
+// A window over 16 MiB is refused under the default caps (the first blob read
+// is the oversized one, so the run reads it before it can stop); a window of
+// exactly 16 MiB is not refused for size.
+func TestWindowOver16MiBRefused(t *testing.T) {
+	f := newFix(ten()...)
+	key := fRepo + "@" + f.commit("v1.10.0") + ":docs/releases/v1.10.0.md"
+	f.src.files[key] = make([]byte, 16<<20)
+	var nr *NoRow
+	if _, err := DeriveRun(f.src, f.up, fRow, DefaultCaps()); errors.As(err, &nr) {
+		t.Fatalf("at the cap: %v", err)
+	}
+	f.src.files[key] = make([]byte, 16<<20+1)
+	_, err := DeriveRun(f.src, f.up, fRow, DefaultCaps())
+	if !errors.As(err, &nr) || nr.Reason != "WANTS_TOO_LARGE:bytes" {
+		t.Fatalf("over the cap: %v", err)
 	}
 	if _, why := VerifyFloor(f.src, f.up, withFloor(fRow, "1.1"), DefaultCaps()); len(why) != 1 || !strings.Contains(why[0], "WANTS_TOO_LARGE:bytes") {
 		t.Fatalf("%v", why)
@@ -617,6 +647,7 @@ func TestProposeRowFloorAbsentWithoutUpstreamOrRun(t *testing.T) {
 
 func TestProposeRowFloorRefusesWithUnsetByteCap(t *testing.T) {
 	f := newFix(ten()...)
+	withCaps(t, Caps{Tags: 200, Blobs: 400, Bytes: 0})
 	_, err := ProposeRowFloor(f.src, f.up, "notes", fRepo, nil)
 	var nr *NoRow
 	if !errors.As(err, &nr) || nr.Reason != "WANTS_TOO_LARGE:bytes" {

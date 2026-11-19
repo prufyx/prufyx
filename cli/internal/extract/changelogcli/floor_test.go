@@ -56,11 +56,12 @@ func TestRowsCheckFloorRowFailsClosed(t *testing.T) {
 	if code != 1 || !strings.HasPrefix(out.String(), "FAIL notes") || !strings.Contains(out.String(), "upstream") || !strings.Contains(out.String(), "floor=0.5") {
 		t.Fatalf("%d\n%s", code, out.String())
 	}
-	// With a list but the byte cap unset (the constant) it refuses, typed.
+	// With a list the cap is the measured constant; the floor 0.5 is not a
+	// line of the one-tag list, so the row fails on that, closed.
 	up := upFile(t, upRepo+"\t"+strings.Repeat("a", 40)+"\tv1.0.0\n")
 	out.Reset()
 	code = run([]string{"rows-check", "--fixture", fx, "--upstream-tags", up}, floorTable("0.5"), &out, &errb)
-	if code != 1 || !strings.Contains(out.String(), "WANTS_TOO_LARGE:bytes") {
+	if code != 1 || !strings.Contains(out.String(), "not a release line") {
 		t.Fatalf("%d\n%s", code, out.String())
 	}
 }
