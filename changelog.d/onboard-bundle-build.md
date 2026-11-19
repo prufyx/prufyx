@@ -1,0 +1,3 @@
+### Added
+
+- `prufyx-maintainer onboard-bundle build` writes the required bundle files and the receipt from a verified project snapshot, so no bundle file or digest is written by hand. Declared values (licence identifier, CNCF status, post-tag per changelog path) come only from explicit flags. The snapshot is self-consistent only and is not verified against upstream; the import re-fetches the tag to commit mapping, licence and changelog spans. The target draft is always a skeleton and no origin is written. `tool.prufyxCommit` is the commit embedded at build time, or `0000...0000` (unverified) when the binary has none.

@@ -29,7 +29,9 @@ prufyx-maintainer project sync \
 ```
 
 The request and snapshot stay private; `init` leaves the project unreviewed
-and not admitted. Prepare the bundle separately using the documented layout,
+and not admitted. Write the bundle files from a verified snapshot with
+`onboard-bundle build` (see the
+[bundle README](../contrib/onboard-bundles/README.md#building-the-bundle-from-a-snapshot)),
 and submit only public material you can redistribute. CI validates changed
 bundles using the validator built from the pull request's base branch; it does
 not establish the truth of the hints or add a compatibility claim.
@@ -64,7 +66,11 @@ You need no access to anything except this public repository.
 1. Build the maintainer tool from a checkout (`cd cli && go build ./cmd/prufyx-maintainer`).
 2. Optional: run `project init` (and `project sync` if you want a private
    snapshot) as shown above. Both stay on your machine.
-3. Either prepare a bundle and validate it offline:
+3. Either build a bundle from your verified snapshot
+   (`onboard-bundle build --snapshot <dir> --slug <slug> --spdx <id> --out ../contrib/onboard-bundles/<slug> --post-tag <path>`;
+   the snapshot is self-consistent only, and the import re-fetches the tag to
+   commit mapping, the licence and the changelog spans from upstream) and
+   validate it offline:
 
    ```sh
    cd cli

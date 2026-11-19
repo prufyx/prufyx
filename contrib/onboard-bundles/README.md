@@ -40,6 +40,50 @@ archives, credentials, private paths or host names. Only JSON files.
 - strict UTF-8 JSON, no duplicate keys, nesting at most 24 levels;
 - no symbolic links and no directories other than `extract-run/`.
 
+## Building the bundle from a snapshot
+
+`build` writes the required files and the receipt from a snapshot made with the
+private `project init`, `project sync` and `project verify` commands. It reads
+only that snapshot directory: no network, no clock, no environment.
+
+```sh
+cd cli
+go build -ldflags "-X github.com/prufyx/prufyx/cli/internal/buildidentity.SourceRevision=$(git rev-parse HEAD)" -o prufyx-maintainer ./cmd/prufyx-maintainer
+./prufyx-maintainer onboard-bundle build \
+  --snapshot <private>/snapshot-<sha256> --slug <slug> --spdx Apache-2.0 \
+  --post-tag CHANGELOG.md --out ../contrib/onboard-bundles/<slug>
+```
+
+Where each field comes from:
+
+| Field | Source |
+| --- | --- |
+| repository, release lines (tag, commit), licence path, commit and sha256, changelog commits, file digests and line spans | the snapshot (derived, nothing guessed) |
+| `generatedAt` | the snapshot's observation time, so the same snapshot and flags give byte-identical files |
+| `spdxGuess`, `cncfStatusClaim`, `postTag`, `tagPrefix` (only when it cannot be derived), `minFrom` override, `no-crds` status | **declared by you** with `--spdx`, `--cncf` (default `none`, never looked up), `--post-tag` or `--no-post-tag` per changelog path, `--tag-prefix`, `--min-from`, `--no-crds` |
+| `tool.prufyxCommit` | the commit embedded in the binary at build time (the `-ldflags` line above); a binary built without it writes `0000...0000`, meaning unverified |
+
+What the result does and does not say:
+
+- The snapshot is **self-consistent with its own digests**; it is not verified
+  against upstream. The import re-fetches the tag to commit mapping, the
+  licence file and the changelog spans from upstream at the pinned commits and
+  ignores what the bundle claims.
+- `target-draft.json` is always a **skeleton** (no paths, no exclusions, no
+  names). `build` never writes a filled target; coverage comes only from the
+  pipeline. `scan-notes.json` has no entries.
+- `build` never writes an origin, a review result or anything the import
+  derives. The receipt is the integrity record described below.
+- It refuses a snapshot that fails verification, has extra or missing content,
+  has no licence file, a tag you name that is not in the snapshot, a missing or
+  unknown declared value (the message names the flag), a field over its limit
+  (the same limits as `seal`), or an `--out` that already exists. On a refusal
+  nothing is written. `--checkout` evidence and a filled target are not
+  supported here.
+- A snapshot with more than six release lines needs `--tags`.
+
+In your pull request text, list the values you declared (the table row above).
+
 ## The receipt
 
 ```sh
@@ -105,13 +149,15 @@ maintainers compare it with the upstream file in review.
 ## Steps
 
 1. Pick the slug and create `contrib/onboard-bundles/<slug>/` with the files
-   above, except `receipt.json`.
-2. Write the receipt with the command, never by hand (see "The receipt").
+   above, except `receipt.json`: run `onboard-bundle build` (see "Building the
+   bundle from a snapshot") or write them yourself.
+2. Write the receipt with the command, never by hand (`build` already did; run
+   `seal` after any later edit, see "The receipt").
 3. Run the offline check from "Check before you open the pull request".
 4. Open the pull request against `main` and sign the CLA when asked.
 5. CI re-runs the check with the validator from the base branch.
 
-Implemented today: steps 1-5 (the files in step 1 are still prepared by you), the maintainers' manual review, and the
+Implemented today: steps 1-5 (`onboard-bundle build` writes the files of step 1 from a verified snapshot; target paths, exclusions and scan notes stay yours to write), the maintainers' manual review, and the
 automatic import of merged bundles. Who may submit, how to get an invite and
 the exact merge path are described only in
 [Intake is for invited maintainers only](../../docs/maintainers.md#intake-is-for-invited-maintainers-only);
