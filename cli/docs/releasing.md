@@ -169,18 +169,24 @@ Feature statements. The notes say what works and what does not only through
 or `not-yet`, `demo`, `evidence`, `notYet`); the generator renders the lists
 "Works in this release" (with the demo command) and "Not yet" (with the reason)
 inside the generated block, and the notes carry the knowledge pack revision and
-digest the counts were generated from. The gate refuses: a notes or CHANGELOG
+digest the counts were generated from. Both come from the counts file, which the
+gate regenerates from the signed knowledge pack of the checked-out tree and
+compares byte for byte, so they cannot be typed by hand. The gate refuses: a notes or CHANGELOG
 text whose generated block differs from that rendering; a hand-written notes
-sentence that makes a coverage or testing claim; the phrases `self-onboard`,
+line outside the generated block other than the title, the two section
+headings and the fixed disclaimer and limitation lines (`NotesFixedLines` in
+the gate; no keyword test, any other sentence is refused); the phrases `self-onboard`,
 `onboard your project yourself`, `tested on Kubernetes`, `every version tested`
 and `confirmed` anywhere but in the rendered line of a `works` feature; the
 word "decided" in a sentence about the listed-not-judged form (L); a summed
 coverage figure ("A+B", "total decided"); a `works` feature whose evidence is
 not an existing file (`file:<path>`) or workflow job
 (`check:<workflow file>:<job id>`), or whose demo command is not on the CI
-smoke list `cli/docs/release-features-smoke.json` (binary entries are run by
+smoke list `cli/docs/release-features-smoke.json` (every entry is a
+command run against the built binary by
 `cli/cmd/prufyx-community/release_features_smoke_test.go` in the ordinary test
-job; workflow entries name the workflow file that runs the command). The
+job, and its demo must be exactly `prufyx` plus its arguments; a demo that no
+CI step runs literally stays `not-yet`). The
 features `kind-per-version` and `source-citations` cannot be `works`. A state
 flip is a change to the feature file, which CODEOWNERS routes to the owner.
 The CHANGELOG section of a published release must equal the section committed

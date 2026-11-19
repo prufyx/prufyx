@@ -135,16 +135,15 @@ func TestWorksDemoMustBeOnTheSmokeList(t *testing.T) {
 	wantFail(t, check(t, e.opts(ModeUnreleased)), CodeFeatures, "smoke list is missing")
 }
 
-func TestWorkflowSmokeEntries(t *testing.T) {
-	smoke := func(workflow, contains string) string {
-		return `{"schema":"prufyx.io/release-features-smoke/v1","entries":[{"demo":"prufyx demo --flag","kind":"workflow","workflow":"` + workflow + `","contains":"` + contains + `"}]}`
-	}
-	ok := build(t, rig{files: map[string]string{releasenotes.SmokePath: smoke("ci.yml", "verify --all"), ".github/workflows/ci.yml": wf + "      - run: prufyx verify --all\n"}})
-	wantPass(t, check(t, ok.opts(ModeUnreleased)))
-	noText := build(t, rig{files: map[string]string{releasenotes.SmokePath: smoke("ci.yml", "verify --all"), ".github/workflows/ci.yml": wf}})
-	wantFail(t, check(t, noText.opts(ModeUnreleased)), CodeFeatures, "does not contain")
-	noFile := build(t, rig{files: map[string]string{releasenotes.SmokePath: smoke("absent.yml", "x")}})
-	wantFail(t, check(t, noFile.opts(ModeUnreleased)), CodeFeatures, "no such workflow")
+func TestOnlyBinarySmokeEntriesCount(t *testing.T) {
+	// A workflow entry (a substring of a workflow file) is not a CI run of the demo.
+	wfEntry := `{"schema":"prufyx.io/release-features-smoke/v1","entries":[{"demo":"prufyx demo --flag","kind":"workflow","workflow":"ci.yml","contains":"demo"}]}`
+	e := build(t, rig{files: map[string]string{releasenotes.SmokePath: wfEntry, ".github/workflows/ci.yml": wf + "      - run: prufyx demo --flag\n"}})
+	wantFail(t, check(t, e.opts(ModeUnreleased)), CodeFeatures, "smoke list")
+	// The shown command must be the command that runs.
+	differs := `{"schema":"prufyx.io/release-features-smoke/v1","entries":[{"demo":"prufyx demo --flag","kind":"binary","args":["demo","--other"],"wantExit":0,"wantContains":"ok"}]}`
+	e = build(t, rig{files: map[string]string{releasenotes.SmokePath: differs}})
+	wantFail(t, check(t, e.opts(ModeUnreleased)), CodeFeatures, "plus the args")
 }
 
 func TestOnlyAWorksFeatureOwnsAFeaturePhrase(t *testing.T) {
@@ -153,7 +152,7 @@ func TestOnlyAWorksFeatureOwnsAFeaturePhrase(t *testing.T) {
 		e := build(t, rig{features: notYetWith("Maintainers will " + p + " later.")})
 		wantFail(t, check(t, e.opts(ModeUnreleased)), CodeDeny, p)
 		// In the hand-written text: refused.
-		e = build(t, rig{notes: replaceIn("Hand written text.", "Hand written text. We say "+p+".")})
+		e = build(t, rig{notes: replaceIn(fixed0, fixed0+" We say "+p+".")})
 		wantFail(t, check(t, e.opts(ModeUnreleased)), CodeDeny, p)
 		// In the CHANGELOG: refused.
 		e = build(t, rig{changelog: replaceIn("- A hand written entry, exits 2 on failure.", "- Entry that says "+p+".")})
@@ -174,25 +173,33 @@ func TestOnlyAWorksFeatureOwnsAFeaturePhrase(t *testing.T) {
 }
 
 func TestFeaturePhraseIsCaseInsensitive(t *testing.T) {
-	e := build(t, rig{notes: replaceIn("Hand written text.", "Hand written text. Tested On Kubernetes 1.30.")})
+	e := build(t, rig{notes: replaceIn(fixed0, fixed0+" Tested On Kubernetes 1.30.")})
 	wantFail(t, check(t, e.opts(ModeUnreleased)), CodeDeny, "tested on kubernetes")
 }
 
-func TestNotesCarryNoFreeClaims(t *testing.T) {
-	// Reworded claims that no deny phrase lists still use a claim word.
+func TestNotesCarryNoProseOutsideTheBlock(t *testing.T) {
+	// No keyword is needed: any sentence outside the block fails, claim word or not.
 	for _, text := range []string{
 		"Every project is catalogued and attested.",
-		"Coverage is broad.",
-		"The pairs are decided.",
-		"Most upgrades were tested.",
-		"Nearly all CNCF projects are handled.",
-		"Rules cover 90% of releases.",
+		"Supports every Kubernetes version.",
+		"Works with all the usual tools.",
+		"This build is for testing.",
+		"- one change",
 	} {
-		e := build(t, rig{notes: replaceIn("Hand written text.", "Hand written text. "+text)})
-		wantFail(t, check(t, e.opts(ModeUnreleased)), CodeProse, "outside the generated block")
+		e := build(t, rig{notes: replaceIn(fixed0, text+"\n\n"+fixed0)})
+		wantFail(t, check(t, e.opts(ModeUnreleased)), CodeProse, "prose outside the generated block")
+		// On the fixed line itself.
+		e = build(t, rig{notes: replaceIn(fixed0, fixed0+" "+text)})
+		wantFail(t, check(t, e.opts(ModeUnreleased)), CodeProse, "prose outside the generated block")
 	}
-	// Plain hand-written text without a claim word is fine.
-	e := build(t, rig{notes: replaceIn("Hand written text.", "Hand written text. This build is for testing.")})
+	// A new heading is prose too.
+	e := build(t, rig{notes: replaceIn("## Known limitations", "## Highlights\n\n## Known limitations")})
+	wantFail(t, check(t, e.opts(ModeUnreleased)), CodeProse, "prose outside the generated block")
+	// Text after the end marker is outside the block.
+	e = build(t, rig{notes: func(s string) string { return s + "\nAll good.\n" }})
+	wantFail(t, check(t, e.opts(ModeUnreleased)), CodeProse, "prose outside the generated block")
+	// Only the fixed lines, headings and the title pass (the default fixture).
+	e = build(t, rig{})
 	wantPass(t, check(t, e.opts(ModeUnreleased)))
 }
 
@@ -205,7 +212,7 @@ func TestDecidedIsNeverSaidOfL(t *testing.T) {
 	} {
 		e := build(t, rig{changelog: replaceIn("- A hand written entry, exits 2 on failure.", "- "+text)})
 		wantFail(t, check(t, e.opts(ModeUnreleased)), CodeDeny, "decided")
-		e = build(t, rig{notes: replaceIn("Hand written text.", "Hand written text. "+text)})
+		e = build(t, rig{notes: replaceIn(fixed0, fixed0+" "+text)})
 		wantFail(t, check(t, e.opts(ModeUnreleased)), CodeDeny, "decided")
 	}
 	// The README hand-written text too.
@@ -229,7 +236,7 @@ func TestNoSummedCoverageNumber(t *testing.T) {
 	} {
 		e := build(t, rig{changelog: replaceIn("- A hand written entry, exits 2 on failure.", "- "+text)})
 		wantFail(t, check(t, e.opts(ModeUnreleased)), CodeDeny, "summed")
-		e = build(t, rig{notes: replaceIn("Hand written text.", "Hand written text. "+text)})
+		e = build(t, rig{notes: replaceIn(fixed0, fixed0+" "+text)})
 		wantFail(t, check(t, e.opts(ModeUnreleased)), CodeDeny, "summed")
 	}
 	e := build(t, rig{readme: replaceIn("Tail text.", "A+B is the old total.")})

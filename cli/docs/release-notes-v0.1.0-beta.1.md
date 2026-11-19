@@ -4,12 +4,6 @@ This prerelease is for testing. A passing
 claim covers only the rules and declared inputs evaluated; it does not establish
 that a whole upgrade is safe.
 
-## Changes
-
-- Declared-state plans can bind authored reference artifacts to scoped checks.
-- The MariaDB Operator project check can select a verified local knowledge store for the existing supported rule.
-- A policy-bound forward-compatible knowledge format can defer unsupported rules while retaining independently verified blockers.
-
 ## Known limitations
 
 - Results depend on the selected knowledge, its validity, and the completeness

@@ -174,17 +174,14 @@ func renderFeatures(b *strings.Builder, f *Features) {
 	}
 }
 
-// SmokeEntry is one demo CI runs. A binary entry is run against the built
-// binary by a test; a workflow entry names a workflow that runs the command
-// and the text its file must contain.
+// SmokeEntry is one demo CI runs: the command is run against the built binary
+// by a test. A demo that no CI step runs literally cannot be on the list.
 type SmokeEntry struct {
 	Demo         string   `json:"demo"`
 	Kind         string   `json:"kind"`
 	Args         []string `json:"args,omitempty"`
 	WantExit     *int     `json:"wantExit,omitempty"`
 	WantContains string   `json:"wantContains,omitempty"`
-	Workflow     string   `json:"workflow,omitempty"`
-	Contains     string   `json:"contains,omitempty"`
 }
 
 // SmokeList is the smoke list file.
@@ -193,12 +190,8 @@ type SmokeList struct {
 	Entries []SmokeEntry `json:"entries"`
 }
 
-const (
-	SmokeBinary   = "binary"
-	SmokeWorkflow = "workflow"
-)
-
-var workflowName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*\.ya?ml$`)
+// SmokeBinary is the only kind: a command run by the smoke test.
+const SmokeBinary = "binary"
 
 // LoadSmoke parses and verifies the smoke list.
 func LoadSmoke(data []byte) (*SmokeList, error) {
@@ -218,17 +211,15 @@ func LoadSmoke(data []byte) (*SmokeList, error) {
 			return nil, fmt.Errorf("smoke list: duplicate demo %q", e.Demo)
 		}
 		seen[e.Demo] = true
-		switch e.Kind {
-		case SmokeBinary:
-			if len(e.Args) == 0 || e.WantExit == nil || e.WantContains == "" || e.Workflow != "" || e.Contains != "" {
-				return nil, fmt.Errorf("smoke list: %q: a binary entry needs args, wantExit and wantContains only", e.Demo)
-			}
-		case SmokeWorkflow:
-			if !workflowName.MatchString(e.Workflow) || e.Contains == "" || len(e.Args) > 0 || e.WantExit != nil || e.WantContains != "" {
-				return nil, fmt.Errorf("smoke list: %q: a workflow entry needs a workflow file name and contains only", e.Demo)
-			}
-		default:
-			return nil, fmt.Errorf("smoke list: %q: kind %q is neither %s nor %s", e.Demo, e.Kind, SmokeBinary, SmokeWorkflow)
+		if e.Kind != SmokeBinary {
+			return nil, fmt.Errorf("smoke list: %q: kind %q is not %s", e.Demo, e.Kind, SmokeBinary)
+		}
+		if len(e.Args) == 0 || e.WantExit == nil || e.WantContains == "" {
+			return nil, fmt.Errorf("smoke list: %q: an entry needs args, wantExit and wantContains", e.Demo)
+		}
+		// The command shown is the command run.
+		if e.Demo != "prufyx "+strings.Join(e.Args, " ") {
+			return nil, fmt.Errorf("smoke list: %q: the demo is not \"prufyx \" plus the args", e.Demo)
 		}
 	}
 	return &l, nil

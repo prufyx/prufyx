@@ -168,7 +168,7 @@ func build(t *testing.T, r rig) env {
 	if !ok {
 		t.Fatalf("cannot generate the fixture block: %v", g.res.Findings)
 	}
-	notes := "# Prufyx " + curTag + "\n\nHand written text.\n\n## Changes\n\n- one change\n\n" + releasenotes.MarkerBegin + "\n" + releasenotes.MarkerEnd + "\n"
+	notes := "# Prufyx " + curTag + "\n\n" + strings.Join(NotesFixedLines[:3], "\n") + "\n\n## Known limitations\n\n" + strings.Join(NotesFixedLines[3:], "\n") + "\n\n## What changed in this release\n\n" + releasenotes.MarkerBegin + "\n" + releasenotes.MarkerEnd + "\n"
 	notes, err := releasenotes.ReplaceBlock(notes, r3)
 	must(t, err)
 	changelog := "# Changelog\n\n## [Unreleased]\n\n" + releasenotes.MarkerBegin + "\n" + releasenotes.MarkerEnd + "\n\n## [1.1.0] - 2026-01-01\n\n" + releasenotes.MarkerBegin + "\n" + releasenotes.MarkerEnd + "\n\n### Added\n\n- A hand written entry, exits 2 on failure.\n\n## [1.0.0] - 2025-12-01\n\n- Old entry with 99 things.\n"
@@ -571,7 +571,7 @@ func TestBareIntegersOutsideTheBlockFail(t *testing.T) {
 		"79 CNCF projects", "decided 77", "49 of 79", "A+B 12", "about 12%", "12.5 projects", "(1234)", "in 2 steps", "v1 and 79",
 	}
 	for _, text := range bad {
-		e := build(t, rig{notes: replaceIn("- one change", "- one change: "+text)})
+		e := build(t, rig{notes: replaceIn(fixed0, fixed0+" "+text)})
 		wantFail(t, check(t, e.opts(ModeUnreleased)), CodeProse, "outside the generated block")
 	}
 }
@@ -581,11 +581,10 @@ func TestIntegerExceptionsPass(t *testing.T) {
 		"released as v1.2.3-rc.1+build.5 on 2026-11-17", "release v2 and v1.30", "uses sha256 and k8s and OAuth2", "see v0.1.0-beta.0",
 	}
 	for _, text := range ok {
-		e := build(t, rig{notes: replaceIn("- one change", "- one change: "+text)})
+		// (Notes carry no prose at all now; the exceptions apply to README lines.)
+		e := build(t, rig{readme: replaceIn("Tail text.", "Tail text. "+text)})
 		wantPass(t, check(t, e.opts(ModeUnreleased)))
 	}
-	e := build(t, rig{notes: replaceIn("- one change", "1. first\n2) second")})
-	wantPass(t, check(t, e.opts(ModeUnreleased)))
 }
 
 func TestIntegersInsideTheGeneratedBlockAreNotProse(t *testing.T) {
@@ -650,7 +649,7 @@ func TestDenyPhrasesFailAnywhere(t *testing.T) {
 	for _, p := range phrases {
 		// The deny list reads generated text too, so a phrase inside the README block counts.
 		for name, r := range map[string]rig{
-			"notes":     {notes: replaceIn("- one change", "- one change "+p)},
+			"notes":     {notes: replaceIn(fixed0, fixed0+" "+p)},
 			"readme":    {readme: replaceIn("Tail text.", "Tail "+p+".")},
 			"readme in": {readme: replaceIn("generated text 5", "generated "+p)},
 			"changelog": {changelog: replaceIn("- A hand written entry, exits 2 on failure.", "- "+p)},
@@ -691,7 +690,7 @@ func TestLabeledProjectCountIsNotDenied(t *testing.T) {
 
 func TestDenyFileNamesAreRefused(t *testing.T) {
 	// Synthetic words: the real list is supplied by the release manager.
-	e := build(t, rig{notes: replaceIn("- one change", "- one change by Zorblax Labs")})
+	e := build(t, rig{notes: replaceIn(fixed0, fixed0+" by Zorblax Labs")})
 	o := e.opts(ModeUnreleased)
 	o.DenyFile = denyFile(t, "zorblax", "Quuxmodel")
 	wantFail(t, check(t, o), CodeDeny, "deny list")
@@ -702,7 +701,7 @@ func TestDenyFileNamesAreRefused(t *testing.T) {
 	wantFail(t, check(t, o), CodeDeny, "deny list")
 
 	// Whole words only.
-	e = build(t, rig{notes: replaceIn("- one change", "- one change zorblaxes")})
+	e = build(t, rig{readme: replaceIn("Tail text.", "Tail zorblaxes.")})
 	o = e.opts(ModeUnreleased)
 	o.DenyFile = denyFile(t, "zorblax")
 	wantPass(t, check(t, o))
@@ -765,7 +764,7 @@ func TestExitCodeIsTheLowestClassAndDistinct(t *testing.T) {
 }
 
 func TestDeterministic(t *testing.T) {
-	e := build(t, rig{notes: replaceIn("- one change", "- one change 79 projects, full coverage")})
+	e := build(t, rig{notes: replaceIn(fixed0, fixed0+" 79 projects, full coverage")})
 	a := check(t, e.opts(ModeUnreleased))
 	b := check(t, e.opts(ModeUnreleased))
 	if len(a.Findings) == 0 || len(a.Findings) != len(b.Findings) {
@@ -854,3 +853,6 @@ func siteCopy(t *testing.T, e env) string {
 	must(t, os.WriteFile(p, []byte(readFile(t, e.root, releasenotes.CountsPath)), 0o600))
 	return p
 }
+
+// fixed0 is the first fixed line of the notes; tests inject text after it.
+var fixed0 = NotesFixedLines[0]

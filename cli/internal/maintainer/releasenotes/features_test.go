@@ -75,22 +75,25 @@ func TestLoadFeaturesRefusals(t *testing.T) {
 const smokeHead = `{"schema":"prufyx.io/release-features-smoke/v1","entries":[`
 
 func TestLoadSmoke(t *testing.T) {
-	good := smokeHead + `{"demo":"prufyx a","kind":"binary","args":["a"],"wantExit":0,"wantContains":"ok"},{"demo":"gh b","kind":"workflow","workflow":"r.yml","contains":"x"}]}`
+	good := smokeHead + `{"demo":"prufyx a b","kind":"binary","args":["a","b"],"wantExit":0,"wantContains":"ok"}]}`
 	if _, err := LoadSmoke([]byte(good)); err != nil {
 		t.Fatal(err)
 	}
+	ent := func(demo, rest string) string {
+		return smokeHead + `{"demo":"` + demo + `","kind":"binary",` + rest + `}]}`
+	}
 	bad := map[string]string{
-		"wrong schema":         `{"schema":"x","entries":[]}`,
-		"binary without exit":  smokeHead + `{"demo":"d","kind":"binary","args":["a"],"wantContains":"ok"}]}`,
-		"binary without text":  smokeHead + `{"demo":"d","kind":"binary","args":["a"],"wantExit":0}]}`,
-		"binary without args":  smokeHead + `{"demo":"d","kind":"binary","wantExit":0,"wantContains":"ok"}]}`,
-		"binary with workflow": smokeHead + `{"demo":"d","kind":"binary","args":["a"],"wantExit":0,"wantContains":"ok","workflow":"r.yml"}]}`,
-		"workflow path":        smokeHead + `{"demo":"d","kind":"workflow","workflow":"../r.yml","contains":"x"}]}`,
-		"workflow no text":     smokeHead + `{"demo":"d","kind":"workflow","workflow":"r.yml"}]}`,
-		"unknown kind":         smokeHead + `{"demo":"d","kind":"shell","args":["a"]}]}`,
-		"duplicate demo":       smokeHead + `{"demo":"d","kind":"workflow","workflow":"r.yml","contains":"x"},{"demo":"d","kind":"workflow","workflow":"r.yml","contains":"x"}]}`,
-		"empty demo":           smokeHead + `{"demo":"","kind":"workflow","workflow":"r.yml","contains":"x"}]}`,
-		"unknown field":        smokeHead + `{"demo":"d","kind":"workflow","workflow":"r.yml","contains":"x","run":"rm"}]}`,
+		"wrong schema":           `{"schema":"x","entries":[]}`,
+		"no exit":                ent("prufyx a", `"args":["a"],"wantContains":"ok"`),
+		"no text":                ent("prufyx a", `"args":["a"],"wantExit":0`),
+		"no args":                ent("prufyx a", `"wantExit":0,"wantContains":"ok"`),
+		"demo differs from args": ent("prufyx a", `"args":["b"],"wantExit":0,"wantContains":"ok"`),
+		"demo without prufyx":    ent("a", `"args":["a"],"wantExit":0,"wantContains":"ok"`),
+		"workflow kind":          smokeHead + `{"demo":"d","kind":"workflow","workflow":"r.yml","contains":"x"}]}`,
+		"unknown kind":           smokeHead + `{"demo":"prufyx a","kind":"shell","args":["a"],"wantExit":0,"wantContains":"ok"}]}`,
+		"duplicate demo":         smokeHead + `{"demo":"prufyx a","kind":"binary","args":["a"],"wantExit":0,"wantContains":"ok"},{"demo":"prufyx a","kind":"binary","args":["a"],"wantExit":0,"wantContains":"ok"}]}`,
+		"empty demo":             ent("", `"args":["a"],"wantExit":0,"wantContains":"ok"`),
+		"unknown field":          ent("prufyx a", `"args":["a"],"wantExit":0,"wantContains":"ok","run":"rm"`),
 	}
 	for name, in := range bad {
 		if _, err := LoadSmoke([]byte(in)); err == nil {

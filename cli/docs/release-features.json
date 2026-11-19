@@ -4,18 +4,18 @@
     {
       "id": "signed-release-verify",
       "title": "Verify a signed release download",
-      "state": "works",
-      "demo": "gh attestation verify <tarball> --repo prufyx/prufyx",
-      "evidence": "check:release.yml:provenance",
-      "notYet": ""
+      "state": "not-yet",
+      "demo": "",
+      "evidence": "",
+      "notYet": "CI does not run the verify command yet."
     },
     {
       "id": "signed-knowledge-verify",
       "title": "Verify a signed knowledge package against the pinned root",
-      "state": "works",
-      "demo": "prufyx db verify FILE --profile cncf-projects --bootstrap-root root.json",
-      "evidence": "check:knowledge-publish.yml:sign",
-      "notYet": ""
+      "state": "not-yet",
+      "demo": "",
+      "evidence": "",
+      "notYet": "CI does not run the verify command yet."
     },
     {
       "id": "served-api-check",

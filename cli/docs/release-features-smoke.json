@@ -2,21 +2,16 @@
   "schema": "prufyx.io/release-features-smoke/v1",
   "entries": [
     {
-      "demo": "gh attestation verify <tarball> --repo prufyx/prufyx",
-      "kind": "workflow",
-      "workflow": "release.yml",
-      "contains": "actions/attest-build-provenance"
-    },
-    {
-      "demo": "prufyx db verify FILE --profile cncf-projects --bootstrap-root root.json",
-      "kind": "workflow",
-      "workflow": "knowledge-publish.yml",
-      "contains": "db verify"
-    },
-    {
       "demo": "prufyx scan examples/multi-hop/rendered.yaml --from kubernetes=1.24.0 --to kubernetes=1.25.0",
       "kind": "binary",
-      "args": ["scan", "examples/multi-hop/rendered.yaml", "--from", "kubernetes=1.24.0", "--to", "kubernetes=1.25.0"],
+      "args": [
+        "scan",
+        "examples/multi-hop/rendered.yaml",
+        "--from",
+        "kubernetes=1.24.0",
+        "--to",
+        "kubernetes=1.25.0"
+      ],
       "wantExit": 11,
       "wantContains": "does not serve"
     }

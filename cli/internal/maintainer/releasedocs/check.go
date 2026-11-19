@@ -754,7 +754,7 @@ func (c *checker) scan(s scanText) {
 	c.featurePhrases(s.name, s.whole)
 	c.formClaims(s.name, s.claims())
 	if s.everyLine {
-		c.freeClaims(s.name, s.outside)
+		c.proseOutside(s.name, s.outside)
 	}
 	for _, w := range c.deny {
 		if containsName(lower, w) {
