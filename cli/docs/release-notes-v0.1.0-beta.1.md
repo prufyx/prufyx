@@ -18,20 +18,20 @@ that a whole upgrade is safe.
 
 <!-- release-notes:begin -->
 
-Changes from `v0.1.0-beta.0` (70f67cac4a3b) to `v0.1.0-beta.1` (55b604fab46d), computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.
+Changes from `v0.1.0-beta.0` (70f67cac4a3b) to `v0.1.0-beta.1` (480c6386003f), computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.
 
 ### Works in this release
 
 Each item names the command that shows it; CI runs that command.
 
-- Verify a signed release download. Run: `gh attestation verify <tarball> --repo prufyx/prufyx`
-- Verify a signed knowledge package against the pinned root. Run: `prufyx db verify FILE --profile cncf-projects --bootstrap-root root.json`
 - Kubernetes served-API check for a cluster upgrade. Run: `prufyx scan examples/multi-hop/rendered.yaml --from kubernetes=1.24.0 --to kubernetes=1.25.0`
 
 ### Not yet
 
 These are not part of this release.
 
+- Verify a signed release download: CI does not run the verify command yet.
+- Verify a signed knowledge package against the pinned root: CI does not run the verify command yet.
 - Multi-version upgrade plan for applications: Kubernetes plans run several hops; an application plan runs one hop.
 - Knowledge update without a new binary: The update feed opens when this release is published.
 - Change list with an ATTENTION answer: No upgrade pair has a change list yet.
