@@ -53,22 +53,28 @@ const (
 // Recipe holds everything the generator takes as flags. Nothing comes from
 // the workflow or the PR text.
 type Recipe struct {
-	Schema              string         `json:"schema"`
-	Slug                string         `json:"slug"`
-	Name                string         `json:"name"`
-	Repo                string         `json:"repo"`
-	Catalog             string         `json:"catalog,omitempty"`
-	Component           string         `json:"component,omitempty"`
-	FactProject         string         `json:"factProject,omitempty"`
-	Tags                []string       `json:"tags"`
-	RangeCheckTags      []string       `json:"rangeCheckTags"`
-	StrictWindow        bool           `json:"strictWindow"`
-	CollapseDirectories bool           `json:"collapseDirectories"`
-	Rules               string         `json:"rules"`
-	Half                string         `json:"half"`
-	Exclude             []string       `json:"exclude"`
-	Commits             []recipeCommit `json:"commits"`
-	FactBundleDigest    string         `json:"factBundleDigest"`
+	Schema              string   `json:"schema"`
+	Slug                string   `json:"slug"`
+	Name                string   `json:"name"`
+	Repo                string   `json:"repo"`
+	Catalog             string   `json:"catalog,omitempty"`
+	Component           string   `json:"component,omitempty"`
+	FactProject         string   `json:"factProject,omitempty"`
+	Tags                []string `json:"tags"`
+	RangeCheckTags      []string `json:"rangeCheckTags"`
+	StrictWindow        bool     `json:"strictWindow"`
+	CollapseDirectories bool     `json:"collapseDirectories"`
+	Rules               string   `json:"rules"`
+	// DeriveRules marks a recipe whose rules.json is the OUTPUT of derive mode
+	// (derive.go): the verifier re-derives the rules from the facts bundle
+	// with the generator of its own build and requires rules.json to be
+	// byte-equal. Only such a recipe may carry exclusions, and only the
+	// ones the re-derivation produces.
+	DeriveRules      bool           `json:"deriveRules,omitempty"`
+	Half             string         `json:"half"`
+	Exclude          []string       `json:"exclude"`
+	Commits          []recipeCommit `json:"commits"`
+	FactBundleDigest string         `json:"factBundleDigest"`
 }
 
 type recipeCommit struct {
@@ -543,6 +549,9 @@ func ParseRecipe(raw []byte) (*Recipe, error) {
 	if r.Rules != "" && r.Rules != "rules.json" {
 		return nil, errors.New(`recipe: rules must be "" or "rules.json"`)
 	}
+	if r.DeriveRules && (r.Rules != "rules.json" || len(r.RangeCheckTags) != 0) {
+		return nil, errors.New("recipe: deriveRules needs rules.json and no rangeCheckTags")
+	}
 	if r.Half != "A" && r.Half != "B" {
 		return nil, errors.New(`recipe: half must be "A" or "B"`)
 	}
@@ -673,7 +682,10 @@ func checkRecipeContent(h recipeFiles, slug, dirRel, realRel string, env verifyE
 		if rules, err = ParseRules(rulesRaw); err != nil {
 			return nil, fail("rules-invalid", "%v", err)
 		}
-		if len(rules.Exclusions) != 0 {
+		// Exclusions are judgment. Only a derive recipe may carry them, and
+		// only the ones the byte-compare against the re-derivation below
+		// accepts; a hand-written rules file never may.
+		if len(rules.Exclusions) != 0 && !rc.DeriveRules {
 			return nil, fail("exclusion-present", "rules carry %d exclusion(s); exclusions need human review", len(rules.Exclusions))
 		}
 		if canon, err := canonicalJSON(rules); err != nil || !bytes.Equal(canon, rulesRaw) {
@@ -730,9 +742,15 @@ func checkRecipeContent(h recipeFiles, slug, dirRel, realRel string, env verifyE
 	}
 
 	mk := func() Input {
-		return Input{Slug: rc.Slug, Name: rc.Name, Repo: rc.Repo, Component: rc.Component, FactProject: rc.FactProject, Catalog: rc.Catalog,
+		in := Input{Slug: rc.Slug, Name: rc.Name, Repo: rc.Repo, Component: rc.Component, FactProject: rc.FactProject, Catalog: rc.Catalog,
 			Tags: append([]string(nil), rc.Tags...), RangeCheckTags: append([]string(nil), rc.RangeCheckTags...),
 			Source: FactSource{B: bundle}, Rules: rules, StrictWindow: rc.StrictWindow, CollapseDirectories: rc.CollapseDirectories}
+		if rc.DeriveRules {
+			// C1: the rules are never taken from the file; they are derived
+			// again from the bundle by this build.
+			in.Rules, in.DeriveRules = nil, true
+		}
+		return in
 	}
 	run := func() (r *Result, rep []byte, f *VerifyFailure) {
 		defer func() {
@@ -766,8 +784,11 @@ func checkRecipeContent(h recipeFiles, slug, dirRel, realRel string, env verifyE
 	if f != nil {
 		return nil, f
 	}
-	if !bytes.Equal(r1.A, r2.A) || !bytes.Equal(r1.B, r2.B) || !bytes.Equal(r1.TableRow, r2.TableRow) || !bytes.Equal(r1.Changelog, r2.Changelog) || !bytes.Equal(rep1, rep2) {
+	if !bytes.Equal(r1.A, r2.A) || !bytes.Equal(r1.B, r2.B) || !bytes.Equal(r1.TableRow, r2.TableRow) || !bytes.Equal(r1.Changelog, r2.Changelog) || !bytes.Equal(rep1, rep2) || !bytes.Equal(r1.RulesJSON, r2.RulesJSON) {
 		return nil, fail("non-deterministic", "two regenerations differ")
+	}
+	if rc.DeriveRules && !bytes.Equal(r1.RulesJSON, rulesRaw) {
+		return nil, fail("rules-derivation-differs", "rules.json is not the rules this build derives from the facts bundle, byte for byte")
 	}
 	checks = append(checks, "regeneration from the bundle has zero typed stops and is byte-identical on a second run")
 

@@ -143,7 +143,12 @@ func sortStops(s []Stop) []Stop {
 }
 
 // StopError carries the typed stops of a run.
-type StopError struct{ Stops []Stop }
+type StopError struct {
+	Stops []Stop
+	// Proposals are the owner-record proposals computed before the stop
+	// (derive mode only); proposals, never records.
+	Proposals []OwnerProposal
+}
 
 func (e *StopError) Error() string {
 	var b strings.Builder
@@ -246,6 +251,10 @@ type Report struct {
 	// ranking evidence of every tag. Present only when inference ran (internal);
 	// part of FactsDigest then.
 	InferredInstallPaths *InferredInstallPaths `json:"inferredInstallPaths,omitempty"`
+	// DerivedRules is the derive-mode block: the idempotence key, the install
+	// directory and rule, the per-tag evidence and the computed loosening
+	// (exclusions). Present only with --derive-rules; part of FactsDigest.
+	DerivedRules *DerivedRulesReport `json:"derivedRules,omitempty"`
 	// PatchFragments lists, per window tag, the kustomize patch fragments set
 	// aside as non-install, non-definition files. Present only with
 	// a fragment; part of FactsDigest then.
