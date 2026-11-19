@@ -85,7 +85,7 @@ func TestKnowledgePublishWorkflowIsHardened(t *testing.T) {
 			t.Errorf("sign if %q lacks %s", sign.If, want)
 		}
 	}
-	if !samePermissions(sign.Permissions, map[string]string{"contents": "read", "actions": "read"}) {
+	if !samePermissions(sign.Permissions, map[string]string{"contents": "read", "actions": "read", "attestations": "read"}) {
 		t.Errorf("sign permissions = %v", sign.Permissions)
 	}
 	if !samePermissions(deploy.Permissions, map[string]string{"pages": "write", "id-token": "write", "actions": "read", "contents": "read"}) {

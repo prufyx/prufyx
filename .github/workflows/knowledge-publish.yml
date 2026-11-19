@@ -66,7 +66,7 @@ on:
         required: false
         default: ""
       allow_pin_downgrade:
-        description: "Owner only: accept an oldest-supported-client pin lower than the last published pin. Off by default; the sign job still needs the knowledge-release approval."
+        description: "Owner only: accept an oldest-supported-client pin lower than the last published pin. Off by default. It takes effect only in the sign job, after the knowledge-release approval (required reviewer: the owner); the pin_guard job never honours it."
         type: boolean
         required: false
         default: false
@@ -121,11 +121,20 @@ jobs:
         run: |
           set -euo pipefail
           args=(knowledge-publish pin-guard --repo "${GH_REPO}" --pin-file "${GITHUB_WORKSPACE}/cli/knowledge/oldest-supported-client.txt")
-          [ "${ALLOW_DOWNGRADE}" != "true" ] || args+=(--allow-downgrade)
           rc=0
           "${RUNNER_TEMP}/bin/prufyx-maintainer" "${args[@]}" > "${RUNNER_TEMP}/pin-guard.json" || rc=$?
+          if [ "${rc}" = 22 ] && [ "${ALLOW_DOWNGRADE}" = "true" ]; then
+            # Every other check passed; only the no-rollback rule failed. The
+            # override takes effect in the sign job, after the knowledge-release
+            # approval, never here.
+            echo "::warning::pin moved back: allow_pin_downgrade was requested; it applies only after the knowledge-release approval."
+            echo "### Pin guard" >> "${GITHUB_STEP_SUMMARY}"
+            echo "- OWNER OVERRIDE REQUESTED (allow_pin_downgrade): the pin is lower than the last published pin. Approve the knowledge-release environment only if this is intended." >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
           if [ "${rc}" -ne 0 ]; then
-            # Exit 21 is a refusal of the pin; any other code is a guard failure.
+            # Exit 21 is a refusal of the pin, 22 a refusal of a rollback only;
+            # any other code is a guard failure.
             echo "::error::pin guard refused the oldest-supported-client pin (exit ${rc}); nothing was signed and the feed keeps the last package. See cli/docs/knowledge-publisher.md."
             exit "${rc}"
           fi
@@ -146,6 +155,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      attestations: read
     outputs:
       skip: ${{ steps.sign.outputs.skip }}
       package_digest: ${{ steps.sign.outputs.package_digest }}
@@ -197,6 +207,30 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/bin"
           go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/bin/prufyx" ./cmd/prufyx-community
           go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/bin/prufyx-maintainer" ./cmd/prufyx-maintainer
+
+      # The pin guard again, inside the knowledge-release environment (so a
+      # pin rollback is effective only after the owner's approval) and after
+      # any approval wait: the tag is resolved once more before anything is
+      # signed. Token only; no secret is in this step's environment.
+      - name: Re-run the pin guard before signing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ALLOW_DOWNGRADE: ${{ inputs.allow_pin_downgrade }}
+        run: |
+          set -euo pipefail
+          args=(knowledge-publish pin-guard --repo "${GH_REPO}" --pin-file "${GITHUB_WORKSPACE}/cli/knowledge/oldest-supported-client.txt")
+          [ "${ALLOW_DOWNGRADE}" != "true" ] || args+=(--allow-downgrade)
+          rc=0
+          "${RUNNER_TEMP}/bin/prufyx-maintainer" "${args[@]}" > "${RUNNER_TEMP}/pin-guard-sign.json" || rc=$?
+          if [ "${rc}" -ne 0 ]; then
+            echo "::error::pin guard refused the pin before signing (exit ${rc}); nothing was signed and the feed keeps the last package."
+            exit "${rc}"
+          fi
+          {
+            echo "### Pin guard (sign job)"
+            jq -r '.notes[]? | "- " + .' "${RUNNER_TEMP}/pin-guard-sign.json"
+          } >> "${GITHUB_STEP_SUMMARY}"
 
       # The previous revision, TUF version and index come from the last
       # successful run on main, found with the API (uncached), not from the
@@ -621,6 +655,24 @@ jobs:
             echo "::error::a later run of this workflow has already succeeded on main; this run must not deploy. Start a new run with workflow_dispatch instead of re-running."
             exit 1
           fi
+
+      # The pinned tag must still point to the pinned ref now that the package
+      # is about to go live. Read-only; no secret.
+      - name: Build the guard
+        working-directory: cli
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/bin"
+          go build -trimpath -buildvcs=false -o "${RUNNER_TEMP}/bin/prufyx-maintainer" ./cmd/prufyx-maintainer
+
+      - name: Re-resolve the pinned tag before deploying
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          "${RUNNER_TEMP}/bin/prufyx-maintainer" knowledge-publish pin-guard --recheck-tag --repo "${GH_REPO}" --pin-file "${GITHUB_WORKSPACE}/cli/knowledge/oldest-supported-client.txt" > /dev/null \
+            || { rc=$?; echo "::error::the pinned tag no longer resolves to the pinned ref (exit ${rc}); nothing was deployed."; exit "${rc}"; }
 
       - name: Download the signed package
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0

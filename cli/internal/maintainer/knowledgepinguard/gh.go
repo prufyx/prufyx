@@ -125,17 +125,30 @@ func (g GH) OnMain(commit string) (bool, error) {
 // PreviousPin implements Forge: the pin at the head of the newest successful
 // run of the publish workflow on main that has one.
 func (g GH) PreviousPin() (string, bool, error) {
-	out, err := g.api("repos/"+g.Repo+"/actions/workflows/knowledge-publish.yml/runs?branch=main&status=success&per_page=100", ".workflow_runs[].head_sha")
+	out, err := g.api("repos/"+g.Repo+"/actions/workflows/knowledge-publish.yml/runs?branch=main&status=success&per_page=100", ".workflow_runs[] | [.id, .head_sha] | @tsv")
 	if err != nil {
 		return "", false, err
 	}
 	n := 0
-	for _, sha := range strings.Fields(string(out)) {
-		if !refRE.MatchString(sha) {
-			return "", false, errors.New("unexpected run commit")
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if line == "" {
+			continue
+		}
+		id, sha, ok := strings.Cut(line, "\t")
+		if !ok || !refRE.MatchString(sha) || id == "" || strings.Trim(id, "0123456789") != "" {
+			return "", false, errors.New("unexpected run entry")
 		}
 		if n++; n > maxRunsRead {
 			break
+		}
+		// Only a run that deployed published a package; a run whose jobs were
+		// all skipped never advertised its pin.
+		deployed, err := g.api("repos/"+g.Repo+"/actions/runs/"+id+"/jobs?per_page=100", `[.jobs[] | select(.name == "Deploy to Pages") | .conclusion] | first // ""`)
+		if err != nil {
+			return "", false, err
+		}
+		if strings.TrimSpace(string(deployed)) != "success" {
+			continue
 		}
 		content, err := g.api("repos/"+g.Repo+"/contents/"+PinPath+"?ref="+sha, ".content")
 		if notFound(err) {

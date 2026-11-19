@@ -614,26 +614,35 @@ no environment, no secret). It exits `21` and nothing is signed, uploaded or
 deployed unless all of these hold:
 
 - the pinned version is a published, non-draft release of this repository and
-  the release is immutable (when the API does not expose this, the guard notes
-  the residual: tag protection is then unchecked);
+  the release is immutable (an unknown immutability state is refused);
 - the tag, resolved again now, points to the pinned 40-hex ref, and that ref is
-  an ancestor of `main`;
+  an ancestor of `main`. The tag is resolved again, read-only, in the `sign` job
+  before anything is signed and in the `deploy` job before the package goes live
+  (exit `21`), so a tag moved after the guard job or during the approval wait
+  stops the run;
 - `SHA256SUMS` carries a provenance attestation of `release.yml` for
   `refs/tags/<tag>` at that commit (`gh attestation verify --signer-workflow
   --source-ref --source-digest`, hosted runners only), and it lists every other
   release asset with the digest of the downloaded file and nothing else;
 - the version is not lower than the pin of the last successful run of this
-  workflow on `main` (floor `v0.1.0-beta.0`). Moving the pin back is the owner-only
-  dispatch input `allow_pin_downgrade` (off by default; the `knowledge-release`
-  environment approval of the sign job is what keeps it owner-only, so keep
-  required reviewers on that environment). The release checks still apply.
+  workflow on `main` that deployed a package (runs whose jobs were all skipped do
+  not count; floor `v0.1.0-beta.0`). Moving the pin back is the dispatch input
+  `allow_pin_downgrade` (off by default). It is honoured only by the `sign` job,
+  which runs in the `knowledge-release` environment (required reviewer: the
+  owner, a setting that must stay on); the `pin_guard` job never honours it, so
+  without that approval nothing is signed. The `pin_guard` job summary and the
+  `sign` job summary both print "OWNER OVERRIDE", and the release checks still
+  apply. A rollback that fails only this rule exits `22`.
 
 The first-beta pin (`v0.1.0-beta.0`, the file as shipped) predates this
 procedure and is not checked against a release; an unchanged pin behaves as
 before. Because the guard runs every time, a release deleted after the pin
 merged fails the next run (including the weekly one) and the last package
 stays live. An old client that meets a package it cannot read exits `15`,
-leaves its store untouched and prints the release page to upgrade from.
+leaves its store untouched and prints the release page to upgrade from. "Untouched"
+means the selection, trust state and packages; `clock-floor.json`, the time floor
+of the last check, still advances on a refused update and is the one file
+excluded from the byte-identical test.
 
 ### Oldest-supported-client gate
 

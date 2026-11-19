@@ -43,8 +43,16 @@ var (
 	assetName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$`)
 )
 
-// Refusal is a guard failure that must stop the publish.
-type Refusal struct{ Msg string }
+// ExitDowngradeOnly is the exit code of a pin that passed every check except
+// that it is lower than the last published pin and no override was given.
+const ExitDowngradeOnly = 22
+
+// Refusal is a guard failure that must stop the publish. DowngradeOnly marks
+// a pin that failed only the no-rollback rule: every other check passed.
+type Refusal struct {
+	Msg           string
+	DowngradeOnly bool
+}
 
 func (r *Refusal) Error() string { return r.Msg }
 
@@ -85,6 +93,7 @@ type Forge interface {
 // Options are the explicit owner inputs. Both default to off.
 type Options struct {
 	// AllowDowngrade lets the pin version be lower than the last published pin.
+	// Only the job that runs inside the owner-approved environment sets it.
 	AllowDowngrade bool
 }
 
@@ -132,16 +141,19 @@ func Check(raw []byte, f Forge, o Options) (Result, error) {
 	if !buildidentity.ValidVersion(prev) {
 		return res, refuse("pin refused: the last published pin version %q is not a version", prev)
 	}
-	if !buildidentity.AtLeast(version, prev) {
-		if !o.AllowDowngrade {
-			return res, refuse("pin refused: %s is lower than the last published pin %s; moving the pin back needs the owner-only allow_pin_downgrade input", version, prev)
-		}
+	lower := !buildidentity.AtLeast(version, prev)
+	downgradeRefusal := &Refusal{DowngradeOnly: true, Msg: fmt.Sprintf("pin refused: %s is lower than the last published pin %s; moving the pin back needs the owner-only allow_pin_downgrade input and the knowledge-release approval", version, prev)}
+	if lower && o.AllowDowngrade {
 		res.Downgrade = true
 		res.Notes = append(res.Notes, fmt.Sprintf("OWNER OVERRIDE: pin moved back from %s to %s", prev, version))
+		lower = false
 	}
 
 	if string(raw) == LegacyPin {
 		res.Legacy = true
+		if lower {
+			return res, downgradeRefusal
+		}
 		return res, nil
 	}
 
@@ -163,7 +175,7 @@ func Check(raw []byte, f Forge, o Options) (Result, error) {
 	}
 	switch {
 	case rel.Immutable == nil:
-		res.Notes = append(res.Notes, "residual: the API does not expose release/tag immutability; tag protection is not checked")
+		return res, refuse("pin refused: the API does not say whether release %s is immutable; an unknown state is refused", version)
 	case !*rel.Immutable:
 		return res, refuse("pin refused: release %s is not immutable (a mutable release or tag can be moved after the pin); enable immutable releases and cut again", version)
 	}
@@ -184,5 +196,30 @@ func Check(raw []byte, f Forge, o Options) (Result, error) {
 	if err := f.VerifyAssets(version, ref, rel); err != nil {
 		return res, refuse("pin refused: %v", err)
 	}
+	if lower {
+		return res, downgradeRefusal
+	}
 	return res, nil
+}
+
+// Recheck resolves the pinned tag again and refuses unless it still points to
+// the pinned ref. It is the read-only repeat of the guard that the signing and
+// the deploy jobs run, so a moved tag is caught after the guard job and after
+// the approval wait. The legacy pin has no matching tag and is not checked.
+func Recheck(raw []byte, f interface{ TagCommit(string) (string, error) }) error {
+	ref, version, err := ParsePin(raw)
+	if err != nil {
+		return refuse("pin refused: %v", err)
+	}
+	if string(raw) == LegacyPin {
+		return nil
+	}
+	commit, err := f.TagCommit(version)
+	if err != nil {
+		return refuse("pin refused: tag %s cannot be resolved: %v", version, err)
+	}
+	if !refRE.MatchString(commit) || commit != ref {
+		return refuse("pin refused: tag %s now resolves to %s, not to the pinned ref %s", version, commit, ref)
+	}
+	return nil
 }

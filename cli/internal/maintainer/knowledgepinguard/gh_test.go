@@ -138,7 +138,9 @@ func TestGHLookups(t *testing.T) {
 		"git/ref/tags/blob":                    "blob\t" + refA + "\n",
 		"compare/main..." + refA:               "identical\t" + refA + "\n",
 		"compare/main..." + refB:               "ahead\t" + refA + "\n",
-		"/runs?":                               refA + "\n" + refB + "\n",
+		"/runs?":                               "11\t" + refA + "\n12\t" + refB + "\n",
+		"runs/11/jobs":                         "skipped\n",
+		"runs/12/jobs":                         "success\n",
 		"contents/" + PinPath + "?ref=" + refA: "404",
 		"contents/" + PinPath + "?ref=" + refB: enc[:20] + "\n" + enc[20:] + "\n",
 	}}
@@ -164,7 +166,19 @@ func TestGHLookups(t *testing.T) {
 	if ok, err := g.OnMain(refB); err != nil || ok {
 		t.Fatal("an ahead commit was reported as on main", ok, err)
 	}
+	// Run 11 (newest) deployed nothing (all jobs skipped): its pin is not a
+	// published pin and is passed over for run 12.
 	if v, ok, err := g.PreviousPin(); err != nil || !ok || v != "v0.1.0-beta.1" {
 		t.Fatal(v, ok, err)
+	}
+	for _, c := range f.calls {
+		if len(c) > 3 && strings.Contains(c[3], "contents/") && strings.Contains(c[3], refA) {
+			t.Fatal("the pin of a run that deployed nothing was read")
+		}
+	}
+	// If no run deployed, there is no previous pin (the floor applies).
+	f.api["runs/12/jobs"] = "failure\n"
+	if _, ok, err := g.PreviousPin(); err != nil || ok {
+		t.Fatal(ok, err)
 	}
 }

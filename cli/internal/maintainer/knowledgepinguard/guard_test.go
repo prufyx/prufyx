@@ -142,12 +142,64 @@ func TestCheckDowngradeIsExplicit(t *testing.T) {
 	}
 }
 
-func TestCheckUnknownImmutabilityIsNoted(t *testing.T) {
+// An unknown immutability state is refused, not noted (fail closed).
+func TestCheckUnknownImmutabilityIsRefused(t *testing.T) {
 	f := good()
 	f.rel.Immutable = nil
-	res, err := Check(pin(refA, "v0.1.0-beta.1"), f, Options{})
-	if err != nil || len(res.Notes) != 1 || !strings.Contains(res.Notes[0], "residual") {
-		t.Fatalf("res=%+v err=%v", res, err)
+	_, err := Check(pin(refA, "v0.1.0-beta.1"), f, Options{})
+	var r *Refusal
+	if !errors.As(err, &r) || !strings.Contains(err.Error(), "does not say") || f.verified != 0 {
+		t.Fatalf("err=%v verified=%d", err, f.verified)
+	}
+}
+
+// A rollback with every other check passing is the downgrade-only refusal
+// (exit 22); one that also fails another check is an ordinary refusal, and the
+// override flag never turns either into a pass without the flag.
+func TestCheckDowngradeOnlyRefusal(t *testing.T) {
+	f := good()
+	f.prev = "v0.1.0-beta.2"
+	_, err := Check(pin(refA, "v0.1.0-beta.1"), f, Options{})
+	var r *Refusal
+	if !errors.As(err, &r) || !r.DowngradeOnly {
+		t.Fatalf("err = %v", err)
+	}
+	f.commit = refB
+	_, err = Check(pin(refA, "v0.1.0-beta.1"), f, Options{})
+	if !errors.As(err, &r) || r.DowngradeOnly {
+		t.Fatalf("a rollback with a bad tag must not be downgrade-only: %v", err)
+	}
+	if _, err := Check([]byte(LegacyPin), &fakeForge{prev: "v0.1.0-beta.2", prevOK: true}, Options{}); !errors.As(err, &r) || !r.DowngradeOnly {
+		t.Fatalf("legacy rollback: %v", err)
+	}
+}
+
+type tagOnly struct {
+	commit string
+	err    error
+}
+
+func (t tagOnly) TagCommit(string) (string, error) { return t.commit, t.err }
+
+// The read-only repeat run by the sign and deploy jobs.
+func TestRecheck(t *testing.T) {
+	raw := pin(refA, "v0.1.0-beta.1")
+	if err := Recheck(raw, tagOnly{commit: refA}); err != nil {
+		t.Fatal(err)
+	}
+	for name, f := range map[string]tagOnly{"moved": {commit: refB}, "empty": {}, "error": {err: errors.New("api")}} {
+		var r *Refusal
+		if err := Recheck(raw, f); !errors.As(err, &r) {
+			t.Fatalf("%s: err = %v", name, err)
+		}
+	}
+	var r *Refusal
+	if err := Recheck([]byte("junk"), tagOnly{commit: refA}); !errors.As(err, &r) {
+		t.Fatal(err)
+	}
+	// The grandfathered pin has no matching tag and is not rechecked.
+	if err := Recheck([]byte(LegacyPin), tagOnly{commit: refB}); err != nil {
+		t.Fatal(err)
 	}
 }
 
