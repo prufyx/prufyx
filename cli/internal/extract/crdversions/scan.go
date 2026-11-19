@@ -230,6 +230,10 @@ type ScanRecord struct {
 	ReservedCopies []ReservedCopy `json:"reservedCopies,omitempty"`
 	// Findings are the files of every other class, sorted by path.
 	Findings []Finding `json:"findings"`
+	// TreeVerdicts are the decisions on the nominated non-install trees
+	// (see treeproof.go); absent unless the extractor derives them and a
+	// blocking finding lies under a default-excluded directory.
+	TreeVerdicts []TreeVerdict `json:"treeVerdicts,omitempty"`
 	// AntreaModes is freshly verified against the complete pinned mode
 	// source inventory, independently of the CRD-word candidate filter.
 	AntreaModes *AntreaModeRecord `json:"antreaModes,omitempty"`
@@ -831,6 +835,11 @@ func (x *Extractor) scan(ctx context.Context, r extract.PinnedReader, repo extra
 	rec.Findings = append(rec.Findings, cfg...)
 	if err := x.checkAntreaModes(r, repo, commit, modeEntries, rec); err != nil {
 		return nil, err
+	}
+	if x.deriveTrees && x.target.Attest && rec.Complete {
+		if err := x.clearTrees(ctx, r, repo, commit, blobs, commits, inv, rec); err != nil {
+			return nil, err
+		}
 	}
 	for h := range hits {
 		rec.Exclusions = append(rec.Exclusions, h)
