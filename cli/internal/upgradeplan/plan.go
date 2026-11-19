@@ -436,14 +436,15 @@ func hopTables(plan *Plan) {
 			}
 			route.HopTable = append(route.HopTable, hop)
 		}
-		if route.Jump != nil {
+		if route.Jump != nil && len(route.Jump.Hops) == len(route.HopTable) {
 			// A hop the jump decided as a step to take (rolling the kubelets
 			// first) shows that, not the block of the direct upgrade. Only
 			// a BLOCKED or PASS hop the jump rules ATTENTION is relabelled
-			// (never the other way); the stage verdict does not change.
+			// (never the other way); the stage verdict does not change. Hops
+			// match by their position in the route, which both lists share.
 			for n := range route.HopTable {
 				for _, jh := range route.Jump.Hops {
-					if jh.Status == scanreport.JumpHopAttention && jh.From == route.HopTable[n].From && jh.To == route.HopTable[n].To && (route.HopTable[n].Status == VerdictBlocked || route.HopTable[n].Status == VerdictPass) {
+					if jh.Status == scanreport.JumpHopAttention && jh.Index == route.HopTable[n].Index && (route.HopTable[n].Status == VerdictBlocked || route.HopTable[n].Status == VerdictPass) {
 						route.HopTable[n].Status = scanreport.JumpHopAttention
 						route.HopTable[n].Reasons = append(route.HopTable[n].Reasons, jh.Entries...)
 					}
