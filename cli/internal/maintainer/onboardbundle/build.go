@@ -47,9 +47,7 @@ with the same function as "onboard-bundle seal". The output is the four
 required files plus receipt.json; nothing is fetched, no clock is read.
 
 What the snapshot proves: it is SELF-CONSISTENT with its own digests. It is
-not verified against upstream. The import re-fetches the tag-to-commit
-mapping, the licence file and the changelog spans from upstream at the pinned
-commits and ignores what the bundle says. The receipt is an integrity record
+not verified against upstream. The import is planned to re-check tags, licence and changelog spans against upstream; today these declared values are checked only for format and by the human merge review. The receipt is an integrity record
 of the file bytes only, never provenance.
 
 target-draft.json is ALWAYS a skeleton: no paths, no exclusions, no names.
@@ -307,7 +305,7 @@ func Build(o BuildOptions) (BuildResult, error) {
 		res.Notes = append(res.Notes, "tool.prufyxCommit: embedded at build time, not verified by the importer")
 	}
 	res.Notes = append(res.Notes,
-		"built "+o.Out+": the snapshot is self-consistent only, not verified against upstream; the import re-fetches tag->commit, licence and changelog spans",
+		"built "+o.Out+": the snapshot is self-consistent only, not verified against upstream; "+"The import is planned to re-check tags, licence and changelog spans against upstream; today these declared values are checked only for format and by the human merge review.",
 		"target-draft.json is a skeleton; coverage comes only from the pipeline",
 		"in the pull request text, list the fields you declared: spdxGuess, cncfStatusClaim, postTag, tagPrefix, minFrom, status")
 	return res, nil

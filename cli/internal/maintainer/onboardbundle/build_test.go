@@ -646,7 +646,7 @@ func TestBuildHelpStatesLimits(t *testing.T) {
 		t.Fatalf("exit %d", c)
 	}
 	h := so.String()
-	for _, want := range []string{"SELF-CONSISTENT", "not verified against upstream", "re-fetches", "ALWAYS a skeleton", "never provenance", "no origin"} {
+	for _, want := range []string{"SELF-CONSISTENT", "not verified against upstream", "is planned to re-check", "ALWAYS a skeleton", "never provenance", "no origin"} {
 		if !strings.Contains(h, want) {
 			t.Errorf("help lacks %q", want)
 		}
