@@ -381,4 +381,4 @@ A gap is not a pass. A tool refusal is a case Prufyx declined to evaluate; it is
 | `v1.34.0` | `f28b4c9efbca5c5c0af716d9f2d5702667ee8a45` | `d3b0cdc2fda15c753206d25ab459dc7c12df64e2fd652b6809687471ea751c37` |
 | `v1.35.0` | `66452049f3d692768c39c797b21b793dce80314e` | `483500149ee52ce5753d75f5639101d985bb4f5e902cc05b1ba7627465d62446` |
 
-Every case (chart, chart version, Kubernetes hop, result, reason codes) is listed in `qa-e2e.json` under `servedApi.checks`.
+A chart version can appear once per values variant (default / optional values). Every case (chart, chart version, values variant, Kubernetes hop, result, reason codes) is listed in `qa-e2e.json` under `servedApi.checks`.

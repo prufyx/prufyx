@@ -115,6 +115,9 @@ func TestServedAPIOutputAllowlistAndCounts(t *testing.T) {
 	if !bytes.Contains(md, []byte(ServedAPIStatement[1:])) || !bytes.Contains(md, []byte(stSha)) {
 		t.Error("wording or oracle digest missing")
 	}
+	if !bytes.Contains(j, []byte(`"valuesVariant": "optional"`)) || !bytes.Contains(j, []byte(`"valuesVariant": "default"`)) || !bytes.Contains(md, []byte("once per values variant")) {
+		t.Error("values variant missing")
+	}
 	// determinism
 	j2, md2, _ := Render(&Report{Schema: Schema, Header: Header, Runs: []Run{}, ServedAPI: s})
 	if !bytes.Equal(j, j2) || !bytes.Equal(md, md2) {
