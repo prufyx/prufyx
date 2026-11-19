@@ -4,6 +4,9 @@ package changelogentries
 
 import (
 	"encoding/json"
+	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -247,3 +250,50 @@ func TestFileRowPathClosedAlphabet(t *testing.T) {
 }
 
 func jsonStr(s string) string { b, _ := json.Marshal(s); return string(b) }
+
+// TestShippedRowFixtures recomputes every row's fixture check: one fixture per
+// row, no orphan, the row digest recomputed from targets.json (never read from
+// a pin), an optional digest-only pins file compared against both. When the
+// blobs are supplied (PRUFYX_ROW_BLOBS, a directory of files named by blob
+// id), the one reader is re-run over blobs fetched by pinned id and verified;
+// a blob that does not verify fails the test.
+func TestShippedRowFixtures(t *testing.T) {
+	if err := LoadError(); err != nil {
+		t.Fatal(err)
+	}
+	digests, err := RowDigests()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixtures, err := LoadRowFixtures(os.DirFS("testdata"), RowFixtureDir, Reviewed, digests)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pins []byte
+	if b, err := os.ReadFile(filepath.Join("testdata", RowPinsFile)); err == nil {
+		pins = b
+	} else if !errors.Is(err, os.ErrNotExist) {
+		t.Fatal(err)
+	}
+	if err := CheckRowPins(pins, fixtures, digests); err != nil {
+		t.Fatal(err)
+	}
+	dir := os.Getenv("PRUFYX_ROW_BLOBS")
+	if dir == "" {
+		t.Log("offline: fixture structure and row digests recomputed; blobs not supplied, reader re-run not done")
+	}
+	for _, row := range Reviewed {
+		t.Run(row.Component, func(t *testing.T) {
+			fx := fixtures[row.Component]
+			if readsForm(row.Form) && fx.Status != RowPass {
+				t.Fatalf("a read row without a passing fixture: %s", fx.Status)
+			}
+			if dir == "" {
+				return
+			}
+			if err := RecheckRowFixture(fx, row, digests[row.Component], DirBlobFetcher{Dir: dir}, zeroDigest); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
