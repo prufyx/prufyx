@@ -498,6 +498,13 @@ func classify(route checkroutemetadata.Check, bundle currentbundle.CurrentBundle
 			base.Reason = "No image of this component was recognised, but image identification cannot see mirrored or rebuilt images, so absence is not established. Determine applicability manually with the expert-path command shown below."
 			return base
 		}
+		if hasUnboundComponentOmission(bundle) {
+			// Fail closed independent of the collection status: an image of a
+			// reviewed component was seen but could not be verified.
+			base.Applicability = IndeterminatePartialCollection
+			base.Reason = "An image matching a reviewed component identity was observed, but no reviewed image binding covers its reference form or version (COMPONENT_VERSION_UNBOUND), so this component's presence is unverified and absence is not established. Next: recollect with the image referenced by a reviewed registry and tag (for example docker.io or quay.io), or determine applicability manually with the expert-path command shown below."
+			return base
+		}
 		if contextPartial {
 			base.Applicability = IndeterminatePartialCollection
 			base.Reason = "The component was not found, but this context's collection was partial (a declared API read failed or was rejected). Absence is not confirmed; rerun collection without omissions before concluding this check does not apply."
@@ -796,4 +803,13 @@ func readIndex(runDir string) (indexFile, error) {
 // MarshalReport emits deterministic, indented JSON.
 func MarshalReport(report Report) ([]byte, error) {
 	return json.MarshalIndent(report, "", "  ")
+}
+
+func hasUnboundComponentOmission(bundle currentbundle.CurrentBundle) bool {
+	for _, omission := range bundle.Omissions {
+		if omission.Code == localcollector.OmissionComponentVersionUnbound {
+			return true
+		}
+	}
+	return false
 }

@@ -193,6 +193,11 @@ func (c Collector) Collect(ctx context.Context, opts Options, stdout, stderr io.
 					fmt.Fprintln(stderr, "Cannot write private projected output.")
 					return "", 2
 				}
+				if hasProjectionOmission(payload, OmissionComponentVersionUnbound) && !hasOmissionCode(omissions, OmissionComponentVersionUnbound) {
+					// A recognised-but-unverifiable component must make the
+					// collection partial so absence is never asserted.
+					omissions = append(omissions, omission{q.name, OmissionComponentVersionUnbound, "A workload image matched a reviewed component identity but no reviewed binding covers it; component absence cannot be concluded."})
+				}
 				if opts.IncludeComponentConfiguration {
 					configuration, componentOmissions = addWorkloadConfiguration(configuration, componentOmissions, payload, q.name)
 					for _, image := range images {
@@ -359,4 +364,23 @@ func addWorkloadConfiguration(configuration, omissions []any, payload map[string
 		}
 	}
 	return configuration, omissions
+}
+
+func hasProjectionOmission(payload map[string]any, code string) bool {
+	rows, _ := payload["omissions"].([]any)
+	for _, row := range rows {
+		if asString(at(row, "code")) == code {
+			return true
+		}
+	}
+	return false
+}
+
+func hasOmissionCode(rows []omission, code string) bool {
+	for _, row := range rows {
+		if row.Code == code {
+			return true
+		}
+	}
+	return false
 }

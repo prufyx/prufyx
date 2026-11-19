@@ -22,6 +22,9 @@ type containerRecord struct {
 	image         string
 	container     map[string]any
 	init          []any
+	// owners are the metadata.ownerReferences kinds of the workload object, read
+	// locally from the already-fetched list and never emitted.
+	owners []string
 }
 
 func projectWorkload(root any, adapter adapterAssets, profile string, now time.Time) (map[string]any, error) {
@@ -64,7 +67,7 @@ func projectWorkload(root any, adapter adapterAssets, profile string, now time.T
 			if !ok || strings.ContainsAny(image, "\x00\r\n") {
 				return nil, errProjection
 			}
-			containers = append(containers, containerRecord{index, kind, image, container, initContainers})
+			containers = append(containers, containerRecord{index, kind, image, container, initContainers, ownerKinds(item)})
 		}
 	}
 
@@ -74,7 +77,22 @@ func projectWorkload(root any, adapter adapterAssets, profile string, now time.T
 		identity, version, scheme, _ := publicImage(record.image)
 		matched := findAdapter(adapter.Contract, identity)
 		if profile == "v3" && strings.HasPrefix(record.image, "index.docker.io/") {
+			if matched != nil {
+				// The identity is a reviewed component, but this image
+				// spelling is not a reviewed binding form. The row is not
+				// emitted, so the omission is what keeps the component from
+				// being read as absent.
+				omissions = append(omissions, newProjectionOmission(OmissionComponentVersionUnbound, "A workload image matched a reviewed component identity, but no reviewed image binding covers this reference form; the component is present but unverified, so its absence cannot be concluded."))
+			}
 			matched = nil
+		}
+		if matched != nil && !contains(matched.WorkloadKinds, record.workloadKind) && !ownedByReadKind(record, matched.WorkloadKinds) {
+			// The reviewed identity runs under a controller kind the adapter
+			// does not read, so no row exists and the component must not be
+			// concluded absent. Kinds that are derived from another read kind
+			// (a Deployment's ReplicaSet) are exempt so healthy installs do not
+			// trip this.
+			omissions = append(omissions, newProjectionOmission(OmissionComponentVersionUnbound, "A workload image matched a reviewed component identity under a workload kind with no reviewed binding; the component is present but unverified, so its absence cannot be concluded."))
 		}
 		if matched != nil && contains(matched.WorkloadKinds, record.workloadKind) {
 			publicImages = append(publicImages, map[string]any{
@@ -577,6 +595,37 @@ func publicIdentityOnly(image string) string {
 	identity, _, _, _ := publicImage(image)
 	return identity
 }
+
+// OmissionComponentVersionUnbound marks an image whose identity matched a
+// reviewed component but which yielded no component row. It carries no data
+// beyond the code; the consumer must treat the component as unverified, never
+// as absent.
+// ownerKinds returns the kinds named in metadata.ownerReferences.
+func ownerKinds(item any) []string {
+	refs, _ := array(nullDefault(at(item, "metadata", "ownerReferences"), []any{}))
+	out := []string{}
+	for _, ref := range refs {
+		if kind, ok := stringValue(at(ref, "kind")); ok {
+			out = append(out, kind)
+		}
+	}
+	return out
+}
+
+// ownedByReadKind reports whether a ReplicaSet or Job is derived from a
+// controller the adapter reads, so another row already represents it. A
+// standalone object (no owner chain reaching such a kind) is not exempt.
+func ownedByReadKind(record containerRecord, adapterKinds []string) bool {
+	derived := map[string]string{"ReplicaSet": "Deployment", "Job": "CronJob"}
+	want, ok := derived[record.workloadKind]
+	if !ok || !contains(adapterKinds, want) {
+		return false
+	}
+	return contains(record.owners, want)
+}
+
+const OmissionComponentVersionUnbound = "COMPONENT_VERSION_UNBOUND"
+
 func newProjectionOmission(code, reason string) map[string]any {
 	return map[string]any{"code": code, "reason": reason, "requiredForEvaluation": true}
 }
