@@ -184,10 +184,14 @@ func TestReviewedRows(t *testing.T) {
 					t.Fatalf("per-line row %s has no sample", row.Component)
 				}
 				file := "# Changelog 1.2\n\n## 1.2.3 - 2026-01-02\n\n- fix\n\n## 1.2.2 - 2025-12-01\n\n- older\n"
-				r := &memReader{files: map[string][]byte{row.Repo.Key + "@" + testCommit + ":CHANGELOG/CHANGELOG-1.2.md": []byte(file)}}
+				r := &memReader{files: map[string][]byte{row.Repo.Key + "@" + testCommit + ":" + strings.ReplaceAll(row.Path, "{line}", "1.2"): []byte(file)}}
 				m, err := BuildManifest(r, row, extract.Tag{Name: "v1.2.3", Commit: testCommit}, zeroDigest)
 				if err != nil || m.Entry == nil || m.Withheld != nil || m.Entry.Version != "1.2.3" || m.Entry.Section.HeadingLine != 3 {
 					t.Fatalf("want an entry: %v %+v", err, m)
+				}
+				m, err = BuildManifest(r, row, extract.Tag{Name: "v1.2.4", Commit: testCommit}, zeroDigest)
+				if err != nil || m.Withheld == nil || m.Entry != nil {
+					t.Fatalf("a missing version must be withheld: %v %+v", err, m)
 				}
 			default:
 				t.Fatalf("form %q has no test", row.Form)
