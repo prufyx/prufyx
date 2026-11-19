@@ -51,6 +51,9 @@ func ListRefusals(dir string) ([]Refusal, error) {
 		return nil, errors.New("cannot read the results directory")
 	}
 	var out []Refusal
+	kept := map[string]bool{}
+	type sup struct{ run, by string }
+	var supers []sup
 	for _, e := range entries {
 		if e.Type()&os.ModeSymlink != 0 {
 			return nil, errors.New("symlink in the results directory")
@@ -88,17 +91,44 @@ func ListRefusals(dir string) ([]Refusal, error) {
 			add(err.Error(), 1)
 			continue
 		}
-		if by != "" || raw == nil {
+		if by != "" {
+			switch {
+			case by == name:
+				add("superseded by itself", 1)
+			case !reRunID.MatchString(name):
+				add("directory name outside the run id pattern", 1)
+			default:
+				supers = append(supers, sup{name, by})
+			}
 			continue
+		}
+		if raw == nil {
+			continue
+		}
+		before := len(out)
+		keep := func() {
+			if len(out) == before {
+				kept[name] = true
+			}
 		}
 		var probe map[string]json.RawMessage
 		if json.Unmarshal(body, &probe) != nil || probe["clusters"] == nil || probe["schema"] != nil {
 			if _, err := ParseRun(name, body); err != nil {
 				add(err.Error(), 1)
 			}
+			keep()
 			continue
 		}
 		out = append(out, listM3(name, body)...)
+		keep()
+	}
+	for _, sp := range supers {
+		if !kept[sp.by] {
+			out = append(out, Refusal{Run: sp.run, Message: "a superseded run names a replacing run that is not a kept run", Count: 1})
+		}
+	}
+	if len(kept) == 0 {
+		out = append(out, Refusal{Run: "-", Message: "no kept run with a RESULT.json", Count: 1})
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].Run != out[j].Run {

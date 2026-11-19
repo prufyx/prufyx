@@ -610,3 +610,24 @@ func TestHarnessVerdictsAndRuleIDs(t *testing.T) {
 		}
 	}
 }
+
+func TestListRefusalsCrossRun(t *testing.T) {
+	root := t.TempDir()
+	writeRun(t, root, "m3-a", m3(nil))
+	writeRun(t, root, "m10-r01", []byte(summaryShape))
+	mark(t, root, "m10-r01", `{"reportable": false, "reason_code": "summary-only"}`)
+	writeRun(t, root, "m10-r00", []byte(summaryShape))
+	supersede(t, root, "m10-r00", "m10-r01")
+	writeRun(t, root, "m3-old", m3(nil))
+	supersede(t, root, "m3-old", "m3-a")
+	refs, err := ListRefusals(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(refs) != 1 || refs[0].Run != "m10-r00" || refs[0].Message != "a superseded run names a replacing run that is not a kept run" {
+		t.Fatalf("refs=%v", refs)
+	}
+	if _, err := Build(root); err == nil {
+		t.Error("Build accepted it")
+	}
+}
