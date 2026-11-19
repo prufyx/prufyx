@@ -609,7 +609,11 @@ func capabilityMismatch(err error) bool {
 	return errors.Is(err, knowledge.ErrUnsupportedKnowledge) && errors.Is(err, knowledge.ErrCapabilityMismatch)
 }
 
-const capabilityMismatchAdvice = "the knowledge feed was built for a different engine capability than this prufyx; upgrade prufyx if it is older than the feed, otherwise the feed has not been republished for this release yet; the embedded knowledge and the current local database stay in use"
+// upgradeReleaseURL is where a client that is too old for the feed finds the
+// current release.
+const upgradeReleaseURL = "https://github.com/prufyx/prufyx/releases/latest"
+
+const capabilityMismatchAdvice = "the knowledge feed was built for a different engine capability than this prufyx; upgrade prufyx if it is older than the feed (releases: " + upgradeReleaseURL + "), otherwise the feed has not been republished for this release yet; the embedded knowledge and the current local database stay in use"
 
 // unsupportedAdvice is the reason code and next action of an unsupported
 // knowledge error: a capability mismatch or a package that is too new.
@@ -617,7 +621,7 @@ func unsupportedAdvice(err error) (reason, nextAction string) {
 	if capabilityMismatch(err) {
 		return "KNOWLEDGE_CAPABILITY_MISMATCH", capabilityMismatchAdvice
 	}
-	return "KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT", "upgrade prufyx" + tooNewVersionHint(err) + "; the embedded knowledge and the current local database stay in use"
+	return "KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT", "upgrade prufyx" + tooNewVersionHint(err) + " (releases: " + upgradeReleaseURL + "); the embedded knowledge and the current local database stay in use"
 }
 
 func tooNewVersionHint(err error) string {

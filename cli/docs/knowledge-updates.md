@@ -162,8 +162,9 @@ change. Giving `--source` or `--release-plan` keeps the rules described above
   registry, policy or engine contract differ) is reported as
   `KNOWLEDGE_CAPABILITY_MISMATCH`, also with exit `15`, and changes nothing. The
   message does not say which side is newer: upgrade prufyx if it is older than
-  the feed, otherwise the feed has not been republished for this release yet.
-  The embedded knowledge and the current local database stay in use.
+  the feed (the message names the release page,
+  https://github.com/prufyx/prufyx/releases/latest), otherwise the feed has not
+  been republished for this release yet. The embedded knowledge and the current local database stay in use.
   The capability changes when a project is added to the supported table, when a
   fact is registered, or when the engine changes; rule and attestation updates for
   existing projects do not change it.

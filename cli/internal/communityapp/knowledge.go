@@ -468,7 +468,7 @@ func (r runtime) knowledgeError(message string, err error) int {
 		return r.fail(message+"; KNOWLEDGE CAPABILITY MISMATCH: "+capabilityMismatchAdvice, ExitKnowledgeTooNew)
 	}
 	if errors.Is(err, knowledge.ErrUnsupportedKnowledge) {
-		return r.fail(message+"; the knowledge is too new for this prufyx: upgrade prufyx"+tooNewVersionHint(err)+"; the embedded knowledge and the current local database stay in use", ExitKnowledgeTooNew)
+		return r.fail(message+"; the knowledge is too new for this prufyx: upgrade prufyx"+tooNewVersionHint(err)+" (releases: "+upgradeReleaseURL+"); the embedded knowledge and the current local database stay in use", ExitKnowledgeTooNew)
 	}
 	if errors.Is(err, knowledge.ErrInvalid) || errors.Is(err, certmanagervalues.ErrInvalid) {
 		return r.fail(message, ExitUsage)

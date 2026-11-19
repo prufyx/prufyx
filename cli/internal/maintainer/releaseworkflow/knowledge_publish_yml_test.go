@@ -15,6 +15,7 @@ import (
 
 type publishJob struct {
 	If          string            `yaml:"if"`
+	Needs       any               `yaml:"needs"`
 	Environment any               `yaml:"environment"`
 	Permissions map[string]string `yaml:"permissions"`
 	Steps       []workflowStep    `yaml:"steps"`
@@ -73,8 +74,8 @@ func TestKnowledgePublishWorkflowIsHardened(t *testing.T) {
 		t.Error("must not trigger on pull_request_target")
 	}
 	sign, deploy := wf.Jobs["sign"], wf.Jobs["deploy"]
-	if len(wf.Jobs) != 2 {
-		t.Errorf("jobs = %d, want sign and deploy", len(wf.Jobs))
+	if len(wf.Jobs) != 3 {
+		t.Errorf("jobs = %d, want pin_guard, sign and deploy", len(wf.Jobs))
 	}
 	if env, _ := sign.Environment.(string); env != "knowledge-release" {
 		t.Errorf("sign environment = %v, want knowledge-release", sign.Environment)
@@ -84,7 +85,7 @@ func TestKnowledgePublishWorkflowIsHardened(t *testing.T) {
 			t.Errorf("sign if %q lacks %s", sign.If, want)
 		}
 	}
-	if !samePermissions(sign.Permissions, map[string]string{"contents": "read", "actions": "read"}) {
+	if !samePermissions(sign.Permissions, map[string]string{"contents": "read", "actions": "read", "attestations": "read"}) {
 		t.Errorf("sign permissions = %v", sign.Permissions)
 	}
 	if !samePermissions(deploy.Permissions, map[string]string{"pages": "write", "id-token": "write", "actions": "read", "contents": "read"}) {
