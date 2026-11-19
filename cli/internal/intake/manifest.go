@@ -148,7 +148,10 @@ func decodeFile(display string, raw []byte, bounds decodeOptions) (Workspace, er
 		if errors.As(err, &limit) {
 			return Workspace{}, err
 		}
-		if hasTemplateSyntax(string(raw)) {
+		// A bound or uniqueness refusal (depth, member or item count,
+		// duplicate key) is never blamed on template syntax: it is reported
+		// as undecodable.
+		if !errors.Is(err, errStructure) && hasTemplateSyntax(string(raw)) {
 			return Workspace{Omissions: []Omission{{Source: Source{Display: display, Digest: digest, Item: -1}, Reason: ReasonUnparseable}}}, nil
 		}
 		return Workspace{}, ErrDecode
