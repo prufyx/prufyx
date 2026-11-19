@@ -22,9 +22,19 @@ type containerRecord struct {
 	image         string
 	container     map[string]any
 	init          []any
-	// owners are the metadata.ownerReferences kinds of the workload object, read
+	// owners are the metadata.ownerReferences of the workload object, read
 	// locally from the already-fetched list and never emitted.
-	owners []string
+	owners []ownerRef
+	// ephemeral marks an ephemeral container, which no controller template
+	// carries, so no owner chain can represent it.
+	ephemeral bool
+}
+
+// ownerRef is the part of a metadata.ownerReferences entry the derivation
+// check needs.
+type ownerRef struct {
+	kind, apiVersion string
+	controller       bool
 }
 
 func projectWorkload(root any, adapter adapterAssets, profile string, now time.Time) (map[string]any, error) {
@@ -33,6 +43,11 @@ func projectWorkload(root any, adapter adapterAssets, profile string, now time.T
 		return nil, err
 	}
 	containers := []containerRecord{}
+	// presence holds the images that count as "running" but never yield a
+	// component or configuration row: init and ephemeral containers, and every
+	// container of a Pod object. They only ever keep a component from being
+	// read as absent.
+	presence := []containerRecord{}
 	omissions := []any{}
 	for index, item := range items {
 		kind, ok := stringValue(at(item, "kind"))
@@ -48,26 +63,46 @@ func projectWorkload(root any, adapter adapterAssets, profile string, now time.T
 		}
 		regular := nullDefault(podSpec["containers"], []any{})
 		initValue := nullDefault(podSpec["initContainers"], []any{})
+		ephemeralValue := nullDefault(podSpec["ephemeralContainers"], []any{})
 		regularContainers, ok1 := array(regular)
 		initContainers, ok2 := array(initValue)
-		if !ok1 || !ok2 {
+		ephemeralContainers, ok3 := array(ephemeralValue)
+		if !ok1 || !ok2 || !ok3 {
 			return nil, errProjection
 		}
-		if len(regularContainers) == 0 && len(initContainers) > 0 {
-			omissions = append(omissions, newProjectionOmission("COMPONENT_CONFIGURATION_NO_REGULAR_CONTAINERS", "Only initContainers were present; init containers are never an effective reviewed component workload."))
-		} else if profile == "v3" && len(regularContainers) > 0 && len(initContainers) > 0 {
-			omissions = append(omissions, newProjectionOmission("COMPONENT_CONFIGURATION_INIT_CONTAINERS_IGNORED", "Init containers were present but are outside the reviewed effective component configuration surface."))
+		if kind != "Pod" {
+			if len(regularContainers) == 0 && len(initContainers) > 0 {
+				omissions = append(omissions, newProjectionOmission("COMPONENT_CONFIGURATION_NO_REGULAR_CONTAINERS", "Only initContainers were present; init containers are never an effective reviewed component workload."))
+			} else if profile == "v3" && len(regularContainers) > 0 && len(initContainers) > 0 {
+				omissions = append(omissions, newProjectionOmission("COMPONENT_CONFIGURATION_INIT_CONTAINERS_IGNORED", "Init containers were present but are outside the reviewed effective component configuration surface."))
+			}
 		}
-		for _, value := range regularContainers {
-			container, ok := object(value)
-			if !ok {
-				return nil, errProjection
+		owners := ownerRefs(item)
+		for _, list := range []struct {
+			values    []any
+			ephemeral bool
+			presence  bool
+		}{
+			{regularContainers, false, kind == "Pod"},
+			{initContainers, false, true},
+			{ephemeralContainers, true, true},
+		} {
+			for _, value := range list.values {
+				container, ok := object(value)
+				if !ok {
+					return nil, errProjection
+				}
+				image, ok := stringValue(container["image"])
+				if !ok || strings.ContainsAny(image, "\x00\r\n") {
+					return nil, errProjection
+				}
+				record := containerRecord{index, kind, image, container, initContainers, owners, list.ephemeral}
+				if list.presence {
+					presence = append(presence, record)
+				} else {
+					containers = append(containers, record)
+				}
 			}
-			image, ok := stringValue(container["image"])
-			if !ok || strings.ContainsAny(image, "\x00\r\n") {
-				return nil, errProjection
-			}
-			containers = append(containers, containerRecord{index, kind, image, container, initContainers, ownerKinds(item)})
 		}
 	}
 
@@ -111,6 +146,22 @@ func projectWorkload(root any, adapter adapterAssets, profile string, now time.T
 			omissions = append(omissions, omission)
 		}
 	}
+	for _, record := range presence {
+		identity, _, _, _ := publicImage(record.image)
+		matched := findAdapter(adapter.Contract, identity)
+		if matched == nil {
+			continue
+		}
+		if record.workloadKind != "Pod" && !record.ephemeral && regularImageInWorkload(containers, record) {
+			// The same image is already a regular container of this workload,
+			// so its row (or its own unbound omission) represents it.
+			continue
+		}
+		if record.workloadKind == "Pod" && !record.ephemeral && ownedByReadKind(record, matched.WorkloadKinds) {
+			continue
+		}
+		omissions = append(omissions, newProjectionOmission(OmissionComponentVersionUnbound, "A reviewed component image ran in an init, ephemeral or bare-Pod container that yields no reviewed binding; the component is present but unverified, so its absence cannot be concluded."))
+	}
 	sortAny(publicImages)
 	return map[string]any{"images": []any{}, "publicImages": publicImages, "configuration": configuration, "omissions": omissions, "version": "v1"}, nil
 }
@@ -149,6 +200,10 @@ func registryImage(record containerRecord, adapterMatch *componentAdapter, now t
 }
 
 func workloadPodSpec(item any, kind string) map[string]any {
+	if kind == "Pod" {
+		value, _ := object(at(item, "spec"))
+		return value
+	}
 	if kind == "CronJob" {
 		value, _ := object(at(item, "spec", "jobTemplate", "spec", "template", "spec"))
 		return value
@@ -600,28 +655,71 @@ func publicIdentityOnly(image string) string {
 // reviewed component but which yielded no component row. It carries no data
 // beyond the code; the consumer must treat the component as unverified, never
 // as absent.
-// ownerKinds returns the kinds named in metadata.ownerReferences.
-func ownerKinds(item any) []string {
+// ownerRefs returns the owner references of an item; malformed fields stay
+// zero so they never satisfy a derivation check.
+func ownerRefs(item any) []ownerRef {
 	refs, _ := array(nullDefault(at(item, "metadata", "ownerReferences"), []any{}))
-	out := []string{}
+	out := []ownerRef{}
 	for _, ref := range refs {
-		if kind, ok := stringValue(at(ref, "kind")); ok {
-			out = append(out, kind)
-		}
+		kind, _ := stringValue(at(ref, "kind"))
+		apiVersion, _ := stringValue(at(ref, "apiVersion"))
+		controller, _ := at(ref, "controller").(bool)
+		out = append(out, ownerRef{kind, apiVersion, controller})
 	}
 	return out
 }
 
-// ownedByReadKind reports whether a ReplicaSet or Job is derived from a
-// controller the adapter reads, so another row already represents it. A
-// standalone object (no owner chain reaching such a kind) is not exempt.
+// regularImageInWorkload reports whether a regular container of the same
+// workload object carries exactly this image.
+func regularImageInWorkload(containers []containerRecord, record containerRecord) bool {
+	for _, c := range containers {
+		if c.workloadIndex == record.workloadIndex && c.image == record.image {
+			return true
+		}
+	}
+	return false
+}
+
+// ownerAPIVersions maps each owner kind that can derive a read workload to
+// its only valid apiVersion.
+var ownerAPIVersions = map[string]string{
+	"Deployment": "apps/v1", "ReplicaSet": "apps/v1", "StatefulSet": "apps/v1", "DaemonSet": "apps/v1",
+	"Job": "batch/v1", "CronJob": "batch/v1", "ReplicationController": "v1",
+}
+
+// controlledBy reports whether an owner reference names the kind with its
+// exact apiVersion and is the managing controller.
+func controlledBy(owners []ownerRef, kind string) bool {
+	for _, o := range owners {
+		if o.kind == kind && o.controller && o.apiVersion == ownerAPIVersions[kind] {
+			return true
+		}
+	}
+	return false
+}
+
+// ownedByReadKind reports whether a ReplicaSet, Job or Pod is derived from a
+// controller whose own list is read, so another row (or that list's own
+// unbound omission) already represents it. The owner must be the managing
+// controller with the exact apiVersion. A standalone object, a non-controller
+// owner or a foreign apiVersion is not exempt.
 func ownedByReadKind(record containerRecord, adapterKinds []string) bool {
+	if record.workloadKind == "Pod" {
+		// Every controller kind below has its own list in the collection, so
+		// a Pod it manages is covered there.
+		for _, kind := range []string{"ReplicaSet", "StatefulSet", "DaemonSet", "Job", "ReplicationController"} {
+			if controlledBy(record.owners, kind) {
+				return true
+			}
+		}
+		return false
+	}
 	derived := map[string]string{"ReplicaSet": "Deployment", "Job": "CronJob"}
 	want, ok := derived[record.workloadKind]
 	if !ok || !contains(adapterKinds, want) {
 		return false
 	}
-	return contains(record.owners, want)
+	return controlledBy(record.owners, want)
 }
 
 const OmissionComponentVersionUnbound = "COMPONENT_VERSION_UNBOUND"

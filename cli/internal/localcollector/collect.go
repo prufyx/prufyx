@@ -65,6 +65,7 @@ var baseQueries = []query{
 	{"job-images.json", []string{"get", "jobs.batch", "--all-namespaces", "--chunk-size=200", "-o", "json"}},
 	{"cronjob-images.json", []string{"get", "cronjobs.batch", "--all-namespaces", "--chunk-size=200", "-o", "json"}},
 	{"replicationcontroller-images.json", []string{"get", "replicationcontrollers", "--all-namespaces", "--chunk-size=200", "-o", "json"}},
+	{"pod-images.json", []string{"get", "pods", "--all-namespaces", "--chunk-size=200", "-o", "json"}},
 	{"aggregated-apis.json", []string{"get", "apiservices.apiregistration.k8s.io", "--chunk-size=200", "-o", "json"}},
 	{"mutating-webhooks.json", []string{"get", "mutatingwebhookconfigurations.admissionregistration.k8s.io", "--chunk-size=200", "-o", "json"}},
 	{"validating-webhooks.json", []string{"get", "validatingwebhookconfigurations.admissionregistration.k8s.io", "--chunk-size=200", "-o", "json"}},
