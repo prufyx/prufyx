@@ -34,7 +34,9 @@ package changelogentries
 
 import (
 	"bytes"
+	"crypto/sha256"
 	_ "embed"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -304,4 +306,31 @@ func noDuplicateKeys(data []byte) error {
 		return err
 	}
 	return walk()
+}
+
+// RowDigest is the sha256 (hex) of the canonical, resolved form of a row:
+// component, repo, form, path and the fixed patterns of its styles. The same
+// row gives the same digest whether it comes from a proposal or from the table.
+func (t Target) RowDigest() string {
+	b, _ := json.Marshal(struct {
+		Component string   `json:"component"`
+		Repo      string   `json:"repo"`
+		Form      string   `json:"form"`
+		Path      string   `json:"path"`
+		Heading   string   `json:"heading"`
+		Boundary  []string `json:"boundary"`
+		MaxBytes  int      `json:"maxBytes"`
+	}{t.Component, t.Repo.Key, t.Form, t.Path, t.HeadingPattern, t.BoundaryPatterns, t.MaxBytes})
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:])
+}
+
+// RowDigest is the row digest of the proposed row, resolved through the same
+// strict loader as targets.json.
+func (p Proposal) RowDigest() (string, error) {
+	t, err := p.Row.target()
+	if err != nil {
+		return "", err
+	}
+	return t.RowDigest(), nil
 }

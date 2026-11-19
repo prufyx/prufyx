@@ -139,7 +139,17 @@ func proposeRows(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return refuse(err)
 	}
-	fmt.Fprintf(stdout, "%s\n", out)
+	rd, err := p.RowDigest()
+	if err != nil {
+		return refuse(err)
+	}
+	code, err := changelogentries.CodeDigest()
+	if err != nil {
+		return refuse(err)
+	}
+	rc := Receipt{Step: "propose", Component: component, RowDigest: rd,
+		TagsDigest: repoTagsDigest(src, extract.RepoRef{Key: repo}), MirrorDigest: mirrorDigestOrNone(src), CodeDigest: code}
+	fmt.Fprintf(stdout, "%s\n%s\n", out, rc.Line())
 	return 0
 }
 
@@ -200,10 +210,23 @@ func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io
 		}
 	}
 	fmt.Fprintf(&out, "rows=%d failed=%d minLocatedNewest=%d tagsDigest=%s", len(results), failed, minLocated, tagSetDigest(src, table, component))
-	if md := mirrorDigest(src); md != "" {
-		fmt.Fprintf(&out, " mirrorDigest=%s", md)
+	fmt.Fprintf(&out, " mirrorDigest=%s\n", mirrorDigestOrNone(src))
+	// One canonical receipt line per checked row, in table order.
+	rows := table
+	if component != "" {
+		rows = nil
+		for _, t := range table {
+			if t.Component == component {
+				rows = append(rows, t)
+			}
+		}
 	}
-	out.WriteByte('\n')
+	for _, t := range rows {
+		rc := Receipt{Step: "check", Component: t.Component, RowDigest: t.RowDigest(),
+			TagsDigest: repoTagsDigest(src, t.Repo), MirrorDigest: mirrorDigestOrNone(src), CodeDigest: digest}
+		out.WriteString(rc.Line())
+		out.WriteByte('\n')
+	}
 	if _, err := stdout.Write(out.Bytes()); err != nil {
 		fmt.Fprintf(stderr, "changelog rows-check: %v\n", err)
 		return 2
@@ -239,6 +262,30 @@ func tagSetDigest(src source, table []changelogentries.Target, component string)
 	sort.Strings(names)
 	sum := sha256.Sum256([]byte(strings.Join(names, "\n")))
 	return hex.EncodeToString(sum[:])
+}
+
+// repoTagsDigest is the sha256 of the sorted, newline-joined "repo@tag" names
+// of one repository, "unreadable" when the tag list cannot be read.
+func repoTagsDigest(src source, repo extract.RepoRef) string {
+	tags, err := src.Tags(repo)
+	if err != nil {
+		return "unreadable"
+	}
+	names := make([]string, 0, len(tags))
+	for _, tg := range tags {
+		names = append(names, repo.Key+"@"+tg.Name)
+	}
+	sort.Strings(names)
+	sum := sha256.Sum256([]byte(strings.Join(names, "\n")))
+	return hex.EncodeToString(sum[:])
+}
+
+// mirrorDigestOrNone is the mirror digest, or the explicit "none" for a fixture.
+func mirrorDigestOrNone(src source) string {
+	if d := mirrorDigest(src); d != "" {
+		return d
+	}
+	return "none"
 }
 
 // mirrorDigest is the mirror state index digest, "" for a fixture.
