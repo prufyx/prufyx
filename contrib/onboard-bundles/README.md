@@ -85,7 +85,10 @@ It fails on no paths, a duplicate path, a path that is a snapshot changelog or
 licence file, a path overlapping an exclusion in the same repository, and
 copies evidence that names an undeclared path or a tag that is not built. The
 result is written to `receipt.json` as `checks.targetCheckOffline` (`pass` or
-`fail`; `not-run` without `--target-input`) and the reasons are printed. `pass`
+`fail`; `not-run` without `--target-input`) and the reasons are printed. A
+failed check still writes the bundle, for inspection, but `build` exits 1: fix
+the reasons, then run `build` again; a bundle with a failed check is not ready
+to submit. `pass`
 means the declaration is self-consistent with the snapshot. It does not mean a
 path exists upstream, that the target is right, or that anything is verified
 against upstream, and it is not coverage. A later edit followed by `seal`

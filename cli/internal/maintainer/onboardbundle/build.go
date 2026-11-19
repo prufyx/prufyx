@@ -94,7 +94,9 @@ licence files it holds): at least one path, no duplicates, no overlap with an
 exclusion, no path that is a snapshot changelog or licence file, copies
 evidence naming only declared paths and built tags. The result, pass or fail,
 is written to receipt.json checks.targetCheckOffline and the reasons are
-printed; without -target-input it is not-run. pass means the declaration is
+printed. A failed check still writes the bundle, for inspection, but exits 1:
+fix the reasons, then run build again; a bundle with a failed check is not
+ready to submit. Without -target-input it is not-run. pass means the declaration is
 self-consistent with the snapshot. It does not verify anything upstream, does
 not show that a path exists, and is not coverage: coverage comes only from
 the pipeline.
@@ -174,6 +176,10 @@ func runBuild(args []string, stdout, stderr io.Writer) int {
 		}
 		return 2
 	}
+	if res.CheckFailed {
+		fmt.Fprintln(stderr, "onboard-bundle build: the offline target check failed; the bundle was written for inspection with checks.targetCheckOffline=fail. Fix the reasons above, then run build again; a bundle with a failed check is not ready to submit")
+		return 1
+	}
 	return 0
 }
 
@@ -197,7 +203,12 @@ type BuildOptions struct {
 }
 
 // BuildResult carries the lines Build reports.
-type BuildResult struct{ Notes []string }
+type BuildResult struct {
+	Notes []string
+	// CheckFailed is true when the offline target check failed: the bundle
+	// is written for inspection, but the command exits 1.
+	CheckFailed bool
+}
 
 type snapTag struct {
 	Tag, Commit string
@@ -276,6 +287,7 @@ func Build(o BuildOptions) (BuildResult, error) {
 	}
 	docs, notes, check, err := buildDocs(o, sv)
 	res.Notes = append(res.Notes, notes...)
+	res.CheckFailed = check == checkFail
 	if err != nil {
 		return res, err
 	}

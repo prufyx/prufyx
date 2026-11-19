@@ -411,6 +411,9 @@ func TestOfflineTargetCheckPassAndFail(t *testing.T) {
 		if td := readJSON(t, out, "target-draft.json"); td["status"] != "skeleton" {
 			t.Errorf("%s: status %v", c.name, td["status"])
 		}
+		if res.CheckFailed != (c.want == "fail") {
+			t.Errorf("%s: CheckFailed=%v", c.name, res.CheckFailed)
+		}
 		joined := strings.Join(res.Notes, "\n")
 		if c.want == "pass" && strings.Contains(joined, "check: fail") {
 			t.Errorf("%s: notes %q", c.name, joined)
@@ -523,5 +526,24 @@ func TestBuildHelpDescribesCheckoutAndOfflineCheck(t *testing.T) {
 		if !strings.Contains(buildHelp, w) {
 			t.Errorf("help lacks %q", w)
 		}
+	}
+}
+
+func TestRunExitsOneOnFailedOfflineCheckButWritesBundle(t *testing.T) {
+	snap := makeSnapshot(t, fixtureOpts{tags: threeTags})
+	out := outDir(t)
+	in := writeInput(t, `{"name": "Sample"}`)
+	var so, se bytes.Buffer
+	args := []string{"build", "-snapshot", snap, "-slug", "sample", "-spdx", "Apache-2.0", "-out", out, "-post-tag", "CHANGELOG.md", "-target-input", in}
+	if c := Run(args, &so, &se); c != 1 {
+		t.Fatalf("exit %d, want 1", c)
+	}
+	if !strings.Contains(so.String(), "no paths declared") || !strings.Contains(se.String(), "not ready to submit") {
+		t.Fatalf("stdout %q stderr %q", so.String(), se.String())
+	}
+	assertValid(t, out)
+	rc := readJSON(t, out, "receipt.json")
+	if rc["checks"].(map[string]any)["targetCheckOffline"] != "fail" {
+		t.Fatalf("receipt %v", rc["checks"])
 	}
 }
