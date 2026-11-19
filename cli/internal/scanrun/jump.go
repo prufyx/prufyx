@@ -406,9 +406,9 @@ func (r *customResourceRun) exactMajorIDs(ids []string, hop scanreport.Hop) []st
 		if !known || !ok1 || !ok2 || rule.Scope.Transition.Crossing != nil {
 			continue
 		}
-		from, f := lineattest.LineOf(rule.Scope.Transition.From)
-		to, t := lineattest.LineOf(rule.Scope.Transition.To)
-		if f && t && from == fromLine && to == toLine {
+		anchorFrom, f := lineattest.LineOf(rule.Scope.Transition.From)
+		anchorTo, t := lineattest.LineOf(rule.Scope.Transition.To)
+		if f && t && anchorFrom == fromLine && anchorTo == toLine {
 			out = append(out, id)
 		}
 	}
