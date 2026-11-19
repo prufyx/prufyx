@@ -5,6 +5,7 @@ package scanrun
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -235,7 +236,7 @@ func (r *customResourceRun) hop(hop upgradepath.Hop, only func(cncfcheck.ScanRul
 		return scanreport.Hop{}, hopDecision{}, ErrIntegrity
 	}
 	result.InputDigest = prepared.Prepared.InputDigest
-	decision.setDigest = objectSetDigest(r.fact, prepared, r.declarations.scopeComplete)
+	decision.setDigest = objectSetDigest(r.fact, prepared, r.declarations.scopeComplete, r.workspace)
 	if len(prepared.Unattributed) > 0 {
 		r.rootGap(scanreport.GapDocumentsCustomGroup, len(prepared.Unattributed))
 	}
@@ -277,6 +278,8 @@ func (r *customResourceRun) hop(hop upgradepath.Hop, only func(cncfcheck.ScanRul
 		}
 		if rule.Notice || rule.Basis == constraintengine.BasisLead {
 			// Verdict-neutral rules never decide a custom-resource hop.
+			claim, found := claims[rule.Scope.ID]
+			decision.neutral = append(decision.neutral, neutralRule{id: rule.Scope.ID, text: title(rule.Description), noticed: rule.Notice && found && claim.Status == constraintengine.StatusNotice})
 			continue
 		}
 		applicable++
@@ -366,21 +369,65 @@ type hopDecision struct {
 	blocks    []string
 	family    *scanreport.FamilyResult
 	setDigest string
+	// neutral are the notice and lead rules that overlap the hop. They decide
+	// no hop, so a hop that has one is never a pass of a jump.
+	neutral []neutralRule
+}
+
+// neutralRule is a notice or lead rule that overlaps a hop: noticed means the
+// engine gave it a NOTICE claim for the hop.
+type neutralRule struct {
+	id, text string
+	noticed  bool
 }
 
 // objectSetDigest is the digest of the object set a hop was evaluated on:
-// the project's set fact, its sorted members, whether the set is complete
-// and why not. It does not depend on the versions of the hop.
-func objectSetDigest(fact string, prepared cncfprepare.CustomResourceScan, scopeComplete bool) string {
+// the project's set fact, its sorted members, whether the set is complete and
+// why not, the canonical content of every object that carries a member, and
+// the digests of the CustomResourceDefinition artifacts in the input (the
+// install profile the review is joined to). It does not depend on the versions
+// of the hop. Objects of the same names with other content are another set.
+func objectSetDigest(fact string, prepared cncfprepare.CustomResourceScan, scopeComplete bool, workspace intake.Workspace) string {
 	members := make([]string, 0, len(prepared.Members))
 	for member := range prepared.Members {
 		members = append(members, member)
 	}
 	sort.Strings(members)
 	h := sha256.New()
-	for _, part := range append([]string{"prufyx/object-set/v1", fact, prepared.Prepared.Reason, fmt.Sprint(scopeComplete), fmt.Sprint(len(prepared.Unattributed))}, members...) {
+	write := func(part string) {
 		h.Write([]byte(part))
 		h.Write([]byte{0})
+	}
+	for _, part := range []string{"prufyx/object-set/v2", fact, string(prepared.Prepared.Reason), fmt.Sprint(scopeComplete), fmt.Sprint(len(prepared.Unattributed))} {
+		write(part)
+	}
+	content := map[intake.Source]string{}
+	artifacts := []string{}
+	for _, document := range workspace.Documents {
+		raw, err := json.Marshal(document.Value)
+		if err != nil {
+			raw = []byte("unreadable")
+		}
+		sum := sha256.Sum256(append([]byte(document.APIVersion+"\x00"+document.Kind+"\x00"+document.Namespace+"\x00"+document.Name+"\x00"), raw...))
+		content[document.Source] = hex.EncodeToString(sum[:])
+		if document.Kind == "CustomResourceDefinition" {
+			artifacts = append(artifacts, document.Source.Digest)
+		}
+	}
+	for _, member := range members {
+		write("member " + member)
+		digests := []string{}
+		for _, source := range prepared.Members[member] {
+			digests = append(digests, content[source])
+		}
+		sort.Strings(digests)
+		for _, digest := range digests {
+			write(digest)
+		}
+	}
+	sort.Strings(artifacts)
+	for _, artifact := range artifacts {
+		write("crd " + artifact)
 	}
 	return "sha256:" + hex.EncodeToString(h.Sum(nil))
 }

@@ -13,7 +13,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/intake"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
@@ -51,14 +53,14 @@ func jumpAtt(line string, from, to []lineattest.Release, until string, ids ...st
 
 // jumpKnowledge holds the reviews of lines 0.50 and 0.51 and the line-wide
 // rule, with mutations of either review.
-func jumpKnowledge(t *testing.T, mutate func(a50, a51 *lineattest.LineAttestation)) attestedCRD {
+func jumpKnowledge(t *testing.T, mutate func(a50, a51 *lineattest.LineAttestation), extraRules ...string) attestedCRD {
 	t.Helper()
 	a50 := jumpAtt("0.50", jumpReleases("0.49.0", "0.49.1"), jumpReleases("0.50.0", "0.50.1"), "")
 	a51 := jumpAtt("0.51", jumpReleases("0.50.0", "0.50.1"), jumpReleases("0.51.0"), "", crdLineRuleID)
 	if mutate != nil {
 		mutate(&a50, &a51)
 	}
-	k := attestedCRD{crdKnowledge: newCRDKnowledge(t, crdLineRule)}
+	k := attestedCRD{crdKnowledge: newCRDKnowledge(t, append([]string{crdLineRule}, extraRules...)...)}
 	k.attestations = lineattest.NewIndex([]lineattest.LineAttestation{a50, a51})
 	return k
 }
@@ -347,3 +349,86 @@ type jumpPolicyKnowledge struct {
 }
 
 func (k jumpPolicyKnowledge) PathPolicyFor(string, time.Time) upgradepath.Status { return k.status }
+
+// jumpLeadRule is a lead rule over the line-wide range of crdLineRule: it
+// overlaps the hop into 0.51 and decides nothing.
+var jumpLeadRule = strings.NewReplacer(crdLineRuleID, "strimzi.synthetic-lead.kafkatopics.0-50-0-to-0-51-0",
+	`"kafka.strimzi.io/v1beta2/Kafka"`, `"kafka.strimzi.io/v1beta2/KafkaTopic"`,
+	`"state":"active",`, `"state":"active","basis":"lead","derivedAt":"2026-09-23T00:00:00Z",`).Replace(crdLineRule)
+
+// A notice or lead rule that overlaps a hop decides nothing: the hop is never
+// a pass, so the jump is never STEPWISE_PASS even when the review of every
+// line decides its own rules. A decided notice makes the hop ATTENTION and
+// cites the rule.
+func TestJumpNoticeOrLeadNeverPasses(t *testing.T) {
+	t.Parallel()
+	// A lead rule over the hop, through a real scan.
+	result := jumpScan(t, jumpKnowledge(t, nil, jumpLeadRule), kafkaV1Doc)
+	_, jump := strimziJump(t, result.Report)
+	if jump == nil || jump.Status != scanreport.JumpUnknown || jump.Hops[1].Status != scanreport.JumpHopUndecided || len(jump.Hops[1].Reasons) == 0 || len(jump.Missing) == 0 {
+		t.Fatalf("lead: %+v", jump)
+	}
+	if result.Exit == 0 || result.Report.Verdict == scanreport.VerdictPass {
+		t.Fatalf("lead: verdict %s exit %d", result.Report.Verdict, result.Exit)
+	}
+	// The composition over hop decisions: every hop's review decided PASS.
+	pass := &scanreport.FamilyResult{Family: lineattest.FamilyCustomResourceVersions, Status: scanreport.FamilyPass}
+	compose := func(neutral ...neutralRule) scanreport.Jump {
+		run := &customResourceRun{knowledge: jumpKnowledge(t, nil), report: &scanreport.Report{}, slug: "strimzi", component: crdComponent, now: parseNow(t)}
+		path := scanreport.Path{Component: "strimzi", Hops: []scanreport.Hop{
+			{Index: 1, From: scanreport.Endpoint{Version: "0.49.0"}, To: scanreport.Endpoint{Version: "0.50.1"}},
+			{Index: 2, From: scanreport.Endpoint{Version: "0.50.1"}, To: scanreport.Endpoint{Version: "0.51.0"}},
+		}}
+		run.composeJump(&path, upgradepath.Plan{}, []hopDecision{
+			{family: pass, setDigest: "sha256:1"},
+			{family: pass, setDigest: "sha256:1", neutral: neutral},
+		})
+		return *path.Jump
+	}
+	if j := compose(); j.Status != scanreport.JumpStepwisePass {
+		t.Fatalf("control: %+v", j)
+	}
+	j := compose(neutralRule{id: "strimzi.synthetic-notice", text: "review the objects", noticed: true})
+	if j.Status != scanreport.JumpAttention || j.Hops[1].Status != scanreport.JumpHopAttention || len(j.Hops[1].Entries) != 1 || !strings.HasPrefix(j.Hops[1].Entries[0], "strimzi.synthetic-notice: ") {
+		t.Fatalf("notice: %+v", j)
+	}
+	for _, mixed := range [][]neutralRule{
+		{{id: "strimzi.synthetic-lead"}},
+		{{id: "strimzi.synthetic-notice", noticed: true}, {id: "strimzi.synthetic-lead"}},
+	} {
+		j := compose(mixed...)
+		if j.Status == scanreport.JumpStepwisePass || j.Status == scanreport.JumpAttention || j.Hops[1].Status != scanreport.JumpHopUndecided || len(j.Missing) != 1 {
+			t.Fatalf("lead among the rules: %+v", j)
+		}
+	}
+}
+
+// Objects of the same names with other content are another object set: the
+// digest differs, so a jump whose hops carried them would not compose.
+func TestObjectSetDigestCoversContent(t *testing.T) {
+	t.Parallel()
+	digest := func(doc string) string {
+		workspace, err := intake.Decode("input", []byte(settingsDoc+"---\n"+doc))
+		if err != nil {
+			t.Fatal(err)
+		}
+		prepared, err := cncfprepare.PrepareCustomResourceVersions(workspace, "strimzi", "0.50.1", "0.51.0", true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return objectSetDigest(prepared.Fact, prepared, true, workspace)
+	}
+	a := digest(kafkaV1Doc)
+	b := digest(kafkaV1Doc + "spec:\n  replicas: 3\n")
+	if a == b || a != digest(kafkaV1Doc) {
+		t.Fatalf("digests %s %s", a, b)
+	}
+	hops := []scanreport.JumpHop{
+		{Index: 1, From: "0.49.0", To: "0.50.1", Status: scanreport.JumpHopPass, ObjectSetDigest: a},
+		{Index: 2, From: "0.50.1", To: "0.51.0", Status: scanreport.JumpHopPass, ObjectSetDigest: b},
+	}
+	jump := scanreport.NewJump(hops, a, nil, nil)
+	if jump.Status != scanreport.JumpUnknown || len(jump.Hops) != 2 || len(jump.Missing) != 1 || jump.Missing[0].Hop != 2 {
+		t.Fatalf("jump on different object sets: %+v", jump)
+	}
+}

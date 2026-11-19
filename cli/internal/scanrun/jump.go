@@ -153,6 +153,27 @@ func (r *customResourceRun) composeJump(path *scanreport.Path, plan upgradepath.
 		switch {
 		case len(decision.blocks) > 0:
 			jump.Status, jump.RuleIDs = scanreport.JumpHopBlocked, decision.blocks
+		case len(decision.neutral) > 0:
+			// A notice or lead rule overlaps the hop. It decides nothing, so
+			// the hop is never a pass: ATTENTION citing the notice when the
+			// engine gave it one, UNDECIDED otherwise.
+			all := true
+			for _, n := range decision.neutral {
+				all = all && n.noticed
+			}
+			if all {
+				jump.Status = scanreport.JumpHopAttention
+				for _, n := range decision.neutral {
+					jump.Entries = append(jump.Entries, n.id+": "+n.text)
+				}
+				break
+			}
+			jump.Status = scanreport.JumpHopUndecided
+			for _, n := range decision.neutral {
+				if !n.noticed {
+					hop.Reasons = append(hop.Reasons, r.gap(&ref, scanreport.GapRuleNotDecided, n.id, "NOTICE_OR_LEAD_RULE_OVERLAPS_HOP"))
+				}
+			}
 		case decision.family != nil && decision.family.Status == scanreport.FamilyPass && hop.From.Version != "" && hop.To.Version != "":
 			jump.Status = scanreport.JumpHopPass
 		default:

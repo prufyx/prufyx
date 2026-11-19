@@ -426,15 +426,15 @@ one bare answer:
 | Hop status | Meaning |
 | --- | --- |
 | `BLOCKED` | A rule that blocks the hop, with its sources (as a finding). |
-| `PASS` | The review of the hop's line decided the custom-resource versions family for it; within that scope only. |
-| `ATTENTION` | The hop has change-list entries to check, cited; never a pass. |
-| `UNDECIDED` | A named gap (`LINE_NOT_ATTESTED`) and the next action. |
+| `PASS` | The review of the hop's line decided the custom-resource versions family for it, and no notice or lead rule overlaps the hop; within that scope only. |
+| `ATTENTION` | A notice rule that applies to the hop, cited by rule id; never a pass. |
+| `UNDECIDED` | A named gap (`LINE_NOT_ATTESTED`, or `RULE_NOT_DECIDED` for a lead rule that overlaps the hop) and the next action. |
 
 The jump status is `BLOCKED` when any hop is `BLOCKED` (the answer says that it
 holds for the stepwise path through that hop, and that a direct skip was not
 evaluated); else `ATTENTION` when a hop has entries; else `STEPWISE_PASS` only
 when every hop is `PASS`, in an unbroken chain, on one object set (every hop
-carries the same `objectSetDigest`); else `UNKNOWN`, with the table, the hops
+carries the same `objectSetDigest`, which covers the member names, the content of every object that carries one, and the CustomResourceDefinition artifacts of the input); else `UNKNOWN`, with the table, the hops
 that are not decided and what each lacks. Undecided hops are listed beside a
 `BLOCKED` or `ATTENTION` jump.
 
