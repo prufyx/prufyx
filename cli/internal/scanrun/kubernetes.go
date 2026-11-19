@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -54,6 +55,14 @@ type kubernetesRun struct {
 	blocked map[intake.Source]bool
 	// stepReasons are, per entered line, why its step did not decide an object.
 	stepReasons map[string][]stepReason
+	// hopDigests are, per hop index, the digest of the object content and
+	// install profile the hop was evaluated on.
+	hopDigests map[int]string
+	// hopNeutral are, per hop index, the notice and lead rules that overlap
+	// the hop, and wholeNeutral those of the whole upgrade: they decide no
+	// hop, so a hop that has one is never a pass of a jump.
+	hopNeutral   map[int][]neutralRule
+	wholeNeutral []neutralRule
 }
 
 func (r *kubernetesRun) evaluate(from, to string) error {
@@ -69,9 +78,24 @@ func (r *kubernetesRun) evaluate(from, to string) error {
 	r.excluded, r.excludedLeads = map[string]bool{}, map[string]bool{}
 	r.blocked = map[intake.Source]bool{}
 	r.stepReasons = map[string][]stepReason{}
+	r.hopDigests = map[int]string{}
+	r.hopNeutral, r.wholeNeutral = map[int][]neutralRule{}, nil
 	r.rootGaps = r.componentGaps()
-	for _, gap := range r.rootGaps {
-		r.report.Gaps = append(r.report.Gaps, gap)
+	// Map order must not reach the report: the jump takes the first gap's
+	// action and the open reasons in this order. Declarations come first in
+	// their declared order, then the rest by key.
+	ordered := r.declarationGaps()
+	var rest []scanreport.GapKey
+	for key := range r.rootGaps {
+		if !slices.Contains(ordered, key) {
+			rest = append(rest, key)
+		}
+	}
+	slices.Sort(rest)
+	for _, key := range append(ordered, rest...) {
+		if gap, found := r.rootGaps[key]; found {
+			r.report.Gaps = append(r.report.Gaps, gap)
+		}
 	}
 	r.unresolvedSetGap(cncfprepare.KubernetesApplySetReason(r.workspace))
 
@@ -79,8 +103,12 @@ func (r *kubernetesRun) evaluate(from, to string) error {
 	// entered are the release lines the planned upgrade enters; it stays
 	// empty when no upgrade can be planned.
 	entered := map[string]bool{}
+	jumpable := false
 	defer func() {
 		path.ServedList = r.apiVersionGaps(to, entered)
+		if jumpable {
+			r.composeJump(&path)
+		}
 		r.report.Paths = append(r.report.Paths, path)
 		if len(r.excluded)+len(r.excludedLeads) > 0 {
 			r.report.TrustPolicy = &scanreport.TrustPolicy{RequiredBasis: r.policy.Bases(), ExcludedRules: len(r.excluded), ExcludedLeadRules: len(r.excludedLeads)}
@@ -139,6 +167,7 @@ func (r *kubernetesRun) evaluate(from, to string) error {
 		if err := r.wholeUpgrade(from, to, plan); err != nil {
 			return err
 		}
+		jumpable = !unplanned && len(path.Hops) == len(plan.Hops)
 	}
 	return nil
 }
@@ -783,6 +812,7 @@ func (r *kubernetesRun) hop(hop upgradepath.Hop, unplanned bool) (scanreport.Hop
 		return scanreport.Hop{}, err
 	}
 	result.InputDigest, result.EngineContractDigest = eval.scan.Prepared.InputDigest, eval.contract
+	r.hopDigests[hop.Index] = r.objectSetDigest(eval.scan.Prepared.SourceDigest)
 	if eval.refused {
 		_, toLine, _ := hopLines(hop)
 		result.Status = scanreport.HopNoData
@@ -810,6 +840,7 @@ func (r *kubernetesRun) hop(hop upgradepath.Hop, unplanned bool) (scanreport.Hop
 		}
 		overlapping[rule.Scope.ID] = true
 		if r.neutral(rule, eval, ref, hop.CoveredBy(rule.Scope.Transition)) {
+			r.hopNeutral[hop.Index] = append(r.hopNeutral[hop.Index], r.neutralOf(rule, eval, hop.CoveredBy(rule.Scope.Transition)))
 			continue
 		}
 		applicable = append(applicable, rule)
@@ -1182,6 +1213,7 @@ func (r *kubernetesRun) wholeUpgrade(from, to string, plan upgradepath.Plan) err
 			continue
 		}
 		if r.neutral(rule, eval, ref, true) {
+			r.wholeNeutral = append(r.wholeNeutral, r.neutralOf(rule, eval, true))
 			continue
 		}
 		if !r.policy.Admits(rule.Basis) {

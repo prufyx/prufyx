@@ -36,7 +36,7 @@ Every route of more than one hop prints a per-hop table (`routes[].hopTable`
 in JSON): each hop with its status (`BLOCKED`, `PASS` or `UNDECIDED`), the
 rules that block it and the reasons that keep it from `PASS`. The same table
 shape is used for Kubernetes and for applications. For a custom-resource
-project the route also carries the scan's jump (`routes[].jump`, see
+project, and for a Kubernetes route of several hops, the route also carries the scan's jump (`routes[].jump`, see
 [scan.md](scan.md#upgrades-through-several-minor-lines-jump)): its status is
 `BLOCKED`, `ATTENTION`, `STEPWISE_PASS` or `UNKNOWN`, and an `UNKNOWN` always
 comes with the hops that are not decided and what each lacks. `STEPWISE_PASS`

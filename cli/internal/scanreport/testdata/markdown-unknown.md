@@ -1,5 +1,22 @@
 # UNKNOWN: manifests use API versions the target does not serve; migrate them before upgrading (7 other areas were not checked)
 
+## Jump kubernetes
+
+- kubernetes 1.24.17 -> 1.30.4: ATTENTION on the stepwise path (hop 2 lists changes to check); never a pass
+- hop 1 1.24.17 -> 1.25: UNDECIDED (DECLARATION\_MISSING, DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_SERVED, API\_VERSION\_NOT\_REVIEWED)
+- hop 2 1.25 -> 1.26: ATTENTION kubernetes.synthetic-notice.1-25-0-to-1-26-0: Back up etcd before you start; the stored objects are rewritten.
+- hop 3 1.26 -> 1.27: UNDECIDED (DECLARATION\_MISSING, DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_SERVED, API\_VERSION\_NOT\_REVIEWED)
+- hop 4 1.27 -> 1.28: UNDECIDED (LINE\_NOT\_ATTESTED, DECLARATION\_MISSING, DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_SERVED, API\_VERSION\_NOT\_REVIEWED)
+- hop 5 1.28 -> 1.29: UNDECIDED (DECLARATION\_MISSING, DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_SERVED, API\_VERSION\_NOT\_REVIEWED)
+- hop 6 1.29 -> 1.30.4: UNDECIDED (DECLARATION\_MISSING, DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_SERVED, API\_VERSION\_NOT\_REVIEWED)
+- decided by hop 2
+- missing for hop 1: DECLARATION\_MISSING, DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_SERVED, API\_VERSION\_NOT\_REVIEWED; next: if they are, add resourceScopeComplete: true to prufyx.yaml or pass --resource-scope-complete
+- missing for hop 3: DECLARATION\_MISSING, DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_SERVED, API\_VERSION\_NOT\_REVIEWED; next: if they are, add resourceScopeComplete: true to prufyx.yaml or pass --resource-scope-complete
+- missing for hop 4: LINE\_NOT\_ATTESTED, DECLARATION\_MISSING, DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_SERVED, API\_VERSION\_NOT\_REVIEWED; next: if they are, add resourceScopeComplete: true to prufyx.yaml or pass --resource-scope-complete
+- missing for hop 5: DECLARATION\_MISSING, DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_SERVED, API\_VERSION\_NOT\_REVIEWED; next: if they are, add resourceScopeComplete: true to prufyx.yaml or pass --resource-scope-complete
+- missing for hop 6: DECLARATION\_MISSING, DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_SERVED, API\_VERSION\_NOT\_REVIEWED; next: if they are, add resourceScopeComplete: true to prufyx.yaml or pass --resource-scope-complete
+- scope: composed from the hops of the planned path through the named releases, from the reviewed removed-API rules, line reviews and one-way notices that apply to each hop, for the objects of the manifests as they are today; a direct skip of a release line, other patch releases of an intermediate line, behaviour changes without a removed API, and gaps the report lists outside any hop are not part of a pass; kubelet skew not checked: no kubelet version is declared (--kubelet-version-min, --kubelet-version-max)
+
 ## NOT CHECKED (8)
 
 | Area | What | Next step |

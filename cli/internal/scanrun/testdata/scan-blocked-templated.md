@@ -8,6 +8,23 @@
 | --- | --- | --- | --- |
 | 1.24.17 -> 1.25 | Kubernetes 1.25 stops serving CronJob through batch/v1beta1 | `applyset.yaml:1` `CronJob default/nightly-report` | Migrate the named CronJob manifests to batch/v1. Reassess the complete target apply set. Validate admission, CRDs, stored objects, runtime clients, and API-server configuration separately. |
 
+## Jump kubernetes
+
+- kubernetes 1.24.17 -> 1.30.4: BLOCKED on the stepwise path (hop 1 decides); a direct skip was not evaluated
+- hop 1 1.24.17 -> 1.25: BLOCKED kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0
+- hop 2 1.25 -> 1.26: UNDECIDED (DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_REVIEWED)
+- hop 3 1.26 -> 1.27: UNDECIDED (DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_REVIEWED)
+- hop 4 1.27 -> 1.28: UNDECIDED (DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_REVIEWED)
+- hop 5 1.28 -> 1.29: UNDECIDED (DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_REVIEWED)
+- hop 6 1.29 -> 1.30.4: UNDECIDED (DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_REVIEWED)
+- decided by hop 1
+- missing for hop 2: DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_REVIEWED; next: render them (for example with helm template) and scan the output
+- missing for hop 3: DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_REVIEWED; next: render them (for example with helm template) and scan the output
+- missing for hop 4: DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_REVIEWED; next: render them (for example with helm template) and scan the output
+- missing for hop 5: DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_REVIEWED; next: render them (for example with helm template) and scan the output
+- missing for hop 6: DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_REVIEWED; next: render them (for example with helm template) and scan the output
+- scope: composed from the hops of the planned path through the named releases, from the reviewed removed-API rules, line reviews and one-way notices that apply to each hop, for the objects of the manifests as they are today; a direct skip of a release line, other patch releases of an intermediate line, behaviour changes without a removed API, and gaps the report lists outside any hop are not part of a pass; kubelet skew not checked: no kubelet version is declared (--kubelet-version-min, --kubelet-version-max)
+
 ## NOT CHECKED (2)
 
 | Area | What | Next step |

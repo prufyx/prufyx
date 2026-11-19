@@ -355,6 +355,7 @@ func withoutNotices(t *testing.T, report scanreport.Report) string {
 	}
 	delete(value, "notices")
 	delete(value["summary"].(map[string]any), "notices")
+	dropJumps(value)
 	raw, err := json.Marshal(value)
 	if err != nil {
 		t.Fatal(err)

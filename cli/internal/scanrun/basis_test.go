@@ -36,6 +36,7 @@ func withoutKeys(t *testing.T, report scanreport.Report, keys ...string) string 
 		delete(value, key)
 		delete(value["summary"].(map[string]any), key)
 	}
+	dropJumps(value)
 	raw, _ := json.Marshal(value)
 	return string(raw)
 }
@@ -204,6 +205,19 @@ func TestScanBasisIntegrity(t *testing.T) {
 	for name, edit := range edits {
 		if _, err := scan(t, claimEditor{Knowledge: base, edit: edit}, command...); !errors.Is(err, ErrIntegrity) {
 			t.Errorf("%s: %v", name, err)
+		}
+	}
+}
+
+// dropJumps removes paths[].jump from a decoded report: a jump is derived
+// from the notice and lead rules of its hops, so it is the one part of the
+// report that is meant to differ with them. Verdict, exit and every other
+// member must not.
+func dropJumps(value map[string]any) {
+	paths, _ := value["paths"].([]any)
+	for _, path := range paths {
+		if m, ok := path.(map[string]any); ok {
+			delete(m, "jump")
 		}
 	}
 }

@@ -448,6 +448,23 @@ verdict or exit code: a scan with `STEPWISE_PASS` stays `UNKNOWN` (exit 11)
 because the project is never covered; a `BLOCKED` jump is a blocked report
 (exit 10) because its rule is a finding.
 
+### Kubernetes routes
+
+A Kubernetes route of several hops carries the same jump, composed by the same
+rules from its own hops: a hop is `BLOCKED` by a finding of a reviewed rule at
+that hop (cited), `ATTENTION` by a one-way notice at it (cited), `PASS` only
+when the hop is `COVERED`, and `UNDECIDED` otherwise, with its gap reasons.
+`STEPWISE_PASS` needs every hop `PASS` on one object content digest and one
+install profile (the declarations that select the facts), and no gap outside
+the hops (for example an API version the target does not serve). A blocker of
+the whole upgrade that no hop owns is cited on the last hop. Its scope text
+names the reviewed removed-API rules, line reviews and notices; behaviour
+changes without a removed API are not covered. Kubelet version skew is covered only when a kubelet version is declared
+(`--kubelet-version-min`, `--kubelet-version-max`); the scope text of the
+jump says which of the two holds, and without a declaration it says kubelet
+skew was not checked. The jump never changes the
+verdict or the exit code.
+
 ## Gaps
 
 Every gap has a reason, a detail and an action.
