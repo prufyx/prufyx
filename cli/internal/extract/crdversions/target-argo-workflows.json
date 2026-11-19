@@ -1,0 +1,25 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "argo-workflows",
+    "catalog": "community",
+    "name": "Argo Workflows",
+    "repo": "github.com/argoproj/argo-workflows",
+    "component": "pkg:github/argoproj/argo-workflows",
+    "factProject": "argo_workflows",
+    "tagPrefixes": ["v"],
+    "minFrom": "4.0",
+    "attest": true,
+    "paths": [
+      {"path": "manifests/base/crds/full/argoproj.io_clusterworkflowtemplates.yaml"},
+      {"path": "manifests/base/crds/full/argoproj.io_cronworkflows.yaml"},
+      {"path": "manifests/base/crds/full/argoproj.io_workflowartifactgctasks.yaml"},
+      {"path": "manifests/base/crds/full/argoproj.io_workfloweventbindings.yaml"},
+      {"path": "manifests/base/crds/full/argoproj.io_workflows.yaml"},
+      {"path": "manifests/base/crds/full/argoproj.io_workflowtaskresults.yaml"},
+      {"path": "manifests/base/crds/full/argoproj.io_workflowtasksets.yaml"},
+      {"path": "manifests/base/crds/full/argoproj.io_workflowtemplates.yaml"}
+    ],
+    "exclude": []
+  }
+}

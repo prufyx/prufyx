@@ -1,0 +1,3 @@
+### Added
+
+- A CRD extractor target for Argo Workflows (8 CRDs in the argoproj.io group, listed by kind: Workflow, WorkflowTemplate, ClusterWorkflowTemplate, CronWorkflow, WorkflowEventBinding, WorkflowTaskSet, WorkflowTaskResult, WorkflowArtifactGCTask), read from the full CRD copy that the cluster install uses from the 4.0 line onward, tag family `v`, community catalog (Apache-2.0), with line attestation enabled. Attested pairs appear only after release derivation and a data change. The 3.4 to 4.0 pairs are not covered: the install source moves from `manifests/base/crds/minimal` to `manifests/base/crds/full` and both directories exist at every tag, which the ranged install path check refuses.

@@ -10,6 +10,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 | `akri` | CNCF | `component.akri.custom_resource_versions_set` | `akri.sh` |
 | `antrea` | CNCF | `component.antrea.custom_resource_versions_set` | `crd.antrea.io`, `multicluster.crd.antrea.io` |
 | `argo-cd` | CNCF | `component.argo_cd.custom_resource_versions_set` | `argoproj.io` (AppProject, Application, ApplicationSet) |
+| `argo-workflows` | community | `component.argo_workflows.custom_resource_versions_set` | `argoproj.io` (ClusterWorkflowTemplate, CronWorkflow, Workflow, WorkflowArtifactGCTask, WorkflowEventBinding, WorkflowTaskResult, WorkflowTaskSet, WorkflowTemplate) |
 | `awx-operator` | community | `component.awx_operator.custom_resource_versions_set` | `awx.ansible.com` |
 | `burrito` | community | `component.burrito.custom_resource_versions_set` | `config.terraform.padok.cloud` |
 | `cass-operator` | community | `component.cass_operator.custom_resource_versions_set` | `cassandra.datastax.com`, `control.k8ssandra.io` |
@@ -99,6 +100,7 @@ The reviewed table of projects whose custom-resource versions Prufyx records
 
 | Project | Name | Upstream repository | Licence |
 | --- | --- | --- | --- |
+| `argo-workflows` | Argo Workflows | https://github.com/argoproj/argo-workflows | [`Apache-2.0`](https://github.com/argoproj/argo-workflows/blob/43021573c5a35cbafae009043c132dfcef43a112/LICENSE) |
 | `awx-operator` | awx-operator | https://github.com/ansible/awx-operator | [`Apache-2.0`](https://github.com/ansible/awx-operator/blob/5e66b6aeb06c30ddc7300893145d7a31b1655ccd/LICENSE) |
 | `burrito` | burrito | https://github.com/padok-team/burrito | [`Apache-2.0`](https://github.com/padok-team/burrito/blob/08431668a19a75dab289d9bb55c74ef1c6ef772a/LICENSE) |
 | `cass-operator` | cass-operator | https://github.com/k8ssandra/cass-operator | [`Apache-2.0`](https://github.com/k8ssandra/cass-operator/blob/f88f577347336c300419a5567e258ba8eb5c5a07/LICENSE.txt) |

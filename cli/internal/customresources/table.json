@@ -47,6 +47,34 @@
       ]
     },
     {
+      "slug": "argo-workflows",
+      "catalog": "community",
+      "upstream": {
+        "name": "Argo Workflows",
+        "repository": "https://github.com/argoproj/argo-workflows",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/argoproj/argo-workflows/blob/43021573c5a35cbafae009043c132dfcef43a112/LICENSE"
+      },
+      "factProject": "argo_workflows",
+      "component": "pkg:github/argoproj/argo-workflows",
+      "groups": [
+        {
+          "name": "argoproj.io",
+          "source": "https://github.com/argoproj/argo-workflows/blob/43021573c5a35cbafae009043c132dfcef43a112/manifests/base/crds/full/argoproj.io_clusterworkflowtemplates.yaml",
+          "kinds": [
+            "ClusterWorkflowTemplate",
+            "CronWorkflow",
+            "Workflow",
+            "WorkflowArtifactGCTask",
+            "WorkflowEventBinding",
+            "WorkflowTaskResult",
+            "WorkflowTaskSet",
+            "WorkflowTemplate"
+          ]
+        }
+      ]
+    },
+    {
       "slug": "awx-operator",
       "catalog": "community",
       "upstream": {

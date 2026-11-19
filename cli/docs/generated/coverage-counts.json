@@ -7,7 +7,7 @@
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
-      "digest": "sha256:e3bcbe3a8f6d4e687a14b7f3a4b59ee6fd0e8f66144bf8d23eec34cd189a3242"
+      "digest": "sha256:c794b0b60b6a99150444b1c47adf9cf56eec03fe5c9b870d2ffde650f7f73291"
     },
     "lines": {
       "capturedOn": "2026-10-31",
@@ -21,21 +21,21 @@
     },
     "clockAttestedAt": "2026-11-18T14:41:02Z",
     "packProjectsCovered": 72,
-    "crdVersionProjects": 87,
+    "crdVersionProjects": 88,
     "crdPublishedProjects": 40,
     "fleet": {
-      "projects": 79,
-      "pairs": 395,
+      "projects": 78,
+      "pairs": 390,
       "a": 91,
       "b": 3,
       "s": 39,
-      "g": 262,
+      "g": 257,
       "c1": 63,
       "c3": 18,
       "c5": 13,
-      "vcPairs": 0.238,
-      "vcMean": 0.238,
-      "sPairs": 0.0987,
+      "vcPairs": 0.241,
+      "vcMean": 0.241,
+      "sPairs": 0.1,
       "rulesInWindow": 155
     },
     "priorityProjects": {
@@ -54,17 +54,17 @@
       "rulesInWindow": 112
     },
     "communityCatalog": {
-      "projects": 18,
-      "pairs": 88,
+      "projects": 19,
+      "pairs": 93,
       "a": 42,
       "b": 0,
       "s": 0,
-      "g": 46,
+      "g": 51,
       "c1": 9,
       "c3": 9,
       "c5": 8,
-      "vcPairs": 0.4773,
-      "vcMean": 0.4889,
+      "vcPairs": 0.4516,
+      "vcMean": 0.4632,
       "sPairs": 0,
       "rulesInWindow": 0
     },
@@ -216,6 +216,7 @@
       },
       {
         "project": "argo-workflows",
+        "catalog": "community",
         "priority": false,
         "window": [
           "3.4",
@@ -5938,5 +5939,5 @@
     "selectedSourceOnlyProjects": 11,
     "selectedSourceProjects": 58
   },
-  "readmeBlockSha256": "ddaa6a1961b2d6dff41e1b6d651ad66e2a9b285065ea54944f676d87eebbd00a"
+  "readmeBlockSha256": "bd5577bf343fa2da0026cb5fe537818094fd4b8272ade2de70382d962955cdef"
 }

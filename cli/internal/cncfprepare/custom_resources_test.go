@@ -165,10 +165,11 @@ func TestCustomResourceVersionsAmbiguousGroup(t *testing.T) {
 	}
 }
 
-// argoproj.io is listed for argo-cd by kind (AppProject, Application,
-// ApplicationSet): the kinds of other Argo components (a Rollout, a Workflow)
-// are not argo-cd's. They join no set and keep the argo-cd set incomplete
-// until the table lists them for their own projects.
+// argoproj.io is listed by kind: argo-cd lists AppProject, Application and
+// ApplicationSet, argo-workflows lists its Workflow kinds. The kinds of other
+// Argo components (a Rollout, an EventSource) are not argo-cd's. They join no
+// set and keep the argo-cd set incomplete until the table lists them for their
+// own projects.
 func TestCustomResourceVersionsSharedArgoGroup(t *testing.T) {
 	application := crObject("argoproj.io/v1alpha1", "Application", "app")
 	rollout := crObject("argoproj.io/v1alpha1", "Rollout", "web")
@@ -183,12 +184,16 @@ func TestCustomResourceVersionsSharedArgoGroup(t *testing.T) {
 		t.Fatalf("argo-cd fact with a Rollout %+v unattributed %d", f, len(scan.Unattributed))
 	}
 	index := customresources.DefaultIndex()
-	for kind, want := range map[string]customresources.Attribution{"AppProject": customresources.Owned, "Application": customresources.Owned, "ApplicationSet": customresources.Owned, "Rollout": customresources.Unknown, "Workflow": customresources.Unknown} {
-		if owner, attribution := index.OwnerOf("argoproj.io", kind); attribution != want || (want == customresources.Owned && owner != "argo-cd") {
+	for kind, want := range map[string]customresources.Attribution{"AppProject": customresources.Owned, "Application": customresources.Owned, "ApplicationSet": customresources.Owned, "Rollout": customresources.Unknown, "EventSource": customresources.Unknown, "Workflow": customresources.Owned} {
+		wantOwner := "argo-cd"
+		if kind == "Workflow" {
+			wantOwner = "argo-workflows"
+		}
+		if owner, attribution := index.OwnerOf("argoproj.io", kind); attribution != want || (want == customresources.Owned && owner != wantOwner) {
 			t.Fatalf("argoproj.io %s: %q %v", kind, owner, attribution)
 		}
 	}
-	if _, attribution := index.Owner("argoproj.io"); attribution != customresources.Owned {
+	if _, attribution := index.Owner("argoproj.io"); attribution != customresources.Ambiguous {
 		t.Fatalf("argoproj.io: %v", attribution)
 	}
 	// A project that lists the whole group beside argo-cd's kinds is refused.
@@ -196,9 +201,9 @@ func TestCustomResourceVersionsSharedArgoGroup(t *testing.T) {
 	if !customresources.Validate(shared) {
 		t.Fatal("the reviewed table is not valid")
 	}
-	shared = append(shared, customresources.Project{Slug: "zz-argo-workflows", Catalog: customresources.CatalogCNCF, FactProject: "zz_argo_workflows", Component: "pkg:github/argoproj/argo-workflows", Groups: []customresources.Group{{Name: "argoproj.io", Source: "https://github.com/argoproj/argo-workflows/blob/0123456789abcdef0123456789abcdef01234567/manifests/base/crds/full/argoproj.io_workflows.yaml"}}})
+	shared = append(shared, customresources.Project{Slug: "zz-argo-events", Catalog: customresources.CatalogCNCF, FactProject: "zz_argo_events", Component: "pkg:github/argoproj/argo-events", Groups: []customresources.Group{{Name: "argoproj.io", Source: "https://github.com/argoproj/argo-events/blob/0123456789abcdef0123456789abcdef01234567/manifests/base/crds/argoproj.io_eventsources.yaml"}}})
 	disjoint := append([]customresources.Project(nil), shared...)
-	disjoint[len(disjoint)-1].Groups = []customresources.Group{{Name: "argoproj.io", Source: shared[len(shared)-1].Groups[0].Source, Kinds: []string{"Workflow"}}}
+	disjoint[len(disjoint)-1].Groups = []customresources.Group{{Name: "argoproj.io", Source: shared[len(shared)-1].Groups[0].Source, Kinds: []string{"EventSource"}}}
 	if !customresources.Validate(disjoint) {
 		t.Fatal("a disjoint by-kind listing beside argo-cd was refused")
 	}
@@ -207,13 +212,13 @@ func TestCustomResourceVersionsSharedArgoGroup(t *testing.T) {
 	}
 }
 
-// Once argoproj.io is listed by kind, Application, Rollout and Workflow
+// Once argoproj.io is listed by kind, Application, Rollout and EventBus
 // objects land in the sets of the three projects that list them, and an
 // argoproj.io kind nobody lists keeps all three sets incomplete.
 func TestCustomResourceVersionsSharedGroupByKind(t *testing.T) {
 	application := crObject("argoproj.io/v1alpha1", "Application", "app")
 	rollout := crObject("argoproj.io/v1alpha1", "Rollout", "web")
-	workflow := crObject("argoproj.io/v1alpha1", "Workflow", "job")
+	eventBus := crObject("argoproj.io/v1alpha1", "EventBus", "bus")
 	eventSource := crObject("argoproj.io/v1alpha1", "EventSource", "events")
 	projects := customresources.Projects()
 	listKinds := func(slug string, kinds ...string) {
@@ -234,7 +239,7 @@ func TestCustomResourceVersionsSharedGroupByKind(t *testing.T) {
 	}
 	listKinds("argo-cd", "Application")
 	listKinds("strimzi", "Rollout")
-	listKinds("istio", "Workflow")
+	listKinds("istio", "EventBus")
 	index := customresources.NewIndex(projects)
 	prepare := func(project string, docs ...string) (CustomResourceScan, inputFact) {
 		scan, err := prepareCustomResourceVersions(index, crWorkspace(t, crDocs(docs...)), project, "0.51.0", "1.0.0", true)
@@ -243,12 +248,12 @@ func TestCustomResourceVersionsSharedGroupByKind(t *testing.T) {
 		}
 		return scan, crFact(t, scan.Prepared)
 	}
-	for project, want := range map[string]string{"argo-cd": "argoproj.io/v1alpha1/Application", "strimzi": "argoproj.io/v1alpha1/Rollout", "istio": "argoproj.io/v1alpha1/Workflow"} {
-		scan, f := prepare(project, application, rollout, workflow)
+	for project, want := range map[string]string{"argo-cd": "argoproj.io/v1alpha1/Application", "strimzi": "argoproj.io/v1alpha1/Rollout", "istio": "argoproj.io/v1alpha1/EventBus"} {
+		scan, f := prepare(project, application, rollout, eventBus)
 		if !f.SetValue.Complete || !reflect.DeepEqual(f.SetValue.Members, []string{want}) || len(scan.Unattributed) != 0 || scan.Prepared.Reason != ReasonCustomResourcesComplete {
 			t.Fatalf("%s: %+v reason %s unattributed %d", project, f, scan.Prepared.Reason, len(scan.Unattributed))
 		}
-		scan, f = prepare(project, application, rollout, workflow, eventSource)
+		scan, f = prepare(project, application, rollout, eventBus, eventSource)
 		if f.SetValue.Complete || len(scan.Unattributed) != 1 || scan.Prepared.Reason != ReasonCustomResourcesUnattributed || scan.Prepared.State != StatePrepared {
 			t.Fatalf("%s with an unlisted kind: %+v reason %s state %s unattributed %d", project, f, scan.Prepared.Reason, scan.Prepared.State, len(scan.Unattributed))
 		}
