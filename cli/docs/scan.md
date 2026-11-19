@@ -462,8 +462,15 @@ names the reviewed removed-API rules, line reviews and notices; behaviour
 changes without a removed API are not covered. Kubelet version skew is covered only when a kubelet version is declared
 (`--kubelet-version-min`, `--kubelet-version-max`); the scope text of the
 jump says which of the two holds, and without a declaration it says kubelet
-skew was not checked. The jump never changes the
-verdict or the exit code.
+skew was not checked. A hop that enters a line the declared kubelet versions are too old for is
+`ATTENTION` with the action `before this hop (<from> -> <to>), upgrade kubelets to a
+version between <minimum for the target> and <from>` (the stepwise path rolls
+the nodes between its hops; a kubelet is never newer than the control plane), and
+a summary names the kubelet version the path needs by its end, never a pass; the
+finding of the direct upgrade stays `BLOCKED`, and the exit code does not change. Scan also computes the skew window from the
+declared kubelet versions for every hop: a hop outside it with no signed rule is
+`ATTENTION` with a line labelled `computed`, never a pass. The jump never
+changes the verdict or the exit code.
 
 ## Gaps
 

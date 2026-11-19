@@ -699,6 +699,9 @@
         "declaredEvidence": {
           "type": "string"
         },
+        "computed": {
+          "type": "string"
+        },
         "keys": {
           "type": "array",
           "items": {

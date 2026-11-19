@@ -1292,6 +1292,17 @@ func (r *kubernetesRun) finding(rule cncfcheck.ScanRule, claim constraintengine.
 	if claim.SubjectMatch != nil {
 		finding.Match = claim.SubjectMatch.Mode
 	}
+	if declarationOnly(rule) && r.declarations.kubelet.Minimum != "" {
+		// A separate line with the exact versions, computed by scan; the
+		// rule's own title and fix are never changed.
+		line, ok := endpointLine(upgradepath.Endpoint{Version: ref.To})
+		if !ok {
+			line, ok = endpointLine(upgradepath.Endpoint{Line: ref.To})
+		}
+		if ok && minKubelet(line) != "" {
+			finding.Computed = skewComputed(line, ref.To, r.declarations.kubelet.Minimum, r.declarations.kubelet.Maximum)
+		}
+	}
 	markCrossing(&finding, rule, claim, viaCrossing)
 	if claim.EvidenceExtractor != nil {
 		finding.Extractor = claim.EvidenceExtractor.ID + "@" + claim.EvidenceExtractor.Version

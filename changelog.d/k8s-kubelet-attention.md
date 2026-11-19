@@ -1,0 +1,2 @@
+### Fixed
+- A Kubernetes hop that enters a line the declared kubelet versions are too old for is shown as ATTENTION with the exact minimum kubelet version to roll nodes to, not as a block of the stepwise path. The direct finding stays BLOCKED, the exit code is unchanged, and the finding carries a separate computed line with the exact declared and minimum kubelet versions (the rule wording is unchanged).

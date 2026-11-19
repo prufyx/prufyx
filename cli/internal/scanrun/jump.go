@@ -7,8 +7,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
@@ -304,7 +307,7 @@ func (r *kubernetesRun) composeJump(path *scanreport.Path) {
 		// A notice or lead of the whole upgrade belongs to no hop.
 		open = append(open, scanreport.ReasonRuleNotDecided)
 	}
-	var wholeBlocks []string
+	var wholeBlocks, wholeSkew []string
 	for _, gap := range r.report.Gaps {
 		if gap.Component == kubernetesSlug && (gap.Hop == nil || gap.Hop.WholeUpgrade) {
 			open = append(open, gap.Reason)
@@ -312,7 +315,11 @@ func (r *kubernetesRun) composeJump(path *scanreport.Path) {
 	}
 	for _, f := range r.report.Findings {
 		if f.Component == kubernetesSlug && f.Hop.WholeUpgrade {
-			wholeBlocks = append(wholeBlocks, f.RuleID)
+			if r.skewRule(f.RuleID) {
+				wholeSkew = append(wholeSkew, f.RuleID)
+			} else {
+				wholeBlocks = append(wholeBlocks, f.RuleID)
+			}
 		}
 	}
 	at := func(ref scanreport.HopRef, own scanreport.HopRef, also []scanreport.HopRef) bool {
@@ -326,19 +333,27 @@ func (r *kubernetesRun) composeJump(path *scanreport.Path) {
 		}
 		return false
 	}
+	skews := r.hopSkews(path.Hops)
+	summary := kubeletSummary(skews)
 	hops := make([]scanreport.JumpHop, 0, len(path.Hops))
 	for i := range path.Hops {
 		hop := path.Hops[i]
+		skewState := skews[i]
 		ref := scanreport.HopRef{Index: hop.Index, From: hop.From.String(), To: hop.To.String()}
 		jump := scanreport.JumpHop{Index: hop.Index, From: ref.From, To: ref.To, ObjectSetDigest: r.hopDigests[hop.Index], Attestation: hop.Attestation}
-		var blocks []string
+		var blocks, skew []string
 		for _, f := range r.report.Findings {
 			if f.Component == kubernetesSlug && at(ref, f.Hop, f.AlsoAt) {
-				blocks = append(blocks, f.RuleID)
+				if r.skewRule(f.RuleID) {
+					skew = append(skew, f.RuleID)
+				} else {
+					blocks = append(blocks, f.RuleID)
+				}
 			}
 		}
 		if i == len(path.Hops)-1 {
 			blocks = append(blocks, wholeBlocks...)
+			skew = append(skew, wholeSkew...)
 		}
 		var entries []string
 		noticedAll := len(r.hopNeutral[hop.Index]) > 0
@@ -351,6 +366,29 @@ func (r *kubernetesRun) composeJump(path *scanreport.Path) {
 		switch {
 		case (hop.Status == scanreport.HopBlocked && len(blocks) > 0) || (i == len(path.Hops)-1 && len(wholeBlocks) > 0):
 			jump.Status, jump.RuleIDs = scanreport.JumpHopBlocked, uniqueStrings(blocks)
+		case len(skew) > 0 && (hop.Status == scanreport.HopBlocked || (i == len(path.Hops)-1 && len(wholeSkew) > 0)):
+			// The hop enters a line the declared kubelet versions are too old
+			// for. The stepwise path rolls the nodes between its hops, so the
+			// hop is a step to take (ATTENTION with the minimum kubelet), not
+			// a block of the path; the direct upgrade keeps its finding.
+			jump.Status = scanreport.JumpHopAttention
+			action := skewState.action()
+			if skewState.tooNew {
+				action = "a declared kubelet is newer than the target of this hop; check the declared kubelet versions"
+			}
+			for _, id := range uniqueStrings(skew) {
+				jump.Entries = append(jump.Entries, id+": "+action)
+			}
+			jump.Entries = append(jump.Entries, summary[i]...)
+		case skewState.outside && hop.Status != scanreport.HopBlocked:
+			// The declared kubelet versions are outside the supported skew
+			// for this hop and no signed rule says so: computed by scan from
+			// the declaration for every hop, never a pass.
+			jump.Status = scanreport.JumpHopAttention
+			jump.Entries = append([]string{skewState.text()}, summary[i]...)
+		case skewState.unresolved:
+			jump.Status = scanreport.JumpHopUndecided
+			jump.Reasons = uniqueStrings(append(append([]string{}, hop.Reasons...), reasonKubeletSkewNotResolved))
 		case noticedAll && hop.Status != scanreport.HopBlocked:
 			// A notice rule overlaps the hop and decides nothing: ATTENTION
 			// citing it, never a pass.
@@ -396,4 +434,169 @@ func (r *kubernetesRun) composeJump(path *scanreport.Path) {
 		jump.Scope = kubernetesJumpScope + fmt.Sprintf(kubeletSkewChecked, declared)
 	}
 	path.Jump = &jump
+}
+
+// skewRule reports whether the rule is a kubelet version-skew rule: one that
+// reads only the declared kubelet versions.
+func (r *kubernetesRun) skewRule(id string) bool {
+	rule, found := r.byID[id]
+	return found && declarationOnly(rule)
+}
+
+// minKubeletMinor is the lowest kubelet minor version the version-skew policy
+// allows against a control plane of minor line: three minors older (two for a
+// kubelet below 1.25).
+func minKubeletMinor(line uint64) uint64 {
+	if line >= 3 && line-3 >= 25 {
+		return line - 3
+	}
+	if line >= 2 {
+		return line - 2
+	}
+	return 0
+}
+
+// minKubelet is the minimum kubelet version for a control plane of the line
+// "1.N", or "" when the line is not a minor line.
+func minKubelet(line string) string {
+	major, minor, found := strings.Cut(line, ".")
+	if !found {
+		return ""
+	}
+	n, err := strconv.ParseUint(minor, 10, 64)
+	if err != nil {
+		return ""
+	}
+	return major + "." + strconv.FormatUint(minKubeletMinor(n), 10) + ".0"
+}
+
+// reasonKubeletSkewNotResolved keeps a hop from PASS when a kubelet version is
+// declared but the skew window cannot be computed for the hop (another major
+// line, or a version scan cannot read).
+const reasonKubeletSkewNotResolved = "KUBELET_SKEW_NOT_RESOLVED"
+
+// hopSkew is the skew window of the declared kubelet versions against the
+// target of one hop, computed by scan from the declaration alone.
+type hopSkew struct {
+	declared, line string
+	from, to       string // the hop's ends, as shown
+	minimum        string // the minimum kubelet for the hop's target line
+	outside        bool   // outside the supported skew window
+	tooNew         bool   // a declared kubelet is newer than the hop's target
+	unresolved     bool   // a kubelet version is declared but the window cannot be computed
+}
+
+// text is the line shown for a hop outside the window, labelled as computed.
+func (h hopSkew) text() string {
+	if h.tooNew {
+		return "computed: declared kubelet " + h.declared + " is newer than Kubernetes " + h.line + ", outside the supported skew; check the declared kubelet versions"
+	}
+	return "computed: declared kubelet " + h.declared + " is outside the supported skew for " + h.line + "; " + h.action()
+}
+
+// action is what to do before this hop: roll the kubelets to a version inside
+// the window of the hop's target and never newer than the hop's start, since a
+// kubelet must never be newer than the control plane.
+func (h hopSkew) action() string {
+	if h.minimum == "" || h.from == "" {
+		return "upgrade kubelets into the skew window of the hop's target, never newer than the control plane, before this hop"
+	}
+	return "before this hop (" + h.from + " -> " + h.to + "), upgrade kubelets to a version between " + h.minimum + " and " + h.from
+}
+
+// versionParts reads "1.30", "1.30.2" or "1.30.2-rc.1" as major, minor, patch.
+func versionParts(v string) ([3]uint64, bool) {
+	var out [3]uint64
+	if i := strings.IndexAny(v, "-+"); i >= 0 {
+		v = v[:i]
+	}
+	parts := strings.Split(v, ".")
+	if len(parts) < 2 || len(parts) > 3 {
+		return out, false
+	}
+	for n, part := range parts {
+		value, err := strconv.ParseUint(part, 10, 64)
+		if err != nil {
+			return out, false
+		}
+		out[n] = value
+	}
+	return out, true
+}
+
+// hopSkews computes the window for every hop from the declared kubelet
+// versions; without a declaration nothing is computed.
+func (r *kubernetesRun) hopSkews(hops []scanreport.Hop) []hopSkew {
+	out := make([]hopSkew, len(hops))
+	k := r.declarations.kubelet
+	if k.Minimum == "" {
+		return out
+	}
+	maximum := k.Maximum
+	if maximum == "" {
+		maximum = k.Minimum
+	}
+	declared := k.Minimum
+	if maximum != k.Minimum {
+		declared += " to " + maximum
+	}
+	low, lowOK := versionParts(k.Minimum)
+	high, highOK := versionParts(maximum)
+	for i, hop := range hops {
+		line, lineOK := endpointLine(upgradepath.Endpoint{Version: hop.To.Version, Line: hop.To.Line})
+		state := hopSkew{declared: declared, line: line, from: hop.From.String(), to: hop.To.String(), minimum: minKubelet(line)}
+		target, targetOK := versionParts(hop.To.Version)
+		if !targetOK {
+			target, targetOK = versionParts(hop.To.Line)
+		}
+		if !lowOK || !highOK || !lineOK || !targetOK {
+			state.unresolved = true
+			out[i] = state
+			continue
+		}
+		present, resolved := cncfprepare.KubeletSkewUnsupported(low, high, target)
+		switch {
+		case !resolved:
+			state.unresolved = true
+		case present:
+			state.outside = true
+			state.tooNew = high[1] > target[1]
+		}
+		out[i] = state
+	}
+	return out
+}
+
+// kubeletSummary names, on the last hop that needs the highest minimum, the
+// kubelet version the whole path needs by its end. It is per hop index: nil
+// everywhere else.
+func kubeletSummary(skews []hopSkew) [][]string {
+	out := make([][]string, len(skews))
+	var best uint64
+	index := -1
+	for i, state := range skews {
+		if !state.outside || state.tooNew || state.minimum == "" {
+			continue
+		}
+		_, minor, _ := strings.Cut(state.minimum, ".")
+		minor, _, _ = strings.Cut(minor, ".")
+		if n, err := strconv.ParseUint(minor, 10, 64); err == nil && (index < 0 || n >= best) {
+			best, index = n, i
+		}
+	}
+	if index >= 0 {
+		out[index] = []string{"summary: kubelets must reach >= " + skews[index].minimum + " by the hop to " + skews[index].to + ", rolled stepwise, never newer than the control plane"}
+	}
+	return out
+}
+
+// skewComputed is the line scan computes for a kubelet-skew finding: the
+// declared kubelet versions and the minimum for the target. It is labelled as
+// computed and never replaces the rule's own wording.
+func skewComputed(line, target, declaredMin, declaredMax string) string {
+	declared := declaredMin
+	if declaredMax != "" && declaredMax != declaredMin {
+		declared += " to " + declaredMax
+	}
+	return "computed: declared kubelet " + declared + "; minimum for " + target + " is " + minKubelet(line)
 }

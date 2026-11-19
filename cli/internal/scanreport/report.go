@@ -304,6 +304,10 @@ type Finding struct {
 	// DeclaredEvidence labels a finding that rests on declared, not observed,
 	// input; it stands where locations would be. Absent otherwise.
 	DeclaredEvidence string `json:"declaredEvidence,omitempty"`
+	// Computed is a line scan itself generated for the finding (for example
+	// the exact declared and minimum versions). It is never part of the
+	// rule's title or fix, and it says so. Absent otherwise.
+	Computed string `json:"computed,omitempty"`
 	// Keys are the Helm values keys a chart values rule found: required
 	// keys the supplied values do not set, or refused keys they set, as
 	// values-path set members. Absent for every other finding.
