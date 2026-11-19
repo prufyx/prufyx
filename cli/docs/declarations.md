@@ -20,7 +20,7 @@ of each undecided rule).
 
 | Flag | In `prufyx.yaml` (`declarations.kubernetes.`) | True when | Leave it out when |
 | --- | --- | --- | --- |
-| `--resource-scope-complete` | `resourceScopeComplete: true` | The files you pass are every manifest you apply, not an excerpt: the whole `helm template` or `kustomize build` output, and no other chart, overlay, operator-created object or hand-applied file adds to it. | You pass one chart of several, a sample, or part of an apply set. |
+| `--resource-scope-complete` | `resourceScopeComplete: true` | The files you pass are every manifest you apply, not an excerpt: the whole `helm template` or `kustomize build` output, and no other chart, overlay, operator-created object or hand-applied file adds to it. The scope is the set of objects you apply; withholding Secret values (`data`/`stringData`) while keeping each Secret's `apiVersion`, `kind`, `name` and `namespace` does not make it incomplete. | You pass one chart of several, a sample, or part of an apply set. |
 | `--target-api-apply-required` | `targetApplyRequired: true` | These manifests are what you send to the Kubernetes API of the target version. | The files are a reference copy, or are applied to another cluster. |
 | `--distribution official_upstream` | `distribution: official_upstream` | The cluster runs an upstream Kubernetes build. | It runs a vendor or modified build: declare `custom_build`. |
 
