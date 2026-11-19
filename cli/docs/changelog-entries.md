@@ -258,3 +258,12 @@ The manifest is a derivation to be re-derived and checked, not a claim. A
 printed manifest, with or without an `entry`, is not a compatibility fact, an
 attestation or evidence of anything; only a gate that re-derives it from the
 pinned bytes and accepts it can use it.
+
+## Older-line floor (optional row field)
+
+A read row may carry `floor`, the oldest release line (canonical `major.minor`) whose every final tag the row locates, joined without a gap to the newest lines. Absent means the newest 5 lines; absence is the only way to say so (an explicit empty value, `newest5`, a floor equal to or newer than the oldest of the newest 5 lines, or any non-canonical spelling is refused).
+
+- `propose-rows ... --upstream-tags FILE` computes the floor of the chosen row. The tag set is the injected upstream list (lines `repo<TAB>40-hex object id<TAB>tag name`), never the mirror. A line joins the run only if every upstream final tag is in the mirror and is located by exactly one heading style with no residue, and the mirror holds no final tag of the line that upstream lacks. The run stops at the first failing line.
+- `rows-check ... --upstream-tags FILE` re-derives the run and fails a row whose stored floor is older than the re-derived one, is not an upstream line, or has no provable run beyond the newest 5 lines. A floor row without the list fails.
+- The receipt line of a floor row carries `floor`, `derivedFloor` and `windowTags` (digest over tag name plus object id of the window). Rows without a floor print exactly what they printed before.
+- Caps are constants (tags 200, blobs 400, bytes). An unset byte cap refuses with `WANTS_TOO_LARGE:bytes`; it is unset until measured, so floor derivation refuses until then. Exhausted capped retries (3) give NO-ROW and no floor.

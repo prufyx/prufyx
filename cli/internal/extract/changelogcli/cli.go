@@ -29,8 +29,8 @@ import (
 
 const usage = `usage:
   prufyx-maintainer changelog entries --component NAME --repo github.com/OWNER/NAME --path FILE --form FORM --tag TAG (--mirror-state DIR | --fixture DIR)
-  prufyx-maintainer changelog rows-check (--mirror-state DIR | --fixture DIR) [--component NAME] [--min-located-newest N]
-  prufyx-maintainer changelog propose-rows (--mirror-state DIR | --fixture DIR) --component NAME --repo github.com/OWNER/NAME [--tags TAG,TAG]
+  prufyx-maintainer changelog rows-check (--mirror-state DIR | --fixture DIR) [--component NAME] [--min-located-newest N] [--upstream-tags FILE]
+  prufyx-maintainer changelog propose-rows (--mirror-state DIR | --fixture DIR) --component NAME --repo github.com/OWNER/NAME [--tags TAG,TAG | --upstream-tags FILE]
 exit: 0 manifest printed (entry or typed reason), every row PASS or a row proposed, 1 a row FAIL or NO-ROW, 2 input rejected or read failed`
 
 // Main runs a "changelog" subcommand (args exclude the word "changelog") with
@@ -101,10 +101,10 @@ func openSource(mirror, fixture string) (source, error) {
 // targets.json JSON with its per-tag hit table, or NO-ROW with a typed reason.
 // Read-only. 0 row printed, 1 NO-ROW, 2 input rejected.
 func proposeRows(args []string, stdout, stderr io.Writer) int {
-	var component, repo, tags, mirror, fixture string
+	var component, repo, tags, mirror, fixture, upstream string
 	f := flag.NewFlagSet("changelog propose-rows", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
-	for name, v := range map[string]*string{"component": &component, "repo": &repo, "tags": &tags, "mirror-state": &mirror, "fixture": &fixture} {
+	for name, v := range map[string]*string{"component": &component, "repo": &repo, "tags": &tags, "mirror-state": &mirror, "fixture": &fixture, "upstream-tags": &upstream} {
 		f.Var(&once{v: v}, name, "")
 	}
 	refuse := func(err error) int {
@@ -128,7 +128,11 @@ func proposeRows(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return refuse(err)
 	}
-	p, err := changelogentries.ProposeRow(src, component, repo, only)
+	up, err := openUpstream(upstream)
+	if err != nil {
+		return refuse(err)
+	}
+	p, err := changelogentries.ProposeRowFloor(src, up, component, repo, only)
 	var nr *changelogentries.NoRow
 	if errors.As(err, &nr) {
 		fmt.Fprintln(stdout, nr.Error())
@@ -166,10 +170,10 @@ func proposeRows(args []string, stdout, stderr io.Writer) int {
 // rowsCheck runs every reviewed row (or one) over all final tags of its
 // repository and prints one line per row. Read-only; 0 only when no row failed.
 func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io.Writer) int {
-	var component, mirror, fixture, minArg string
+	var component, mirror, fixture, minArg, upstream string
 	f := flag.NewFlagSet("changelog rows-check", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
-	for name, v := range map[string]*string{"component": &component, "mirror-state": &mirror, "fixture": &fixture, "min-located-newest": &minArg} {
+	for name, v := range map[string]*string{"component": &component, "mirror-state": &mirror, "fixture": &fixture, "min-located-newest": &minArg, "upstream-tags": &upstream} {
 		f.Var(&once{v: v}, name, "")
 	}
 	if err := f.Parse(args); err != nil {
@@ -199,8 +203,15 @@ func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io
 		fmt.Fprintf(stderr, "changelog rows-check: %v\n", err)
 		return 2
 	}
+	up, err := openUpstream(upstream)
+	if err != nil {
+		fmt.Fprintf(stderr, "changelog rows-check: %v\n", err)
+		return 2
+	}
 	var results []changelogentries.RowResult
-	if override != nil {
+	if up != nil {
+		results, err = changelogentries.CheckRowsFloor(src, up, table, component, digest, override)
+	} else if override != nil {
 		results, err = changelogentries.CheckRowsMin(src, table, component, digest, *override)
 	} else {
 		results, err = changelogentries.CheckRows(src, table, component, digest)
@@ -218,6 +229,14 @@ func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io
 		}
 		for _, c := range r.SortedCodes() {
 			fmt.Fprintf(&out, " %s=%d", c, r.Withheld[c])
+		}
+		// The receipt carries the floor and the window tag-set digest only for
+		// a row that has a floor; every other line is byte-for-byte as before.
+		if r.Floor != "" {
+			fmt.Fprintf(&out, " floor=%s", r.Floor)
+			if r.WindowDigest != "" {
+				fmt.Fprintf(&out, " derivedFloor=%s windowTags=%s", r.FloorDerived, r.WindowDigest)
+			}
 		}
 		out.WriteByte('\n')
 		if r.Status == changelogentries.RowPass && len(r.Unlocated) > 0 {
@@ -272,6 +291,28 @@ func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io
 		return 1
 	}
 	return 0
+}
+
+// openUpstream reads the injected upstream tag list; "" gives none (a nil
+// interface, never a typed nil). A file that does not parse is refused.
+func openUpstream(path string) (changelogentries.UpstreamTags, error) {
+	if path == "" {
+		return nil, nil
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("upstream tag list: %w", err)
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, changelogentries.MaxUpstreamListBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("upstream tag list: %w", err)
+	}
+	list, err := changelogentries.ParseUpstreamList(data)
+	if err != nil {
+		return nil, err
+	}
+	return list, nil
 }
 
 // tagSetDigest is the sha256 of the sorted, newline-joined tag names of the

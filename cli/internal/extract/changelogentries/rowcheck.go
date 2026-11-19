@@ -49,6 +49,13 @@ type RowResult struct {
 	MinLocatedNewest int
 	// Reasons says why the row failed; empty for PASS and SKIP.
 	Reasons []string
+	// Floor is the row's stored older-line floor ("" when absent). When it is
+	// set the check re-derived the run from the upstream tag list:
+	// FloorDerived is the re-derived floor and WindowDigest the tag-set digest
+	// of the stored floor's window, both pinned in the receipt.
+	Floor        string
+	FloorDerived string
+	WindowDigest string
 }
 
 // DefaultMinLocatedNewest is the number of newest final tags that must each
@@ -86,7 +93,7 @@ func CheckRow(src interface {
 	extract.PinnedReader
 	extract.TagSource
 }, t Target, codeDigest string) RowResult {
-	return checkRow(src, t, codeDigest, t.bar(), false)
+	return checkRow(src, nil, t, codeDigest, t.bar(), false)
 }
 
 // bar is the row's coverage bar: its minLocatedNewest, or the default.
@@ -105,7 +112,7 @@ func CheckRowMin(src interface {
 	extract.PinnedReader
 	extract.TagSource
 }, t Target, codeDigest string, min int) RowResult {
-	return checkRow(src, t, codeDigest, min, true)
+	return checkRow(src, nil, t, codeDigest, min, true)
 }
 
 // checkRow is the one row check. With prefix false the window is the newest
@@ -116,8 +123,8 @@ func CheckRowMin(src interface {
 func checkRow(src interface {
 	extract.PinnedReader
 	extract.TagSource
-}, t Target, codeDigest string, min int, prefix bool) RowResult {
-	res := RowResult{Component: t.Component, Form: t.Form, Withheld: map[Code]int{}, MinLocatedNewest: min}
+}, up UpstreamTags, t Target, codeDigest string, min int, prefix bool) RowResult {
+	res := RowResult{Component: t.Component, Form: t.Form, Withheld: map[Code]int{}, MinLocatedNewest: min, Floor: t.Floor}
 	switch t.Form {
 	case FormFile, FormPerLineFile, FormPerVersionFile:
 	default:
@@ -200,6 +207,13 @@ func checkRow(src interface {
 			fail("only %d of the newest %d final versions have an entry, %d are required (no entry at %s)", res.WindowLocated, res.Window, res.Bar, strings.Join(missing, ", "))
 		}
 	}
+	if t.Floor != "" {
+		// A floor row is proven only against the upstream tag list; without
+		// one it fails, it is never read as the newest 5 lines.
+		fc, reasons := VerifyFloor(src, up, t, floorCaps())
+		res.FloorDerived, res.WindowDigest = fc.Derived, fc.WindowDigest
+		res.Reasons = append(res.Reasons, reasons...)
+	}
 	res.Status = RowPass
 	if len(res.Reasons) > 0 {
 		res.Status = RowFail
@@ -225,7 +239,16 @@ func CheckRows(src interface {
 	extract.PinnedReader
 	extract.TagSource
 }, table []Target, component, codeDigest string) ([]RowResult, error) {
-	return checkRows(src, table, component, codeDigest, nil)
+	return checkRows(src, nil, table, component, codeDigest, nil)
+}
+
+// CheckRowsFloor is CheckRows (or CheckRowsMin with a non-nil override) with
+// the upstream tag list a row with a floor is re-derived from.
+func CheckRowsFloor(src interface {
+	extract.PinnedReader
+	extract.TagSource
+}, up UpstreamTags, table []Target, component, codeDigest string, override *int) ([]RowResult, error) {
+	return checkRows(src, up, table, component, codeDigest, override)
 }
 
 // CheckRowsMin is CheckRows with an explicit newest-tag coverage bar for every
@@ -234,13 +257,13 @@ func CheckRowsMin(src interface {
 	extract.PinnedReader
 	extract.TagSource
 }, table []Target, component, codeDigest string, min int) ([]RowResult, error) {
-	return checkRows(src, table, component, codeDigest, &min)
+	return checkRows(src, nil, table, component, codeDigest, &min)
 }
 
 func checkRows(src interface {
 	extract.PinnedReader
 	extract.TagSource
-}, table []Target, component, codeDigest string, override *int) ([]RowResult, error) {
+}, up UpstreamTags, table []Target, component, codeDigest string, override *int) ([]RowResult, error) {
 	rows := table
 	if component != "" {
 		t, err := Lookup(table, component)
@@ -256,9 +279,9 @@ func checkRows(src interface {
 	for _, t := range rows {
 		var r RowResult
 		if override != nil {
-			r = CheckRowMin(src, t, codeDigest, *override)
+			r = checkRow(src, up, t, codeDigest, *override, true)
 		} else {
-			r = CheckRow(src, t, codeDigest)
+			r = checkRow(src, up, t, codeDigest, t.bar(), false)
 		}
 		if component != "" && r.Status == RowSkip {
 			r.Status = RowFail

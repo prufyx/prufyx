@@ -104,6 +104,12 @@ type Proposal struct {
 	// pairMap says, tag by tag of the pair window, whether the row locates it.
 	pairMap string
 	pairN   int
+	// WindowDigest is the tag-set digest of the upstream window of the
+	// proposed floor (the newest 5 lines when Floor is empty); empty when no
+	// upstream tag list was given.
+	WindowDigest string
+	// Floor is the computed older-line floor, "" when absent.
+	Floor string
 }
 
 // MarshalJSON renders {"row": ..., "located": n, "tags": n, "hits": [...]}.
@@ -115,7 +121,8 @@ func (p Proposal) MarshalJSON() ([]byte, error) {
 		Versions int     `json:"versionsLocated"`
 		Window   int     `json:"versions"`
 		Hits     []Hit   `json:"hits"`
-	}{p.Row, p.Located, len(p.Hits), p.Versions, p.Window, p.Hits})
+		Window5  string  `json:"windowTagsDigest,omitempty"`
+	}{p.Row, p.Located, len(p.Hits), p.Versions, p.Window, p.Hits, p.WindowDigest})
 }
 
 // NoRow is the typed refusal of a proposal.
@@ -183,6 +190,22 @@ func ProposeRow(src interface {
 	extract.PinnedReader
 	extract.TagSource
 }, component, repo string, only []string) (*Proposal, error) {
+	return ProposeRowFloor(src, nil, component, repo, only)
+}
+
+// ProposeRowFloor is ProposeRow with an injected upstream tag list. With a
+// list (and no explicit tags) it also computes the older-line floor of the
+// chosen row (see DeriveRun), prunes styles against the whole floor window,
+// and emits the floor only if the row passes the rows-check floor
+// verification; a failed row steps to a newer floor at most MaxFloorRetries
+// times, then is a NO-ROW. Without a list nothing changes.
+func ProposeRowFloor(src interface {
+	extract.PinnedReader
+	extract.TagSource
+}, up UpstreamTags, component, repo string, only []string) (*Proposal, error) {
+	if up != nil && len(only) > 0 {
+		return nil, errors.New("the upstream tag list cannot be combined with an explicit tag list")
+	}
 	base := rowData{Component: component, Repo: repo}
 	if _, err := (rowData{Component: component, Repo: repo, Form: FormPostTag}).target(); err != nil {
 		return nil, fmt.Errorf("component or repo: %w", err)
@@ -246,7 +269,7 @@ func ProposeRow(src interface {
 	// The pair window: every final tag of the newest 5 release lines
 	// (major.minor). Scoring stays on the newest 8; this window only breaks
 	// ties between equal scores and decides which styles may be pruned.
-	pairTags := pairWindowTags(finals, byName)
+	pairTags := pairWindowTags(finals, byName, "")
 	pairLocated := func(t Target) (string, int) {
 		var b strings.Builder
 		n := 0
@@ -328,6 +351,24 @@ func ProposeRow(src interface {
 		}
 		return nil, &NoRow{NoRowNoCandidate, fmt.Sprintf("none of the closed candidates located an entry at any of %d tags", len(window))}
 	}
+	// Older-line floor: derived from the upstream tag list for the chosen row
+	// with every style still on it, so the pruning below is judged against the
+	// whole floor window and not only the newest 5 lines.
+	var run *Run
+	if up != nil {
+		t0, err := best.Row.target()
+		if err != nil {
+			return nil, err
+		}
+		run, err = DeriveRun(src, up, t0, floorCaps())
+		if err != nil {
+			return nil, err
+		}
+		if run.Floor != "" {
+			pairTags = pairWindowTags(finals, byName, run.Floor)
+			best.pairMap, best.pairN = pairLocated(t0)
+		}
+	}
 	// Drop every boundary and inner style the result does not need, last
 	// first, so that a row which needs none keeps the first style of the order
 	// (the least surprising one) and not the last, which matches the rarest
@@ -406,6 +447,28 @@ func ProposeRow(src interface {
 			return nil, &NoRow{NoRowPartialCoverage, fmt.Sprintf("the best candidate (%s) locates %d of the %d scored versions (%d of %d tags); hits %s", best.Row.Path, best.Versions, best.Window, best.Located, len(window), tab)}
 		}
 	}
+	if up != nil {
+		floor, err := finishFloor(src, up, best)
+		if err != nil {
+			return nil, err
+		}
+		if floor != "" {
+			f := floor
+			best.Row.Floor = &f
+		}
+		best.Floor = floor
+		pr, err := best.Row.target()
+		if err != nil {
+			return nil, err
+		}
+		again, err := DeriveRun(src, up, pr, floorCaps())
+		if err != nil {
+			return nil, err
+		}
+		if best.WindowDigest, err = again.WindowDigest(floor); err != nil {
+			return nil, err
+		}
+	}
 	// The row must survive the strict loader exactly as it will be committed.
 	doc, err := json.Marshal(struct {
 		Schema string    `json:"schema"`
@@ -420,9 +483,41 @@ func ProposeRow(src interface {
 	return best, nil
 }
 
+// finishFloor resolves the floor of the pruned row: the derived floor if the
+// row passes the floor verification at it, else a capped step to newer lines.
+func finishFloor(src interface {
+	extract.PinnedReader
+	extract.TagSource
+}, up UpstreamTags, best *Proposal) (string, error) {
+	// The pruned row may read a shorter run than the unpruned one; derive again
+	// so that the floor is the one rows-check will re-derive.
+	t, err := best.Row.target()
+	if err != nil {
+		return "", err
+	}
+	run, err := DeriveRun(src, up, t, floorCaps())
+	if err != nil {
+		return "", err
+	}
+	return ResolveFloor(run, func(floor string) (bool, error) {
+		if floor == "" {
+			return true, nil
+		}
+		cand := best.Row
+		cand.Floor = &floor
+		ct, err := cand.target()
+		if err != nil {
+			return false, err
+		}
+		_, reasons := VerifyFloor(src, up, ct, floorCaps())
+		return len(reasons) == 0, nil
+	})
+}
+
 // pairWindowTags lists every final tag of the newest 5 release lines
-// (major.minor), newest line first, in a fixed order.
-func pairWindowTags(finals []string, byName map[string]extract.Tag) []extract.Tag {
+// (major.minor), newest line first, in a fixed order. With a floor the window
+// is every line from the newest down to the floor (never fewer than 5).
+func pairWindowTags(finals []string, byName map[string]extract.Tag, floor string) []extract.Tag {
 	lineOfTag := func(n string) string { v, _ := tagVersion(n); return lineOf(v) }
 	var lines []string
 	seen := map[string]bool{}
@@ -435,8 +530,14 @@ func pairWindowTags(finals []string, byName map[string]extract.Tag) []extract.Ta
 			lines = append(lines, l)
 		}
 	}
-	if len(lines) > 5 {
-		lines = lines[:5]
+	n := NewestLines
+	if floor != "" {
+		if i := indexOf(lines, floor); i+1 > n {
+			n = i + 1
+		}
+	}
+	if len(lines) > n {
+		lines = lines[:n]
 	}
 	keep := map[string]bool{}
 	for _, l := range lines {
