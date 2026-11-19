@@ -298,15 +298,25 @@ func TestFileBackedObjectsAreRefused(t *testing.T) {
 func TestMixedChartFileRenderedDocumentWithheld(t *testing.T) {
 	lit := "apiVersion: v1\nkind: ConfigMap\n"
 	for name, tail := range map[string]string{
-		"trimmed text":  "---\n{{- tpl .Values.x . }}\n",
-		"after action":  "---\n{{ $x := 1 }}{{ .Files.Get \"f\" }}\n",
-		"trimmed files": "---\n{{- .Files.Get \"f\" }}\n",
-		"list item":     "---\n- {{ tpl .Values.x . }}\n",
+		"trimmed text":           "---\n{{- tpl .Values.x . }}\n",
+		"after action":           "---\n{{ $x := 1 }}{{ .Files.Get \"f\" }}\n",
+		"trimmed files":          "---\n{{- .Files.Get \"f\" }}\n",
+		"list item":              "---\n- {{ tpl .Values.x . }}\n",
+		"key then trimmed tpl":   "---\nreplicas: 1\n{{- tpl .Values.x . }}\n",
+		"key then trimmed files": "---\nreplicas: 1\n{{- .Files.Get \"a\" }}\n",
+		"same line trimmed":      "---\nreplicas: 1 {{- tpl .Values.x . }}\n",
 	} {
 		l := read(t, map[string]string{"templates/a.yaml": lit + tail})
 		if l.Status != StatusWithheld || len(l.APIs) == 0 || !hasCode(l, CodeFilesOrTpl) {
 			t.Fatalf("%s: %v", name, codes(l))
 		}
+	}
+}
+
+func TestSameLineUntrimmedTplIsScalar(t *testing.T) {
+	l := read(t, map[string]string{"templates/a.yaml": "apiVersion: v1\nkind: ConfigMap\ndata:\n  x: {{ tpl .Values.x . }}\n"})
+	if l.Status != StatusComplete {
+		t.Fatal(codes(l))
 	}
 }
 

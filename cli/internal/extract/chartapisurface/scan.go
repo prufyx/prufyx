@@ -414,7 +414,7 @@ func (s *scanner) walkList(nodes []parse.Node, cond bool) {
 				s.events = append(s.events, ev)
 			}
 		case *parse.ActionNode:
-			if usesFilesIn(n.Pipe) && !inScalarValue(nodes, i) {
+			if usesFilesIn(n.Pipe) && !s.inScalarValue(nodes, i) {
 				s.withhold(CodeFilesOrTpl, "document-level file or string rendering", s.lineOf(int(n.Pos)))
 			}
 		case *parse.IfNode:
@@ -432,24 +432,33 @@ func (s *scanner) walkList(nodes []parse.Node, cond bool) {
 
 var scalarPrefixRE = regexp.MustCompile(`\S[^\n]*:(\s|$)`)
 
-// inScalarValue reports whether the action at nodes[i] sits on a line that
-// already holds a "key:" before it, so its output is a value inside a
-// mapping. The text before it on the line is rebuilt across earlier nodes,
-// whatever their kind and however whitespace was trimmed; when no line start
-// is found the answer is no, which withholds.
-func inScalarValue(nodes []parse.Node, i int) bool {
-	prefix := ""
-	for j := i - 1; j >= 0; j-- {
-		t, ok := nodes[j].(*parse.TextNode)
-		if !ok {
-			continue
-		}
-		txt := string(t.Text)
-		if k := strings.LastIndexByte(txt, '\n'); k >= 0 {
-			prefix = txt[k+1:] + prefix
-			break
-		}
-		prefix = txt + prefix
+// inScalarValue reports whether the action at nodes[i] sits on a source line
+// that already holds a "key:" before it, so its output is a value inside a
+// mapping. It decides from the raw template source, not from the parsed text
+// nodes: the parser strips the newline before a left-trimmed action, which
+// would make the previous line look like the action's own line. A left-trimmed
+// action ("{{-") is never a scalar value, even on the same line as a key
+// (safe default); a line with another action before this one is not decided
+// and withholds. Anything unlocatable answers no, which withholds.
+func (s *scanner) inScalarValue(nodes []parse.Node, i int) bool {
+	n, ok := nodes[i].(*parse.ActionNode)
+	if !ok {
+		return false
+	}
+	pos := int(n.Pos)
+	if pos < 0 || pos > len(s.text) {
+		return false
+	}
+	open := strings.LastIndex(s.text[:pos], "{{")
+	if open < 0 {
+		return false
+	}
+	if rest := s.text[open+2:]; len(rest) > 1 && rest[0] == '-' && (rest[1] == ' ' || rest[1] == '\t' || rest[1] == '\n' || rest[1] == '\r') {
+		return false
+	}
+	prefix := s.text[strings.LastIndexByte(s.text[:open], '\n')+1 : open]
+	if strings.Contains(prefix, "{{") {
+		return false
 	}
 	return scalarPrefixRE.MatchString(prefix)
 }
