@@ -4,7 +4,6 @@ package changelogentries
 
 import (
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
@@ -92,9 +91,11 @@ func TestSingleFileRowsRederive(t *testing.T) {
 	}
 }
 
-// A reviewed tag whose entry the independent CommonMark parser reads
-// differently from the scanner is withheld whole, not read on trust.
-func TestSingleFileRowWithheldOnCommonMarkDisagreement(t *testing.T) {
+// The independent CommonMark parser reads these files differently from the
+// scanner somewhere in the whole file. The disagreement lies below the heading
+// that follows the entry, outside the checked prefix: the entry is read and
+// its manifest records the scoped length, which is shorter than the blob.
+func TestSingleFileRowScopedPastCommonMarkDisagreement(t *testing.T) {
 	r := sfRoot()
 	row, err := Lookup(Reviewed, "prometheus")
 	if err != nil {
@@ -102,14 +103,32 @@ func TestSingleFileRowWithheldOnCommonMarkDisagreement(t *testing.T) {
 	}
 	for _, name := range []string{"v3.11.0", "v3.11.1"} {
 		tag := fixtureTag(t, r, row, name)
-		_, err = Locate(r, row, tag)
-		wantCode(t, err, EntryParseResidue)
-		if !strings.Contains(err.Error(), "commonmark-disagreement") {
-			t.Fatalf("%s: unexpected refusal: %v", name, err)
+		raw, err := r.Read(row.Repo, tag.Commit, row.Path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		lines, err := splitLines(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cmDisagreement(lines, scan(lines), 0, 0) == "" {
+			t.Fatalf("%s: the whole file no longer disagrees: the test shape is void", name)
 		}
 		m, err := BuildManifest(r, row, tag, "sha256:test")
-		if err != nil || m.Entry != nil || m.Withheld == nil {
-			t.Fatalf("%s: manifest must carry a reason, not an entry: %+v, %v", name, m, err)
+		if err != nil || m.Entry == nil || m.Withheld != nil {
+			t.Fatalf("%s: %+v, %v", name, m, err)
+		}
+		cb := m.Entry.Source.CheckedBytes
+		if cb <= 0 || cb >= len(raw) {
+			t.Fatalf("%s: checkedBytes %d of %d", name, cb, len(raw))
+		}
+		// The disagreeing construct lies after the cut: the checked prefix is clean.
+		plines, err := splitLines(raw[:cb])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d := cmDisagreement(plines, scan(plines), m.Entry.Section.StartLine, m.Entry.Section.EndLine); d != "" {
+			t.Fatalf("%s: the checked prefix still disagrees: %s", name, d)
 		}
 	}
 }

@@ -136,7 +136,11 @@ func checkNoPanic(t *testing.T, data []byte) {
 			continue
 		}
 		oracleAccount(t, data, e)
-		if lines, lerr := splitLines(data); lerr == nil {
+		// The oracle agrees with the scanner over the scoped prefix.
+		if e.Source.CheckedBytes <= 0 || e.Source.CheckedBytes > len(data) || e.Source.CheckedDigest != hexSum(data[:e.Source.CheckedBytes]) {
+			t.Fatalf("scoped bytes are not recorded on %q", data)
+		}
+		if lines, lerr := splitLines(data[:e.Source.CheckedBytes]); lerr == nil {
 			if d := cmDisagreement(lines, scan(lines), e.Section.StartLine, e.Section.EndLine); d != "" {
 				t.Fatalf("entry returned although the CommonMark oracle disagrees (%s) on %q", d, data)
 			}
@@ -573,8 +577,8 @@ func TestContainerHeadingsAndCrossingBlocksWithholdFile(t *testing.T) {
 	}
 }
 
-// An item disagreement anywhere in the file withholds every tag, including a
-// tag whose own section is clean.
+// An item disagreement in the prefix or the entry withholds the tag; one below
+// the heading that follows the entry does not.
 func TestItemDisagreementElsewhereWithholdsEveryTag(t *testing.T) {
 	f := "## 3.5.0 / 2025-07-14\n\n* [FEATURE] x. #1\n\n## 3.4.0 / 2025-05-17\n\n[^1]: #1234 \"the flag --foo was removed\"\n* [FEATURE] z. #3\n"
 	lines, err := splitLines([]byte(f))
@@ -584,8 +588,11 @@ func TestItemDisagreementElsewhereWithholdsEveryTag(t *testing.T) {
 	if lines2 := scan(lines); cmDisagreement(lines, lines2, 0, 0) == "" {
 		t.Fatal("the oracle and the scanner agree on the footnote-shaped definition: the test shape is void")
 	}
-	for _, tg := range []string{"v3.5.0", "v3.4.0"} {
-		_, err := locateMem(promTarget, tg, f)
-		wantCode(t, err, EntryParseResidue)
+	// The disagreement sits in the 3.4.0 entry: that tag is withheld. The 3.5.0
+	// entry ends before the heading that precedes it and is read (scoped checks).
+	_, err = locateMem(promTarget, "v3.4.0", f)
+	wantCode(t, err, EntryParseResidue)
+	if _, err := locateMem(promTarget, "v3.5.0", f); err != nil {
+		t.Fatalf("v3.5.0: %v", err)
 	}
 }

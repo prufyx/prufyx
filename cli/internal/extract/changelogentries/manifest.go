@@ -17,7 +17,7 @@ import (
 const (
 	ManifestSchema   = "prufyx.io/changelog-entries-manifest/v1"
 	ExtractorName    = "changelog.entries"
-	ExtractorVersion = "changelog.entries/1"
+	ExtractorVersion = "changelog.entries/2"
 )
 
 // SourceDir is this package's directory under the module's internal/ tree.

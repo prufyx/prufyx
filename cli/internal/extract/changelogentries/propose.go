@@ -51,6 +51,7 @@ var candidatePaths = []struct{ Form, Path string }{
 	{FormPerVersionFile, "changelogs/v{version}.md"},
 	{FormPerVersionFile, "changelogs/{version}.md"},
 	{FormPerVersionFile, "docs/release-notes/{version}.md"},
+	{FormPerVersionFile, "notes/coredns-{version}.md"},
 }
 
 // nonMarkdownProbes are known non-markdown changelog places. They are only
@@ -67,11 +68,13 @@ var nonMarkdownProbes = []string{
 var headingOrder = []string{
 	"version-v-prefixed", "version-plain", "version-bracketed", "version-bracketed-date",
 	"version-dash-date", "version-slash-date",
+	"version-space-date", "version-v-slash-date", "version-linked-paren-date", "release-v-slash-date",
 }
 
 var boundaryOrder = []string{
 	"unreleased", "unreleased-bracketed", "prerelease-plain", "prerelease-v-prefixed",
 	"main-unreleased", "main-unreleased-parenthesised",
+	"master-unreleased", "line-heading-v", "prerelease-linked-paren-date",
 }
 
 // Hit is one tag of a proposal's hit table.
@@ -129,6 +132,30 @@ func sortNewestFirst(names []string) {
 	})
 }
 
+// newestVersions groups final tag names by canonical version (so "v1.2.3" and
+// "1.2.3" are one version) and returns the newest n groups, newest first. Every
+// tag of a version stays in its group, so a window counts one version once and
+// a version is located only when all its tags are.
+func newestVersions(names []string, n int) [][]string {
+	sorted := append([]string(nil), names...)
+	sortNewestFirst(sorted)
+	var groups [][]string
+	idx := map[string]int{}
+	for _, nm := range sorted {
+		v, _ := tagVersion(nm)
+		if i, ok := idx[v]; ok {
+			groups[i] = append(groups[i], nm)
+			continue
+		}
+		if len(groups) == n {
+			continue
+		}
+		idx[v] = len(groups)
+		groups = append(groups, []string{nm})
+	}
+	return groups
+}
+
 // ProposeRow tries the closed candidate rows over the newest final tags (or
 // the given tag names) of repo and returns the one with the most located
 // entries; ties go to the first candidate in the fixed order. It is read-only
@@ -171,12 +198,10 @@ func ProposeRow(src interface {
 			window = append(window, t)
 		}
 	} else {
-		sortNewestFirst(finals)
-		if len(finals) > DefaultProposeTags {
-			finals = finals[:DefaultProposeTags]
-		}
-		for _, n := range finals {
-			window = append(window, byName[n])
+		for _, g := range newestVersions(finals, DefaultProposeTags) {
+			for _, n := range g {
+				window = append(window, byName[n])
+			}
 		}
 	}
 	if len(window) == 0 {

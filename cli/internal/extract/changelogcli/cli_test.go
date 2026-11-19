@@ -133,7 +133,7 @@ func TestManifestShapeIsStrictAndCarriesNoVerdict(t *testing.T) {
 	if err := json.Unmarshal(out, &m); err != nil {
 		t.Fatal(err)
 	}
-	if m.Schema != "prufyx.io/changelog-entries-manifest/v1" || m.Extractor.Name != "changelog.entries" || m.Extractor.Version != "changelog.entries/1" {
+	if m.Schema != "prufyx.io/changelog-entries-manifest/v1" || m.Extractor.Name != "changelog.entries" || m.Extractor.Version != "changelog.entries/2" {
 		t.Fatalf("pins: %+v", m)
 	}
 	if m.Entry == nil || m.Withheld != nil {

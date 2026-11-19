@@ -90,16 +90,6 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 		return nil, err
 	}
 	sc := scan(lines)
-	if sc.containerFence != 0 {
-		return nil, fail(EntryParseResidue, fmt.Sprintf("line %d cannot be read: a fence without its container, or a multi-line HTML block", sc.containerFence))
-	}
-	cm, cmErr := cmParse(lines)
-	if cmErr != nil {
-		return nil, fail(EntryParseResidue, "commonmark-disagreement: "+cmErr.Error())
-	}
-	if d := cmFileDisagreement(sc, cm); d != "" {
-		return nil, fail(EntryParseResidue, "commonmark-disagreement: "+d)
-	}
 
 	// Which headings name which release.
 	type rel struct {
@@ -111,7 +101,7 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 	var named []int
 	for i, h := range sc.headings {
 		x := rel{h: h}
-		if m := c.heading.FindStringSubmatch(h.Text); m != nil && finalVersion(m[1]) {
+		if m := c.heading.FindStringSubmatch(h.Text); m != nil && finalVersion(m[1]) && linkTargetMatches(c.heading, m, t.Repo.Key) {
 			x.final = m[1]
 		} else {
 			for _, b := range c.boundary {
@@ -126,22 +116,37 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 			named = append(named, i)
 		}
 	}
+	// Until the entry is located there is no cut point: a refusal of the
+	// location is reported after the checks of the whole file, as before.
+	refuse := func(f error) (*Entry, error) {
+		if err := fileAgreement(lines, sc); err != nil {
+			return nil, err
+		}
+		cm, cmErr := cmParse(lines)
+		if cmErr != nil {
+			return nil, fail(EntryParseResidue, "commonmark-disagreement: "+cmErr.Error())
+		}
+		if d := cmFileDisagreement(sc, cm); d != "" {
+			return nil, fail(EntryParseResidue, "commonmark-disagreement: "+d)
+		}
+		return nil, f
+	}
 	switch {
 	case len(named) > 1:
-		return nil, fail(EntryDuplicate, fmt.Sprintf("%d headings name %s", len(named), version))
+		return refuse(fail(EntryDuplicate, fmt.Sprintf("%d headings name %s", len(named), version)))
 	case len(named) == 0:
 		for _, x := range rels {
 			if x.final == "" && firstVersionToken(x.h.Text) == version {
-				return nil, fail(EntryNotFinal, fmt.Sprintf("line %d names %s but is not a final release heading", x.h.Line, version))
+				return refuse(fail(EntryNotFinal, fmt.Sprintf("line %d names %s but is not a final release heading", x.h.Line, version)))
 			}
 		}
-		return nil, fail(EntryMissing, "no heading names "+version)
+		return refuse(fail(EntryMissing, "no heading names "+version))
 	}
 	// A second heading that names the version in another wording (not a
 	// final heading, not a boundary pattern) makes the entry ambiguous.
 	for _, x := range rels {
 		if x.final == "" && !x.other && firstVersionToken(x.h.Text) == version {
-			return nil, fail(EntryDuplicate, fmt.Sprintf("line %d names %s in another wording", x.h.Line, version))
+			return refuse(fail(EntryDuplicate, fmt.Sprintf("line %d names %s in another wording", x.h.Line, version)))
 		}
 	}
 	vi := named[0]
@@ -149,19 +154,46 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 
 	// Section end: the next heading of the same or a higher level.
 	end := len(lines)
+	// cut is the number of lines the file-wide agreement checks cover: every
+	// line up to and including the heading that follows the entry, or the
+	// whole file when nothing follows.
+	cut := len(lines)
 	for j := vi + 1; j < len(rels); j++ {
 		x := rels[j]
 		if x.h.Level > vh.Level {
 			if x.final != "" || x.other {
-				return nil, fail(EntryBoundaryUnproven, fmt.Sprintf("line %d: a release heading nested inside the entry", x.h.Line))
+				return refuse(fail(EntryBoundaryUnproven, fmt.Sprintf("line %d: a release heading nested inside the entry", x.h.Line)))
 			}
 			continue
 		}
 		if x.final == "" && !x.other {
-			return nil, fail(EntryBoundaryUnproven, fmt.Sprintf("line %d: heading %q ends the entry but names no release", x.h.Line, x.h.Text))
+			return refuse(fail(EntryBoundaryUnproven, fmt.Sprintf("line %d: heading %q ends the entry but names no release", x.h.Line, x.h.Text)))
 		}
 		end = x.h.Line - 1
+		cut = x.h.EndLine
 		break
+	}
+
+	// Scope of the file-wide checks (C1): the prefix up to the following
+	// heading. The prefix is scanned and parsed again on its own, so nothing
+	// below the cut can refuse the read, and everything derived below comes
+	// from the lines that were checked. The prefix scan must reproduce the
+	// whole-file headings up to the cut exactly; any difference is refused.
+	lines = lines[:cut]
+	whole := sc
+	sc = scan(lines)
+	if !sameHeadingsUpTo(whole.headings, sc.headings, cut) {
+		return nil, fail(EntryParseResidue, "the prefix scan disagrees with the file scan")
+	}
+	if err := fileAgreement(lines, sc); err != nil {
+		return nil, err
+	}
+	cm, cmErr := cmParse(lines)
+	if cmErr != nil {
+		return nil, fail(EntryParseResidue, "commonmark-disagreement: "+cmErr.Error())
+	}
+	if d := cmFileDisagreement(sc, cm); d != "" {
+		return nil, fail(EntryParseResidue, "commonmark-disagreement: "+d)
 	}
 	for end > vh.Line && isBlank(lines[end-1]) {
 		end--
@@ -175,11 +207,13 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 		return nil, fail(EntryParseResidue, "commonmark-disagreement: "+d)
 	}
 
+	checked := prefixBytes(raw, cut)
 	e := &Entry{
 		Component: t.Component, Tag: tag.Name, Version: version, TagCommit: tag.Commit,
 		Source: Source{
 			Repo: t.Repo.Key, Commit: tag.Commit, Path: t.Path,
 			FileDigest: hexSum(raw), Form: t.Form,
+			CheckedBytes: checked, CheckedDigest: hexSum(raw[:checked]),
 		},
 		Section:   Section{HeadingLine: vh.Line, StartLine: start, EndLine: end},
 		Structure: []Heading{},
@@ -296,6 +330,69 @@ func entryFromBytes(t Target, c compiled, tag extract.Tag, version string, raw [
 	sec := strings.Join(lines[start-1:end], "\n") + "\n"
 	e.Section.Digest = hexSum([]byte(sec))
 	return e, nil
+}
+
+// linkTargetMatches is the post-match check of a heading style that carries a
+// link target: the target must name the row's repository and the heading's own
+// version ("v"+version). A style without the groups is not affected.
+func linkTargetMatches(re *regexp.Regexp, m []string, repoKey string) bool {
+	slug, ref := "", ""
+	has := false
+	for i, n := range re.SubexpNames() {
+		switch n {
+		case "slug":
+			slug, has = m[i], true
+		case "ref":
+			ref = m[i]
+		}
+	}
+	if !has {
+		return true
+	}
+	return "github.com/"+slug == repoKey && ref == "v"+m[1]
+}
+
+// fileAgreement is the scanner-only part of the file-wide checks: a fence that
+// cannot be read without its container, or a multi-line HTML block.
+func fileAgreement(lines []string, sc scanned) error {
+	if sc.containerFence != 0 {
+		return fail(EntryParseResidue, fmt.Sprintf("line %d cannot be read: a fence without its container, or a multi-line HTML block", sc.containerFence))
+	}
+	return nil
+}
+
+// sameHeadingsUpTo reports whether prefix holds exactly the headings of whole
+// that end at or before line cut.
+func sameHeadingsUpTo(whole, prefix []heading, cut int) bool {
+	n := 0
+	for _, h := range whole {
+		if h.EndLine > cut {
+			break
+		}
+		if n >= len(prefix) || prefix[n] != h {
+			return false
+		}
+		n++
+	}
+	return n == len(prefix)
+}
+
+// prefixBytes is the length in bytes of the first n lines of raw, counting
+// their original line breaks.
+func prefixBytes(raw []byte, n int) int {
+	if n <= 0 {
+		return 0
+	}
+	c := 0
+	for i, b := range raw {
+		if b == '\n' {
+			c++
+			if c == n {
+				return i + 1
+			}
+		}
+	}
+	return len(raw)
 }
 
 func hexSum(b []byte) string {

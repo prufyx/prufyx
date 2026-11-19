@@ -138,17 +138,19 @@ func CheckRowMin(src interface {
 		fail("no tag of %d has an entry: the path or the headings never resolve", res.Tags)
 	}
 	if res.Tags > 0 && min >= 1 {
-		sortNewestFirst(finals)
-		res.Window = min
-		if res.Window > len(finals) {
-			res.Window = len(finals)
-		}
+		groups := newestVersions(finals, min)
+		res.Window = len(groups)
 		var missing []string
-		for _, n := range finals[:res.Window] {
-			if located[n] {
+		for _, g := range groups {
+			all := true
+			for _, n := range g {
+				if !located[n] {
+					all = false
+					missing = append(missing, n)
+				}
+			}
+			if all {
 				res.WindowLocated++
-			} else {
-				missing = append(missing, n)
 			}
 		}
 		if len(missing) > 0 {
