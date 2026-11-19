@@ -205,6 +205,13 @@ def aggregate_projects(path, old_raw, new_raw, slugs, rules_pair=None, trusted=N
                 continue
             ok, nk = _keyed(old, name, fields), _keyed(new, name, fields)
             for key in _changed_keys(ok, nk):
+                if strict and name == "lineAttestations":
+                    for item in (ok.get(key), nk.get(key)):
+                        ids = item.get("ruleIds", []) if item is not None else []
+                        _need(isinstance(ids, list) and all(isinstance(i, str) for i in ids), "ruleIds shape")
+                        for i in ids:
+                            _need(i in oe or i in ne, "attestation rule id does not resolve: " + i[:60])
+                            seed_ids.add(i)
                 got = _attribute(key[0], cmap, known, trusted)
                 if strict:
                     _need(got <= set(slugs), "keyed item of a project without a QA target: " + key[0][:60])
@@ -288,7 +295,7 @@ def selection(changed, slugs, reader=None, trusted=None, catalogue=()):
                 full = True; reasons.append("approval unresolvable (%s) %s" % (e, p)); continue
             projects.update(got); reasons.append("approval %s -> %s" % (p, sorted(got))); continue
         if re.search(r"coveragereport/testdata/lines-.*\.json$", p) or re.search(r"(^|/)(knowledge|data)/", p):
-            hit = [s for s in slugs if s in p]
+            hit = [s for s in slugs if re.search(r"(?<![a-z0-9])" + re.escape(s) + r"(?![a-z0-9])", p)]  # whole token, never a substring (dex vs index)
             if p in AGGREGATE:
                 if reader is None:
                     full = True; reasons.append("data aggregate, no diff objects " + p); continue
