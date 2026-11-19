@@ -239,3 +239,37 @@ func TestMajorHopNamesBothLinesWithoutCompatibilityClaims(t *testing.T) {
 		}
 	}
 }
+
+const majorRuleID = "strimzi.crd-version-removal.kafkas-kafka-strimzi-io.0-51-0-to-1-0-0"
+
+// majorRule blocks the hop 0.51 -> 1.0: 1.0 no longer serves
+// kafka.strimzi.io/v1beta2 Kafka (test only).
+var majorRule = strings.NewReplacer(
+	crdLineRuleID, majorRuleID,
+	`"from":"0.50.0","to":"0.51.0"}`, `"from":"0.51.0","to":"1.0.0"}`,
+	`"from":{"gte":"0.50.0","lt":"0.51.0"},"to":{"gte":"0.51.0","lt":"0.52.0"}`, `"from":{"gte":"0.51.0","lt":"0.52.0"},"to":{"gte":"1.0.0","lt":"1.1.0"}`,
+	"crd-0-51-0", "crd-1-0-0",
+	"to 0.51.0", "to 1.0.0",
+	`{"bound":"from.gte","basis":"PREVIOUS_MINOR_LINE"`, `{"bound":"from.gte","basis":"UPGRADE_FROM_SERIES"`,
+	`{"bound":"from.lt","basis":"REMOVED_IN_RELEASE"`, `{"bound":"from.lt","basis":"UPGRADE_FROM_SERIES"`,
+	`{"bound":"to.gte","basis":"REMOVED_IN_RELEASE"`, `{"bound":"to.gte","basis":"TARGET_SERIES"`,
+).Replace(crdLineRule)
+
+// A rule scoped to exactly the major transition decides the hop: the jump is
+// BLOCKED and cites that rule, the other hops stay listed.
+func TestJumpAcrossMajorBlockedByARuleOfTheMajorHop(t *testing.T) {
+	t.Parallel()
+	k := attestedCRD{crdKnowledge: newCRDKnowledge(t, majorRule)}
+	k.attestations = majorKnowledge(t, "0.50", "0.51", "1.1").attestations
+	result := crdScan(t, k, []string{settingsDoc, kafkaV1beta2Doc}, "--from", "strimzi=0.49.0", "--to", "strimzi=1.1.0", "--resource-scope-complete")
+	path, jump := strimziJump(t, result.Report)
+	if result.Exit != 10 || jump == nil || jump.Status != scanreport.JumpBlocked || len(path.Hops) != 4 || len(jump.Hops) != 4 {
+		t.Fatalf("exit %d jump %+v gaps %v", result.Exit, jump, gapReasons(result.Report))
+	}
+	if !reflect.DeepEqual(jump.DecidedBy, []int{3}) || jump.Hops[2].Status != scanreport.JumpHopBlocked || !reflect.DeepEqual(jump.Hops[2].RuleIDs, []string{majorRuleID}) {
+		t.Fatalf("hop 3 %+v decided %v", jump.Hops[2], jump.DecidedBy)
+	}
+	if hasReason(jump.Hops[2].Reasons, scanreport.ReasonMajorHopNotCovered) {
+		t.Fatalf("a decided hop is not uncovered: %+v", jump.Hops[2])
+	}
+}
