@@ -358,3 +358,91 @@ func TestConverterFieldsKnownAndNeverOutput(t *testing.T) {
 		}
 	}
 }
+
+func mark(t *testing.T, root, name, body string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(root, name, "NOT-REPORTED.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+const summaryShape = `{"catalog_inconsistencies": 3, "class_counts": {"a": 1}, "decided_pairs_vs_oracle": []}`
+
+func TestNotReportedSummaryListedNotParsed(t *testing.T) {
+	root := t.TempDir()
+	writeRun(t, root, "m3-a", m3(nil))
+	writeRun(t, root, "m10-r01", []byte(summaryShape))
+	writeRun(t, root, "m10-r02", []byte(summaryShape))
+	mark(t, root, "m10-r01", `{"reportable": false, "reason_code": "summary-only"}`)
+	mark(t, root, "m10-r02", `{"reportable": false, "reason_code": "summary-only"}`)
+	rep, err := Build(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Runs) != 1 || len(rep.NotReported) != 2 {
+		t.Fatalf("runs=%d notReported=%v", len(rep.Runs), rep.NotReported)
+	}
+	_, md, err := Render(rep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(md), "Not in this report: 2 runs (summary-only: m10-r01, m10-r02).") {
+		t.Errorf("header line missing:\n%s", md)
+	}
+}
+
+func TestUnmarkedUnknownShapeStillRefused(t *testing.T) {
+	root := t.TempDir()
+	writeRun(t, root, "m3-a", m3(nil))
+	writeRun(t, root, "m10-r01", []byte(summaryShape))
+	if _, err := Build(root); err == nil {
+		t.Fatal("unmarked summary shape accepted")
+	}
+}
+
+func TestNotReportedBadMarkerRefused(t *testing.T) {
+	for _, body := range []string{
+		`{"reportable": false, "reason_code": "because"}`,
+		`{"reportable": false, "reason_code": ""}`,
+		`{"reportable": true, "reason_code": "other"}`,
+		`{"reason_code": "other"}`,
+		`{"reportable": false, "reason_code": "other", "reason": "free text"}`,
+		`not json`,
+	} {
+		root := t.TempDir()
+		writeRun(t, root, "m3-a", m3(nil))
+		writeRun(t, root, "m10-r01", []byte(summaryShape))
+		mark(t, root, "m10-r01", body)
+		if _, err := Build(root); err == nil {
+			t.Errorf("bad marker accepted: %s", body)
+		}
+	}
+}
+
+func TestNotReportedMarkerOnNormalRun(t *testing.T) {
+	root := t.TempDir()
+	writeRun(t, root, "m3-a", m3(nil))
+	writeRun(t, root, "m3-b", m3(nil))
+	mark(t, root, "m3-b", `{"reportable": false, "reason_code": "harness-test"}`)
+	rep, err := Build(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Runs) != 1 || rep.Runs[0].ID != "m3-a" || len(rep.NotReported) != 1 || rep.NotReported[0].ID != "m3-b" || rep.NotReported[0].ReasonCode != "harness-test" {
+		t.Fatalf("runs=%v notReported=%v", rep.Runs, rep.NotReported)
+	}
+}
+
+func TestNotReportedResultKey(t *testing.T) {
+	root := t.TempDir()
+	writeRun(t, root, "m3-a", m3(nil))
+	writeRun(t, root, "m10-r01", []byte(`{"reportable": false, "class_counts": {}}`))
+	rep, err := Build(root)
+	if err != nil || len(rep.NotReported) != 1 || rep.NotReported[0].ReasonCode != "other" {
+		t.Fatalf("err=%v rep=%v", err, rep)
+	}
+	writeRun(t, root, "m10-r02", []byte(`{"reportable": "no"}`))
+	if _, err := Build(root); err == nil {
+		t.Error("non-boolean reportable accepted")
+	}
+}
