@@ -4,46 +4,167 @@
 
 Results of Prufyx runs against real upgrades on kind clusters. kind is not production fidelity. Display only: these runs do not change any Prufyx verdict.
 
-Counts: 10 runs, 151 rows: 31 correct, 0 wrong PASS, 0 false alarm, 120 gap.
+Not in this report: 26 runs (harness-test: scale-r01, sweep-gen; other: m10-r00-ab, m10-r00-ab2, m10-r00-ab3, m10-r00-ab4, m10-r00-ab5, m10-r00-ab6d, m10-r00-ab7b, m10-r01, m10-r01c-part1, m10-r02, m11-istio-precheck, m2a-r2, m3-p01, m4-r02, m4-r02-attempt2-pki, m4-r02b, m9s-r01, r2-kyverno-713, rv1-blocked, sweep-b01, sweep-b02, sweep-b03, sweep-openyurt, userpath-r01).
 
-Gap rows: 120 of 151.
+Not-reported runs are not counted; their rows are not checked by this report.
 
-3 superseded runs excluded, replaced by the reruns: m3-r01, m3-r02, r002 (excluded: m3-r01-try1, m3-r02-try1, r001-aborted).
+Counts: 15 runs, 353 rows: 84 correct, 0 wrong PASS, 3 false alarm, 266 gap.
+
+Gap rows: 266 of 353.
+
+4 superseded runs excluded, replaced by the reruns: m11-r02, m3-r01, m3-r02, r002 (excluded: m11-r02a, m3-r01-try1, m3-r02-try1, r001-aborted).
 
 Forms of result: `correct` means Prufyx and the oracle agree; `wrong PASS` means Prufyx passed what the oracle rejected; `false alarm` means Prufyx blocked what the oracle accepted; `gap` means Prufyx made no claim the oracle could be compared with. A gap is not a pass.
 
-## Run `m2a-r2`
+## Run `m11-r01`
 
-- Kubernetes: 1.25.16 to 1.29.14
-- kind node image from: `kindest/node:v1.25.16@sha256:6110314339b3b44d10da7d27881849a87e092124afab5956f2e10ecdb463b025`
-- kind node image to: `kindest/node:v1.29.14@sha256:8703bd94ee24e51b778d5556ae310c6c0fa67d761fae6379c8e0bb480e6fea29`
-- Prufyx commit: `25b60b90b4513db557e3bd5dcde6258417a1dcba`
-- Rows: 6 (0 correct, 0 wrong PASS, 0 false alarm, 6 gap)
+- Kubernetes: 1.34.11 to 1.35.8
+- kind node image from: `kindest/node@sha256:44e222ee2132dab25ff87301682f89eb82c7880ea3a1bf543bfe9708fd08d67d`
+- kind node image to: `kindest/node@sha256:07b2536e30b803ed61d1677a79df6115f798ce64c80f9e22f6ed45afd09323c0`
+- Prufyx commit: `df99798b01e3b00e41ed265fda5a0419f1dd083d`
+- Rows: 30 (1 correct, 0 wrong PASS, 0 false alarm, 29 gap)
 
 | App | From | To | Command | Result | Oracle | Reason | Log digest |
 |---|---|---|---|---|---|---|---|
-| `argo-cd` | `2.7.11` | `2.11.7` | `plan` | gap | unspecified | `PLAN_UNKNOWN` | `9bae16909fec` |
-| `argo-workflows` | `3.4.6` | `3.5.5` | `plan` | gap | unspecified | `PLAN_REFUSED` | `3ab2aeb8143b` |
-| `cert-manager` | `1.10.2` | `1.14.7` | `plan` | gap | unspecified | `PLAN_UNKNOWN` | `b7746523f31e` |
-| `ingress-nginx` | `1.5.1` | `1.10.6` | `plan` | gap | unspecified | `PLAN_REFUSED` | `3eb8ade50b58` |
-| `kube-prometheus-stack` | `0.63.0` | `0.76.1` | `plan` | gap | unspecified | `PLAN_REFUSED` | `3e186c5bcf84` |
-| `kubernetes` | `1.25.16` | `1.29.14` | `plan` | gap | unspecified | `STAGES_UNKNOWN` | `ccf826cf49ea` |
+| `*` | `1.34.11` | `1.35.8` | `scan` | gap | replay on the target cluster | `NOT_CHECKED DOCUMENTS_TEMPLATED` | `a2a09a349fce` |
+| `cert-manager` | `1.19.6` | `1.20.5` | `assess` | correct | in-place upgrade on the cluster | `COMPONENT_OBSERVED` | `13f34f498e38` |
+| `cert-manager` | `1.19.6` | `1.20.5` | `catalog-checks` | gap | in-place upgrade on the cluster | `CATALOGUED_NO_RULES_YET` | `b39515b3716f` |
+| `cert-manager` | `1.19.6` | `1.20.5` | `check-cert-manager-values` | gap | in-place upgrade on the cluster | `UNKNOWN CERT_MANAGER_TRANSITION_NOT_REVIEWED` | `57256e2ad439` |
+| `cert-manager` | `1.19.6` | `1.20.5` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `cert-manager` | `1.19.6` | `1.20.5` | `scan` | gap | replay on the target cluster | `CUSTOM_RESOURCES_NOT_EVALUATED` | `06fffe8e952c` |
+| `cert-manager` | `1.19.6` | `1.20.5` | `scan` | gap | replay on the target cluster | `NO_FINDING kubernetes.kubelet-version-skew.1-34-0-to-1-35-0` | `6574d0904d00` |
+| `cert-manager` | `1.19.6` | `1.20.5` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `fe79ce838454` |
+| `cert-manager` | `1.19.6` | `1.20.5` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_DATA_COMPONENT_NOT_COVERED` | `a2a09a349fce` |
+| `cloudnative-pg` | `1.29.1` | `1.30.1` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `13f34f498e38` |
+| `cloudnative-pg` | `1.29.1` | `1.30.1` | `catalog-checks` | gap | in-place upgrade on the cluster | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `cloudnative-pg` | `1.29.1` | `1.30.1` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `cloudnative-pg` | `1.29.1` | `1.30.1` | `scan` | gap | replay on the target cluster | `CUSTOM_RESOURCES_NOT_EVALUATED` | `06fffe8e952c` |
+| `cloudnative-pg` | `1.29.1` | `1.30.1` | `scan` | gap | replay on the target cluster | `NO_FINDING kubernetes.kubelet-version-skew.1-34-0-to-1-35-0` | `6574d0904d00` |
+| `cloudnative-pg` | `1.29.1` | `1.30.1` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `fe79ce838454` |
+| `cloudnative-pg` | `1.29.1` | `1.30.1` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_DATA_COMPONENT_NOT_COVERED` | `a2a09a349fce` |
+| `tekton` | `1.16.0` | `1.17.1` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `13f34f498e38` |
+| `tekton` | `1.16.0` | `1.17.1` | `catalog-checks` | gap | in-place upgrade on the cluster | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `tekton` | `1.16.0` | `1.17.1` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `tekton` | `1.16.0` | `1.17.1` | `scan` | gap | replay on the target cluster | `CUSTOM_RESOURCES_EVALUATED` | `06fffe8e952c` |
+| `tekton` | `1.16.0` | `1.17.1` | `scan` | gap | replay on the target cluster | `NO_FINDING kubernetes.kubelet-version-skew.1-34-0-to-1-35-0` | `6574d0904d00` |
+| `tekton` | `1.16.0` | `1.17.1` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `fe79ce838454` |
+| `tekton` | `1.16.0` | `1.17.1` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_DATA_COMPONENT_NOT_COVERED` | `a2a09a349fce` |
+| `velero` | `1.17.1` | `1.18.2` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `13f34f498e38` |
+| `velero` | `1.17.1` | `1.18.2` | `catalog-checks` | gap | in-place upgrade on the cluster | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `velero` | `1.17.1` | `1.18.2` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `velero` | `1.17.1` | `1.18.2` | `scan` | gap | replay on the target cluster | `CUSTOM_RESOURCES_EVALUATED` | `06fffe8e952c` |
+| `velero` | `1.17.1` | `1.18.2` | `scan` | gap | replay on the target cluster | `NO_FINDING kubernetes.kubelet-version-skew.1-34-0-to-1-35-0` | `6574d0904d00` |
+| `velero` | `1.17.1` | `1.18.2` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `fe79ce838454` |
+| `velero` | `1.17.1` | `1.18.2` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_DATA_COMPONENT_NOT_COVERED` | `a2a09a349fce` |
+
+## Run `m11-r02`
+
+- Kubernetes: 1.33.12 to 1.34.11
+- kind node image from: `kindest/node@sha256:3f5c8443c620245e4d355cfe09e96a91ead32ceaa569d3f1ca9edf0cb2fe2ff4`
+- kind node image to: `kindest/node@sha256:44e222ee2132dab25ff87301682f89eb82c7880ea3a1bf543bfe9708fd08d67d`
+- Prufyx commit: `df99798b01e3b00e41ed265fda5a0419f1dd083d`
+- Rows: 32 (10 correct, 0 wrong PASS, 3 false alarm, 19 gap)
+
+| App | From | To | Command | Result | Oracle | Reason | Log digest |
+|---|---|---|---|---|---|---|---|
+| `*` | `1.33.12` | `1.34.11` | `scan` | gap | replay on the target cluster | `NOT_CHECKED API_VERSION_NOT_REVIEWED` | `449a56c4f7f1` |
+| `*` | `1.33.12` | `1.34.11` | `scan` | gap | replay on the target cluster | `NOT_CHECKED DOCUMENTS_TEMPLATED` | `449a56c4f7f1` |
+| `?` | - | - | `scan` | correct | replay on the target cluster | `BLOCKED crossplane.crd-version-removal.environmentconfigs-apiextensions-crossplane-io.1-20-0-to-2-0-0` | `449a56c4f7f1` |
+| `?` | - | - | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.admissionregistration-k8s-io-v1beta1.1-33-0-to-1-34-0` | `449a56c4f7f1` |
+| `?` | - | - | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.admissionregistration-k8s-io-v1beta1.1-33-0-to-1-34-0` | `449a56c4f7f1` |
+| `?` | - | - | `scan` | correct | replay on the target cluster | `BLOCKED kyverno.crd-version-removal.updaterequests-kyverno-io.1-15-0-to-1-16-0` | `449a56c4f7f1` |
+| `?` | - | - | `scan` | correct | replay on the target cluster | `BLOCKED strimzi.crd-version-removal.kafkanodepools-kafka-strimzi-io.0-51-0-to-1-0-0` | `449a56c4f7f1` |
+| `?` | - | - | `scan` | correct | replay on the target cluster | `BLOCKED strimzi.crd-version-removal.kafkas-kafka-strimzi-io.0-51-0-to-1-0-0` | `449a56c4f7f1` |
+| `?` | - | - | `scan` | correct | replay on the target cluster | `BLOCKED strimzi.crd-version-removal.kafkatopics-kafka-strimzi-io.0-51-0-to-1-0-0` | `449a56c4f7f1` |
+| `?` | - | - | `scan` | correct | replay on the target cluster | `BLOCKED strimzi.crd-version-removal.kafkausers-kafka-strimzi-io.0-51-0-to-1-0-0` | `449a56c4f7f1` |
+| `crossplane` | `1.20.14` | `2.0.0` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `02678cc6f95a` |
+| `crossplane` | `1.20.14` | `2.0.0` | `catalog-checks` | gap | in-place upgrade on the cluster | `EMBEDDED_SOURCE_RULE_IDENTITIES` | `80555aed2469` |
+| `crossplane` | `1.20.14` | `2.0.0` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `crossplane` | `1.20.14` | `2.0.0` | `scan` | gap | replay on the target cluster | `CUSTOM_RESOURCES_NOT_EVALUATED` | `5ad59edbea67` |
+| `crossplane` | `1.20.14` | `2.0.0` | `scan` | gap | replay on the target cluster | `NOT_FLAGGED_SCAN_BLOCKED` | `1b77c1865588` |
+| `crossplane` | `1.20.14` | `2.0.0` | `scan` | gap | replay on the target cluster | `NO_FINDING kubernetes.kubelet-version-skew.1-33-0-to-1-34-0` | `1b77c1865588` |
+| `crossplane` | `1.20.14` | `2.0.0` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_BLOCKED` | `7093a194bd70` |
+| `crossplane` | `1.20.14` | `2.0.0` | `scan+plan` | false alarm | in-place upgrade on the cluster | `BLOCKED` | `449a56c4f7f1` |
+| `kyverno` | `1.15.0` | `1.16.0` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `02678cc6f95a` |
+| `kyverno` | `1.15.0` | `1.16.0` | `catalog-checks` | gap | in-place upgrade on the cluster | `EMBEDDED_SOURCE_RULE_IDENTITIES` | `269922c4e174` |
+| `kyverno` | `1.15.0` | `1.16.0` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `kyverno` | `1.15.0` | `1.16.0` | `scan` | correct | replay on the target cluster | `CUSTOM_RESOURCES_EVALUATED` | `5ad59edbea67` |
+| `kyverno` | `1.15.0` | `1.16.0` | `scan` | gap | replay on the target cluster | `NO_FINDING kubernetes.kubelet-version-skew.1-33-0-to-1-34-0` | `1b77c1865588` |
+| `kyverno` | `1.15.0` | `1.16.0` | `scan` | correct | replay on the target cluster | `OLD_DOCUMENTS_FLAGGED` | `7093a194bd70` |
+| `kyverno` | `1.15.0` | `1.16.0` | `scan+plan` | false alarm | in-place upgrade on the cluster | `BLOCKED` | `449a56c4f7f1` |
+| `strimzi` | `0.51.0` | `1.0.0` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `02678cc6f95a` |
+| `strimzi` | `0.51.0` | `1.0.0` | `catalog-checks` | gap | in-place upgrade on the cluster | `EMBEDDED_SOURCE_RULE_IDENTITIES` | `0990526f8b6a` |
+| `strimzi` | `0.51.0` | `1.0.0` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `strimzi` | `0.51.0` | `1.0.0` | `scan` | gap | replay on the target cluster | `CUSTOM_RESOURCES_NOT_EVALUATED` | `5ad59edbea67` |
+| `strimzi` | `0.51.0` | `1.0.0` | `scan` | gap | replay on the target cluster | `NO_FINDING kubernetes.kubelet-version-skew.1-33-0-to-1-34-0` | `1b77c1865588` |
+| `strimzi` | `0.51.0` | `1.0.0` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_BLOCKED` | `7093a194bd70` |
+| `strimzi` | `0.51.0` | `1.0.0` | `scan+plan` | false alarm | in-place upgrade on the cluster | `BLOCKED` | `449a56c4f7f1` |
+
+## Run `m11-r03`
+
+- Kubernetes: 1.31.14 to 1.32.11
+- kind node image from: `kindest/node@sha256:6f86cf509dbb42767b6e79debc3f2c32e4ee01386f0489b3b2be24b0a55aac2b`
+- kind node image to: `kindest/node@sha256:5fc52d52a7b9574015299724bd68f183702956aa4a2116ae75a63cb574b35af8`
+- Prufyx commit: `df99798b01e3b00e41ed265fda5a0419f1dd083d`
+- Rows: 14 (0 correct, 0 wrong PASS, 0 false alarm, 14 gap)
+
+| App | From | To | Command | Result | Oracle | Reason | Log digest |
+|---|---|---|---|---|---|---|---|
+| `contour` | `1.31.6` | `1.32.5` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `dd58f8b0d875` |
+| `contour` | `1.31.6` | `1.32.5` | `catalog-checks` | gap | in-place upgrade on the cluster | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `contour` | `1.31.6` | `1.32.5` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `contour` | `1.31.6` | `1.32.5` | `scan` | gap | replay on the target cluster | `CUSTOM_RESOURCES_NOT_EVALUATED` | `4f621d4164cb` |
+| `contour` | `1.31.6` | `1.32.5` | `scan` | gap | replay on the target cluster | `NO_FINDING kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0` | `e74465fc26e8` |
+| `contour` | `1.31.6` | `1.32.5` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `0a095928df51` |
+| `contour` | `1.31.6` | `1.32.5` | `scan+plan` | gap | in-place upgrade on the cluster | `HOP_PARTIAL` | `0a15d7d1908a` |
+| `keda` | `2.16.1` | `2.17.3` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `dd58f8b0d875` |
+| `keda` | `2.16.1` | `2.17.3` | `catalog-checks` | gap | in-place upgrade on the cluster | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `keda` | `2.16.1` | `2.17.3` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `keda` | `2.16.1` | `2.17.3` | `scan` | gap | replay on the target cluster | `CUSTOM_RESOURCES_NOT_EVALUATED` | `4f621d4164cb` |
+| `keda` | `2.16.1` | `2.17.3` | `scan` | gap | replay on the target cluster | `NO_FINDING kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0` | `e74465fc26e8` |
+| `keda` | `2.16.1` | `2.17.3` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `0a095928df51` |
+| `keda` | `2.16.1` | `2.17.3` | `scan+plan` | gap | in-place upgrade on the cluster | `HOP_PARTIAL` | `0a15d7d1908a` |
 
 ## Run `m2b-r01`
 
 - Kubernetes: 1.25.16 to 1.29.14
-- kind node image from: `kindest/node:v1.25.16@sha256:6110314339b3b44d10da7d27881849a87e092124afab5956f2e10ecdb463b025`
-- kind node image to: `kindest/node:v1.29.14@sha256:8703bd94ee24e51b778d5556ae310c6c0fa67d761fae6379c8e0bb480e6fea29`
+- kind node image from: `kindest/node@sha256:6110314339b3b44d10da7d27881849a87e092124afab5956f2e10ecdb463b025`
+- kind node image to: `kindest/node@sha256:8703bd94ee24e51b778d5556ae310c6c0fa67d761fae6379c8e0bb480e6fea29`
 - Prufyx commit: `28fc30c183e8c2c9af1d3a483bbec42a27378ba7`
-- Rows: 5 (1 correct, 0 wrong PASS, 0 false alarm, 4 gap)
+- Rows: 30 (0 correct, 0 wrong PASS, 0 false alarm, 30 gap)
 
 | App | From | To | Command | Result | Oracle | Reason | Log digest |
 |---|---|---|---|---|---|---|---|
-| `crossplane` | `1.14.9` | `1.18.5` | `plan` | gap | unspecified | `PLAN_COVERED_SET` | - |
-| `external-dns` | `1.12.2` | `1.16.1` | `plan` | gap | unspecified | `PLAN_REJECTED` | - |
-| `knative` | `1.10.2` | `1.14.1` | `plan` | gap | unspecified | `NOT_PLANNED` | - |
-| `kubernetes` | `1.25.16` | `1.29.14` | `plan` | correct | unspecified | `PLAN_RECORDED` | - |
-| `longhorn` | `1.4.4` | `1.7.3` | `plan` | gap | unspecified | `PLAN_COVERED_SET` | - |
+| `crossplane` | `1.14.9` | `1.18.5` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `a4845718bafd` |
+| `crossplane` | `1.14.9` | `1.18.5` | `catalog-checks` | gap | in-place upgrade on the cluster | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `crossplane` | `1.14.9` | `1.18.5` | `check-cncf` | gap | in-place upgrade on the cluster | `NO_EXIT_CODE_RECORDED` | - |
+| `crossplane` | `1.14.9` | `1.18.5` | `scan` | gap | replay on the target cluster | `NO_ORACLE_A_DATA` | `da38b8793aa6` |
+| `crossplane` | `1.14.9` | `1.18.5` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `cc7cecd8b580` |
+| `crossplane` | `1.14.9` | `1.18.5` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+| `crossplane` | `1.14.9` | `1.18.5` | `scan+plan` | gap | in-place upgrade on the cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+| `external-dns` | `1.12.2` | `1.16.1` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `a4845718bafd` |
+| `external-dns` | `1.12.2` | `1.16.1` | `scan` | gap | replay on the target cluster | `NO_ORACLE_A_DATA` | `da38b8793aa6` |
+| `external-dns` | `1.12.2` | `1.16.1` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `cc7cecd8b580` |
+| `external-dns` | `1.12.2` | `1.16.1` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+| `external-dns` | `1.12.2` | `1.16.1` | `scan+plan` | gap | in-place upgrade on the cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+| `knative-net-kourier` | `1.10.0` | `1.14.0` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `a4845718bafd` |
+| `knative-net-kourier` | `1.10.0` | `1.14.0` | `scan` | gap | replay on the target cluster | `NO_ORACLE_A_DATA` | `da38b8793aa6` |
+| `knative-net-kourier` | `1.10.0` | `1.14.0` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `cc7cecd8b580` |
+| `knative-net-kourier` | `1.10.0` | `1.14.0` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+| `knative-net-kourier` | `1.10.0` | `1.14.0` | `scan+plan` | gap | in-place upgrade on the cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+| `knative-serving` | `1.10.2` | `1.14.1` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `a4845718bafd` |
+| `knative-serving` | `1.10.2` | `1.14.1` | `catalog-checks` | gap | in-place upgrade on the cluster | `NO_EXIT_CODE_RECORDED` | - |
+| `knative-serving` | `1.10.2` | `1.14.1` | `check-cncf` | gap | in-place upgrade on the cluster | `NO_EXIT_CODE_RECORDED` | - |
+| `knative-serving` | `1.10.2` | `1.14.1` | `scan` | gap | replay on the target cluster | `NO_ORACLE_A_DATA` | `da38b8793aa6` |
+| `knative-serving` | `1.10.2` | `1.14.1` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `cc7cecd8b580` |
+| `knative-serving` | `1.10.2` | `1.14.1` | `scan+plan` | gap | in-place upgrade on the cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+| `longhorn` | `1.4.4` | `1.7.3` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `a4845718bafd` |
+| `longhorn` | `1.4.4` | `1.7.3` | `catalog-checks` | gap | in-place upgrade on the cluster | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `longhorn` | `1.4.4` | `1.7.3` | `check-cncf` | gap | in-place upgrade on the cluster | `NO_EXIT_CODE_RECORDED` | - |
+| `longhorn` | `1.4.4` | `1.7.3` | `scan` | gap | replay on the target cluster | `NO_ORACLE_A_DATA` | `da38b8793aa6` |
+| `longhorn` | `1.4.4` | `1.7.3` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `cc7cecd8b580` |
+| `longhorn` | `1.4.4` | `1.7.3` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+| `longhorn` | `1.4.4` | `1.7.3` | `scan+plan` | gap | in-place upgrade on the cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
 
 ## Run `m3-r01`
 
@@ -55,19 +176,19 @@ Forms of result: `correct` means Prufyx and the oracle agree; `wrong PASS` means
 
 | App | From | To | Command | Result | Oracle | Reason | Log digest |
 |---|---|---|---|---|---|---|---|
-| `*` | `1.25.16` | `1.26.15` | `scan` | gap | replay-on-target | `NOT_CHECKED API_VERSION_NOT_REVIEWED` | `57ba9461c014` |
-| `*` | `1.25.16` | `1.26.15` | `scan` | gap | replay-on-target | `NOT_CHECKED DOCUMENTS_TEMPLATED` | `57ba9461c014` |
-| `?` | - | - | `scan` | correct | replay-on-target | `BLOCKED kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta1.1-25-0-to-1-26-0` | `57ba9461c014` |
-| `?` | - | - | `scan` | correct | replay-on-target | `BLOCKED kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta1.1-25-0-to-1-26-0` | `57ba9461c014` |
-| `keda` | `2.10.2` | `2.12.1` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `22a861c6912b` |
-| `keda` | `2.10.2` | `2.12.1` | `scan` | correct | replay-on-target | `NO_FINDING` | `38d2eb5d32d6` |
-| `keda` | `2.10.2` | `2.12.1` | `scan+plan` | gap | in-place upgrade | `NO_DATA_COMPONENT_NOT_COVERED` | `57ba9461c014` |
-| `metrics-server` | `3.11.0` | `3.12.2` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `22a861c6912b` |
-| `metrics-server` | `3.11.0` | `3.12.2` | `scan` | correct | replay-on-target | `CUSTOM_RESOURCES_EVALUATED` | `1a08c6be2506` |
-| `metrics-server` | `3.11.0` | `3.12.2` | `scan` | correct | replay-on-target | `NO_FINDING` | `38d2eb5d32d6` |
-| `metrics-server` | `3.11.0` | `3.12.2` | `scan+plan` | gap | in-place upgrade | `NO_PATH` | `57ba9461c014` |
-| `podinfo` | `6.0.0` | `6.0.0` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `22a861c6912b` |
-| `podinfo` | `6.0.0` | `6.0.0` | `scan` | correct | replay-on-target | `BLOCKED kubernetes.served-api-removal.autoscaling-v2beta2.1-25-0-to-1-26-0` | `57ba9461c014` |
+| `*` | `1.25.16` | `1.26.15` | `scan` | gap | replay on the target cluster | `NOT_CHECKED API_VERSION_NOT_REVIEWED` | `57ba9461c014` |
+| `*` | `1.25.16` | `1.26.15` | `scan` | gap | replay on the target cluster | `NOT_CHECKED DOCUMENTS_TEMPLATED` | `57ba9461c014` |
+| `?` | - | - | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta1.1-25-0-to-1-26-0` | `57ba9461c014` |
+| `?` | - | - | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta1.1-25-0-to-1-26-0` | `57ba9461c014` |
+| `keda` | `2.10.2` | `2.12.1` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `22a861c6912b` |
+| `keda` | `2.10.2` | `2.12.1` | `scan` | correct | replay on the target cluster | `NO_FINDING` | `38d2eb5d32d6` |
+| `keda` | `2.10.2` | `2.12.1` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_DATA_COMPONENT_NOT_COVERED` | `57ba9461c014` |
+| `metrics-server` | `3.11.0` | `3.12.2` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `22a861c6912b` |
+| `metrics-server` | `3.11.0` | `3.12.2` | `scan` | correct | replay on the target cluster | `CUSTOM_RESOURCES_EVALUATED` | `1a08c6be2506` |
+| `metrics-server` | `3.11.0` | `3.12.2` | `scan` | correct | replay on the target cluster | `NO_FINDING` | `38d2eb5d32d6` |
+| `metrics-server` | `3.11.0` | `3.12.2` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_PATH` | `57ba9461c014` |
+| `podinfo` | `6.0.0` | `6.0.0` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `22a861c6912b` |
+| `podinfo` | `6.0.0` | `6.0.0` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.autoscaling-v2beta2.1-25-0-to-1-26-0` | `57ba9461c014` |
 
 ## Run `m3-r02`
 
@@ -79,14 +200,14 @@ Forms of result: `correct` means Prufyx and the oracle agree; `wrong PASS` means
 
 | App | From | To | Command | Result | Oracle | Reason | Log digest |
 |---|---|---|---|---|---|---|---|
-| `*` | `1.26.15` | `1.27.16` | `scan` | gap | replay-on-target | `NOT_CHECKED API_VERSION_NOT_REVIEWED` | `557312da6bfe` |
-| `?` | - | - | `scan` | correct | replay-on-target | `BLOCKED kubernetes.served-api-removal.storage-k8s-io-v1beta1.1-26-0-to-1-27-0` | `557312da6bfe` |
-| `keda` | `2.12.1` | `2.12.1` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `a61c6a9fd3f2` |
-| `keda` | `2.12.1` | `2.12.1` | `scan` | correct | replay-on-target | `NO_FINDING` | `59e96c36c4c7` |
-| `metrics-server` | `3.11.0` | `3.12.2` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `a61c6a9fd3f2` |
-| `metrics-server` | `3.11.0` | `3.12.2` | `scan` | correct | replay-on-target | `CUSTOM_RESOURCES_EVALUATED` | `a09ea52e9be1` |
-| `metrics-server` | `3.11.0` | `3.12.2` | `scan` | correct | replay-on-target | `NO_FINDING` | `59e96c36c4c7` |
-| `metrics-server` | `3.11.0` | `3.12.2` | `scan+plan` | gap | in-place upgrade | `NO_PATH` | `557312da6bfe` |
+| `*` | `1.26.15` | `1.27.16` | `scan` | gap | replay on the target cluster | `NOT_CHECKED API_VERSION_NOT_REVIEWED` | `557312da6bfe` |
+| `?` | - | - | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.storage-k8s-io-v1beta1.1-26-0-to-1-27-0` | `557312da6bfe` |
+| `keda` | `2.12.1` | `2.12.1` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `a61c6a9fd3f2` |
+| `keda` | `2.12.1` | `2.12.1` | `scan` | correct | replay on the target cluster | `NO_FINDING` | `59e96c36c4c7` |
+| `metrics-server` | `3.11.0` | `3.12.2` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `a61c6a9fd3f2` |
+| `metrics-server` | `3.11.0` | `3.12.2` | `scan` | correct | replay on the target cluster | `CUSTOM_RESOURCES_EVALUATED` | `a09ea52e9be1` |
+| `metrics-server` | `3.11.0` | `3.12.2` | `scan` | correct | replay on the target cluster | `NO_FINDING` | `59e96c36c4c7` |
+| `metrics-server` | `3.11.0` | `3.12.2` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_PATH` | `557312da6bfe` |
 
 ## Run `m3-r03`
 
@@ -98,15 +219,15 @@ Forms of result: `correct` means Prufyx and the oracle agree; `wrong PASS` means
 
 | App | From | To | Command | Result | Oracle | Reason | Log digest |
 |---|---|---|---|---|---|---|---|
-| `*` | `1.28.15` | `1.29.14` | `scan` | gap | replay-on-target | `NOT_CHECKED API_VERSION_NOT_REVIEWED` | `67d858b6eaf1` |
-| `?` | - | - | `scan` | correct | replay-on-target | `BLOCKED kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta2.1-28-0-to-1-29-0` | `67d858b6eaf1` |
-| `?` | - | - | `scan` | correct | replay-on-target | `BLOCKED kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta2.1-28-0-to-1-29-0` | `67d858b6eaf1` |
-| `keda` | `2.12.1` | `2.15.2` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `ddd3dec69305` |
-| `keda` | `2.12.1` | `2.15.2` | `scan` | correct | replay-on-target | `NO_FINDING` | `11f64ed07286` |
-| `keda` | `2.12.1` | `2.15.2` | `scan+plan` | gap | in-place upgrade | `NO_DATA_COMPONENT_NOT_COVERED` | `67d858b6eaf1` |
-| `metrics-server` | `3.12.2` | `3.12.2` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `ddd3dec69305` |
-| `metrics-server` | `3.12.2` | `3.12.2` | `scan` | correct | replay-on-target | `CUSTOM_RESOURCES_EVALUATED` | `f82ef0fdb78d` |
-| `metrics-server` | `3.12.2` | `3.12.2` | `scan` | correct | replay-on-target | `NO_FINDING` | `11f64ed07286` |
+| `*` | `1.28.15` | `1.29.14` | `scan` | gap | replay on the target cluster | `NOT_CHECKED API_VERSION_NOT_REVIEWED` | `67d858b6eaf1` |
+| `?` | - | - | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta2.1-28-0-to-1-29-0` | `67d858b6eaf1` |
+| `?` | - | - | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta2.1-28-0-to-1-29-0` | `67d858b6eaf1` |
+| `keda` | `2.12.1` | `2.15.2` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `ddd3dec69305` |
+| `keda` | `2.12.1` | `2.15.2` | `scan` | correct | replay on the target cluster | `NO_FINDING` | `11f64ed07286` |
+| `keda` | `2.12.1` | `2.15.2` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_DATA_COMPONENT_NOT_COVERED` | `67d858b6eaf1` |
+| `metrics-server` | `3.12.2` | `3.12.2` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `ddd3dec69305` |
+| `metrics-server` | `3.12.2` | `3.12.2` | `scan` | correct | replay on the target cluster | `CUSTOM_RESOURCES_EVALUATED` | `f82ef0fdb78d` |
+| `metrics-server` | `3.12.2` | `3.12.2` | `scan` | correct | replay on the target cluster | `NO_FINDING` | `11f64ed07286` |
 
 ## Run `m3-r04`
 
@@ -118,12 +239,12 @@ Forms of result: `correct` means Prufyx and the oracle agree; `wrong PASS` means
 
 | App | From | To | Command | Result | Oracle | Reason | Log digest |
 |---|---|---|---|---|---|---|---|
-| `*` | `1.31.14` | `1.32.11` | `scan` | gap | replay-on-target | `NOT_CHECKED API_VERSION_NOT_REVIEWED` | `3a6e150d6733` |
-| `?` | - | - | `scan` | correct | replay-on-target | `BLOCKED kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0` | `3a6e150d6733` |
-| `?` | - | - | `scan` | correct | replay-on-target | `BLOCKED kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0` | `3a6e150d6733` |
-| `metrics-server` | `3.12.2` | `3.12.2` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `0b5d7b884692` |
-| `metrics-server` | `3.12.2` | `3.12.2` | `scan` | correct | replay-on-target | `CUSTOM_RESOURCES_EVALUATED` | `855671a5c550` |
-| `metrics-server` | `3.12.2` | `3.12.2` | `scan` | correct | replay-on-target | `NO_FINDING` | `ceb593cca40a` |
+| `*` | `1.31.14` | `1.32.11` | `scan` | gap | replay on the target cluster | `NOT_CHECKED API_VERSION_NOT_REVIEWED` | `3a6e150d6733` |
+| `?` | - | - | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0` | `3a6e150d6733` |
+| `?` | - | - | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.flowcontrol-apiserver-k8s-io-v1beta3.1-31-0-to-1-32-0` | `3a6e150d6733` |
+| `metrics-server` | `3.12.2` | `3.12.2` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `0b5d7b884692` |
+| `metrics-server` | `3.12.2` | `3.12.2` | `scan` | correct | replay on the target cluster | `CUSTOM_RESOURCES_EVALUATED` | `855671a5c550` |
+| `metrics-server` | `3.12.2` | `3.12.2` | `scan` | correct | replay on the target cluster | `NO_FINDING` | `ceb593cca40a` |
 
 ## Run `m4-r01`
 
@@ -135,26 +256,26 @@ Forms of result: `correct` means Prufyx and the oracle agree; `wrong PASS` means
 
 | App | From | To | Command | Result | Oracle | Reason | Log digest |
 |---|---|---|---|---|---|---|---|
-| `*` | `1.27.16` | `1.31.14` | `scan` | gap | replay-on-target | `NOT_CHECKED DECLARATION_MISSING` | `ae3a64712d1f` |
-| `gatekeeper` | `3.13.4` | `3.17.1` | `assess` | gap | in-place upgrade | `PROJECT_ABSENT_FROM_ASSESS` | `eee01e0a03a3` |
-| `gatekeeper` | `3.13.4` | `3.17.1` | `scan` | gap | replay-on-target | `CUSTOM_RESOURCES_NOT_EVALUATED` | `da2ee48aef10` |
-| `gatekeeper` | `3.13.4` | `3.17.1` | `scan` | gap | replay-on-target | `NO_FINDING` | `c7ec709023f6` |
-| `gatekeeper` | `3.13.4` | `3.17.1` | `scan+plan` | gap | in-place upgrade | `NO_PATH` | `ae3a64712d1f` |
-| `keda` | `2.13.1` | `2.16.1` | `assess` | correct | in-place upgrade | `ASSESS_CHECKS_IN_JSON` | `eee01e0a03a3` |
-| `keda` | `2.13.1` | `2.16.1` | `scan` | gap | replay-on-target | `CUSTOM_RESOURCES_NOT_EVALUATED` | `da2ee48aef10` |
-| `keda` | `2.13.1` | `2.16.1` | `scan` | gap | replay-on-target | `NO_FINDING` | `c7ec709023f6` |
-| `keda` | `2.13.1` | `2.16.1` | `scan+plan` | gap | in-place upgrade | `NO_DATA_COMPONENT_NOT_COVERED` | `ae3a64712d1f` |
-| `kyverno` | `1.10.7` | `1.13.4` | `assess` | gap | in-place upgrade | `ASSESS_CHECKS_IN_JSON` | `eee01e0a03a3` |
-| `kyverno` | `1.10.7` | `1.13.4` | `scan` | gap | replay-on-target | `CUSTOM_RESOURCES_NOT_EVALUATED` | `da2ee48aef10` |
-| `kyverno` | `1.10.7` | `1.13.4` | `scan` | gap | replay-on-target | `NO_FINDING` | `c7ec709023f6` |
-| `kyverno` | `1.10.7` | `1.13.4` | `scan+plan` | gap | in-place upgrade | `NO_DATA_COMPONENT_NOT_COVERED` | `ae3a64712d1f` |
-| `metrics-server` | `0.6.4` | `0.8.0` | `assess` | gap | in-place upgrade | `PROJECT_ABSENT_FROM_ASSESS` | `eee01e0a03a3` |
-| `metrics-server` | `0.6.4` | `0.8.0` | `scan` | gap | replay-on-target | `NO_FINDING` | `c7ec709023f6` |
-| `metrics-server` | `0.6.4` | `0.8.0` | `scan+plan` | gap | in-place upgrade | `NO_PATH` | `ae3a64712d1f` |
-| `velero` | `1.12.3` | `1.15.2` | `assess` | correct | in-place upgrade | `ASSESS_CHECKS_IN_JSON` | `eee01e0a03a3` |
-| `velero` | `1.12.3` | `1.15.2` | `scan` | gap | replay-on-target | `CUSTOM_RESOURCES_NOT_EVALUATED` | `da2ee48aef10` |
-| `velero` | `1.12.3` | `1.15.2` | `scan` | gap | replay-on-target | `NO_FINDING` | `c7ec709023f6` |
-| `velero` | `1.12.3` | `1.15.2` | `scan+plan` | gap | in-place upgrade | `NO_DATA_COMPONENT_NOT_COVERED` | `ae3a64712d1f` |
+| `*` | `1.27.16` | `1.31.14` | `scan` | gap | replay on the target cluster | `NOT_CHECKED DECLARATION_MISSING` | `ae3a64712d1f` |
+| `gatekeeper` | `3.13.4` | `3.17.1` | `assess` | gap | in-place upgrade on the cluster | `PROJECT_ABSENT_FROM_ASSESS` | `eee01e0a03a3` |
+| `gatekeeper` | `3.13.4` | `3.17.1` | `scan` | gap | replay on the target cluster | `CUSTOM_RESOURCES_NOT_EVALUATED` | `da2ee48aef10` |
+| `gatekeeper` | `3.13.4` | `3.17.1` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `c7ec709023f6` |
+| `gatekeeper` | `3.13.4` | `3.17.1` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_PATH` | `ae3a64712d1f` |
+| `keda` | `2.13.1` | `2.16.1` | `assess` | correct | in-place upgrade on the cluster | `ASSESS_CHECKS_IN_JSON` | `eee01e0a03a3` |
+| `keda` | `2.13.1` | `2.16.1` | `scan` | gap | replay on the target cluster | `CUSTOM_RESOURCES_NOT_EVALUATED` | `da2ee48aef10` |
+| `keda` | `2.13.1` | `2.16.1` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `c7ec709023f6` |
+| `keda` | `2.13.1` | `2.16.1` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_DATA_COMPONENT_NOT_COVERED` | `ae3a64712d1f` |
+| `kyverno` | `1.10.7` | `1.13.4` | `assess` | gap | in-place upgrade on the cluster | `ASSESS_CHECKS_IN_JSON` | `eee01e0a03a3` |
+| `kyverno` | `1.10.7` | `1.13.4` | `scan` | gap | replay on the target cluster | `CUSTOM_RESOURCES_NOT_EVALUATED` | `da2ee48aef10` |
+| `kyverno` | `1.10.7` | `1.13.4` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `c7ec709023f6` |
+| `kyverno` | `1.10.7` | `1.13.4` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_DATA_COMPONENT_NOT_COVERED` | `ae3a64712d1f` |
+| `metrics-server` | `0.6.4` | `0.8.0` | `assess` | gap | in-place upgrade on the cluster | `PROJECT_ABSENT_FROM_ASSESS` | `eee01e0a03a3` |
+| `metrics-server` | `0.6.4` | `0.8.0` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `c7ec709023f6` |
+| `metrics-server` | `0.6.4` | `0.8.0` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_PATH` | `ae3a64712d1f` |
+| `velero` | `1.12.3` | `1.15.2` | `assess` | correct | in-place upgrade on the cluster | `ASSESS_CHECKS_IN_JSON` | `eee01e0a03a3` |
+| `velero` | `1.12.3` | `1.15.2` | `scan` | gap | replay on the target cluster | `CUSTOM_RESOURCES_NOT_EVALUATED` | `da2ee48aef10` |
+| `velero` | `1.12.3` | `1.15.2` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `c7ec709023f6` |
+| `velero` | `1.12.3` | `1.15.2` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_DATA_COMPONENT_NOT_COVERED` | `ae3a64712d1f` |
 
 ## Run `m5-r01`
 
@@ -166,33 +287,113 @@ Forms of result: `correct` means Prufyx and the oracle agree; `wrong PASS` means
 
 | App | From | To | Command | Result | Oracle | Reason | Log digest |
 |---|---|---|---|---|---|---|---|
-| `argo-cd` | `7.3.11` | `10.18.1` | `assess` | gap | in-place upgrade | `COMPONENT_NOT_IDENTIFIED` | `a012149d83b7` |
-| `argo-cd` | `7.3.11` | `10.18.1` | `scan` | gap | replay-on-target | `SCAN_NO_USABLE_OUTPUT` | `b86d9b9046f6` |
-| `argo-cd` | `7.3.11` | `10.18.1` | `scan` | gap | replay-on-target | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
-| `argo-cd` | `7.3.11` | `10.18.1` | `scan+plan` | gap | in-place upgrade | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
-| `cert-manager` | `1.14.7` | `1.21.3` | `assess` | correct | in-place upgrade | `COMPONENT_OBSERVED` | `a012149d83b7` |
-| `cert-manager` | `1.14.7` | `1.21.3` | `check-cert-manager-values` | gap | in-place upgrade | `UNKNOWN CERT_MANAGER_TRANSITION_NOT_REVIEWED` | `57256e2ad439` |
-| `cert-manager` | `1.14.7` | `1.21.3` | `scan` | gap | replay-on-target | `SCAN_NO_USABLE_OUTPUT` | `b86d9b9046f6` |
-| `cert-manager` | `1.14.7` | `1.21.3` | `scan` | gap | replay-on-target | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
-| `cert-manager` | `1.14.7` | `1.21.3` | `scan+plan` | gap | in-place upgrade | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
-| `external-secrets` | `0.9.20` | `2.15.0` | `assess` | gap | in-place upgrade | `COMPONENT_NOT_IDENTIFIED` | `a012149d83b7` |
-| `external-secrets` | `0.9.20` | `2.15.0` | `scan` | gap | replay-on-target | `NOT_FLAGGED_NO_SCAN_OUTPUT` | `b86d9b9046f6` |
-| `external-secrets` | `0.9.20` | `2.15.0` | `scan` | gap | replay-on-target | `NOT_FLAGGED_NO_SCAN_OUTPUT` | `b86d9b9046f6` |
-| `external-secrets` | `0.9.20` | `2.15.0` | `scan` | gap | replay-on-target | `SCAN_NO_USABLE_OUTPUT` | `b86d9b9046f6` |
-| `external-secrets` | `0.9.20` | `2.15.0` | `scan` | gap | replay-on-target | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
-| `external-secrets` | `0.9.20` | `2.15.0` | `scan+plan` | gap | in-place upgrade | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
-| `ingress-nginx` | `4.10.6` | `4.15.1` | `assess` | gap | in-place upgrade | `COMPONENT_NOT_IDENTIFIED` | `a012149d83b7` |
-| `ingress-nginx` | `4.10.6` | `4.15.1` | `scan` | gap | replay-on-target | `NOT_FLAGGED_NO_SCAN_OUTPUT` | `b86d9b9046f6` |
-| `ingress-nginx` | `4.10.6` | `4.15.1` | `scan` | gap | replay-on-target | `SCAN_NO_USABLE_OUTPUT` | `b86d9b9046f6` |
-| `ingress-nginx` | `4.10.6` | `4.15.1` | `scan` | gap | replay-on-target | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
-| `ingress-nginx` | `4.10.6` | `4.15.1` | `scan+plan` | gap | in-place upgrade | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
-| `istio-base` | `1.22.8` | `1.30.8` | `assess` | gap | in-place upgrade | `COMPONENT_NOT_IDENTIFIED` | `a012149d83b7` |
-| `istio-base` | `1.22.8` | `1.30.8` | `scan` | gap | replay-on-target | `SCAN_NO_USABLE_OUTPUT` | `b86d9b9046f6` |
-| `istio-base` | `1.22.8` | `1.30.8` | `scan+plan` | gap | in-place upgrade | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
-| `istiod` | `1.22.8` | `1.30.8` | `assess` | gap | in-place upgrade | `COMPONENT_NOT_IDENTIFIED` | `a012149d83b7` |
-| `istiod` | `1.22.8` | `1.30.8` | `scan` | gap | replay-on-target | `SCAN_NO_USABLE_OUTPUT` | `b86d9b9046f6` |
-| `istiod` | `1.22.8` | `1.30.8` | `scan` | gap | replay-on-target | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
-| `istiod` | `1.22.8` | `1.30.8` | `scan+plan` | gap | in-place upgrade | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+| `argo-cd` | `7.3.11` | `10.18.1` | `assess` | gap | in-place upgrade on the cluster | `COMPONENT_NOT_IDENTIFIED` | `a012149d83b7` |
+| `argo-cd` | `7.3.11` | `10.18.1` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `b86d9b9046f6` |
+| `argo-cd` | `7.3.11` | `10.18.1` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+| `argo-cd` | `7.3.11` | `10.18.1` | `scan+plan` | gap | in-place upgrade on the cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+| `cert-manager` | `1.14.7` | `1.21.3` | `assess` | correct | in-place upgrade on the cluster | `COMPONENT_OBSERVED` | `a012149d83b7` |
+| `cert-manager` | `1.14.7` | `1.21.3` | `check-cert-manager-values` | gap | in-place upgrade on the cluster | `UNKNOWN CERT_MANAGER_TRANSITION_NOT_REVIEWED` | `57256e2ad439` |
+| `cert-manager` | `1.14.7` | `1.21.3` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `b86d9b9046f6` |
+| `cert-manager` | `1.14.7` | `1.21.3` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+| `cert-manager` | `1.14.7` | `1.21.3` | `scan+plan` | gap | in-place upgrade on the cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+| `external-secrets` | `0.9.20` | `2.15.0` | `assess` | gap | in-place upgrade on the cluster | `COMPONENT_NOT_IDENTIFIED` | `a012149d83b7` |
+| `external-secrets` | `0.9.20` | `2.15.0` | `scan` | gap | replay on the target cluster | `NOT_FLAGGED_NO_SCAN_OUTPUT` | `b86d9b9046f6` |
+| `external-secrets` | `0.9.20` | `2.15.0` | `scan` | gap | replay on the target cluster | `NOT_FLAGGED_NO_SCAN_OUTPUT` | `b86d9b9046f6` |
+| `external-secrets` | `0.9.20` | `2.15.0` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `b86d9b9046f6` |
+| `external-secrets` | `0.9.20` | `2.15.0` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+| `external-secrets` | `0.9.20` | `2.15.0` | `scan+plan` | gap | in-place upgrade on the cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+| `ingress-nginx` | `4.10.6` | `4.15.1` | `assess` | gap | in-place upgrade on the cluster | `COMPONENT_NOT_IDENTIFIED` | `a012149d83b7` |
+| `ingress-nginx` | `4.10.6` | `4.15.1` | `scan` | gap | replay on the target cluster | `NOT_FLAGGED_NO_SCAN_OUTPUT` | `b86d9b9046f6` |
+| `ingress-nginx` | `4.10.6` | `4.15.1` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `b86d9b9046f6` |
+| `ingress-nginx` | `4.10.6` | `4.15.1` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+| `ingress-nginx` | `4.10.6` | `4.15.1` | `scan+plan` | gap | in-place upgrade on the cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+| `istio-base` | `1.22.8` | `1.30.8` | `assess` | gap | in-place upgrade on the cluster | `COMPONENT_NOT_IDENTIFIED` | `a012149d83b7` |
+| `istio-base` | `1.22.8` | `1.30.8` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `b86d9b9046f6` |
+| `istio-base` | `1.22.8` | `1.30.8` | `scan+plan` | gap | in-place upgrade on the cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+| `istiod` | `1.22.8` | `1.30.8` | `assess` | gap | in-place upgrade on the cluster | `COMPONENT_NOT_IDENTIFIED` | `a012149d83b7` |
+| `istiod` | `1.22.8` | `1.30.8` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `b86d9b9046f6` |
+| `istiod` | `1.22.8` | `1.30.8` | `scan` | gap | replay on the target cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+| `istiod` | `1.22.8` | `1.30.8` | `scan+plan` | gap | in-place upgrade on the cluster | `SCAN_NO_USABLE_OUTPUT` | `e3b0c44298fc` |
+
+## Run `m6-p01`
+
+- Kubernetes: 1.21.10 to 1.25.16
+- kind node image from: `kindest/node@sha256:84709f09756ba4f863769bdcabe5edafc2ada72d3c8c44d6515fc581b66b029c`
+- kind node image to: `kindest/node@sha256:6110314339b3b44d10da7d27881849a87e092124afab5956f2e10ecdb463b025`
+- Prufyx commit: `25b60b90b4513db557e3bd5dcde6258417a1dcba`
+- Rows: 29 (23 correct, 0 wrong PASS, 0 false alarm, 6 gap)
+
+| App | From | To | Command | Result | Oracle | Reason | Log digest |
+|---|---|---|---|---|---|---|---|
+| `*` | `1.21.10` | `1.25.16` | `scan` | gap | replay on the target cluster | `NOT_CHECKED API_VERSION_NOT_REVIEWED` | `59f19535fdd8` |
+| `*` | `1.21.10` | `1.25.16` | `scan` | gap | replay on the target cluster | `NOT_CHECKED DOCUMENTS_TEMPLATED` | `59f19535fdd8` |
+| `*` | `1.21.10` | `1.25.16` | `scan` | gap | replay on the target cluster | `NOT_CHECKED INTERMEDIATE_LINE_NOT_COVERED_BY_RANGE` | `59f19535fdd8` |
+| `cert-manager` | `1.4.4` | `1.5.5` | `scan` | gap | replay on the target cluster | `CUSTOM_RESOURCES_NOT_EVALUATED` | `1d9af34ffc51` |
+| `cert-manager` | `1.4.4` | `1.5.5` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `b06670786316` |
+| `ingress-nginx` | `3.34.0` | `4.0.1` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.extensions-v1beta1.1-21-0-to-1-22-0` | `59f19535fdd8` |
+| `ingress-nginx` | `3.34.0` | `4.0.1` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.networking-k8s-io-v1beta1-ingress.1-21-0-to-1-22-0` | `59f19535fdd8` |
+| `ingress-nginx` | `3.34.0` | `4.0.1` | `scan` | correct | replay on the target cluster | `CUSTOM_RESOURCES_EVALUATED` | `1d9af34ffc51` |
+| `ingress-nginx` | `3.34.0` | `4.0.1` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `b06670786316` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.admissionregistration-k8s-io-v1beta1.1-21-0-to-1-22-0` | `59f19535fdd8` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.admissionregistration-k8s-io-v1beta1.1-21-0-to-1-22-0` | `59f19535fdd8` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.apiextensions-k8s-io-v1beta1.1-21-0-to-1-22-0` | `59f19535fdd8` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.apiregistration-k8s-io-v1beta1.1-21-0-to-1-22-0` | `59f19535fdd8` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.certificates-k8s-io-v1beta1.1-21-0-to-1-22-0` | `59f19535fdd8` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.coordination-k8s-io-v1beta1.1-21-0-to-1-22-0` | `59f19535fdd8` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.networking-k8s-io-v1beta1-ingress.1-21-0-to-1-22-0` | `59f19535fdd8` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0` | `59f19535fdd8` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0` | `59f19535fdd8` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0` | `59f19535fdd8` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0` | `59f19535fdd8` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0` | `59f19535fdd8` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.rbac-authorization-k8s-io-v1beta1.1-21-0-to-1-22-0` | `59f19535fdd8` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.rbac-authorization-k8s-io-v1beta1.1-21-0-to-1-22-0` | `59f19535fdd8` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.rbac-authorization-k8s-io-v1beta1.1-21-0-to-1-22-0` | `59f19535fdd8` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.rbac-authorization-k8s-io-v1beta1.1-21-0-to-1-22-0` | `59f19535fdd8` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.scheduling-k8s-io-v1beta1.1-21-0-to-1-22-0` | `59f19535fdd8` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.storage-k8s-io-v1beta1.1-21-0-to-1-22-0` | `59f19535fdd8` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.storage-k8s-io-v1beta1.1-21-0-to-1-22-0` | `59f19535fdd8` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `CUSTOM_RESOURCES_EVALUATED` | `1d9af34ffc51` |
+
+## Run `m6-r01`
+
+- Kubernetes: 1.21.10 to 1.22.7
+- kind node image from: `kindest/node@sha256:84709f09756ba4f863769bdcabe5edafc2ada72d3c8c44d6515fc581b66b029c`
+- kind node image to: `kindest/node@sha256:1dfd72d193bf7da64765fd2f2898f78663b9ba366c2aa74be1fd7498a1873166`
+- Prufyx commit: `25b60b90b4513db557e3bd5dcde6258417a1dcba`
+- Rows: 29 (19 correct, 0 wrong PASS, 0 false alarm, 10 gap)
+
+| App | From | To | Command | Result | Oracle | Reason | Log digest |
+|---|---|---|---|---|---|---|---|
+| `*` | `1.21.10` | `1.22.7` | `scan` | gap | replay on the target cluster | `NOT_CHECKED API_VERSION_NOT_REVIEWED` | `11030394d67e` |
+| `*` | `1.21.10` | `1.22.7` | `scan` | gap | replay on the target cluster | `NOT_CHECKED DOCUMENTS_TEMPLATED` | `11030394d67e` |
+| `cert-manager` | `1.4.4` | `1.5.5` | `assess` | correct | in-place upgrade on the cluster | `COMPONENT_OBSERVED` | `1e153ea8a086` |
+| `cert-manager` | `1.4.4` | `1.5.5` | `check-cert-manager-values` | gap | in-place upgrade on the cluster | `UNKNOWN CERT_MANAGER_TRANSITION_NOT_REVIEWED` | `57256e2ad439` |
+| `cert-manager` | `1.4.4` | `1.5.5` | `scan` | gap | replay on the target cluster | `CUSTOM_RESOURCES_NOT_EVALUATED` | `14e64b28813e` |
+| `cert-manager` | `1.4.4` | `1.5.5` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `04b9619126a2` |
+| `cert-manager` | `1.4.4` | `1.5.5` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_DATA_COMPONENT_NOT_COVERED` | `11030394d67e` |
+| `ingress-nginx` | `3.34.0` | `4.0.1` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `1e153ea8a086` |
+| `ingress-nginx` | `3.34.0` | `4.0.1` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.extensions-v1beta1.1-21-0-to-1-22-0` | `11030394d67e` |
+| `ingress-nginx` | `3.34.0` | `4.0.1` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.networking-k8s-io-v1beta1-ingress.1-21-0-to-1-22-0` | `11030394d67e` |
+| `ingress-nginx` | `3.34.0` | `4.0.1` | `scan` | correct | replay on the target cluster | `CUSTOM_RESOURCES_EVALUATED` | `14e64b28813e` |
+| `ingress-nginx` | `3.34.0` | `4.0.1` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `04b9619126a2` |
+| `ingress-nginx` | `3.34.0` | `4.0.1` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_PATH` | `11030394d67e` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `1e153ea8a086` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.admissionregistration-k8s-io-v1beta1.1-21-0-to-1-22-0` | `11030394d67e` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.admissionregistration-k8s-io-v1beta1.1-21-0-to-1-22-0` | `11030394d67e` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.apiextensions-k8s-io-v1beta1.1-21-0-to-1-22-0` | `11030394d67e` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.apiregistration-k8s-io-v1beta1.1-21-0-to-1-22-0` | `11030394d67e` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.certificates-k8s-io-v1beta1.1-21-0-to-1-22-0` | `11030394d67e` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.coordination-k8s-io-v1beta1.1-21-0-to-1-22-0` | `11030394d67e` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.networking-k8s-io-v1beta1-ingress.1-21-0-to-1-22-0` | `11030394d67e` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.rbac-authorization-k8s-io-v1beta1.1-21-0-to-1-22-0` | `11030394d67e` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.rbac-authorization-k8s-io-v1beta1.1-21-0-to-1-22-0` | `11030394d67e` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.rbac-authorization-k8s-io-v1beta1.1-21-0-to-1-22-0` | `11030394d67e` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.rbac-authorization-k8s-io-v1beta1.1-21-0-to-1-22-0` | `11030394d67e` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.scheduling-k8s-io-v1beta1.1-21-0-to-1-22-0` | `11030394d67e` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.storage-k8s-io-v1beta1.1-21-0-to-1-22-0` | `11030394d67e` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.storage-k8s-io-v1beta1.1-21-0-to-1-22-0` | `11030394d67e` |
+| `kube-prometheus-stack` | `12.12.2` | `12.12.2` | `scan` | correct | replay on the target cluster | `CUSTOM_RESOURCES_EVALUATED` | `14e64b28813e` |
 
 ## Run `m7-r01`
 
@@ -204,53 +405,113 @@ Forms of result: `correct` means Prufyx and the oracle agree; `wrong PASS` means
 
 | App | From | To | Command | Result | Oracle | Reason | Log digest |
 |---|---|---|---|---|---|---|---|
-| `*` | `1.26.15` | `1.30.13` | `scan` | gap | replay-on-target | `NOT_CHECKED DECLARATION_MISSING` | `afbdb579d536` |
-| `*` | `1.26.15` | `1.30.13` | `scan` | gap | replay-on-target | `NOT_CHECKED DOCUMENTS_TEMPLATED` | `afbdb579d536` |
-| `cert-manager` | `1.14.7` | `1.14.7` | `assess` | correct | in-place upgrade | `COMPONENT_OBSERVED` | `add7ebf67bd2` |
-| `cert-manager` | `1.14.7` | `1.14.7` | `scan` | gap | replay-on-target | `NO_FINDING` | `08b10edc382b` |
-| `cert-manager` | `1.14.7` | `1.14.7` | `scan` | gap | replay-on-target | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
-| `cloudnative-pg` | `1.21.1` | `1.24.1` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `add7ebf67bd2` |
-| `cloudnative-pg` | `1.21.1` | `1.24.1` | `catalog-checks` | gap | in-place upgrade | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
-| `cloudnative-pg` | `1.21.1` | `1.24.1` | `check-cncf` | gap | in-place upgrade | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
-| `cloudnative-pg` | `1.21.1` | `1.24.1` | `scan` | correct | replay-on-target | `CUSTOM_RESOURCES_EVALUATED` | `17913fa28330` |
-| `cloudnative-pg` | `1.21.1` | `1.24.1` | `scan` | gap | replay-on-target | `NO_FINDING` | `08b10edc382b` |
-| `cloudnative-pg` | `1.21.1` | `1.24.1` | `scan` | gap | replay-on-target | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
-| `cloudnative-pg` | `1.21.1` | `1.24.1` | `scan+plan` | gap | in-place upgrade | `NO_DATA_COMPONENT_NOT_COVERED` | `afbdb579d536` |
-| `contour` | `1.26.3` | `1.30.5` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `add7ebf67bd2` |
-| `contour` | `1.26.3` | `1.30.5` | `catalog-checks` | gap | in-place upgrade | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
-| `contour` | `1.26.3` | `1.30.5` | `check-cncf` | gap | in-place upgrade | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
-| `contour` | `1.26.3` | `1.30.5` | `scan` | gap | replay-on-target | `CUSTOM_RESOURCES_NOT_EVALUATED` | `17913fa28330` |
-| `contour` | `1.26.3` | `1.30.5` | `scan` | gap | replay-on-target | `NO_FINDING` | `08b10edc382b` |
-| `contour` | `1.26.3` | `1.30.5` | `scan` | gap | replay-on-target | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
-| `contour` | `1.26.3` | `1.30.5` | `scan+plan` | gap | in-place upgrade | `NO_DATA_COMPONENT_NOT_COVERED` | `afbdb579d536` |
-| `dapr` | `1.12.5` | `1.15.4` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `add7ebf67bd2` |
-| `dapr` | `1.12.5` | `1.15.4` | `catalog-checks` | gap | in-place upgrade | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
-| `dapr` | `1.12.5` | `1.15.4` | `check-cncf` | gap | in-place upgrade | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
-| `dapr` | `1.12.5` | `1.15.4` | `scan` | gap | replay-on-target | `CUSTOM_RESOURCES_NOT_EVALUATED` | `17913fa28330` |
-| `dapr` | `1.12.5` | `1.15.4` | `scan` | gap | replay-on-target | `NO_FINDING` | `08b10edc382b` |
-| `dapr` | `1.12.5` | `1.15.4` | `scan` | gap | replay-on-target | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
-| `dapr` | `1.12.5` | `1.15.4` | `scan+plan` | gap | in-place upgrade | `NO_DATA_COMPONENT_NOT_COVERED` | `afbdb579d536` |
-| `fluent-bit` | `2.2.0` | `4.0.3` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `add7ebf67bd2` |
-| `fluent-bit` | `2.2.0` | `4.0.3` | `catalog-checks` | gap | in-place upgrade | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
-| `fluent-bit` | `2.2.0` | `4.0.3` | `check-cncf` | gap | in-place upgrade | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
-| `fluent-bit` | `2.2.0` | `4.0.3` | `check-project-effective-config` | gap | in-place upgrade | `UNKNOWN` | `dc1f1dad3233` |
-| `fluent-bit` | `2.2.0` | `4.0.3` | `scan` | gap | replay-on-target | `NO_FINDING` | `08b10edc382b` |
-| `fluent-bit` | `2.2.0` | `4.0.3` | `scan` | gap | replay-on-target | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
-| `fluent-bit` | `2.2.0` | `4.0.3` | `scan+plan` | gap | in-place upgrade | `COMPONENT_REFUSED_BY_CLI` | `afbdb579d536` |
-| `jaeger-operator` | `1.46.0` | `1.61.0` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `add7ebf67bd2` |
-| `jaeger-operator` | `1.46.0` | `1.61.0` | `catalog-checks` | gap | in-place upgrade | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
-| `jaeger-operator` | `1.46.0` | `1.61.0` | `check-cncf` | gap | in-place upgrade | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
-| `jaeger-operator` | `1.46.0` | `1.61.0` | `scan` | correct | replay-on-target | `CUSTOM_RESOURCES_EVALUATED` | `17913fa28330` |
-| `jaeger-operator` | `1.46.0` | `1.61.0` | `scan` | gap | replay-on-target | `NO_FINDING` | `08b10edc382b` |
-| `jaeger-operator` | `1.46.0` | `1.61.0` | `scan` | gap | replay-on-target | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
-| `jaeger-operator` | `1.46.0` | `1.61.0` | `scan+plan` | gap | in-place upgrade | `NO_PATH` | `afbdb579d536` |
-| `strimzi` | `0.41.0` | `0.44.0` | `assess` | gap | in-place upgrade | `NOT_IN_OBSERVED_COMPONENTS` | `add7ebf67bd2` |
-| `strimzi` | `0.41.0` | `0.44.0` | `catalog-checks` | gap | in-place upgrade | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
-| `strimzi` | `0.41.0` | `0.44.0` | `check-cncf` | gap | in-place upgrade | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
-| `strimzi` | `0.41.0` | `0.44.0` | `scan` | correct | replay-on-target | `CUSTOM_RESOURCES_EVALUATED` | `17913fa28330` |
-| `strimzi` | `0.41.0` | `0.44.0` | `scan` | gap | replay-on-target | `NO_FINDING` | `08b10edc382b` |
-| `strimzi` | `0.41.0` | `0.44.0` | `scan` | gap | replay-on-target | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
-| `strimzi` | `0.41.0` | `0.44.0` | `scan+plan` | gap | in-place upgrade | `NO_DATA_COMPONENT_NOT_COVERED` | `afbdb579d536` |
+| `*` | `1.26.15` | `1.30.13` | `scan` | gap | replay on the target cluster | `NOT_CHECKED DECLARATION_MISSING` | `afbdb579d536` |
+| `*` | `1.26.15` | `1.30.13` | `scan` | gap | replay on the target cluster | `NOT_CHECKED DOCUMENTS_TEMPLATED` | `afbdb579d536` |
+| `cert-manager` | `1.14.7` | `1.14.7` | `assess` | correct | in-place upgrade on the cluster | `COMPONENT_OBSERVED` | `add7ebf67bd2` |
+| `cert-manager` | `1.14.7` | `1.14.7` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `08b10edc382b` |
+| `cert-manager` | `1.14.7` | `1.14.7` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
+| `cloudnative-pg` | `1.21.1` | `1.24.1` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `add7ebf67bd2` |
+| `cloudnative-pg` | `1.21.1` | `1.24.1` | `catalog-checks` | gap | in-place upgrade on the cluster | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `cloudnative-pg` | `1.21.1` | `1.24.1` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `cloudnative-pg` | `1.21.1` | `1.24.1` | `scan` | correct | replay on the target cluster | `CUSTOM_RESOURCES_EVALUATED` | `17913fa28330` |
+| `cloudnative-pg` | `1.21.1` | `1.24.1` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `08b10edc382b` |
+| `cloudnative-pg` | `1.21.1` | `1.24.1` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
+| `cloudnative-pg` | `1.21.1` | `1.24.1` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_DATA_COMPONENT_NOT_COVERED` | `afbdb579d536` |
+| `contour` | `1.26.3` | `1.30.5` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `add7ebf67bd2` |
+| `contour` | `1.26.3` | `1.30.5` | `catalog-checks` | gap | in-place upgrade on the cluster | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `contour` | `1.26.3` | `1.30.5` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `contour` | `1.26.3` | `1.30.5` | `scan` | gap | replay on the target cluster | `CUSTOM_RESOURCES_NOT_EVALUATED` | `17913fa28330` |
+| `contour` | `1.26.3` | `1.30.5` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `08b10edc382b` |
+| `contour` | `1.26.3` | `1.30.5` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
+| `contour` | `1.26.3` | `1.30.5` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_DATA_COMPONENT_NOT_COVERED` | `afbdb579d536` |
+| `dapr` | `1.12.5` | `1.15.4` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `add7ebf67bd2` |
+| `dapr` | `1.12.5` | `1.15.4` | `catalog-checks` | gap | in-place upgrade on the cluster | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `dapr` | `1.12.5` | `1.15.4` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `dapr` | `1.12.5` | `1.15.4` | `scan` | gap | replay on the target cluster | `CUSTOM_RESOURCES_NOT_EVALUATED` | `17913fa28330` |
+| `dapr` | `1.12.5` | `1.15.4` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `08b10edc382b` |
+| `dapr` | `1.12.5` | `1.15.4` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
+| `dapr` | `1.12.5` | `1.15.4` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_DATA_COMPONENT_NOT_COVERED` | `afbdb579d536` |
+| `fluent-bit` | `2.2.0` | `4.0.3` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `add7ebf67bd2` |
+| `fluent-bit` | `2.2.0` | `4.0.3` | `catalog-checks` | gap | in-place upgrade on the cluster | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `fluent-bit` | `2.2.0` | `4.0.3` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `fluent-bit` | `2.2.0` | `4.0.3` | `check-project-effective-config` | gap | in-place upgrade on the cluster | `UNKNOWN` | `dc1f1dad3233` |
+| `fluent-bit` | `2.2.0` | `4.0.3` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `08b10edc382b` |
+| `fluent-bit` | `2.2.0` | `4.0.3` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
+| `fluent-bit` | `2.2.0` | `4.0.3` | `scan+plan` | gap | in-place upgrade on the cluster | `COMPONENT_REFUSED_BY_CLI` | `afbdb579d536` |
+| `jaeger-operator` | `1.46.0` | `1.61.0` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `add7ebf67bd2` |
+| `jaeger-operator` | `1.46.0` | `1.61.0` | `catalog-checks` | gap | in-place upgrade on the cluster | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `jaeger-operator` | `1.46.0` | `1.61.0` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `jaeger-operator` | `1.46.0` | `1.61.0` | `scan` | correct | replay on the target cluster | `CUSTOM_RESOURCES_EVALUATED` | `17913fa28330` |
+| `jaeger-operator` | `1.46.0` | `1.61.0` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `08b10edc382b` |
+| `jaeger-operator` | `1.46.0` | `1.61.0` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
+| `jaeger-operator` | `1.46.0` | `1.61.0` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_PATH` | `afbdb579d536` |
+| `strimzi` | `0.41.0` | `0.44.0` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `add7ebf67bd2` |
+| `strimzi` | `0.41.0` | `0.44.0` | `catalog-checks` | gap | in-place upgrade on the cluster | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `strimzi` | `0.41.0` | `0.44.0` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `strimzi` | `0.41.0` | `0.44.0` | `scan` | correct | replay on the target cluster | `CUSTOM_RESOURCES_EVALUATED` | `17913fa28330` |
+| `strimzi` | `0.41.0` | `0.44.0` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `08b10edc382b` |
+| `strimzi` | `0.41.0` | `0.44.0` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `2c98f72e8d62` |
+| `strimzi` | `0.41.0` | `0.44.0` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_DATA_COMPONENT_NOT_COVERED` | `afbdb579d536` |
+
+## Run `m8-r01`
+
+- Kubernetes: 1.28.15 to 1.32.11
+- kind node image from: `kindest/node@sha256:a7c05c7ae043a0b8c818f5a06188bc2c4098f6cb59ca7d1856df00375d839251`
+- kind node image to: `kindest/node@sha256:5fc52d52a7b9574015299724bd68f183702956aa4a2116ae75a63cb574b35af8`
+- Prufyx commit: `564a6da03d1c7e96095c4a1f4c5fcd217aa2ea31`
+- Rows: 49 (1 correct, 0 wrong PASS, 0 false alarm, 48 gap)
+
+| App | From | To | Command | Result | Oracle | Reason | Log digest |
+|---|---|---|---|---|---|---|---|
+| `*` | `1.28.15` | `1.32.11` | `scan` | gap | replay on the target cluster | `NOT_CHECKED DECLARATION_MISSING` | `3747ace248ae` |
+| `*` | `1.28.15` | `1.32.11` | `scan` | gap | replay on the target cluster | `NOT_CHECKED DOCUMENTS_TEMPLATED` | `3747ace248ae` |
+| `emissary-crds` | `3.8.2` | `3.9.1` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `3e7db01594c2` |
+| `emissary-crds` | `3.8.2` | `3.9.1` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `7222eea736f9` |
+| `emissary-crds` | `3.8.2` | `3.9.1` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `58d6bb9ba08c` |
+| `emissary-crds` | `3.8.2` | `3.9.1` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_PATH` | `3747ace248ae` |
+| `emissary-ingress` | `3.8.2` | `3.9.1` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `3e7db01594c2` |
+| `emissary-ingress` | `3.8.2` | `3.9.1` | `catalog-checks` | gap | in-place upgrade on the cluster | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `emissary-ingress` | `3.8.2` | `3.9.1` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `emissary-ingress` | `3.8.2` | `3.9.1` | `scan` | gap | replay on the target cluster | `CUSTOM_RESOURCES_NOT_EVALUATED` | `0b99cd9410f4` |
+| `emissary-ingress` | `3.8.2` | `3.9.1` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `7222eea736f9` |
+| `emissary-ingress` | `3.8.2` | `3.9.1` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `58d6bb9ba08c` |
+| `emissary-ingress` | `3.8.2` | `3.9.1` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_PATH` | `3747ace248ae` |
+| `envoy-gateway` | `1.0.0` | `1.3.3` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `3e7db01594c2` |
+| `envoy-gateway` | `1.0.0` | `1.3.3` | `catalog-checks` | gap | in-place upgrade on the cluster | `CHECK_UNKNOWN_PROJECT` | `e3b0c44298fc` |
+| `envoy-gateway` | `1.0.0` | `1.3.3` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `envoy-gateway` | `1.0.0` | `1.3.3` | `scan` | gap | replay on the target cluster | `CUSTOM_RESOURCES_NOT_EVALUATED` | `0b99cd9410f4` |
+| `envoy-gateway` | `1.0.0` | `1.3.3` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `7222eea736f9` |
+| `envoy-gateway` | `1.0.0` | `1.3.3` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `58d6bb9ba08c` |
+| `envoy-gateway` | `1.0.0` | `1.3.3` | `scan+plan` | gap | in-place upgrade on the cluster | `COMPONENT_REFUSED_BY_CLI` | `3747ace248ae` |
+| `gateway-api` | `1.0.0` | `1.2.1` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `3e7db01594c2` |
+| `gateway-api` | `1.0.0` | `1.2.1` | `catalog-checks` | gap | in-place upgrade on the cluster | `CHECK_UNKNOWN_PROJECT` | `e3b0c44298fc` |
+| `gateway-api` | `1.0.0` | `1.2.1` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `gateway-api` | `1.0.0` | `1.2.1` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `7222eea736f9` |
+| `gateway-api` | `1.0.0` | `1.2.1` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `58d6bb9ba08c` |
+| `gateway-api` | `1.0.0` | `1.2.1` | `scan+plan` | gap | in-place upgrade on the cluster | `COMPONENT_REFUSED_BY_CLI` | `3747ace248ae` |
+| `nats` | `2.10.7` | `2.11.10` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `3e7db01594c2` |
+| `nats` | `2.10.7` | `2.11.10` | `catalog-checks` | gap | in-place upgrade on the cluster | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `nats` | `2.10.7` | `2.11.10` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `nats` | `2.10.7` | `2.11.10` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `7222eea736f9` |
+| `nats` | `2.10.7` | `2.11.10` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `58d6bb9ba08c` |
+| `nats` | `2.10.7` | `2.11.10` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_PATH` | `3747ace248ae` |
+| `spire` | `1.10.3` | `1.16.0` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `3e7db01594c2` |
+| `spire` | `1.10.3` | `1.16.0` | `catalog-checks` | gap | in-place upgrade on the cluster | `KNOWN_PROJECT_NO_MATCHING_RULE` | `91d2bf06ca8c` |
+| `spire` | `1.10.3` | `1.16.0` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `spire` | `1.10.3` | `1.16.0` | `scan` | correct | replay on the target cluster | `CUSTOM_RESOURCES_EVALUATED` | `0b99cd9410f4` |
+| `spire` | `1.10.3` | `1.16.0` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `7222eea736f9` |
+| `spire` | `1.10.3` | `1.16.0` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `58d6bb9ba08c` |
+| `spire` | `1.10.3` | `1.16.0` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_PATH` | `3747ace248ae` |
+| `spire-crds` | `0.5.0` | `0.6.1` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `3e7db01594c2` |
+| `spire-crds` | `0.5.0` | `0.6.1` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `7222eea736f9` |
+| `spire-crds` | `0.5.0` | `0.6.1` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `58d6bb9ba08c` |
+| `spire-crds` | `0.5.0` | `0.6.1` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_PATH` | `3747ace248ae` |
+| `thanos` | `0.32.5` | `0.37.2` | `assess` | gap | in-place upgrade on the cluster | `NOT_IN_OBSERVED_COMPONENTS` | `3e7db01594c2` |
+| `thanos` | `0.32.5` | `0.37.2` | `catalog-checks` | gap | in-place upgrade on the cluster | `EMBEDDED_SOURCE_RULE_IDENTITIES` | `4a60956bf69d` |
+| `thanos` | `0.32.5` | `0.37.2` | `check-cncf` | gap | in-place upgrade on the cluster | `CHECK_INVALID_ARGUMENTS` | `e3b0c44298fc` |
+| `thanos` | `0.32.5` | `0.37.2` | `scan` | gap | replay on the target cluster | `NO_FINDING` | `7222eea736f9` |
+| `thanos` | `0.32.5` | `0.37.2` | `scan` | gap | replay on the target cluster | `NO_FINDING_SCAN_UNKNOWN` | `58d6bb9ba08c` |
+| `thanos` | `0.32.5` | `0.37.2` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_PATH` | `3747ace248ae` |
 
 ## Run `r002`
 
@@ -262,16 +523,16 @@ Forms of result: `correct` means Prufyx and the oracle agree; `wrong PASS` means
 
 | App | From | To | Command | Result | Oracle | Reason | Log digest |
 |---|---|---|---|---|---|---|---|
-| `*` | `1.24.15` | `1.25.11` | `scan` | gap | replay-on-target | `NOT_CHECKED API_VERSION_NOT_REVIEWED` | `0cb78dceb65c` |
-| `cert-manager` | `1.9.1` | `1.10.2` | `assess` | correct | in-place upgrade | `COMPONENT_OBSERVED` | `915e0649862e` |
-| `cert-manager` | `1.9.1` | `1.10.2` | `check-cert-manager-values` | gap | in-place upgrade | `UNKNOWN CERT_MANAGER_TRANSITION_NOT_REVIEWED` | `57256e2ad439` |
-| `cert-manager` | `1.9.1` | `1.10.2` | `scan` | gap | replay-on-target | `CUSTOM_RESOURCES_NOT_EVALUATED` | `1710968ff4c2` |
-| `cert-manager` | `1.9.1` | `1.10.2` | `scan` | correct | replay-on-target | `NO_FINDING kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.discovery-k8s-io-v1beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.events-k8s-io-v1beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.node-k8s-io-v1beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.policy-v1beta1-pdb.1-24-0-to-1-25-0` | `c74692a27db7` |
-| `cert-manager` | `1.9.1` | `1.10.2` | `scan+plan` | gap | in-place upgrade | `NO_DATA_COMPONENT_NOT_COVERED` | `0cb78dceb65c` |
-| `ingress-nginx` | `4.4.2` | `4.4.2` | `assess` | gap | in-place upgrade | `COMPONENT_NOT_IDENTIFIED` | `915e0649862e` |
-| `ingress-nginx` | `4.4.2` | `4.4.2` | `scan` | correct | replay-on-target | `NO_FINDING kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.discovery-k8s-io-v1beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.events-k8s-io-v1beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.node-k8s-io-v1beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.policy-v1beta1-pdb.1-24-0-to-1-25-0` | `c74692a27db7` |
-| `kube-state-metrics` | `4.24.0` | `4.24.0` | `assess` | gap | in-place upgrade | `COMPONENT_NOT_IDENTIFIED` | `915e0649862e` |
-| `kube-state-metrics` | `4.24.0` | `4.24.0` | `scan` | correct | replay-on-target | `BLOCKED kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0` | `0cb78dceb65c` |
+| `*` | `1.24.15` | `1.25.11` | `scan` | gap | replay on the target cluster | `NOT_CHECKED API_VERSION_NOT_REVIEWED` | `0cb78dceb65c` |
+| `cert-manager` | `1.9.1` | `1.10.2` | `assess` | correct | in-place upgrade on the cluster | `COMPONENT_OBSERVED` | `915e0649862e` |
+| `cert-manager` | `1.9.1` | `1.10.2` | `check-cert-manager-values` | gap | in-place upgrade on the cluster | `UNKNOWN CERT_MANAGER_TRANSITION_NOT_REVIEWED` | `57256e2ad439` |
+| `cert-manager` | `1.9.1` | `1.10.2` | `scan` | gap | replay on the target cluster | `CUSTOM_RESOURCES_NOT_EVALUATED` | `1710968ff4c2` |
+| `cert-manager` | `1.9.1` | `1.10.2` | `scan` | correct | replay on the target cluster | `NO_FINDING kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.discovery-k8s-io-v1beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.events-k8s-io-v1beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.node-k8s-io-v1beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.policy-v1beta1-pdb.1-24-0-to-1-25-0` | `c74692a27db7` |
+| `cert-manager` | `1.9.1` | `1.10.2` | `scan+plan` | gap | in-place upgrade on the cluster | `NO_DATA_COMPONENT_NOT_COVERED` | `0cb78dceb65c` |
+| `ingress-nginx` | `4.4.2` | `4.4.2` | `assess` | gap | in-place upgrade on the cluster | `COMPONENT_NOT_IDENTIFIED` | `915e0649862e` |
+| `ingress-nginx` | `4.4.2` | `4.4.2` | `scan` | correct | replay on the target cluster | `NO_FINDING kubernetes.served-api-removal.autoscaling-v2beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.discovery-k8s-io-v1beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.events-k8s-io-v1beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.node-k8s-io-v1beta1.1-24-0-to-1-25-0 kubernetes.served-api-removal.policy-v1beta1-pdb.1-24-0-to-1-25-0` | `c74692a27db7` |
+| `kube-state-metrics` | `4.24.0` | `4.24.0` | `assess` | gap | in-place upgrade on the cluster | `COMPONENT_NOT_IDENTIFIED` | `915e0649862e` |
+| `kube-state-metrics` | `4.24.0` | `4.24.0` | `scan` | correct | replay on the target cluster | `BLOCKED kubernetes.served-api-removal.policy-v1beta1-psp.1-24-0-to-1-25-0` | `0cb78dceb65c` |
 
 Full digests of logs and inputs are in `qa-e2e.json`.
 
