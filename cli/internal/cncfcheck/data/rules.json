@@ -3631,13 +3631,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-10-17T05:31:50Z",
+          "derivedAt": "2026-11-18T14:41:02Z",
           "extractor": {
-            "codeDigest": "sha256:bf04611637073ebd4cdf8a8bc30c4b55377e2b52e344c8103ccfb7a2f2b4f858",
+            "codeDigest": "sha256:87ae525ad3fc1cce3222135108d2a59944b5dbaea5cf24fc56e14a007033b77c",
             "id": "crd.version-removal.crossplane",
-            "version": "2.5.0"
+            "version": "2.16.0"
           },
-          "reviewedAt": "2026-10-17T05:31:50Z",
+          "reviewedAt": "2026-11-18T14:41:02Z",
           "sources": [
             {
               "contentDigest": "sha256:0866ed25ba43e0606272bf9b8255e907d674c348a6297cf73dac99103b433569",
@@ -3657,10 +3657,10 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-15T05:31:50Z"
+          "validUntil": "2027-01-26T14:41:02Z"
         },
         "id": "crossplane.crd-version-removal.compositionrevisions-apiextensions-crossplane-io.1-20-0-to-2-0-0",
-        "nextAction": "change apiVersion of CompositionRevision to apiextensions.crossplane.io/v1 before upgrading to 2.0.0",
+        "nextAction": "migrate CompositionRevision manifests/clients to apiextensions.crossplane.io/v1; for managed objects, follow supported controller migration or investigate before upgrade to 2.0.0",
         "operator": "forbid_set_member",
         "range": {
           "bounds": [
@@ -3726,13 +3726,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-10-17T05:31:50Z",
+          "derivedAt": "2026-11-18T14:41:02Z",
           "extractor": {
-            "codeDigest": "sha256:bf04611637073ebd4cdf8a8bc30c4b55377e2b52e344c8103ccfb7a2f2b4f858",
+            "codeDigest": "sha256:87ae525ad3fc1cce3222135108d2a59944b5dbaea5cf24fc56e14a007033b77c",
             "id": "crd.version-removal.crossplane",
-            "version": "2.5.0"
+            "version": "2.16.0"
           },
-          "reviewedAt": "2026-10-17T05:31:50Z",
+          "reviewedAt": "2026-11-18T14:41:02Z",
           "sources": [
             {
               "contentDigest": "sha256:04279e2d7254b06c456916cb02a3d3a1100e9b279deabcecd4f903e17e74bebd",
@@ -3752,10 +3752,10 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-15T05:31:50Z"
+          "validUntil": "2027-01-26T14:41:02Z"
         },
         "id": "crossplane.crd-version-removal.environmentconfigs-apiextensions-crossplane-io.1-20-0-to-2-0-0",
-        "nextAction": "change apiVersion of EnvironmentConfig to apiextensions.crossplane.io/v1beta1 before upgrading to 2.0.0",
+        "nextAction": "migrate EnvironmentConfig manifests/clients to apiextensions.crossplane.io/v1beta1; for managed objects, follow supported controller migration or investigate before upgrade to 2.0.0",
         "operator": "forbid_set_member",
         "range": {
           "bounds": [

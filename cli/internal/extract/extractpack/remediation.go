@@ -25,7 +25,7 @@ const KindRemediationText = "remediation-text"
 
 // RemediationAllowListVersion is the version of the pending-migration list
 // below. Raise it whenever the list changes.
-const RemediationAllowListVersion = 1
+const RemediationAllowListVersion = 2
 
 // RemediationPair is one reviewed advice migration: the rule, the sha256
 // (hex) of the published nextAction and the sha256 (hex) of the nextAction
@@ -45,8 +45,6 @@ type RemediationPair struct {
 // renewals land.
 var remediationAllowList = []RemediationPair{
 	{RuleID: "cilium.crd-version-removal.ciliumnodeconfigs-cilium-io.1-19-0-to-1-20-0", OldSHA256: "d4ab64d8adbaab75da4c1fa8e2a990e6b20545a3e2ddc51767e257e80d2fa6d4", NewSHA256: "5d06752439f5980cd08a4be2f69916a4c993cb5fd621c1077a4fdfdf65933a52"},
-	{RuleID: "crossplane.crd-version-removal.compositionrevisions-apiextensions-crossplane-io.1-20-0-to-2-0-0", OldSHA256: "7e0c0c038bc75eeda7b3ce95eb953d3e4be7f4b9320f7eb62a8cfd17c4aef030", NewSHA256: "bbde6fbbfe1f31cb2b01f0e9fcfcf2ccd42feae1f368ff91a08d47a3c72adec3"},
-	{RuleID: "crossplane.crd-version-removal.environmentconfigs-apiextensions-crossplane-io.1-20-0-to-2-0-0", OldSHA256: "a6cf43af2a79f855afac89b1c36a11375ac06873619ae02753f2c46fa326e727", NewSHA256: "6a686ad85ccb227fa25663e08bf827c2542ce9a84ae851d1c705e84e7815c725"},
 	{RuleID: "kyverno.crd-version-removal.updaterequests-kyverno-io.1-15-0-to-1-16-0", OldSHA256: "b59cf5d254d9decf3069e5fc03a3dce47cd641db5fb85498baedf426b591c838", NewSHA256: "8df28800d2319caa4983d96e47bdd341f27fba29912058b75bb7b98cf1672805"},
 	{RuleID: "strimzi.crd-version-removal.kafkabridges-kafka-strimzi-io.0-51-0-to-1-0-0", OldSHA256: "ccf30234e21926b6dd2dbad3e70906c5c66b61556e1d8245da82313b28c91115", NewSHA256: "a68e38e08de0d13847fefdcbf30db196d681a97f75fefb82fa1778835a5a1075"},
 	{RuleID: "strimzi.crd-version-removal.kafkaconnectors-kafka-strimzi-io.0-51-0-to-1-0-0", OldSHA256: "a243f29b61215ecc91cd94519f5502cb2b51ac2f21430640b3048f667f7930d0", NewSHA256: "e042821e9f74027e93cc442e879840fb7b7ee1e57d3c6efc8330ee3ab30fb852"},
