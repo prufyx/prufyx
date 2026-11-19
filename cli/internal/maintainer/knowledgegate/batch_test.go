@@ -12,10 +12,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/rulecheck"
 )
 
@@ -33,24 +35,82 @@ type batchFixture struct {
 	ids        []string
 }
 
-// renewWeeks are later lease ends within the 90-day review window of the
-// shipped pack whose ISO weeks hold few leases (the shipped pack's leases
-// end in 2026-W50 and W52), so the stagger cap holds for 51 renewals.
-var renewWeeks = []time.Time{
-	time.Date(2026, 12, 16, 0, 0, 0, 0, time.UTC),
-	time.Date(2026, 12, 29, 0, 0, 0, 0, time.UTC),
+// renewLeaseDays are the days after the review the renewed leases may end:
+// a week or more out, inside the 90-day review window.
+const (
+	renewLeaseFirstDay = 30
+	renewLeaseLastDay  = 88
+)
+
+// renewLeaseDays picks, from the pack's own data, the lease ends of n
+// renewals: the days of the 90-day review window whose ISO weeks hold the
+// fewest leases of the other rules, filled round-robin up to the stagger cap.
+// Which weeks are crowded depends on the shipped pack's renewals, so it is
+// derived here and never written down. It fails when the window cannot hold n
+// renewals under the cap.
+func renewLeaseDays(t *testing.T, p *packDoc, renewed map[string]bool, review time.Time, n int) []time.Time {
+	t.Helper()
+	held := map[string]int{}
+	for _, e := range p.entries {
+		if renewed[ruleID(e)] {
+			continue
+		}
+		until, err := time.Parse(time.RFC3339, evidenceOf(e)["validUntil"].(string))
+		if err != nil {
+			continue
+		}
+		held[evidencereattest.ISOWeek(until)]++
+	}
+	limit := evidencereattest.StaggerCap(len(p.entries))
+	type slot struct {
+		day  time.Time
+		free int
+	}
+	var slots []slot
+	last := map[string]int{}
+	for d := renewLeaseFirstDay; d <= renewLeaseLastDay; d++ {
+		day := review.Truncate(24*time.Hour).AddDate(0, 0, d)
+		week := evidencereattest.ISOWeek(day)
+		if i, ok := last[week]; ok {
+			slots[i].day = day
+			continue
+		}
+		last[week] = len(slots)
+		slots = append(slots, slot{day: day, free: limit - held[week]})
+	}
+	sort.SliceStable(slots, func(i, j int) bool { return slots[i].free > slots[j].free })
+	out := make([]time.Time, 0, n)
+	for len(out) < n {
+		progress := false
+		for i := range slots {
+			if len(out) < n && slots[i].free > 0 {
+				slots[i].free--
+				out = append(out, slots[i].day)
+				progress = true
+			}
+		}
+		if !progress {
+			t.Fatalf("the review window holds no room for %d renewals under the cap of %d per week", n, limit)
+		}
+	}
+	return out
 }
 
 // renewRules renews rules of the head's CNCF pack, spreading the new
-// leases over renewWeeks.
+// leases over the least crowded weeks of the window.
 func renewRules(t *testing.T, head Tree, ids []string) {
 	t.Helper()
 	editPack(t, head, cncfRulesPath, func(p *packDoc) {
+		review := gateNow.Add(-2 * time.Hour)
+		renewed := map[string]bool{}
+		for _, id := range ids {
+			renewed[id] = true
+		}
+		days := renewLeaseDays(t, p, renewed, review, len(ids))
 		for i, id := range ids {
 			ev := evidenceOf(p.find(t, id))
-			ev["reviewedAt"] = gateNow.Add(-2 * time.Hour).Format(time.RFC3339)
-			week := renewWeeks[i%len(renewWeeks)]
-			ev["validUntil"] = week.Add(time.Duration(i) * time.Minute).Format(time.RFC3339)
+			ev["reviewedAt"] = review.Format(time.RFC3339)
+			ev["validUntil"] = days[i].Add(time.Duration(i) * time.Minute).Format(time.RFC3339)
 		}
 	})
 }

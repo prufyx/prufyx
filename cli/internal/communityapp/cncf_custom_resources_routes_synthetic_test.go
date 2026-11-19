@@ -15,6 +15,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/batchcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 // strimziKafkaRuleFacts are the four facts of the reviewed Strimzi Kafka
@@ -124,7 +125,7 @@ func TestGenericInputNeverPassesCustomResourceRules(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stdout, errout bytes.Buffer
-	code = Run(t.Context(), floorNowArgs([]string{"check", "batch", "--plan", planPath, "--root", root, "--now", now, "--format", "json"}), &stdout, &errout, "test")
+	code = Run(t.Context(), floorNowArgs([]string{"check", "batch", "--plan", planPath, "--root", root, "--now", testclock.ProjectNewest("strimzi").Format(time.RFC3339), "--format", "json"}), &stdout, &errout, "test")
 	var batch batchcheck.Report
 	if err := json.Unmarshal(stdout.Bytes(), &batch); err != nil {
 		t.Fatalf("batch: code=%d stdout=%q stderr=%q", code, stdout.String(), errout.String())
@@ -142,7 +143,9 @@ func TestGenericInputNeverPassesCustomResourceRules(t *testing.T) {
 // ClaimExit to say 0 and customResourceExit to say 11 for the same report.
 // With the derived set rules loaded and every one passing, both agree on 11.
 func TestSyntheticCustomResourceExitNeverReturnsZero(t *testing.T) {
-	now := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
+	// The clock is derived from the shipped rules of the project, never pinned:
+	// a renewal moves the project's newest review past any fixed date.
+	now := testclock.ProjectNewest("strimzi")
 	kafkaOnly, err := cncfcheck.Check("strimzi", strimziHandWrittenInput(strimziKafkaRuleFacts), now)
 	if err != nil {
 		t.Fatal(err)
@@ -163,7 +166,7 @@ func TestSyntheticCustomResourceExitNeverReturnsZero(t *testing.T) {
 		if raw, err = json.Marshal(document); err != nil {
 			t.Fatal(err)
 		}
-		if kafkaOnly, err = cncfcheck.Check("keda", raw, time.Date(2026, 9, 10, 4, 0, 0, 0, time.UTC)); err != nil {
+		if kafkaOnly, err = cncfcheck.Check("keda", raw, testclock.ProjectNewest("keda")); err != nil {
 			t.Fatal(err)
 		}
 	}
