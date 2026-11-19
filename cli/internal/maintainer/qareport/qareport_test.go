@@ -501,3 +501,27 @@ func TestNotReportedReasonNeverOutput(t *testing.T) {
 		}
 	}
 }
+
+func TestOracleTypeEnum(t *testing.T) {
+	want := map[string]string{
+		"replay-on-target": "replay on the target cluster",
+		"in-place-upgrade": "in-place upgrade on the cluster",
+		"in-place upgrade": "in-place upgrade on the cluster",
+		"served-API list":  "served API list of the target version",
+		"install-on-from":  "install on the source version",
+	}
+	for typ, label := range want {
+		run, err := ParseRun("m3-x", m3(func(m map[string]any) { first(m)["oracle"].(map[string]any)["type"] = typ }))
+		if err != nil {
+			t.Fatalf("%s: %v", typ, err)
+		}
+		if run.Checks[0].Oracle != label {
+			t.Errorf("%s: label %q", typ, run.Checks[0].Oracle)
+		}
+	}
+	for _, typ := range []string{"", "Replay-On-Target", "in-place  upgrade", "something else", "install-on-to"} {
+		if _, err := ParseRun("m3-x", m3(func(m map[string]any) { first(m)["oracle"].(map[string]any)["type"] = typ })); err == nil {
+			t.Errorf("unknown oracle type %q accepted", typ)
+		}
+	}
+}
