@@ -296,6 +296,20 @@ func (r *customResourceRun) composeJump(path *scanreport.Path, plan upgradepath.
 		ref := scanreport.HopRef{Index: hop.Index, From: hop.From.String(), To: hop.To.String()}
 		jump := scanreport.JumpHop{Index: hop.Index, From: hop.From.String(), To: hop.To.String(), ObjectSetDigest: decision.setDigest, Attestation: hop.Attestation}
 		major := isMajorHop(*hop)
+		if major {
+			// Only a rule scoped to exactly this transition decides the
+			// change of major line. A wider rule (a removal crossing, an
+			// anchor on other lines) or a notice over it stays a finding or
+			// notice of the whole upgrade and decides nothing here.
+			decision.blocks = r.exactMajorIDs(decision.blocks, *hop)
+			var neutral []neutralRule
+			for _, n := range decision.neutral {
+				if len(r.exactMajorIDs([]string{n.id}, *hop)) == 1 {
+					neutral = append(neutral, n)
+				}
+			}
+			decision.neutral = neutral
+		}
 		if major && len(decision.blocks) == 0 && !allNoticed(decision.neutral) {
 			// The change of major line is decided only by a rule scoped to
 			// that transition; the absence of one is never a pass.
@@ -362,6 +376,27 @@ func (r *customResourceRun) composeJump(path *scanreport.Path, plan upgradepath.
 	}
 	jump := scanreport.NewJump(hops, digest, releases, actions)
 	path.Jump = &jump
+}
+
+// exactMajorIDs keeps the rules that are scoped to exactly the transition of
+// the major hop: no removal crossing, and an anchor pair on the hop's own
+// two lines. A rule the run does not know is not kept.
+func (r *customResourceRun) exactMajorIDs(ids []string, hop scanreport.Hop) []string {
+	fromLine, ok1 := endpointLine(upgradepath.Endpoint{Version: hop.From.Version, Line: hop.From.Line})
+	toLine, ok2 := endpointLine(upgradepath.Endpoint{Version: hop.To.Version, Line: hop.To.Line})
+	var out []string
+	for _, id := range ids {
+		rule, known := r.byID[id]
+		if !known || !ok1 || !ok2 || rule.Scope.Transition.Crossing != nil {
+			continue
+		}
+		from, f := lineattest.LineOf(rule.Scope.Transition.From)
+		to, t := lineattest.LineOf(rule.Scope.Transition.To)
+		if f && t && from == fromLine && to == toLine {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // allNoticed reports whether there is a neutral rule and every one of them
