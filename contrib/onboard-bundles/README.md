@@ -66,9 +66,7 @@ Where each field comes from:
 What the result does and does not say:
 
 - The snapshot is **self-consistent with its own digests**; it is not verified
-  against upstream. The import re-fetches the tag to commit mapping, the
-  licence file and the changelog spans from upstream at the pinned commits and
-  ignores what the bundle claims.
+  against upstream. The import is planned to re-check tags, licence and changelog spans against upstream; today these declared values are checked only for format and by the human merge review.
 - `target-draft.json` is always a **skeleton** (no paths, no exclusions, no
   names). `build` never writes a filled target; coverage comes only from the
   pipeline. `scan-notes.json` has no entries.
@@ -104,8 +102,7 @@ verified.
 The receipt is an integrity record of the file bytes and nothing more. It does
 not bind the repository, an invite, a snapshot or the tool version, it is not
 provenance, and anyone can re-seal edited content. Nothing trusts it for a
-decision: the import takes the repository, tag commits and licence from the
-upstream source at the exact commit and from the invite.
+decision. The import is planned to re-check tags, licence and changelog spans against upstream; today these declared values are checked only for format and by the human merge review.
 
 `seal` also refuses a bundle with any other finding, a string over 2000
 characters, a character outside printable ASCII (leads quotes excepted), or

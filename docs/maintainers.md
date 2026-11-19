@@ -68,8 +68,7 @@ You need no access to anything except this public repository.
    snapshot) as shown above. Both stay on your machine.
 3. Either build a bundle from your verified snapshot
    (`onboard-bundle build --snapshot <dir> --slug <slug> --spdx <id> --out ../contrib/onboard-bundles/<slug> --post-tag <path>`;
-   the snapshot is self-consistent only, and the import re-fetches the tag to
-   commit mapping, the licence and the changelog spans from upstream) and
+   the snapshot is self-consistent only. The import is planned to re-check tags, licence and changelog spans against upstream; today these declared values are checked only for format and by the human merge review.) and
    validate it offline:
 
    ```sh
