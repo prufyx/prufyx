@@ -2,12 +2,12 @@
   "schema": "prufyx.io/coverage-readme-counts/v1",
   "report": {
     "schema": "prufyx.io/coverage-report/v1",
-    "now": "2026-11-17T23:47:42Z",
+    "now": "2026-11-18T14:41:02Z",
     "window": 6,
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
-      "digest": "sha256:637161d7f1f5ff4e31a5d5effe062006e42ab296cafb5818cee0ffe9090922f9"
+      "digest": "sha256:e3bcbe3a8f6d4e687a14b7f3a4b59ee6fd0e8f66144bf8d23eec34cd189a3242"
     },
     "lines": {
       "capturedOn": "2026-10-31",
@@ -19,7 +19,7 @@
       "entries": 9,
       "clockOn": "2026-11-10"
     },
-    "clockAttestedAt": "2026-11-17T23:47:42Z",
+    "clockAttestedAt": "2026-11-18T14:41:02Z",
     "packProjectsCovered": 72,
     "crdVersionProjects": 87,
     "crdPublishedProjects": 40,
@@ -5938,5 +5938,5 @@
     "selectedSourceOnlyProjects": 11,
     "selectedSourceProjects": 58
   },
-  "readmeBlockSha256": "8b736327e6d6c014827a75bccb3376280d4ff7cff5e28fea6e90c9a58b1f97f2"
+  "readmeBlockSha256": "ddaa6a1961b2d6dff41e1b6d651ad66e2a9b285065ea54944f676d87eebbd00a"
 }
