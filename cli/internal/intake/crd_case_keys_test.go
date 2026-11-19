@@ -75,3 +75,44 @@ func TestDecodeRefusalReasonIsTrue(t *testing.T) {
 		}
 	}
 }
+
+const caseProps = "{properties: {proxyURL: {type: string}, proxyUrl: {type: string}}}\n"
+
+// The exemption holds at every real schema position, including the legacy
+// spec.validation form, items, additionalProperties and the combinators.
+func TestDecodeCRDCaseKeysAtSchemaPositions(t *testing.T) {
+	legacy := crdHead + "spec:\n  validation:\n    openAPIV3Schema:\n      properties:\n        a: {type: string, " + "properties: {proxyURL: {type: string}, proxyUrl: {type: string}}}\n"
+	cases := map[string]string{
+		"legacy validation":    legacy,
+		"items":                crdWithSchema("          a:\n            type: array\n            items: " + caseProps),
+		"additionalProperties": crdWithSchema("          a:\n            additionalProperties: " + caseProps),
+		"allOf":                crdWithSchema("          a:\n            allOf: [" + strings.TrimSpace(caseProps) + "]\n"),
+		"anyOf not":            crdWithSchema("          a:\n            not: {anyOf: [" + strings.TrimSpace(caseProps) + "]}\n"),
+	}
+	for name, in := range cases {
+		if _, err := Decode("x.yaml", []byte(in)); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}
+
+// A properties key inside default, example, enum, const or x-kubernetes data
+// is data, not a schema: case-differing keys there stay refused.
+func TestDecodeCRDCaseKeysInSchemaDataRefused(t *testing.T) {
+	data := "properties:\n                proxyURL: 1\n                proxyUrl: 2\n"
+	cases := map[string]string{
+		"default":          crdWithSchema("          a:\n            type: object\n            default:\n              " + data),
+		"example":          crdWithSchema("          a:\n            type: object\n            example:\n              " + data),
+		"enum":             crdWithSchema("          a:\n            enum:\n            - " + data),
+		"const":            crdWithSchema("          a:\n            const:\n              " + data),
+		"x-kube":           crdWithSchema("          a:\n            x-kubernetes-validations:\n            - " + data),
+		"default in items": crdWithSchema("          a:\n            items:\n              default:\n                properties:\n                  proxyURL: 1\n                  proxyUrl: 2\n"),
+		"versions data":    crdHead + "spec:\n  versions:\n  - name: v1\n    served:\n      " + data,
+		"schema sibling":   crdHead + "spec:\n  versions:\n  - name: v1\n    schema:\n      other:\n        properties:\n          proxyURL: 1\n          proxyUrl: 2\n",
+	}
+	for name, in := range cases {
+		if _, err := Decode("x.yaml", []byte(in)); !errors.Is(err, ErrDecode) {
+			t.Errorf("%s: err %v, want ErrDecode", name, err)
+		}
+	}
+}

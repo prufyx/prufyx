@@ -199,16 +199,25 @@ func decodeDocuments(raw []byte, opts decodeOptions) ([]any, error) {
 // Decode contexts for a CustomResourceDefinition document. Field names in a
 // structural schema's properties map are distinct keys even when they differ
 // only in case (alertmanagerconfigs declares both proxyURL and proxyUrl), so
-// the case-folded duplicate check does not apply to those maps. Exact
-// duplicates are still refused everywhere, and so is a folded duplicate in
-// every other mapping of a CRD and in every other kind of document.
+// the case-folded duplicate check does not apply to those maps. The exemption
+// holds only at real schema positions: spec.versions[].schema.openAPIV3Schema
+// or spec.validation.openAPIV3Schema, followed only by schema keywords. A path
+// through default, example, enum, const, x-kubernetes-* or any other data keeps
+// the check. Exact duplicates are refused everywhere.
 const (
-	ctxCRD = 1 << iota
-	ctxSchema
-	ctxProps
+	ctxNone   = iota // not a CustomResourceDefinition
+	ctxRoot          // CRD root mapping
+	ctxSpec          // spec
+	ctxVers          // spec.versions
+	ctxVer           // spec.versions[]
+	ctxHolder        // spec.versions[].schema
+	ctxValid         // spec.validation
+	ctxSchema        // a schema node
+	ctxProps         // a properties map (keys are field names)
+	ctxOther         // data or any non-schema position
 )
 
-// crdContext returns ctxCRD when root is a CustomResourceDefinition.
+// crdContext returns ctxRoot when root is a CustomResourceDefinition.
 func crdContext(root *yaml.Node) int {
 	if root == nil || root.Kind != yaml.MappingNode {
 		return 0
@@ -227,27 +236,60 @@ func crdContext(root *yaml.Node) int {
 		}
 	}
 	if kind == "CustomResourceDefinition" && strings.HasPrefix(api, "apiextensions.k8s.io/") {
-		return ctxCRD
+		return ctxRoot
 	}
-	return 0
+	return ctxNone
 }
 
 // childContext returns the context of the value under key in a mapping.
 func childContext(ctx int, key string) int {
-	if ctx&ctxCRD == 0 {
-		return 0
-	}
-	if ctx&ctxProps != 0 {
+	switch ctx {
+	case ctxNone:
+		return ctxNone
+	case ctxRoot:
+		if key == "spec" {
+			return ctxSpec
+		}
+	case ctxSpec:
+		switch key {
+		case "versions":
+			return ctxVers
+		case "validation":
+			return ctxValid
+		}
+	case ctxVer:
+		if key == "schema" {
+			return ctxHolder
+		}
+	case ctxHolder, ctxValid:
+		if key == "openAPIV3Schema" {
+			return ctxSchema
+		}
+	case ctxSchema:
+		switch key {
+		case "properties", "patternProperties":
+			return ctxProps
+		case "items", "additionalProperties", "additionalItems", "not", "allOf", "anyOf", "oneOf":
+			return ctxSchema
+		}
+	case ctxProps:
 		// A property name: its value is a schema.
-		return ctxCRD | ctxSchema
+		return ctxSchema
 	}
-	if key == "openAPIV3Schema" {
-		return ctxCRD | ctxSchema
+	return ctxOther
+}
+
+// elementContext returns the context of an element of a sequence.
+func elementContext(ctx int) int {
+	switch ctx {
+	case ctxVers:
+		return ctxVer
+	case ctxSchema:
+		return ctxSchema
+	case ctxNone:
+		return ctxNone
 	}
-	if ctx&ctxSchema != 0 && key == "properties" {
-		return ctxCRD | ctxSchema | ctxProps
-	}
-	return ctx
+	return ctxOther
 }
 
 func (opts decodeOptions) depthLimit() int {
@@ -286,7 +328,7 @@ func (opts decodeOptions) yamlValue(node *yaml.Node, depth int, budget *int, ctx
 			if _, duplicate := object[key.Value]; duplicate {
 				return nil, errStructure
 			}
-			if opts.foldKeys && ctx&ctxProps == 0 {
+			if opts.foldKeys && ctx != ctxProps {
 				folded := strings.ToLower(key.Value)
 				if seen[folded] {
 					return nil, errStructure
@@ -309,7 +351,7 @@ func (opts decodeOptions) yamlValue(node *yaml.Node, depth int, budget *int, ctx
 		}
 		items := make([]any, 0, len(node.Content))
 		for _, child := range node.Content {
-			value, err := opts.yamlValue(child, depth+1, budget, ctx&^ctxProps)
+			value, err := opts.yamlValue(child, depth+1, budget, elementContext(ctx))
 			if err != nil {
 				return nil, err
 			}
