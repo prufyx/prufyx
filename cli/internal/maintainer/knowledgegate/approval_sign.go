@@ -254,7 +254,7 @@ type SignApprovalOptions struct {
 // a pinned owner, and any record the gate's verifier would refuse at Now.
 func SignApproval(o SignApprovalOptions) ([]byte, ApprovalRecord, error) {
 	switch o.Subject.Kind {
-	case ApprovalSubjectRule, ApprovalSubjectRepinBaseline, ApprovalSubjectLineAttestation, ApprovalSubjectPathPolicy, ApprovalSubjectRegistry, ApprovalSubjectServed, ApprovalSubjectDistributions, ApprovalSubjectGatePaths:
+	case ApprovalSubjectRule, ApprovalSubjectRepinBaseline, ApprovalSubjectLineAttestation, ApprovalSubjectPathPolicy, ApprovalSubjectRegistry, ApprovalSubjectServed, ApprovalSubjectDistributions, ApprovalSubjectGatePaths, ApprovalSubjectTargetFloor:
 	default:
 		return nil, ApprovalRecord{}, fmt.Errorf("approval subject kind %q is not supported", logSafe(o.Subject.Kind))
 	}
@@ -331,6 +331,8 @@ func VerifyApprovalSubject(raw []byte, keys ApprovalKeys, s ApprovalSubject, now
 	case ApprovalSubjectPathPolicy:
 		// A new record only: the base state is absent.
 		return VerifyRecordApproval(raw, keys, s.Pack, ApprovalSubjectPathPolicy, s.RuleID, s.Scope, nil, s.Candidate, now)
+	case ApprovalSubjectTargetFloor:
+		return VerifyRecordApproval(raw, keys, s.Pack, ApprovalSubjectTargetFloor, s.RuleID, s.Scope, s.Base, s.Candidate, now)
 	case ApprovalSubjectRegistry:
 		return VerifyRecordApproval(raw, keys, s.Pack, ApprovalSubjectRegistry, s.RuleID, s.Scope, s.Base, s.Candidate, now)
 	case ApprovalSubjectServed:

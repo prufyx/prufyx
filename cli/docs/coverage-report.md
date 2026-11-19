@@ -450,3 +450,16 @@ true, one slug per line, sorted. When there are none the output is empty and the
 exit code is 0. It cannot be combined with `--window N`, `--json-out` or
 `--md-out` (usage error, exit code 2); `--declared` needs `--window ALL` or
 `--complete`.
+
+## Older hops (not part of the cohort number)
+
+An optional `olderHops` member of the report counts the hops whose from line
+lies before the cohort window: `pairs` (the denominator: the hops nearest to the
+window start, capped by `depthBound`, at most 24), `derived` (attested, stopped
+or with a known blocker), `attested`, `blockedKnown`, `stops` by closed code and
+`notDerived`. It is a separate member and never summed into the cohort figure,
+the fleet totals or any README number; the default report without it is
+byte-identical. Prose says "older hops derived", never "coverage". The member is
+computed from per-hop outcomes by `ComputeOlderHops`, which refuses an unknown
+stop code, a hop both attested and stopped, a gap in the hops and a depth bound
+outside 1 to 24.

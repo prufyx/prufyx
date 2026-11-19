@@ -255,6 +255,13 @@ func (r *Report) recordCheck(cls *Classification, statements map[string]statemen
 		case strings.HasPrefix(p, opts.Layout.ApprovalDir+"/"+GatePathsPack+"/"):
 			n++
 			why = gatePathsApprovalReason(strings.TrimPrefix(p, opts.Layout.ApprovalDir+"/"+GatePathsPack+"/"), opts, r.ChangedPaths)
+		case strings.HasPrefix(p, opts.Layout.ApprovalDir+"/"+TargetFloorApprovalPack+"/"):
+			n++
+			inHead := opts.Head.Exists(p)
+			why = targetFloorApprovalPathReason(strings.TrimPrefix(p, opts.Layout.ApprovalDir+"/"+TargetFloorApprovalPack+"/"), r.floorApprovalsUsed, inHead)
+			if why == "" {
+				why = liveRecordApproval(opts, p, inHead)
+			}
 		case strings.HasPrefix(p, opts.Layout.ApprovalDir+"/"+repinbaselines.ApprovalPack+"/"):
 			n++
 			inHead := opts.Head.Exists(p)
