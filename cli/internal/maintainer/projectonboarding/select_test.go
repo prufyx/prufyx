@@ -177,3 +177,48 @@ func TestParseVersionOrdering(t *testing.T) {
 		t.Fatalf("prefix parse %v %v", v, ok)
 	}
 }
+
+func TestWindowDuplicateVersionTakesOneSlot(t *testing.T) {
+	selected, snapshot, stderr, code := syncTags(t, []string{"1.0.0", "v1.0.0", "v0.9.0", "v0.8.0"}, 2)
+	if code != 0 {
+		t.Fatalf("code=%d %s", code, stderr)
+	}
+	if strings.Join(selected, ",") != "v0.9.0,v1.0.0" {
+		t.Fatalf("selected=%v", selected)
+	}
+	if snapshot["window"].(map[string]any)["duplicateVersionSkippedCount"] != int64(1) {
+		t.Fatalf("window=%v", snapshot["window"])
+	}
+}
+
+func TestParseVersionDoesNotStripSecondV(t *testing.T) {
+	if _, ok := parseVersion("vv1.0.0", "v"); ok {
+		t.Fatal("vv1.0.0 parsed with prefix v")
+	}
+	if _, ok := parseVersion("vv1.0.0", ""); ok {
+		t.Fatal("vv1.0.0 parsed")
+	}
+	if _, ok := parseVersion("v1.0.0", "v"); !ok {
+		t.Fatal("v1.0.0 with prefix v rejected")
+	}
+}
+
+func TestVerifyLegacyWindowSnapshotStillPasses(t *testing.T) {
+	snapshot, corpus, receipt, objects, err := Sync(context.Background(), testRequest(t), nil, nil, nil, testFetcher(t), time.Now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy := func() map[string]any {
+		return map[string]any{"selection": selectionLegacy, "page": int64(1), "candidatePageSize": int64(30), "candidateReleaseCount": int64(1), "pageMayBeTruncated": false, "releaseLimit": int64(2), "priorAbsentState": "OUTSIDE_SELECTED_WINDOW"}
+	}
+	snapshot["window"] = legacy()
+	if _, _, err := VerifySnapshot(writeSnapshotFixture(t, snapshot, corpus, receipt, objects, "")); err != nil {
+		t.Fatalf("legacy window rejected: %v", err)
+	}
+	withNew := legacy()
+	withNew["listObjects"] = []any{}
+	snapshot["window"] = withNew
+	if _, _, err := VerifySnapshot(writeSnapshotFixture(t, snapshot, corpus, receipt, objects, "")); err == nil {
+		t.Fatal("legacy window carrying new fields accepted")
+	}
+}

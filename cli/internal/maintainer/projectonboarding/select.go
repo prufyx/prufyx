@@ -24,7 +24,10 @@ type version struct {
 // parseVersion reads a semantic version out of tag after dropping the request
 // prefix and one leading "v". Anything else is reported as not a version.
 func parseVersion(tag, prefix string) (version, bool) {
-	text := strings.TrimPrefix(strings.TrimPrefix(tag, prefix), "v")
+	text := strings.TrimPrefix(tag, prefix)
+	if !strings.HasSuffix(prefix, "v") {
+		text = strings.TrimPrefix(text, "v")
+	}
 	m := semverRE.FindStringSubmatch(text)
 	if m == nil {
 		return version{}, false
@@ -115,15 +118,16 @@ type choice struct {
 }
 
 // selectByVersion picks the r.limit newest eligible releases by version, not
-// by list order, from every page read. Selection order is newest first. The
+// by list order, from every page read. When the page cap is reached the
+// result is flagged truncated: older pages may hold a newer version. Selection order is newest first. The
 // result depends only on the page bytes, so sync and offline verification
 // agree.
-func selectByVersion(pages [][]githubRelease, r request) (chosen []choice, skippedNonSemver, candidates int, truncated bool, err error) {
+func selectByVersion(pages [][]githubRelease, r request) (chosen []choice, skippedNonSemver, duplicateVersions, candidates int, truncated bool, err error) {
 	seenIDs, seenTags := map[int64]bool{}, map[string]bool{}
 	all := []choice{}
 	for pageIndex, page := range pages {
 		if pageIndex < len(pages)-1 && len(page) != releasePageSize {
-			return nil, 0, 0, false, ErrRejected
+			return nil, 0, 0, 0, false, ErrRejected
 		}
 		candidates += len(page)
 		for _, rel := range page {
@@ -131,7 +135,7 @@ func selectByVersion(pages [][]githubRelease, r request) (chosen []choice, skipp
 				continue
 			}
 			if seenIDs[rel.ID] || seenTags[rel.Tag] {
-				return nil, 0, 0, false, ErrRejected
+				return nil, 0, 0, 0, false, ErrRejected
 			}
 			seenIDs[rel.ID], seenTags[rel.Tag] = true, true
 			v, ok := parseVersion(rel.Tag, r.prefix)
@@ -148,16 +152,28 @@ func selectByVersion(pages [][]githubRelease, r request) (chosen []choice, skipp
 		}
 		return all[i].release.Tag > all[j].release.Tag
 	})
+	// One slot per version: equal versions spelled differently (v1.0.0 and
+	// 1.0.0) keep the first in the order above (greater tag text) and the rest
+	// are counted, never selected.
+	unique := all[:0:0]
+	for _, c := range all {
+		if n := len(unique); n > 0 && compareVersion(unique[n-1].ver, c.ver) == 0 {
+			duplicateVersions++
+			continue
+		}
+		unique = append(unique, c)
+	}
+	all = unique
 	if len(all) > r.limit {
 		all = all[:r.limit]
 	}
 	if n := len(pages); n > maxReleasePages || n > 0 && len(pages[n-1]) > releasePageSize {
-		return nil, 0, 0, false, ErrRejected
+		return nil, 0, 0, 0, false, ErrRejected
 	} else if n == maxReleasePages && len(pages[n-1]) == releasePageSize {
 		truncated = true
 	}
 	if truncated && len(all) < r.limit {
-		return nil, 0, 0, false, ErrWindowCap
+		return nil, 0, 0, 0, false, ErrWindowCap
 	}
-	return all, skippedNonSemver, candidates, truncated, nil
+	return all, skippedNonSemver, duplicateVersions, candidates, truncated, nil
 }

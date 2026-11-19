@@ -641,7 +641,7 @@ func Sync(ctx context.Context, r request, previousSnapshot map[string]any, prior
 			break
 		}
 	}
-	chosen, skippedNonSemver, candidateCount, truncated, selectErr := selectByVersion(pages, r)
+	chosen, skippedNonSemver, duplicateVersions, candidateCount, truncated, selectErr := selectByVersion(pages, r)
 	if selectErr != nil {
 		return nil, nil, nil, nil, selectErr
 	}
@@ -787,7 +787,7 @@ func Sync(ctx context.Context, r request, previousSnapshot map[string]any, prior
 	if len(sources) == 0 {
 		adapterState = "OMITTED_NO_CHANGELOG_BYTES"
 	}
-	snapshot := map[string]any{"schema": SnapshotSchema, "authority": Authority, "request": r.document, "requestDigest": r.digest, "observedAt": captured, "repository": map[string]any{"canonicalRepositoryURL": r.repo, "repositoryID": repoWire.ID, "fullName": repoWire.FullName, "repositoryObject": "sha256/" + strings.TrimPrefix(repoDigest, "sha256:")}, "window": map[string]any{"selection": selectionByVersion, "pageCount": int64(len(pages)), "candidatePageSize": int64(releasePageSize), "listObjects": toAny(pageObjects), "candidateReleaseCount": int64(candidateCount), "nonSemverSkippedCount": int64(skippedNonSemver), "pageMayBeTruncated": truncated, "releaseLimit": int64(r.limit), "priorAbsentState": "OUTSIDE_SELECTED_WINDOW"}, "releases": releases, "sources": sources, "corpusAdapterState": adapterState, "license": licenseObservation, "review": map[string]any{"state": "NOT_REVIEWED", "admissionState": "NOT_ADMITTED"}, "previousSnapshotDigest": previousDigest, "limitations": toAny(snapshotLimitations)}
+	snapshot := map[string]any{"schema": SnapshotSchema, "authority": Authority, "request": r.document, "requestDigest": r.digest, "observedAt": captured, "repository": map[string]any{"canonicalRepositoryURL": r.repo, "repositoryID": repoWire.ID, "fullName": repoWire.FullName, "repositoryObject": "sha256/" + strings.TrimPrefix(repoDigest, "sha256:")}, "window": map[string]any{"selection": selectionByVersion, "pageCount": int64(len(pages)), "candidatePageSize": int64(releasePageSize), "listObjects": toAny(pageObjects), "candidateReleaseCount": int64(candidateCount), "nonSemverSkippedCount": int64(skippedNonSemver), "duplicateVersionSkippedCount": int64(duplicateVersions), "pageMayBeTruncated": truncated, "releaseLimit": int64(r.limit), "priorAbsentState": "OUTSIDE_SELECTED_WINDOW"}, "releases": releases, "sources": sources, "corpusAdapterState": adapterState, "license": licenseObservation, "review": map[string]any{"state": "NOT_REVIEWED", "admissionState": "NOT_ADMITTED"}, "previousSnapshotDigest": previousDigest, "limitations": toAny(snapshotLimitations)}
 	corpus := map[string]any{"schema": sourcecorpus.Schema, "revision": onboardingRevision(r), "authority": sourcecorpus.DeclaredAuthority, "records": corpusRecords}
 	corpusRaw, _ := sourcecorpus.Canonical(corpus)
 	corpusDigest := any(nil)
@@ -1286,7 +1286,7 @@ func closedSnapshot(snapshot map[string]any) bool {
 	case selectionByVersion:
 		pageCount, countOK := window["pageCount"].(int64)
 		objects, objectsOK := window["listObjects"].([]any)
-		if !exact(window, "selection", "pageCount", "candidatePageSize", "listObjects", "candidateReleaseCount", "nonSemverSkippedCount", "pageMayBeTruncated", "releaseLimit", "priorAbsentState") || !countOK || !objectsOK || pageCount < 1 || pageCount > maxReleasePages || int64(len(objects)) != pageCount || window["candidatePageSize"] != int64(releasePageSize) || window["priorAbsentState"] != "OUTSIDE_SELECTED_WINDOW" || window["releaseLimit"] != int64(boundRequest.limit) || !countUpTo(window["candidateReleaseCount"], maxReleasePages*releasePageSize) || !countUpTo(window["nonSemverSkippedCount"], maxReleasePages*releasePageSize) || !boolValue(window["pageMayBeTruncated"]) {
+		if !exact(window, "selection", "pageCount", "candidatePageSize", "listObjects", "candidateReleaseCount", "nonSemverSkippedCount", "duplicateVersionSkippedCount", "pageMayBeTruncated", "releaseLimit", "priorAbsentState") || !countOK || !objectsOK || pageCount < 1 || pageCount > maxReleasePages || int64(len(objects)) != pageCount || window["candidatePageSize"] != int64(releasePageSize) || window["priorAbsentState"] != "OUTSIDE_SELECTED_WINDOW" || window["releaseLimit"] != int64(boundRequest.limit) || !countUpTo(window["candidateReleaseCount"], maxReleasePages*releasePageSize) || !countUpTo(window["nonSemverSkippedCount"], maxReleasePages*releasePageSize) || !countUpTo(window["duplicateVersionSkippedCount"], maxReleasePages*releasePageSize) || !boolValue(window["pageMayBeTruncated"]) {
 			return false
 		}
 		for _, object := range objects {
@@ -1413,7 +1413,7 @@ func firstSelectedReleaseCommit(snapshot map[string]any, request request, read f
 		if err != nil {
 			return "", ErrRejected
 		}
-		chosen, _, _, _, err := selectByVersion(pages, request)
+		chosen, _, _, _, _, err := selectByVersion(pages, request)
 		if err != nil || len(chosen) == 0 {
 			return "", ErrRejected
 		}
@@ -1541,8 +1541,8 @@ func verifyReleaseObservations(snapshot map[string]any, request request, read fu
 		if err != nil {
 			return ErrRejected
 		}
-		chosen, skipped, candidates, truncated, selectErr := selectByVersion(pages, request)
-		if selectErr != nil || window["candidateReleaseCount"] != int64(candidates) || window["nonSemverSkippedCount"] != int64(skipped) || window["pageMayBeTruncated"] != truncated {
+		chosen, skipped, duplicates, candidates, truncated, selectErr := selectByVersion(pages, request)
+		if selectErr != nil || window["candidateReleaseCount"] != int64(candidates) || window["nonSemverSkippedCount"] != int64(skipped) || window["duplicateVersionSkippedCount"] != int64(duplicates) || window["pageMayBeTruncated"] != truncated {
 			return ErrRejected
 		}
 		objects := window["listObjects"].([]any)
