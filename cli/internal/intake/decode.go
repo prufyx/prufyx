@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 
@@ -41,6 +42,12 @@ const (
 var ErrUnsupported = errors.New("unsupported Kubernetes component YAML")
 
 var errK8sComponentYAML = ErrUnsupported
+
+// errStructure is returned when a document parsed but broke a bound or a
+// uniqueness rule: nesting depth, member or item count, a duplicate key. It
+// wraps ErrUnsupported. Template syntax cannot cause it, so such a refusal is
+// never reported as unrendered templates.
+var errStructure = fmt.Errorf("%w: structure", ErrUnsupported)
 
 // DecodeDocuments returns every non-empty document as plain values:
 // map[string]any, []any, string, bool, json.Number or nil.
@@ -174,7 +181,7 @@ func decodeDocuments(raw []byte, opts decodeOptions) ([]any, error) {
 			// An empty document between separators carries no configuration.
 			continue
 		}
-		value, err := opts.yamlValue(node.Content[0], 0, budget)
+		value, err := opts.yamlValue(node.Content[0], 0, budget, crdContext(node.Content[0]))
 		if err != nil {
 			return nil, err
 		}
@@ -189,6 +196,60 @@ func decodeDocuments(raw []byte, opts decodeOptions) ([]any, error) {
 	return documents, nil
 }
 
+// Decode contexts for a CustomResourceDefinition document. Field names in a
+// structural schema's properties map are distinct keys even when they differ
+// only in case (alertmanagerconfigs declares both proxyURL and proxyUrl), so
+// the case-folded duplicate check does not apply to those maps. Exact
+// duplicates are still refused everywhere, and so is a folded duplicate in
+// every other mapping of a CRD and in every other kind of document.
+const (
+	ctxCRD = 1 << iota
+	ctxSchema
+	ctxProps
+)
+
+// crdContext returns ctxCRD when root is a CustomResourceDefinition.
+func crdContext(root *yaml.Node) int {
+	if root == nil || root.Kind != yaml.MappingNode {
+		return 0
+	}
+	api, kind := "", ""
+	for index := 0; index+1 < len(root.Content); index += 2 {
+		key, value := root.Content[index], root.Content[index+1]
+		if key.Kind != yaml.ScalarNode || value.Kind != yaml.ScalarNode {
+			continue
+		}
+		switch key.Value {
+		case "apiVersion":
+			api = value.Value
+		case "kind":
+			kind = value.Value
+		}
+	}
+	if kind == "CustomResourceDefinition" && strings.HasPrefix(api, "apiextensions.k8s.io/") {
+		return ctxCRD
+	}
+	return 0
+}
+
+// childContext returns the context of the value under key in a mapping.
+func childContext(ctx int, key string) int {
+	if ctx&ctxCRD == 0 {
+		return 0
+	}
+	if ctx&ctxProps != 0 {
+		// A property name: its value is a schema.
+		return ctxCRD | ctxSchema
+	}
+	if key == "openAPIV3Schema" {
+		return ctxCRD | ctxSchema
+	}
+	if ctx&ctxSchema != 0 && key == "properties" {
+		return ctxCRD | ctxSchema | ctxProps
+	}
+	return ctx
+}
+
 func (opts decodeOptions) depthLimit() int {
 	if opts.maxDepth > 0 {
 		return opts.maxDepth
@@ -196,18 +257,24 @@ func (opts decodeOptions) depthLimit() int {
 	return MaxDepth
 }
 
-func (opts decodeOptions) yamlValue(node *yaml.Node, depth int, budget *int) (any, error) {
+func (opts decodeOptions) yamlValue(node *yaml.Node, depth int, budget *int, ctx int) (any, error) {
 	*budget--
 	if *budget < 0 {
 		return nil, limitReached{"nodes"}
 	}
-	if depth > opts.depthLimit() || node == nil || node.Anchor != "" || node.Alias != nil || node.Kind == yaml.AliasNode {
+	if node == nil || node.Anchor != "" || node.Alias != nil || node.Kind == yaml.AliasNode {
 		return nil, errK8sComponentYAML
+	}
+	if depth > opts.depthLimit() {
+		return nil, errStructure
 	}
 	switch node.Kind {
 	case yaml.MappingNode:
-		if node.ShortTag() != "!!map" || len(node.Content)%2 != 0 || len(node.Content)/2 > MaxObjectMembers {
+		if node.ShortTag() != "!!map" || len(node.Content)%2 != 0 {
 			return nil, errK8sComponentYAML
+		}
+		if len(node.Content)/2 > MaxObjectMembers {
+			return nil, errStructure
 		}
 		object := make(map[string]any, len(node.Content)/2)
 		seen := map[string]bool{}
@@ -217,16 +284,16 @@ func (opts decodeOptions) yamlValue(node *yaml.Node, depth int, budget *int) (an
 				return nil, errK8sComponentYAML
 			}
 			if _, duplicate := object[key.Value]; duplicate {
-				return nil, errK8sComponentYAML
+				return nil, errStructure
 			}
-			if opts.foldKeys {
+			if opts.foldKeys && ctx&ctxProps == 0 {
 				folded := strings.ToLower(key.Value)
 				if seen[folded] {
-					return nil, errK8sComponentYAML
+					return nil, errStructure
 				}
 				seen[folded] = true
 			}
-			value, err := opts.yamlValue(node.Content[index+1], depth+1, budget)
+			value, err := opts.yamlValue(node.Content[index+1], depth+1, budget, childContext(ctx, key.Value))
 			if err != nil {
 				return nil, err
 			}
@@ -234,12 +301,15 @@ func (opts decodeOptions) yamlValue(node *yaml.Node, depth int, budget *int) (an
 		}
 		return object, nil
 	case yaml.SequenceNode:
-		if node.ShortTag() != "!!seq" || len(node.Content) > MaxArrayItems {
+		if node.ShortTag() != "!!seq" {
 			return nil, errK8sComponentYAML
+		}
+		if len(node.Content) > MaxArrayItems {
+			return nil, errStructure
 		}
 		items := make([]any, 0, len(node.Content))
 		for _, child := range node.Content {
-			value, err := opts.yamlValue(child, depth+1, budget)
+			value, err := opts.yamlValue(child, depth+1, budget, ctx&^ctxProps)
 			if err != nil {
 				return nil, err
 			}
