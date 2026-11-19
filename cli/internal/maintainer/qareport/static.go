@@ -33,6 +33,9 @@ const (
 	ClassRefusal      = "tool refusal"
 )
 
+// variantName maps the recorded values variant to the published closed enum.
+var variantName = map[string]string{"def": "default", "opt": "optional"}
+
 var classOrder = []string{ClassCorrectPass, ClassCorrectBlock, ClassWrongPass, ClassFalseAlarm, ClassGap, ClassRefusal}
 
 // classInfo maps the recorded class to the public class and to the one verdict
@@ -76,6 +79,7 @@ type OracleList struct {
 type ServedRow struct {
 	Chart   string   `json:"chart"`
 	Version string   `json:"chartVersion"`
+	Variant string   `json:"valuesVariant"`
 	From    string   `json:"k8sFrom"`
 	To      string   `json:"k8sTo"`
 	Class   string   `json:"result"`
@@ -245,7 +249,7 @@ func BuildServedAPI(tsvPath, digestPath string) (*ServedAPIReport, error) {
 		if codes == nil {
 			codes = []string{}
 		}
-		rep.Checks = append(rep.Checks, ServedRow{Chart: f[2], Version: cv[1], From: f[4], To: f[5], Class: info.public, Reasons: codes})
+		rep.Checks = append(rep.Checks, ServedRow{Chart: f[2], Version: cv[1], Variant: variantName[cv[2]], From: f[4], To: f[5], Class: info.public, Reasons: codes})
 		byClass[info.public]++
 		for _, c := range codes {
 			byReason[c]++
@@ -260,8 +264,8 @@ func BuildServedAPI(tsvPath, digestPath string) (*ServedAPIReport, error) {
 	// only after the variant is dropped: sort and keep both.
 	sort.SliceStable(rep.Checks, func(i, j int) bool {
 		a, b := rep.Checks[i], rep.Checks[j]
-		ka := strings.Join([]string{a.Chart, a.Version, pad(a.From), pad(a.To), a.Class, strings.Join(a.Reasons, ",")}, "\x00")
-		kb := strings.Join([]string{b.Chart, b.Version, pad(b.From), pad(b.To), b.Class, strings.Join(b.Reasons, ",")}, "\x00")
+		ka := strings.Join([]string{a.Chart, a.Version, a.Variant, pad(a.From), pad(a.To), a.Class, strings.Join(a.Reasons, ",")}, "\x00")
+		kb := strings.Join([]string{b.Chart, b.Version, b.Variant, pad(b.From), pad(b.To), b.Class, strings.Join(b.Reasons, ",")}, "\x00")
 		return ka < kb
 	})
 	var tags []int
@@ -334,6 +338,6 @@ func servedMarkdown(s *ServedAPIReport) string {
 	for _, o := range s.Lists {
 		fmt.Fprintf(&b, "| %s | %s | %s |\n", cell(o.Tag), cell(o.Commit), cell(o.Sha256))
 	}
-	b.WriteString("\nEvery case (chart, chart version, Kubernetes hop, result, reason codes) is listed in `qa-e2e.json` under `servedApi.checks`.\n")
+	b.WriteString("\nA chart version can appear once per values variant (default / optional values). Every case (chart, chart version, values variant, Kubernetes hop, result, reason codes) is listed in `qa-e2e.json` under `servedApi.checks`.\n")
 	return b.String()
 }
