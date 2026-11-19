@@ -208,7 +208,7 @@ func crossChecks(docs map[string]any, digests map[string]string, out *[]string) 
 		}
 	}
 	if rcpt != nil {
-		want := bundleDigest(digests)
+		want := BundleDigest(digests)
 		if !eq(rcpt["bundleSha256"], want) {
 			*out = append(*out, "receipt.json: bundleSha256 does not match the files (computed "+want+")")
 		}
@@ -251,9 +251,10 @@ func crossChecks(docs map[string]any, digests map[string]string, out *[]string) 
 	}
 }
 
-// bundleDigest is sha256 over sorted "<name> NUL <sha256> LF" of every file
-// except receipt.json.
-func bundleDigest(digests map[string]string) string {
+// BundleDigest is sha256 over sorted "<name> NUL <sha256> LF" of every file
+// except receipt.json. It is the single implementation: the validator and
+// "onboard-bundle seal" both call it.
+func BundleDigest(digests map[string]string) string {
 	names := make([]string, 0, len(digests))
 	for n := range digests {
 		names = append(names, n)

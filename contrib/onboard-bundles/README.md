@@ -40,6 +40,35 @@ archives, credentials, private paths or host names. Only JSON files.
 - strict UTF-8 JSON, no duplicate keys, nesting at most 24 levels;
 - no symbolic links and no directories other than `extract-run/`.
 
+## The receipt
+
+```sh
+cd cli
+go run ./cmd/prufyx-maintainer onboard-bundle seal \
+  --tool-commit <40-hex commit of your checkout> --generated-at 2026-11-19T10:00:00Z \
+  ../contrib/onboard-bundles/<slug>
+```
+
+`seal` writes only `receipt.json`, using the same digest function as
+`validate`. The directory must be named after the slug in `project.json`. It
+never reads the clock or the network, and it never writes an origin, a review
+result or anything the import derives itself. If you edit a file later, run it
+again: a receipt that no longer matches is replaced only with `--force-reseal`,
+and the changes are printed. `--tool-commit` is your own declaration and is not
+verified.
+
+The receipt is an integrity record of the file bytes and nothing more. It does
+not bind the repository, an invite, a snapshot or the tool version, it is not
+provenance, and anyone can re-seal edited content. Nothing trusts it for a
+decision: the import takes the repository, tag commits and licence from the
+upstream source at the exact commit and from the invite.
+
+`seal` also refuses a bundle with any other finding, a string over 2000
+characters, a character outside printable ASCII (leads quotes excepted), or
+more than 512 KiB in all. In your pull request text, list the fields you
+declared yourself (paths, exclusions, names, notes, quotes); that list is read in
+review.
+
 ## Check before you open the pull request
 
 From a checkout of this repository:
@@ -76,12 +105,13 @@ maintainers compare it with the upstream file in review.
 ## Steps
 
 1. Pick the slug and create `contrib/onboard-bundles/<slug>/` with the files
-   above.
-2. Run the offline check from "Check before you open the pull request".
-3. Open the pull request against `main` and sign the CLA when asked.
-4. CI re-runs the check with the validator from the base branch.
+   above, except `receipt.json`.
+2. Write the receipt with the command, never by hand (see "The receipt").
+3. Run the offline check from "Check before you open the pull request".
+4. Open the pull request against `main` and sign the CLA when asked.
+5. CI re-runs the check with the validator from the base branch.
 
-Implemented today: steps 1-4, the maintainers' manual review, and the
+Implemented today: steps 1-5 (the files in step 1 are still prepared by you), the maintainers' manual review, and the
 automatic import of merged bundles. Who may submit, how to get an invite and
 the exact merge path are described only in
 [Intake is for invited maintainers only](../../docs/maintainers.md#intake-is-for-invited-maintainers-only);
