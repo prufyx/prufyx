@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/projectonboarding"
@@ -574,14 +575,7 @@ func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, string, 
 			if len(listed) > 5 {
 				listed = listed[:5]
 			}
-			// Kept within the schema's note length.
-			for {
-				ignoredNote = fmt.Sprintf("%d tags outside --tag-prefix %q ignored (first: %s)", len(ignored), o.TagPrefix, strings.Join(listed, ", "))
-				if len(ignoredNote) <= 300 || len(listed) == 1 {
-					break
-				}
-				listed = listed[:len(listed)-1]
-			}
+			ignoredNote = ignoredTagsNote(len(ignored), o.TagPrefix, listed)
 			notes = append(notes, "note: "+ignoredNote)
 		}
 		sel = pre
@@ -772,6 +766,25 @@ func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, string, 
 		}
 	}
 	return docs, notes, check, nil
+}
+
+// ignoredTagsNote builds the scan note for tags dropped by --tag-prefix. It
+// drops listed names while more than one remains, then clips the final string
+// itself to the schema note length (rune-safe), so a very long tag or prefix
+// can never push it over the limit.
+func ignoredTagsNote(n int, prefix string, listed []string) string {
+	var note string
+	for {
+		note = fmt.Sprintf("%d tags outside --tag-prefix %q ignored (first: %s)", n, prefix, strings.Join(listed, ", "))
+		if utf8.RuneCountInString(note) <= maxNoteRunes || len(listed) <= 1 {
+			break
+		}
+		listed = listed[:len(listed)-1]
+	}
+	if r := []rune(note); len(r) > maxNoteRunes {
+		note = string(r[:maxNoteRunes])
+	}
+	return note
 }
 
 func lineList(ts []snapTag) []string {
