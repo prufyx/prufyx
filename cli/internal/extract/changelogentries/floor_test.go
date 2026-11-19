@@ -165,12 +165,12 @@ func TestAbsentFloorCanonicalisesAsBefore(t *testing.T) {
 }
 
 func TestTagSetDigestIncludesObjectID(t *testing.T) {
-	a := []UpstreamTag{{"v1.0.0", sha('a')}, {"v1.0.1", sha('b')}}
-	b := []UpstreamTag{{"v1.0.1", sha('b')}, {"v1.0.0", sha('a')}}
+	a := []UpstreamTag{{Name: "v1.0.0", ObjectID: sha('a')}, {Name: "v1.0.1", ObjectID: sha('b')}}
+	b := []UpstreamTag{{Name: "v1.0.1", ObjectID: sha('b')}, {Name: "v1.0.0", ObjectID: sha('a')}}
 	if TagSetDigest(a) != TagSetDigest(b) {
 		t.Fatal("order matters")
 	}
-	re := []UpstreamTag{{"v1.0.0", sha('c')}, {"v1.0.1", sha('b')}}
+	re := []UpstreamTag{{Name: "v1.0.0", ObjectID: sha('c')}, {Name: "v1.0.1", ObjectID: sha('b')}}
 	if TagSetDigest(a) == TagSetDigest(re) {
 		t.Fatal("a retag does not change the digest")
 	}
@@ -641,7 +641,7 @@ func TestStyleAmbiguityAndOrderIndependence(t *testing.T) {
 		c := testCommit
 		src := &fSrc{memReader: memReader{files: map[string][]byte{fRepo + "@" + c + ":CHANGELOG.md": []byte(file)}}, tags: []extract.Tag{{Name: "v1.5.0", Commit: c}}}
 		reason, err := evalLine(&capReader{inner: src, caps: bigCaps, seen: map[string]capRead{}}, rw, "1.5",
-			[]UpstreamTag{{"v1.5.0", c}}, map[string]extract.Tag{"v1.5.0": src.tags[0]}, false)
+			[]UpstreamTag{{Name: "v1.5.0", ObjectID: c}}, map[string]extract.Tag{"v1.5.0": src.tags[0]}, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -655,7 +655,7 @@ func TestStyleAmbiguityAndOrderIndependence(t *testing.T) {
 	c := testCommit
 	src := &fSrc{memReader: memReader{files: map[string][]byte{fRepo + "@" + c + ":CHANGELOG.md": []byte(one)}}, tags: []extract.Tag{{Name: "v1.5.0", Commit: c}}}
 	reason, err := evalLine(&capReader{inner: src, caps: bigCaps, seen: map[string]capRead{}}, row, "1.5",
-		[]UpstreamTag{{"v1.5.0", c}}, map[string]extract.Tag{"v1.5.0": src.tags[0]}, false)
+		[]UpstreamTag{{Name: "v1.5.0", ObjectID: c}}, map[string]extract.Tag{"v1.5.0": src.tags[0]}, false)
 	if err != nil || reason != "" {
 		t.Fatalf("%q %v", reason, err)
 	}
@@ -671,8 +671,117 @@ func TestStyleAmbiguousBranch(t *testing.T) {
 	c := testCommit
 	src := &fSrc{memReader: memReader{files: map[string][]byte{fRepo + "@" + c + ":CHANGELOG.md": []byte("## 1.5.0\n\n- a\n")}}, tags: []extract.Tag{{Name: "v1.5.0", Commit: c}}}
 	reason, err := evalLine(&capReader{inner: src, caps: bigCaps, seen: map[string]capRead{}}, row, "1.5",
-		[]UpstreamTag{{"v1.5.0", c}}, map[string]extract.Tag{"v1.5.0": src.tags[0]}, false)
+		[]UpstreamTag{{Name: "v1.5.0", ObjectID: c}}, map[string]extract.Tag{"v1.5.0": src.tags[0]}, false)
 	if err != nil || !strings.HasPrefix(reason, "STYLE_AMBIGUOUS:v1.5.0:version-plain") {
 		t.Fatalf("%q %v", reason, err)
+	}
+}
+
+// A list made from the mirror's own tag names with made-up object ids is not
+// the upstream list: no line is located, so no floor is provable.
+func TestFabricatedObjectIDsMirrorDerivedListRefused(t *testing.T) {
+	f := newFix(ten()...)
+	for i := range f.up[fRepo] {
+		f.up[fRepo][i].ObjectID = sha('9')
+	}
+	r := f.derive(t, fRow, bigCaps)
+	if r.Floor != "" || len(r.Lines) != 0 || !strings.HasPrefix(r.FailReason, "TAG_OID_MISMATCH:") {
+		t.Fatalf("floor %q lines %v reason %q", r.Floor, r.Lines, r.FailReason)
+	}
+	if _, why := VerifyFloor(f.src, f.up, withFloor(fRow, "1.1"), bigCaps); len(why) != 1 || !strings.Contains(why[0], "wider than provable") {
+		t.Fatalf("%v", why)
+	}
+	withCaps(t, bigCaps)
+	p, err := ProposeRowFloor(f.src, f.up, "notes", fRepo, nil)
+	var nr *NoRow
+	if err != nil && !errors.As(err, &nr) {
+		t.Fatal(err)
+	}
+	if err == nil && (p.Floor != "" || p.Row.Floor != nil) {
+		t.Fatalf("a floor %q was proposed over fabricated object ids", p.Floor)
+	}
+}
+
+// Only the object ids differ from a sound list: the run stops at the retagged
+// line and a stored floor below it no longer verifies.
+func TestRetagOfWindowTagFailsVerifyFloor(t *testing.T) {
+	f := newFix(ten()...)
+	if _, why := VerifyFloor(f.src, f.up, withFloor(fRow, "1.1"), bigCaps); len(why) != 0 {
+		t.Fatal(why)
+	}
+	for i, u := range f.up[fRepo] {
+		if u.Name == "v1.5.0" {
+			f.up[fRepo][i].ObjectID = sha('f')
+		}
+	}
+	r := f.derive(t, fRow, bigCaps)
+	if r.FailLine != "1.5" || r.FailReason != "TAG_OID_MISMATCH:v1.5.0" || r.Floor != "" {
+		t.Fatalf("%q %q %q", r.FailLine, r.FailReason, r.Floor)
+	}
+	if _, why := VerifyFloor(f.src, f.up, withFloor(fRow, "1.1"), bigCaps); len(why) != 1 || !strings.Contains(why[0], "wider than provable") {
+		t.Fatalf("%v", why)
+	}
+}
+
+// An annotated tag is bound through its peeled commit, not its tag object id.
+func TestPeeledCommitBindsAnnotatedTag(t *testing.T) {
+	f := newFix(ten()...)
+	for i, u := range f.up[fRepo] {
+		f.up[fRepo][i] = UpstreamTag{Name: u.Name, ObjectID: sha('7'), Peeled: u.ObjectID}
+	}
+	if r := f.derive(t, fRow, bigCaps); r.Floor != "1.1" {
+		t.Fatalf("%q %q", r.Floor, r.FailReason)
+	}
+	f.up[fRepo][0].Peeled = sha('8')
+	if r := f.derive(t, fRow, bigCaps); r.Floor == "1.1" {
+		t.Fatal("a wrong peeled commit was accepted")
+	}
+}
+
+func TestParseUpstreamListPeeledAndNonVersion(t *testing.T) {
+	line := func(r, o, n string) string { return r + "\t" + o + "\t" + n + "\n" }
+	// Non-version names are skipped (no tag, no failure) ...
+	ok := line(fRepo, sha('a'), "v1.0.0") + line(fRepo, sha('b'), "latest") + line(fRepo, sha('c'), "v1.1.0-rc.1") + line(fRepo, sha('d'), "stable^{}")
+	l, err := ParseUpstreamList([]byte(ok))
+	if err != nil || len(l[fRepo]) != 1 || l[fRepo][0].Name != "v1.0.0" {
+		t.Fatalf("%v %+v", err, l)
+	}
+	// ... but a malformed line is still refused, whatever its name.
+	for name, d := range map[string]string{
+		"malformed non-version": ok + fRepo + "\tlatest\n",
+		"bad oid non-version":   ok + line(fRepo, "xyz", "latest"),
+		"odd non-version":       ok + line(fRepo, sha('e'), "late st"),
+		"duplicate non-version": ok + line(fRepo, sha('e'), "latest"),
+		"peeled without tag":    ok + line(fRepo, sha('e'), "v1.2.0^{}"),
+		"peeled twice":          ok + line(fRepo, sha('e'), "v1.0.0^{}") + line(fRepo, sha('f'), "v1.0.0^{}"),
+	} {
+		if _, err := ParseUpstreamList([]byte(d)); err == nil {
+			t.Errorf("%s accepted", name)
+		}
+	}
+	// A list of non-version tags alone names no tag.
+	if _, err := ParseUpstreamList([]byte(line(fRepo, sha('a'), "latest"))); err == nil {
+		t.Error("a list of non-version tags accepted")
+	}
+}
+
+// rows-check: a retag of one window tag (same name, new object id) fails a
+// stored floor row; the sound list passes.
+func TestRowsCheckFailsOnRetagOfWindowTag(t *testing.T) {
+	withCaps(t, bigCaps)
+	f := newFix(ten()...)
+	tbl := []Target{withFloor(fRow, "1.1")}
+	res, err := CheckRowsFloor(f.src, f.up, tbl, "notes", "d", nil)
+	if err != nil || len(res) != 1 || res[0].Status != RowPass {
+		t.Fatalf("%v %+v", err, res)
+	}
+	for i, u := range f.up[fRepo] {
+		if u.Name == "v1.4.1" {
+			f.up[fRepo][i].ObjectID = sha('f')
+		}
+	}
+	res, err = CheckRowsFloor(f.src, f.up, tbl, "notes", "d", nil)
+	if err != nil || len(res) != 1 || res[0].Status != RowFail {
+		t.Fatalf("%v %+v", err, res)
 	}
 }

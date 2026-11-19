@@ -127,8 +127,18 @@ func (c Caps) check(tags int) *NoRow {
 }
 
 // UpstreamTag is one tag of the upstream list: its name and the object id the
-// upstream resolves it to.
-type UpstreamTag struct{ Name, ObjectID string }
+// upstream resolves it to. Peeled is the commit an annotated tag peels to (the
+// "^{}" line of the list); it is empty for a lightweight tag, whose ObjectID
+// is the commit itself.
+type UpstreamTag struct{ Name, ObjectID, Peeled string }
+
+// commitID is the commit the upstream says the tag points at.
+func (u UpstreamTag) commitID() string {
+	if u.Peeled != "" {
+		return u.Peeled
+	}
+	return u.ObjectID
+}
 
 // UpstreamTags yields the upstream tag list of a repository (the output of an
 // upstream tag listing, injected; the mirror is never the source of it).
@@ -161,10 +171,13 @@ func (u UpstreamList) UpstreamTags(repo extract.RepoRef) ([]UpstreamTag, error) 
 }
 
 // ParseUpstreamList reads the upstream list file: one line per tag,
-// "<repo key>TAB<40 hex object id>TAB<tag name>", LF-terminated. Peeled lines
-// (name ending "^{}") are skipped: the tag object id on the other line is the
-// one that is pinned. Anything else that does not parse is refused, as is a
-// tag named twice for one repository.
+// "<repo key>TAB<40 hex object id>TAB<tag name>", LF-terminated. A peeled line
+// (name ending "^{}") gives the commit of the annotated tag named on the other
+// line; it is kept as the tag's Peeled id and compared with the mirror. A tag
+// name that is not a final version (a moving tag, a release candidate) is
+// skipped: it never takes part in a floor. Anything else that does not parse
+// is refused, as is a tag named twice for one repository, and a peeled line
+// of a version tag that has no tag line.
 func ParseUpstreamList(data []byte) (UpstreamList, error) {
 	if len(data) == 0 || len(data) > MaxUpstreamListBytes {
 		return nil, fmt.Errorf("upstream tag list size %d outside 1..%d", len(data), MaxUpstreamListBytes)
@@ -178,6 +191,7 @@ func ParseUpstreamList(data []byte) (UpstreamList, error) {
 	}
 	out := UpstreamList{}
 	seen := map[string]bool{}
+	peeled := map[string]string{}
 	for i, ln := range lines {
 		f := strings.Split(ln, "\t")
 		if len(f) != 3 {
@@ -190,7 +204,14 @@ func ParseUpstreamList(data []byte) (UpstreamList, error) {
 		if !upstreamOIDRE.MatchString(oid) {
 			return nil, fmt.Errorf("upstream tag list line %d: object id is not 40 lower-case hex", i+1)
 		}
-		if strings.HasSuffix(name, "^{}") {
+		if base, isPeeled := strings.CutSuffix(name, "^{}"); isPeeled {
+			if !upstreamNameRE.MatchString(base) {
+				return nil, fmt.Errorf("upstream tag list line %d: tag name %q is not allowed", i+1, base)
+			}
+			if _, dup := peeled[repo+"\x00"+base]; dup {
+				return nil, fmt.Errorf("upstream tag list line %d: peeled tag %q of %s listed twice", i+1, base, repo)
+			}
+			peeled[repo+"\x00"+base] = oid
 			continue
 		}
 		if !upstreamNameRE.MatchString(name) {
@@ -200,7 +221,26 @@ func ParseUpstreamList(data []byte) (UpstreamList, error) {
 			return nil, fmt.Errorf("upstream tag list line %d: tag %q of %s listed twice", i+1, name, repo)
 		}
 		seen[repo+"\x00"+name] = true
+		if _, ok := tagVersion(name); !ok {
+			continue
+		}
 		out[repo] = append(out[repo], UpstreamTag{Name: name, ObjectID: oid})
+	}
+	for key, oid := range peeled {
+		repo, name, _ := strings.Cut(key, "\x00")
+		if _, ok := tagVersion(name); !ok {
+			continue
+		}
+		attached := false
+		for i := range out[repo] {
+			if out[repo][i].Name == name {
+				out[repo][i].Peeled = oid
+				attached = true
+			}
+		}
+		if !attached {
+			return nil, fmt.Errorf("upstream tag list: peeled line of %q of %s has no tag line", name, repo)
+		}
 	}
 	if len(out) == 0 {
 		return nil, errors.New("upstream tag list names no tag")
@@ -216,7 +256,11 @@ func TagSetDigest(tags []UpstreamTag) string {
 	h := sha256.New()
 	h.Write([]byte("prufyx.io/changelog-window-tags/v1\n"))
 	for _, t := range s {
-		h.Write([]byte(t.Name + "\x00" + t.ObjectID + "\n"))
+		if t.Peeled == "" {
+			h.Write([]byte(t.Name + "\x00" + t.ObjectID + "\n"))
+		} else {
+			h.Write([]byte(t.Name + "\x00" + t.ObjectID + "\x00" + t.Peeled + "\n"))
+		}
 	}
 	return hex.EncodeToString(h.Sum(nil))
 }
@@ -421,6 +465,13 @@ func evalLine(r extract.PinnedReader, t Target, line string, ups []UpstreamTag, 
 		if !ok {
 			return "TAG_NOT_LOCATED:" + u.Name, nil
 		}
+		// The upstream list is bound to the pinned mirror: the commit the
+		// upstream gives for the tag (its peeled id, or its own id when it
+		// is lightweight) must be the commit the mirror pinned. A list made
+		// up from the mirror's names with other ids, or a retag, stops here.
+		if u.commitID() != m.Commit {
+			return "TAG_OID_MISMATCH:" + u.Name, nil
+		}
 		if _, err := Locate(r, t, m); err != nil {
 			c, typed := CodeOf(err)
 			if !typed {
@@ -511,11 +562,13 @@ func stopNote(r *Run) string {
 }
 
 // ResolveFloor returns the floor to commit for a derived run. accept says
-// whether the row passes rows-check at a candidate floor. It tries the derived
-// floor, then steps to the next newer line, at most MaxFloorRetries times; a
-// candidate inside the newest NewestLines lines is the absent floor ("").
-// When every attempt fails the result is a NO-ROW and no floor: a failed row
-// never leaves a wider floor behind. A run with no floor needs no resolving.
+// whether the row passes rows-check at a candidate floor. Attempt 0 is the
+// derived floor (the oldest line of the run); attempt k is the line k steps
+// newer. There are at most 1+MaxFloorRetries attempts. A candidate inside the
+// newest NewestLines lines is the absent floor ("") and is the last attempt,
+// since nothing narrower exists. When every attempt fails the result is a
+// NO-ROW and no floor: a failed row never leaves a wider floor behind. A run
+// with no floor needs no resolving.
 func ResolveFloor(run *Run, accept func(floor string) (bool, error)) (string, error) {
 	if run.Floor == "" {
 		return "", nil

@@ -299,11 +299,27 @@ func openUpstream(path string) (changelogentries.UpstreamTags, error) {
 	if path == "" {
 		return nil, nil
 	}
+	// The type is checked before the open (opening a FIFO would wait for a
+	// writer) and again on the opened handle, which must be the same file.
+	pre, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("upstream tag list: %w", err)
+	}
+	if !pre.Mode().IsRegular() {
+		return nil, fmt.Errorf("upstream tag list: %s is not a regular file", path)
+	}
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("upstream tag list: %w", err)
 	}
 	defer f.Close()
+	st, err := f.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("upstream tag list: %w", err)
+	}
+	if !st.Mode().IsRegular() || !os.SameFile(pre, st) {
+		return nil, fmt.Errorf("upstream tag list: %s is not a regular file", path)
+	}
 	data, err := io.ReadAll(io.LimitReader(f, changelogentries.MaxUpstreamListBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("upstream tag list: %w", err)
