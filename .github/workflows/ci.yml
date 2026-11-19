@@ -228,7 +228,9 @@ jobs:
           [[ "${ref}" =~ ^ref=[0-9a-f]{40}$ ]] || { echo "the ref line of ${pin} is not a 40-hex commit" >&2; exit 1; }
           src="${RUNNER_TEMP}/pinned-client"
           mkdir -m 700 "${src}"
-          git archive "${ref#ref=}" | tar -x -C "${src}"
+          # Archive from the repository root: run inside cli/, git archive
+          # would only hold the cli/ subtree and drop the cli/ prefix.
+          git -C "${GITHUB_WORKSPACE}" archive "${ref#ref=}" | tar -x -C "${src}"
           PRUFYX_PINNED_CLIENT_SRC="${src}" go test -timeout 40m -count=1 -run TestOldestClientRefusesListedFamilyTooNew -v ./internal/maintainer/knowledgerelease/
 
       - name: Test
