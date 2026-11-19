@@ -15,7 +15,7 @@
 - missing for hop 4: LINE\_NOT\_ATTESTED, DECLARATION\_MISSING, DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_SERVED, API\_VERSION\_NOT\_REVIEWED; next: if they are, add resourceScopeComplete: true to prufyx.yaml or pass --resource-scope-complete
 - missing for hop 5: DECLARATION\_MISSING, DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_SERVED, API\_VERSION\_NOT\_REVIEWED; next: if they are, add resourceScopeComplete: true to prufyx.yaml or pass --resource-scope-complete
 - missing for hop 6: DECLARATION\_MISSING, DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_SERVED, API\_VERSION\_NOT\_REVIEWED; next: if they are, add resourceScopeComplete: true to prufyx.yaml or pass --resource-scope-complete
-- scope: composed from the hops of the planned path through the named releases, from the reviewed removed-API rules, line reviews and one-way notices that apply to each hop, for the objects of the manifests as they are today; a direct skip of a release line, other patch releases of an intermediate line, behaviour changes without a removed API, and gaps the report lists outside any hop are not part of a pass
+- scope: composed from the hops of the planned path through the named releases, from the reviewed removed-API rules, line reviews and one-way notices that apply to each hop, for the objects of the manifests as they are today; a direct skip of a release line, other patch releases of an intermediate line, behaviour changes without a removed API, and gaps the report lists outside any hop are not part of a pass; kubelet skew not checked: no kubelet version is declared (--kubelet-version-min, --kubelet-version-max)
 
 ## NOT CHECKED (8)
 

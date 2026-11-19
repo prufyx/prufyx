@@ -251,6 +251,13 @@ const kubernetesJumpScope = "composed from the hops of the planned path through 
 	"a direct skip of a release line, other patch releases of an intermediate line, behaviour changes without a removed API, " +
 	"and gaps the report lists outside any hop are not part of a pass"
 
+// Kubelet skew is read only from a declared kubelet version, so the scope of
+// a jump says which of the two holds.
+const (
+	kubeletSkewNotChecked = "; kubelet skew not checked: no kubelet version is declared (--kubelet-version-min, --kubelet-version-max)"
+	kubeletSkewChecked    = "; kubelet skew was checked against the declared kubelet version %s"
+)
+
 // objectSetDigest is the digest of the object content a hop was evaluated on
 // and of the install profile: the workspace content digest and every
 // declaration that selects the facts. It does not depend on the versions of
@@ -380,6 +387,13 @@ func (r *kubernetesRun) composeJump(path *scanreport.Path) {
 		}
 	}
 	jump := scanreport.NewJump(hops, digest, nil, actions)
-	jump.Scope = kubernetesJumpScope
+	jump.Scope = kubernetesJumpScope + kubeletSkewNotChecked
+	if k := r.declarations.kubelet; k.Minimum != "" {
+		declared := k.Minimum
+		if k.Maximum != "" && k.Maximum != k.Minimum {
+			declared = k.Minimum + " to " + k.Maximum
+		}
+		jump.Scope = kubernetesJumpScope + fmt.Sprintf(kubeletSkewChecked, declared)
+	}
 	path.Jump = &jump
 }

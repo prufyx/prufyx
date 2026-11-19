@@ -53,6 +53,16 @@ func TestKubernetesJumpStatus(t *testing.T) {
 			t.Fatalf("exit %d scope %q", result.Exit, jump.Scope)
 		}
 	})
+	t.Run("the scope says whether kubelet skew was checked", func(t *testing.T) {
+		_, none := k8sJumpOf(t, cronjobV1, allLines)
+		if none == nil || none.Status != scanreport.JumpStepwisePass || !strings.Contains(none.Scope, "kubelet skew not checked") {
+			t.Fatalf("no declaration: %+v", none)
+		}
+		_, declared := k8sJumpOf(t, cronjobV1, allLines, "--kubelet-version-min", "1.30.0")
+		if declared == nil || !strings.Contains(declared.Scope, "kubelet skew was checked against the declared kubelet version 1.30.0") || strings.Contains(declared.Scope, "not checked") {
+			t.Fatalf("declared: %+v", declared)
+		}
+	})
 	t.Run("an undecided hop is UNKNOWN with the table and what is missing", func(t *testing.T) {
 		result, jump := k8sJumpOf(t, cronjobV1, without(allLines, "1.28", "1.30"))
 		if jump == nil || jump.Status != scanreport.JumpUnknown || len(jump.Hops) < 2 || len(jump.Missing) == 0 {

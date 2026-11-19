@@ -459,7 +459,10 @@ install profile (the declarations that select the facts), and no gap outside
 the hops (for example an API version the target does not serve). A blocker of
 the whole upgrade that no hop owns is cited on the last hop. Its scope text
 names the reviewed removed-API rules, line reviews and notices; behaviour
-changes without a removed API are not covered. The jump never changes the
+changes without a removed API are not covered. Kubelet version skew is covered only when a kubelet version is declared
+(`--kubelet-version-min`, `--kubelet-version-max`); the scope text of the
+jump says which of the two holds, and without a declaration it says kubelet
+skew was not checked. The jump never changes the
 verdict or the exit code.
 
 ## Gaps

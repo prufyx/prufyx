@@ -23,7 +23,7 @@
 - missing for hop 4: DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_REVIEWED; next: render them (for example with helm template) and scan the output
 - missing for hop 5: DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_REVIEWED; next: render them (for example with helm template) and scan the output
 - missing for hop 6: DOCUMENTS\_TEMPLATED, API\_VERSION\_NOT\_REVIEWED; next: render them (for example with helm template) and scan the output
-- scope: composed from the hops of the planned path through the named releases, from the reviewed removed-API rules, line reviews and one-way notices that apply to each hop, for the objects of the manifests as they are today; a direct skip of a release line, other patch releases of an intermediate line, behaviour changes without a removed API, and gaps the report lists outside any hop are not part of a pass
+- scope: composed from the hops of the planned path through the named releases, from the reviewed removed-API rules, line reviews and one-way notices that apply to each hop, for the objects of the manifests as they are today; a direct skip of a release line, other patch releases of an intermediate line, behaviour changes without a removed API, and gaps the report lists outside any hop are not part of a pass; kubelet skew not checked: no kubelet version is declared (--kubelet-version-min, --kubelet-version-max)
 
 ## NOT CHECKED (2)
 
