@@ -20,6 +20,22 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || 'run' }}
   cancel-in-progress: true
 
+# Fast and slow checks. Required on a pull request (the fast set): Build, vet,
+# test (fan-in over lint-build and the sharded unit tests), Secret scan, plus
+# the Merge policy and Knowledge gate workflows. The slow suites (the three
+# synthetic-knowledge jobs) run in the merge queue (merge_group), on push to
+# main and nightly. Repository variable CI_FAST_PR=true turns the pull request
+# run into the fast set; unset, a pull request still runs everything, so
+# nothing is skipped before the merge queue exists. In every other event every
+# job must succeed; a skipped job fails the fan-in.
+#
+# Where jobs run: CI_RUNNER_LABELS is a JSON runs-on value (for example
+# ["self-hosted","pfspot"]); unset it is ubuntu-24.04. Only the test shards,
+# race, staticcheck and govulncheck read it, and a pull request from a fork
+# always gets the hosted runner. Secret scan, race-plan, the fan-in and
+# lint-build stay on the hosted runner. Clearing the variable is the rollback.
+# Offline runner: the runner-watchdog job (set variable only) cancels the run
+# when a self-hosted job stays queued past CI_RUNNER_QUEUE_MINUTES (default 30).
 jobs:
   lint-build:
     name: Build, vet, validate
@@ -158,7 +174,7 @@ jobs:
     # the knowledgegate package (which has its own sharded job), so a new
     # package is always tested.
     name: Test (${{ matrix.group }})
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON(vars.CI_RUNNER_LABELS || '"ubuntu-24.04"') || 'ubuntu-24.04' }}
     timeout-minutes: 40
     env:
       # Every explicitly grouped package; the "rest" group excludes these.
@@ -174,8 +190,16 @@ jobs:
             packages: ./internal/maintainer/evidencereattest/
           - group: core-commands
             packages: ./cmd/prufyx-maintainer/ ./cmd/prufyx-community/ ./internal/cncfcheck/ ./internal/communityapp/
-          - group: core-rest
+          # The catch-all is split over two jobs by package number
+          # (TestCICoreGroupsAreComplete keeps every package in exactly one).
+          - group: core-rest-1
             packages: ""
+            rest_index: "1"
+            rest_total: "2"
+          - group: core-rest-2
+            packages: ""
+            rest_index: "2"
+            rest_total: "2"
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -193,6 +217,8 @@ jobs:
         env:
           GROUP: ${{ matrix.group }}
           GROUP_PACKAGES: ${{ matrix.packages }}
+          REST_INDEX: ${{ matrix.rest_index }}
+          REST_TOTAL: ${{ matrix.rest_total }}
         # Some packages exceed go test's default 10-minute limit on hosted runners; keep a generous limit.
         # The knowledgegate package has its own job (test-knowledgegate).
         run: |
@@ -203,7 +229,15 @@ jobs:
           else
             # shellcheck disable=SC2086
             grouped=$(go list ${CORE_GROUPED})
-            packages=$(go list ./... | grep -v '/internal/maintainer/knowledgegate$' | grep -vxF "${grouped}")
+            packages=$(go list ./... | grep -v '/internal/maintainer/knowledgegate$' | grep -vxF "${grouped}" | sort)
+            if [ -n "${REST_TOTAL}" ]; then
+              # Package number N (1-based, sorted) belongs to part ((N-1) mod TOTAL)+1.
+              packages=$(printf '%s\n' "${packages}" | awk -v n="${REST_TOTAL}" -v i="${REST_INDEX}" '(NR-1)%n==i-1')
+            fi
+          fi
+          if [ -z "${packages}" ]; then
+            echo "${GROUP}: no packages selected; a missing proof is a failure" >&2
+            exit 1
           fi
           echo "${GROUP}: $(printf '%s\n' "${packages}" | grep -c .) packages"
           # shellcheck disable=SC2086
@@ -222,15 +256,15 @@ jobs:
     # The package is slow on its own, so its tests are spread over SHARDS jobs
     # by scripts/ci-test-shard.sh (every test is in exactly one shard;
     # TestCIShardsAreComplete keeps the matrix and SHARDS in step).
-    name: Test (knowledgegate ${{ matrix.shard }}/3)
-    runs-on: ubuntu-24.04
+    name: Test (knowledgegate ${{ matrix.shard }}/4)
+    runs-on: ${{ (github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON(vars.CI_RUNNER_LABELS || '"ubuntu-24.04"') || 'ubuntu-24.04' }}
     timeout-minutes: 40
     env:
-      SHARDS: "3"
+      SHARDS: "4"
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -265,8 +299,9 @@ jobs:
   # (TestCISyntheticPackagesAreCovered fails when a package is missing).
   test-synthetic-a:
     name: Test (synthetic knowledge, cncfcheck and community)
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON(vars.CI_RUNNER_LABELS || '"ubuntu-24.04"') || 'ubuntu-24.04' }}
     timeout-minutes: 75
+    if: github.event_name != 'pull_request' || vars.CI_FAST_PR != 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -286,8 +321,9 @@ jobs:
 
   test-synthetic-b:
     name: Test (synthetic knowledge, extract, scan and release)
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON(vars.CI_RUNNER_LABELS || '"ubuntu-24.04"') || 'ubuntu-24.04' }}
     timeout-minutes: 75
+    if: github.event_name != 'pull_request' || vars.CI_FAST_PR != 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -307,8 +343,9 @@ jobs:
 
   test-synthetic-knowledgegate:
     name: Test (synthetic knowledge, knowledgegate ${{ matrix.shard }}/3)
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON(vars.CI_RUNNER_LABELS || '"ubuntu-24.04"') || 'ubuntu-24.04' }}
     timeout-minutes: 75
+    if: github.event_name != 'pull_request' || vars.CI_FAST_PR != 'true'
     env:
       SHARDS: "3"
     strategy:
@@ -346,9 +383,29 @@ jobs:
       - name: Require every shard to succeed
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
+          # The fast set must always succeed. The slow set must succeed too,
+          # except in a pull request run with CI_FAST_PR=true, where it is
+          # skipped by construction (and still may not fail).
+          FAST_RESULTS: ${{ needs.lint-build.result }} ${{ needs.test-core.result }} ${{ needs.test-knowledgegate.result }}
+          SLOW_RESULTS: ${{ needs.test-synthetic-a.result }} ${{ needs.test-synthetic-b.result }} ${{ needs.test-synthetic-knowledgegate.result }}
+          SLOW_MAY_SKIP: ${{ github.event_name == 'pull_request' && vars.CI_FAST_PR == 'true' }}
         run: |
           echo "shard results: ${RESULTS}"
-          for r in ${RESULTS}; do
+          results="${RESULTS}"
+          if [ "${SLOW_MAY_SKIP}" = "true" ]; then
+            results="${FAST_RESULTS}"
+            for r in ${SLOW_RESULTS}; do
+              if [ "${r}" != "skipped" ] && [ "${r}" != "success" ]; then
+                echo "a slow suite did not succeed (${r})" >&2
+                exit 1
+              fi
+            done
+          fi
+          if [ -z "${results}" ]; then
+            echo "no shard results" >&2
+            exit 1
+          fi
+          for r in ${results}; do
             if [ "${r}" != "success" ]; then
               echo "a shard did not succeed (${r})" >&2
               exit 1
@@ -412,17 +469,30 @@ jobs:
         id: plan
         env:
           EVENT_NAME: ${{ github.event_name }}
-        # Pull requests race only the packages whose import closure (with tests)
-        # contains a changed file; push to main, merge queue, nightly and manual
-        # runs race the full list, so every commit that reaches main is raced.
+          MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+        # Pull requests and merge queue entries race only the packages whose
+        # import closure (with tests) contains a changed file; push to main,
+        # nightly and manual runs race the full list, so every commit that
+        # reaches main is raced. A merge queue entry whose base cannot be read
+        # races everything (never fewer packages).
         run: |
           set -euo pipefail
           base_packages="./internal/scanreport/ ./internal/scanrun/ ./internal/cncfcheck/ ./internal/constraintengine/ ./internal/knowledge/ ./internal/maintainer/rulecheck/ ./internal/knowledgeauto/ ./internal/communityapp/"
           root=$(pwd)
           cd cli
           selected=""
-          if [ "${EVENT_NAME}" = "pull_request" ]; then
-            changed=$(git diff --no-renames --name-only origin/main...HEAD)
+          if [ "${EVENT_NAME}" = "pull_request" ] || [ "${EVENT_NAME}" = "merge_group" ]; then
+            if [ "${EVENT_NAME}" = "merge_group" ]; then
+              # The queue builds the pull request merged into the tip of the base.
+              if [[ "${MERGE_GROUP_BASE_SHA}" =~ ^[0-9a-f]{40}$ ]] && changed=$(git diff --no-renames --name-only "${MERGE_GROUP_BASE_SHA}" HEAD) && [ -n "${changed}" ]; then
+                :
+              else
+                echo "merge group base unreadable or empty diff: all packages"
+                changed=".github/unresolved"
+              fi
+            else
+              changed=$(git diff --no-renames --name-only origin/main...HEAD)
+            fi
             echo "changed files: $(printf '%s\n' "${changed}" | grep -c . || true)"
             # A change to the workflows, the module files or vendor/ can affect every package.
             if printf '%s\n' "${changed}" | grep -Eq '^\.github/|^cli/examples/|(^|/)go\.(mod|sum)$|(^|/)vendor/'; then
@@ -451,7 +521,7 @@ jobs:
               done
             fi
           else
-            # push to main, merge_group, schedule, workflow_dispatch: the full list.
+            # push to main, schedule, workflow_dispatch: the full list.
             selected="${base_packages}"
           fi
           matrix=$(for pkg in ${selected}; do
@@ -474,7 +544,7 @@ jobs:
     name: Race detector (${{ matrix.package }})
     needs: race-plan
     if: needs.race-plan.outputs.matrix != '[]'
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON(vars.CI_RUNNER_LABELS || '"ubuntu-24.04"') || 'ubuntu-24.04' }}
     timeout-minutes: ${{ matrix.timeout_minutes }}
     strategy:
       fail-fast: false
@@ -505,7 +575,7 @@ jobs:
 
   staticcheck:
     name: Staticcheck
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON(vars.CI_RUNNER_LABELS || '"ubuntu-24.04"') || 'ubuntu-24.04' }}
     timeout-minutes: 30
     env:
       STATICCHECK_VERSION: 2026.2.1
@@ -549,7 +619,7 @@ jobs:
 
   govulncheck:
     name: Vulnerability scan (govulncheck)
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON(vars.CI_RUNNER_LABELS || '"ubuntu-24.04"') || 'ubuntu-24.04' }}
     timeout-minutes: 15
     env:
       GOVULNCHECK_VERSION: v1.9.0
@@ -606,3 +676,44 @@ jobs:
 
       - name: Scan working tree for secrets
         run: gitleaks dir .
+
+  runner-watchdog:
+    # Only when CI_RUNNER_LABELS is set. A job that waits for a self-hosted
+    # runner that is offline stays queued for up to 24 hours (timeout-minutes
+    # counts from the start), and the fan-in would never report. This hosted
+    # job cancels the run when a self-hosted job has been queued longer than
+    # CI_RUNNER_QUEUE_MINUTES (default 30), or when the job list cannot be
+    # read: the run then ends cancelled, which no required check accepts.
+    name: Runner watchdog
+    if: vars.CI_RUNNER_LABELS != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
+    permissions:
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      RUN_ID: ${{ github.run_id }}
+      MAX_QUEUE_MINUTES: ${{ vars.CI_RUNNER_QUEUE_MINUTES }}
+    steps:
+      - name: Cancel the run when a self-hosted job is stuck in the queue
+        run: |
+          set -uo pipefail
+          case "${MAX_QUEUE_MINUTES}" in
+            ''|*[!0-9]*) MAX_QUEUE_MINUTES=30 ;;
+          esac
+          max=$(( MAX_QUEUE_MINUTES * 60 ))
+          cancel() {
+            echo "::error::${1}; cancelling the run"
+            gh run cancel "${RUN_ID}" -R "${REPO}"
+            exit 1
+          }
+          while true; do
+            jobs=$(gh api --paginate "repos/${REPO}/actions/runs/${RUN_ID}/jobs?per_page=100" --jq '.jobs[] | {name, status, labels, created_at}') || cancel "the job list cannot be read"
+            now=$(date +%s)
+            stale=$(printf '%s\n' "${jobs}" | jq -s --argjson now "${now}" --argjson max "${max}" '[.[] | select(.status == "queued" and ((.labels // []) | index("self-hosted")) != null and ($now - (.created_at | fromdateiso8601)) > $max)] | length') || cancel "the job list cannot be parsed"
+            [ "${stale}" = "0" ] || cancel "a self-hosted job has waited more than ${MAX_QUEUE_MINUTES} minutes for a runner"
+            open=$(printf '%s\n' "${jobs}" | jq -s '[.[] | select(.status != "completed" and .name != "Runner watchdog")] | length') || cancel "the job list cannot be parsed"
+            [ "${open}" != "0" ] || exit 0
+            sleep 30
+          done
