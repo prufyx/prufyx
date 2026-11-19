@@ -5,6 +5,9 @@ package communityapp
 import (
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 func containerdNativeTOML(version, plugin, handler, runtimeType, extra string) []byte {
@@ -79,7 +82,7 @@ func TestContainerdNativeCheckFreshnessAndPinnedEvidence(t *testing.T) {
 	if code != ExitBlocked || stderr != "" || !strings.Contains(stdout, "containerd-v2-0-0-removed-official-runtimes") || !strings.Contains(stdout, "containerd-v2-0-0-cri-runtime-migration-preserves-runtime-type") {
 		t.Fatalf("active code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
-	staleArgs := containerdCheckArgs(path, "selected", "2026-12-11T12:00:00Z")
+	staleArgs := containerdCheckArgs(path, "selected", testclock.ProjectAfterExpiry("containerd").Format(time.RFC3339))
 	code, stdout, stderr = runCNCFCLI(t, staleArgs...)
 	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "RULE_EVIDENCE_STALE") {
 		t.Fatalf("stale code=%d stdout=%q stderr=%q", code, stdout, stderr)

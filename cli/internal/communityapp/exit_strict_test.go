@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 // strictRoute is one check route with a command line that ends in each exit
@@ -73,7 +75,7 @@ func strictRoutes(t *testing.T) []strictRoute {
 	if err := os.WriteFile(planPath, plan, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	batch := []string{"check", "batch", "--plan", planPath, "--root", root, "--now", "2026-09-12T22:00:00Z", "--format", "json"}
+	batch := []string{"check", "batch", "--plan", planPath, "--root", root, "--now", testclock.ProjectNewest("thanos").Format(time.RFC3339), "--format", "json"}
 	tikv := func(p string) []string {
 		return []string{"check", "tikv-gcp-v2-wif-backup", "--config", p, "--target-version", tikvArgsTarget, "--operation", tikvArgsOperation, "--now", now, "--format", "json"}
 	}
