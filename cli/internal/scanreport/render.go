@@ -371,6 +371,9 @@ func writeFinding(out *bytes.Buffer, finding Finding, options HumanOptions, shar
 	if finding.DeclaredEvidence != "" {
 		fmt.Fprintf(out, "%s%s\n", sanitizeArgs([]any{indent, finding.DeclaredEvidence})...)
 	}
+	if finding.Computed != "" {
+		fmt.Fprintf(out, "%s%s\n", sanitizeArgs([]any{indent, finding.Computed})...)
+	}
 	if len(finding.Keys) > 0 {
 		fmt.Fprintf(out, "%s"+labelKeys+"\n", sanitizeArgs([]any{indent, strings.Join(finding.Keys, ", ")})...)
 	}

@@ -462,15 +462,13 @@ func kubeletRollAction(hop scanreport.Hop) string {
 	return "upgrade kubelets to a version the skew policy allows for the target of this hop before this hop"
 }
 
-// skewFindingText is the exact text of a kubelet-skew finding: the declared
-// kubelet versions, the control plane line and the minimum kubelet version.
-func skewFindingText(line, declaredMin, declaredMax string) (titleText, fix string) {
-	minimum := minKubelet(line)
+// skewComputed is the line scan computes for a kubelet-skew finding: the
+// declared kubelet versions and the minimum for the target. It is labelled as
+// computed and never replaces the rule's own wording.
+func skewComputed(line, target, declaredMin, declaredMax string) string {
 	declared := declaredMin
 	if declaredMax != "" && declaredMax != declaredMin {
 		declared += " to " + declaredMax
 	}
-	titleText = "Kubernetes " + line + " does not support the declared kubelet versions " + declared + ": every kubelet must be at least " + minimum + " and no newer than " + line + ", per the version-skew policy"
-	fix = "Upgrade every kubelet to " + minimum + " or newer (none newer than Kubernetes " + line + "), then declare the lowest and highest kubelet versions again and reassess. BLOCKED means unsupported by the version-skew policy, not a broken cluster."
-	return titleText, fix
+	return "computed: declared kubelet " + declared + "; minimum for " + target + " is " + minKubelet(line)
 }

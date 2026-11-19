@@ -138,6 +138,7 @@ type sarifResultProps struct {
 	Keys []string `json:"keys,omitempty"`
 	// DeclaredEvidence labels a finding that rests on declared input.
 	DeclaredEvidence string `json:"declaredEvidence,omitempty"`
+	Computed         string `json:"computed,omitempty"`
 }
 
 type sarifLocation struct {
@@ -367,7 +368,7 @@ func sarifResults(report Report, index map[string]int) ([]sarifResult, int) {
 		base := sarifResult{
 			RuleID: f.RuleID, RuleIndex: index[f.RuleID], Level: sarifError,
 			Message:    sarifText{resultMessage(f)},
-			Properties: sarifResultProps{Component: f.Component, Hop: hopLabel(f.Hop), Basis: f.Basis, Match: f.Match, Crossing: f.Crossing, CrossedLine: f.CrossedLine, Keys: f.Keys, DeclaredEvidence: f.DeclaredEvidence},
+			Properties: sarifResultProps{Component: f.Component, Hop: hopLabel(f.Hop), Basis: f.Basis, Match: f.Match, Crossing: f.Crossing, CrossedLine: f.CrossedLine, Keys: f.Keys, DeclaredEvidence: f.DeclaredEvidence, Computed: f.Computed},
 		}
 		if len(f.Locations) == 0 {
 			rows = append(rows, sarifRow{component: f.Component, hop: f.Hop.order(), document: -1, item: -1, result: base})
@@ -592,6 +593,9 @@ func resultMessage(f Finding) string {
 	text := fmt.Sprintf(labelResultMessage, f.Title, f.Fix)
 	if f.DeclaredEvidence != "" {
 		text += " (" + f.DeclaredEvidence + ")"
+	}
+	if f.Computed != "" {
+		text += " [" + f.Computed + "]"
 	}
 	if len(text) <= sarifMessageMax || f.CrossedLine == nil {
 		return cut(text, sarifMessageMax)

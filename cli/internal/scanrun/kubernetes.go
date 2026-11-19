@@ -1293,13 +1293,14 @@ func (r *kubernetesRun) finding(rule cncfcheck.ScanRule, claim constraintengine.
 		finding.Match = claim.SubjectMatch.Mode
 	}
 	if declarationOnly(rule) && r.declarations.kubelet.Minimum != "" {
-		// Exact versions in place of the rule's generic wording.
+		// A separate line with the exact versions, computed by scan; the
+		// rule's own title and fix are never changed.
 		line, ok := endpointLine(upgradepath.Endpoint{Version: ref.To})
 		if !ok {
 			line, ok = endpointLine(upgradepath.Endpoint{Line: ref.To})
 		}
 		if ok && minKubelet(line) != "" {
-			finding.Title, finding.Fix = skewFindingText(line, r.declarations.kubelet.Minimum, r.declarations.kubelet.Maximum)
+			finding.Computed = skewComputed(line, ref.To, r.declarations.kubelet.Minimum, r.declarations.kubelet.Maximum)
 		}
 	}
 	markCrossing(&finding, rule, claim, viaCrossing)

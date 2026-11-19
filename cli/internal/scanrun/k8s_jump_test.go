@@ -241,13 +241,32 @@ func TestKubernetesJumpKubeletSkew(t *testing.T) {
 	if finding == nil || result.Exit != scanreport.ExitBlocked || scanreport.Exit(result.Report) != scanreport.ExitBlocked {
 		t.Fatalf("exit %d finding %+v", result.Exit, finding)
 	}
-	for _, want := range []string{"1.33", "1.29.0", "1.30.0"} {
-		if !strings.Contains(finding.Title+finding.Fix, want) {
-			t.Fatalf("text lacks %s: %q / %q", want, finding.Title, finding.Fix)
+	// The signed rule's title and fix are kept verbatim; the exact versions
+	// are a separate line, labelled as computed.
+	embedded, err := LoadEmbedded()
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, rule := range embedded.Rules(kubernetesSlug) {
+		if rule.Scope.ID == finding.RuleID {
+			found = true
+			if finding.Title != title(rule.Description) || finding.Fix != rule.NextAction {
+				t.Fatalf("rule wording changed: %q / %q", finding.Title, finding.Fix)
+			}
 		}
 	}
-	if len(finding.Title) > scanreport.MaxText || len(finding.Fix) > scanreport.MaxText || strings.Contains(finding.Fix, "more than three minor") {
-		t.Fatalf("text %q / %q", finding.Title, finding.Fix)
+	if !found {
+		t.Fatal("rule not in the knowledge")
+	}
+	if finding.Computed != "computed: declared kubelet 1.29.0; minimum for 1.33.1 is 1.30.0" {
+		t.Fatalf("computed %q", finding.Computed)
+	}
+	for _, format := range []string{"human", "markdown", "json", "sarif"} {
+		out, err := scanreport.Render(result.Report, format, scanreport.RenderOptions{})
+		if err != nil || !strings.Contains(string(out), "computed: declared kubelet 1.29.0; minimum for 1.33.1 is 1.30.0") {
+			t.Fatalf("%s: %v\n%s", format, err, out)
+		}
 	}
 	// The plan's hop table shows the step, the stage and the plan stay BLOCKED.
 	plan := upgradeplan.Build(result.Report, nil, upgradeplan.Capabilities{})

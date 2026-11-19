@@ -293,6 +293,9 @@ func writeFindingTable(out *bytes.Buffer, findings []Finding) {
 		if finding.DeclaredEvidence != "" {
 			where = append(where, mdText(finding.DeclaredEvidence))
 		}
+		if finding.Computed != "" {
+			where = append(where, mdText(finding.Computed))
+		}
 		if len(finding.Keys) > 0 {
 			where = append(where, mdText(fmt.Sprintf(labelKeys, strings.Join(finding.Keys, ", "))))
 		}
