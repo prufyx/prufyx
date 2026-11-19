@@ -82,6 +82,9 @@ type Tiling struct {
 	Blanks    int `json:"blanks"`
 	LinkDefs  int `json:"linkDefs"`
 	ItemLines int `json:"itemLines"`
+	// Comments counts C2 single-line comments; they are part of the section
+	// (and its digest) but are not items. Omitted when 0.
+	Comments int `json:"comments,omitempty"`
 }
 
 // Canonical returns the entry as compact JSON; equal inputs give equal bytes.

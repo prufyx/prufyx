@@ -16,6 +16,7 @@ const (
 	kLinkDef
 	kItem
 	kResidue
+	kComment // a C2 single-line HTML comment: counted in the tiling, never an item
 )
 
 type heading struct {
@@ -48,6 +49,10 @@ type scanned struct {
 	// fenceBody marks (index = line-1) the lines read as the inside of a
 	// fence: after its opener, up to but not including its closer.
 	fenceBody []bool
+	// comment holds the lines read as a C2 comment: one line, `<!-- text -->`
+	// and nothing else, at column zero, between blank lines or the file
+	// edges. Such a line is not content and is not an item.
+	comment map[int]bool
 }
 
 var (
@@ -78,6 +83,30 @@ func htmlBlock(l string) (starts, multiLine bool) {
 		return true, !strings.Contains(strings.ToLower(l), "</"+strings.ToLower(r[1])+">")
 	}
 	return true, false
+}
+
+// commentMax bounds the text of a C2 comment.
+const commentMax = 200
+
+// isCommentLine reports whether l is exactly one HTML comment, `<!--`, text,
+// `-->`, starting at column zero with nothing after the closer. The text is
+// printable, at most commentMax bytes, and holds no `--` (so no second
+// closer and no nested opener), no `<` and no `>`; it does not start with
+// `>` or `->` (the abrupt-closing forms).
+func isCommentLine(l string) bool {
+	if !strings.HasPrefix(l, "<!--") || !strings.HasSuffix(l, "-->") || len(l) < 7 {
+		return false
+	}
+	in := l[4 : len(l)-3]
+	if len(in) > commentMax || strings.Contains(in, "--") || strings.ContainsAny(in, "<>") || strings.HasPrefix(in, "->") {
+		return false
+	}
+	for i := 0; i < len(in); i++ {
+		if in[i] < 0x20 && in[i] != ' ' {
+			return false
+		}
+	}
+	return true
 }
 
 var (
@@ -235,7 +264,7 @@ func fenceCloses(l string, ch byte, n, openIndent int) bool {
 // Fences are tracked from the first line, so a "#" inside fenced code is never
 // a heading, wherever the fence opened.
 func scan(lines []string) scanned {
-	sc := scanned{lines: lines, kind: make([]lineKind, len(lines)), fenceBody: make([]bool, len(lines))}
+	sc := scanned{lines: lines, kind: make([]lineKind, len(lines)), fenceBody: make([]bool, len(lines)), comment: map[int]bool{}}
 	var cur *rawItem // open item, index into sc.items via pointer refreshed below
 	curIdx := -1
 	sawBlank := false
@@ -316,6 +345,13 @@ func scan(lines []string) scanned {
 			if multi && sc.containerFence == 0 {
 				sc.containerFence = n
 			}
+		}
+		if isCommentLine(l) && (n == 1 || wasBlank) && (i+1 == len(lines) || isBlank(lines[i+1])) {
+			sc.kind[i] = kComment
+			sc.comment[n] = true
+			closeItem()
+			prevAllowsLinkDef = false
+			continue
 		}
 		if hrRE.MatchString(l) {
 			sc.kind[i] = kResidue

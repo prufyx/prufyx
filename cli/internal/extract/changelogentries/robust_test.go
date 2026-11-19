@@ -469,14 +469,14 @@ func TestTabAndHTMLBlockStops(t *testing.T) {
 	for name, s := range map[string]string{
 		"tab stop sibling": shapeTabStop, "tab opener": shapeTabOpener, "comment hides heading": shapeHTMLComment,
 		"pre hides fence": shapeHTMLPre, "comment before entry": shapeHTMLBeforeEntry, "html in entry": shapeHTMLInEntry,
-		"script":                  "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<script>\n## 3.4.0 / 2025-05-17\n</script>\n",
-		"style":                   "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<STYLE>\n# a\n</style>\n",
-		"textarea":                "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<textarea>\n~~~\n</textarea>\n",
-		"pi":                      "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<?x\n## 3.4.0 / 2025-05-17\n?>\n",
-		"cdata":                   "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<![CDATA[\n## 3.4.0 / 2025-05-17\n]]>\n",
-		"declaration":             "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<!DOCTYPE\n## 3.4.0 / 2025-05-17\n>\n",
-		"inside comment in entry": "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<!-- one line -->\n",
-		"closing tag in entry":    "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n</div>\n",
+		"script":                   "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<script>\n## 3.4.0 / 2025-05-17\n</script>\n",
+		"style":                    "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<STYLE>\n# a\n</style>\n",
+		"textarea":                 "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<textarea>\n~~~\n</textarea>\n",
+		"pi":                       "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<?x\n## 3.4.0 / 2025-05-17\n?>\n",
+		"cdata":                    "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<![CDATA[\n## 3.4.0 / 2025-05-17\n]]>\n",
+		"declaration":              "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n<!DOCTYPE\n## 3.4.0 / 2025-05-17\n>\n",
+		"comment glued to an item": "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n<!-- one line -->\n",
+		"closing tag in entry":     "## 3.5.0 / 2025-07-14\n* [FEATURE] x\n\n</div>\n",
 	} {
 		e, err := locateMem(promTarget, "v3.5.0", s)
 		if err == nil {
