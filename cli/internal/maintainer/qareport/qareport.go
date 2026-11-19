@@ -153,6 +153,12 @@ func notReportedMark(runDir string, result []byte) (string, error) {
 	if result != nil {
 		var probe map[string]json.RawMessage
 		if json.Unmarshal(result, &probe) == nil {
+			_, hasSup := probe["superseded"]
+			_, hasBy := probe["superseded_by"]
+			_, hasReason := probe["supersede_reason"]
+			if _, ok := probe["reportable"]; ok && (hasSup || hasBy || hasReason) {
+				return "", errors.New("RESULT.json is marked both not reportable and superseded")
+			}
 			if r, ok := probe["reportable"]; ok {
 				var flag bool
 				if json.Unmarshal(r, &flag) != nil || flag {
@@ -873,6 +879,7 @@ func markdown(rep *Report) string {
 			}
 		}
 		fmt.Fprintf(&b, "Not in this report: %d runs (%s).\n\n", len(rep.NotReported), strings.Join(parts, "; "))
+		b.WriteString("Not-reported runs are not counted; their rows are not checked by this report.\n\n")
 	}
 	c := rep.Counts
 	fmt.Fprintf(&b, "Counts: %d runs, %d rows: %d correct, %d wrong PASS, %d false alarm, %d gap.\n\n", len(rep.Runs), c.Rows, c.Correct, c.WrongPass, c.FalseAlarm, c.Gap)

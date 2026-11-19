@@ -446,3 +446,35 @@ func TestNotReportedResultKey(t *testing.T) {
 		t.Error("non-boolean reportable accepted")
 	}
 }
+
+func TestNotReportedWithSupersedeRefused(t *testing.T) {
+	root := t.TempDir()
+	writeRun(t, root, "m3-a", m3(nil))
+	writeRun(t, root, "m10-r01", []byte(`{"reportable": false, "superseded": true, "superseded_by": "m3-a"}`))
+	if _, err := Build(root); err == nil || !strings.Contains(err.Error(), "both not reportable and superseded") {
+		t.Fatalf("inline combination: %v", err)
+	}
+	root = t.TempDir()
+	writeRun(t, root, "m3-a", m3(nil))
+	writeRun(t, root, "m10-r01", []byte(summaryShape))
+	mark(t, root, "m10-r01", `{"reportable": false, "reason_code": "summary-only"}`)
+	supersede(t, root, "m10-r01", "m3-a")
+	if _, err := Build(root); err == nil || !strings.Contains(err.Error(), "both not reportable and superseded") {
+		t.Fatalf("file combination: %v", err)
+	}
+}
+
+func TestNotReportedNoticeLine(t *testing.T) {
+	root := t.TempDir()
+	writeRun(t, root, "m3-a", m3(nil))
+	writeRun(t, root, "m10-r01", []byte(summaryShape))
+	mark(t, root, "m10-r01", `{"reportable": false, "reason_code": "summary-only"}`)
+	rep, err := Build(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, md, _ := Render(rep)
+	if !strings.Contains(string(md), "Not-reported runs are not counted; their rows are not checked by this report.") {
+		t.Error("notice line missing")
+	}
+}
