@@ -129,7 +129,6 @@ func TestParseReceiptRejects(t *testing.T) {
 		"upper code":     strings.Replace(ok, "codeDigest=sha256:"+d, "codeDigest=sha256:"+strings.ToUpper(d), 1),
 		"bad mirror":     strings.Replace(ok, "mirrorDigest=none", "mirrorDigest=zz", 1),
 		"bare code":      strings.Replace(ok, "codeDigest=sha256:", "codeDigest=", 1),
-		"bare code":      strings.Replace(ok, "codeDigest=sha256:", "codeDigest=", 1),
 		"text":           ok + " " + secretText,
 	} {
 		if _, err := ParseReceipt(l); err == nil {
