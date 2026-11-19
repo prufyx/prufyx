@@ -125,7 +125,7 @@ func changeListJump(knowledge Knowledge, now time.Time, report *scanreport.Repor
 			// A valid record that lists no release inside the hop's window.
 			hop.Reasons = append(hop.Reasons, gapOf(report, slug, &ref, scanreport.GapChangeListJumpRecord, lines[i], "NO_RELEASE_IN_HOP", slug))
 		}
-		jump.Reasons = append([]string(nil), hop.Reasons...)
+		jump.Reasons = append([]string(nil), hop.Reasons[1:]...)
 		path.Hops = append(path.Hops, hop)
 		jumpHops = append(jumpHops, jump)
 	}
@@ -139,7 +139,7 @@ func changeListJump(knowledge Knowledge, now time.Time, report *scanreport.Repor
 	}
 	for i := range jumpHops {
 		jumpHops[i].ObjectSetDigest = setDigest
-		jumpHops[i].Reasons = uniqueStrings(withoutReason(jumpHops[i].Reasons, scanreport.ReasonComponentNotCovered))
+		jumpHops[i].Reasons = uniqueStrings(jumpHops[i].Reasons)
 		if i < len(hops)-1 && hops[i].To.Version != "" {
 			if line, ok := lineattest.LineOf(hops[i].To.Version); ok {
 				releases = append(releases, scanreport.JumpRelease{Line: line, Version: hops[i].To.Version, Commit: commits[hops[i].To.Version]})
@@ -155,16 +155,6 @@ func gapOf(report *scanreport.Report, slug string, ref *scanreport.HopRef, key s
 	gap := scanreport.NewGap(slug, ref, key, args...)
 	report.Gaps = append(report.Gaps, gap)
 	return gap.Reason
-}
-
-func withoutReason(reasons []string, drop string) []string {
-	var out []string
-	for _, r := range reasons {
-		if r != drop {
-			out = append(out, r)
-		}
-	}
-	return out
 }
 
 // changeListItems reads the one record of a change-list family for the line a

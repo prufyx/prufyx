@@ -179,9 +179,11 @@ func TestChangeListJumpNoRecordIsUnknownNeverPass(t *testing.T) {
 func TestChangeListJumpMalformedRecordIsUndecided(t *testing.T) {
 	t.Parallel()
 	mutations := map[string]func(a *lineattest.LineAttestation){
-		"source at another commit":  func(a *lineattest.LineAttestation) { a.Evidence.Sources[0].Revision = strings.Repeat("e", 40) },
-		"digest not a digest":       func(a *lineattest.LineAttestation) { a.Evidence.Sources[0].ContentDigest = "abc" },
-		"span reversed":             func(a *lineattest.LineAttestation) { a.Evidence.Sources[0].StartLine, a.Evidence.Sources[0].EndLine = 9, 3 },
+		"source at another commit": func(a *lineattest.LineAttestation) { a.Evidence.Sources[0].Revision = strings.Repeat("e", 40) },
+		"digest not a digest":      func(a *lineattest.LineAttestation) { a.Evidence.Sources[0].ContentDigest = "abc" },
+		"span reversed": func(a *lineattest.LineAttestation) {
+			a.Evidence.Sources[0].StartLine, a.Evidence.Sources[0].EndLine = 9, 3
+		},
 		"span from zero":            func(a *lineattest.LineAttestation) { a.Evidence.Sources[0].StartLine = 0 },
 		"source id not an entry":    func(a *lineattest.LineAttestation) { a.Evidence.Sources[0].ID = "crds-3-5-0" },
 		"source of another release": func(a *lineattest.LineAttestation) { a.Evidence.Sources[0].ID = "changelog-3.9.9" },
