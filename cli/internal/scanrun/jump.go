@@ -3,6 +3,12 @@
 package scanrun
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"slices"
+
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
@@ -236,4 +242,144 @@ func (r *customResourceRun) releaseCommit(family lineattest.Family, line, versio
 		}
 	}
 	return ""
+}
+
+// kubernetesJumpScope is the sentence a Kubernetes jump carries: what it
+// covers and what it does not. It replaces the custom-resource scope.
+const kubernetesJumpScope = "composed from the hops of the planned path through the named releases, from the reviewed removed-API rules, " +
+	"line reviews and one-way notices that apply to each hop, for the objects of the manifests as they are today; " +
+	"a direct skip of a release line, other patch releases of an intermediate line, behaviour changes without a removed API, " +
+	"and gaps the report lists outside any hop are not part of a pass"
+
+// objectSetDigest is the digest of the object content a hop was evaluated on
+// and of the install profile: the workspace content digest and every
+// declaration that selects the facts. It does not depend on the versions of
+// the hop. An empty content digest gives no digest, so no hop composes.
+func (r *kubernetesRun) objectSetDigest(contentDigest string) string {
+	if contentDigest == "" {
+		return ""
+	}
+	d := r.declarations
+	h := sha256.New()
+	for _, part := range []string{"prufyx/k8s-object-set/v1", contentDigest, d.distribution, fmt.Sprint(d.distributionSet), fmt.Sprint(d.scopeComplete), fmt.Sprint(d.applyRequired), d.kubelet.Minimum, d.kubelet.Maximum} {
+		h.Write([]byte(part))
+		h.Write([]byte{0})
+	}
+	return "sha256:" + hex.EncodeToString(h.Sum(nil))
+}
+
+// neutralOf describes a notice or lead rule that overlaps a hop: noticed means
+// the trust policy admits the rule, the rule is a notice, it covers the hop
+// and the engine gave it a NOTICE claim. Anything else (a lead, a rule the
+// policy left out, a rule that does not cover the hop or that the engine did
+// not decide) is not noticed, so its hop is never a pass.
+func (r *kubernetesRun) neutralOf(rule cncfcheck.ScanRule, eval evaluation, covers bool) neutralRule {
+	claim, found := eval.claims[rule.Scope.ID]
+	noticed := rule.Notice && covers && found && claim.Status == constraintengine.StatusNotice && r.policy.Admits(rule.Basis)
+	return neutralRule{id: rule.Scope.ID, text: rule.NextAction, noticed: noticed}
+}
+
+// composeJump records the jump of a Kubernetes route of several hops with the
+// shared composition (scanreport.NewJump): a hop is BLOCKED only by a finding
+// that names a rule at that hop, ATTENTION by a one-way notice at it, PASS
+// only when the hop is COVERED, and anything else is UNDECIDED with its
+// reasons. A gap outside every hop (or one of the whole upgrade) keeps every
+// otherwise passing hop from PASS, and a blocker of the whole upgrade, which
+// no hop owns, is cited on the last hop. The jump never changes a finding, a
+// gap, the verdict or the exit code.
+func (r *kubernetesRun) composeJump(path *scanreport.Path) {
+	if len(path.Hops) < 2 {
+		return
+	}
+	digest := r.hopDigests[path.Hops[0].Index]
+	var open []string
+	if len(r.wholeNeutral) > 0 {
+		// A notice or lead of the whole upgrade belongs to no hop.
+		open = append(open, scanreport.ReasonRuleNotDecided)
+	}
+	var wholeBlocks []string
+	for _, gap := range r.report.Gaps {
+		if gap.Component == kubernetesSlug && (gap.Hop == nil || gap.Hop.WholeUpgrade) {
+			open = append(open, gap.Reason)
+		}
+	}
+	for _, f := range r.report.Findings {
+		if f.Component == kubernetesSlug && f.Hop.WholeUpgrade {
+			wholeBlocks = append(wholeBlocks, f.RuleID)
+		}
+	}
+	at := func(ref scanreport.HopRef, own scanreport.HopRef, also []scanreport.HopRef) bool {
+		if own == ref {
+			return true
+		}
+		for _, other := range also {
+			if other == ref {
+				return true
+			}
+		}
+		return false
+	}
+	hops := make([]scanreport.JumpHop, 0, len(path.Hops))
+	for i := range path.Hops {
+		hop := path.Hops[i]
+		ref := scanreport.HopRef{Index: hop.Index, From: hop.From.String(), To: hop.To.String()}
+		jump := scanreport.JumpHop{Index: hop.Index, From: ref.From, To: ref.To, ObjectSetDigest: r.hopDigests[hop.Index], Attestation: hop.Attestation}
+		var blocks []string
+		for _, f := range r.report.Findings {
+			if f.Component == kubernetesSlug && at(ref, f.Hop, f.AlsoAt) {
+				blocks = append(blocks, f.RuleID)
+			}
+		}
+		if i == len(path.Hops)-1 {
+			blocks = append(blocks, wholeBlocks...)
+		}
+		var entries []string
+		noticedAll := len(r.hopNeutral[hop.Index]) > 0
+		for _, n := range r.hopNeutral[hop.Index] {
+			noticedAll = noticedAll && n.noticed
+			if n.noticed {
+				entries = append(entries, n.id+": "+n.text)
+			}
+		}
+		switch {
+		case (hop.Status == scanreport.HopBlocked && len(blocks) > 0) || (i == len(path.Hops)-1 && len(wholeBlocks) > 0):
+			jump.Status, jump.RuleIDs = scanreport.JumpHopBlocked, uniqueStrings(blocks)
+		case noticedAll && hop.Status != scanreport.HopBlocked:
+			// A notice rule overlaps the hop and decides nothing: ATTENTION
+			// citing it, never a pass.
+			jump.Status, jump.Entries = scanreport.JumpHopAttention, uniqueStrings(entries)
+		case hop.Status == scanreport.HopCovered && len(open) == 0 && len(r.hopNeutral[hop.Index]) == 0:
+			jump.Status = scanreport.JumpHopPass
+		default:
+			jump.Status = scanreport.JumpHopUndecided
+			reasons := append(append([]string{}, hop.Reasons...), open...)
+			if len(r.hopNeutral[hop.Index]) > 0 {
+				reasons = append(reasons, scanreport.ReasonRuleNotDecided)
+			}
+			jump.Reasons = uniqueStrings(reasons)
+		}
+		hops = append(hops, jump)
+	}
+	// The next action of an undecided hop is that of the first gap that
+	// explains it, so no hop falls back to the generic custom-resource text.
+	actions := map[int]string{}
+	for _, hop := range hops {
+		if hop.Status != scanreport.JumpHopUndecided {
+			continue
+		}
+		for _, gap := range r.report.Gaps {
+			if gap.Component != kubernetesSlug || gap.Action == "" || actions[hop.Index] != "" {
+				continue
+			}
+			if (gap.Hop != nil && !gap.Hop.WholeUpgrade && gap.Hop.Index == hop.Index) || (gap.Hop == nil && slices.Contains(hop.Reasons, gap.Reason)) {
+				actions[hop.Index] = gap.Action
+			}
+		}
+		if actions[hop.Index] == "" {
+			actions[hop.Index] = "check this hop's upgrade notes and the removed APIs of its release lines by hand"
+		}
+	}
+	jump := scanreport.NewJump(hops, digest, nil, actions)
+	jump.Scope = kubernetesJumpScope
+	path.Jump = &jump
 }

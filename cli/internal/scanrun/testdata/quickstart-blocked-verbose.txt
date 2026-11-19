@@ -14,6 +14,20 @@ kubernetes 1.24.17 -> 1.30.4: 6 hops (path policy sequential_minor)
                     source: https://github.com/kubernetes/kubernetes/blob/4ce5a8954017644c5420bae81d72b09b735c21f0/staging/src/k8s.io/api/batch/v1beta1/zz_generated.prerelease-lifecycle.go lines 48-74; revision 4ce5a8954017644c5420bae81d72b09b735c21f0; digest sha256:ed52be6d14796fb3d02cd8a35df4b2a059d2e963d461d7372a8177c249d54ccc
                     source: https://github.com/kubernetes/kubernetes/blob/4ce5a8954017644c5420bae81d72b09b735c21f0/api/openapi-spec/swagger.json lines 1-90087; revision 4ce5a8954017644c5420bae81d72b09b735c21f0; digest sha256:0d43576f2097092c8a3f203368a8edc0d605540c9757125dae116031f182e53a
                     source: https://github.com/kubernetes/kubernetes/blob/a866cbe2e5bbaa01cfd5e969aa3e033f3282a8a2/api/openapi-spec/swagger.json lines 1-81603; revision a866cbe2e5bbaa01cfd5e969aa3e033f3282a8a2; digest sha256:96354682390d446dde77eb2246fe022baa89697133a8248612ca2573e4a12120
+kubernetes 1.24.17 -> 1.30.4: BLOCKED on the stepwise path (hop 1 decides); a direct skip was not evaluated
+  hop 1 1.24.17 -> 1.25: BLOCKED kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0
+  hop 2 1.25 -> 1.26: UNDECIDED (API_VERSION_NOT_REVIEWED)
+  hop 3 1.26 -> 1.27: UNDECIDED (API_VERSION_NOT_REVIEWED)
+  hop 4 1.27 -> 1.28: UNDECIDED (API_VERSION_NOT_REVIEWED)
+  hop 5 1.28 -> 1.29: UNDECIDED (API_VERSION_NOT_REVIEWED)
+  hop 6 1.29 -> 1.30.4: UNDECIDED (API_VERSION_NOT_REVIEWED)
+  decided by hop 1
+  missing for hop 2: API_VERSION_NOT_REVIEWED; next: check those API versions against the Kubernetes 1.30 API reference by hand
+  missing for hop 3: API_VERSION_NOT_REVIEWED; next: check those API versions against the Kubernetes 1.30 API reference by hand
+  missing for hop 4: API_VERSION_NOT_REVIEWED; next: check those API versions against the Kubernetes 1.30 API reference by hand
+  missing for hop 5: API_VERSION_NOT_REVIEWED; next: check those API versions against the Kubernetes 1.30 API reference by hand
+  missing for hop 6: API_VERSION_NOT_REVIEWED; next: check those API versions against the Kubernetes 1.30 API reference by hand
+  scope: composed from the hops of the planned path through the named releases, from the reviewed removed-API rules, line reviews and one-way notices that apply to each hop, for the objects of the manifests as they are today; a direct skip of a release line, other patch releases of an intermediate line, behaviour changes without a removed API, and gaps the report lists outside any hop are not part of a pass
 
 NOT CHECKED (1)
   kubernetes   1 manifest(s) use API versions that the review of Kubernetes 1.30 does not list as served - check those API versions against the Kubernetes 1.30 API reference by hand

@@ -1,5 +1,18 @@
 # UNKNOWN: no blocker in the checks that ran; 2 areas were not checked (see NOT CHECKED)
 
+## Jump kubernetes
+
+- kubernetes 1.24.17 -> 1.30.4: UNKNOWN, at least one hop of the stepwise path is not decided; every hop is listed
+- hop 1 1.24.17 -> 1.25: PASS
+- hop 2 1.25 -> 1.26: PASS
+- hop 3 1.26 -> 1.27: PASS
+- hop 4 1.27 -> 1.28: UNDECIDED (LINE\_NOT\_ATTESTED)
+- hop 5 1.28 -> 1.29: PASS
+- hop 6 1.29 -> 1.30.4: UNDECIDED (LINE\_NOT\_ATTESTED)
+- missing for hop 4: LINE\_NOT\_ATTESTED; next: check the kubernetes 1.28 release notes for other removed APIs by hand, or request a line review
+- missing for hop 6: LINE\_NOT\_ATTESTED; next: check the kubernetes 1.30 release notes for other removed APIs by hand, or request a line review
+- scope: composed from the hops of the planned path through the named releases, from the reviewed removed-API rules, line reviews and one-way notices that apply to each hop, for the objects of the manifests as they are today; a direct skip of a release line, other patch releases of an intermediate line, behaviour changes without a removed API, and gaps the report lists outside any hop are not part of a pass
+
 ## NOT CHECKED (2)
 
 | Area | What | Next step |

@@ -1,6 +1,15 @@
 PASS FOR THE DECLARED SCOPE (Kubernetes API versions in the supplied manifests only; not a whole-upgrade pass)
 
 kubernetes 1.24.17 -> 1.30.4: 6 hops (path policy sequential_minor)
+kubernetes 1.24.17 -> 1.30.4: STEPWISE_PASS, every hop of the stepwise path is decided; not a statement about a direct jump
+  hop 1 1.24.17 -> 1.25: PASS
+  hop 2 1.25 -> 1.26: PASS
+  hop 3 1.26 -> 1.27: PASS
+  hop 4 1.27 -> 1.28: PASS
+  hop 5 1.28 -> 1.29: PASS
+  hop 6 1.29 -> 1.30.4: PASS
+  decided by hop 1, 2, 3, 4, 5, 6
+  scope: composed from the hops of the planned path through the named releases, from the reviewed removed-API rules, line reviews and one-way notices that apply to each hop, for the objects of the manifests as they are today; a direct skip of a release line, other patch releases of an intermediate line, behaviour changes without a removed API, and gaps the report lists outside any hop are not part of a pass
 
 Read 2 documents over 6 hops; 1 of 1 component has rules. 11 checks passed (--show-passes).
 Scope limits: node and kubelet version skew not evaluated; Kubernetes: only API versions in the supplied manifests are evaluated; live cluster objects, CRDs, stored versions, admission and component configuration are not.
