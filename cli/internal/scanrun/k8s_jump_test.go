@@ -223,7 +223,7 @@ func TestKubernetesJumpKubeletSkew(t *testing.T) {
 		t.Fatalf("jump %+v", jump)
 	}
 	last := jump.Hops[3]
-	if last.To != "1.33.1" || last.Status != scanreport.JumpHopAttention || len(last.Entries) != 1 || !strings.Contains(last.Entries[0], "upgrade kubelets to >= 1.30.0 before this hop") {
+	if last.To != "1.33.1" || last.Status != scanreport.JumpHopAttention || len(last.Entries) != 1 || !strings.Contains(last.Entries[0], "upgrade kubelets to >= 1.30.0") {
 		t.Fatalf("last hop %+v", last)
 	}
 	for _, hop := range jump.Hops[:3] {
@@ -278,6 +278,49 @@ func TestKubernetesJumpKubeletSkew(t *testing.T) {
 	result.Report.Paths[0].Jump = nil
 	if scanreport.Exit(result.Report) != scanreport.ExitBlocked {
 		t.Fatal("exit read the jump")
+	}
+}
+
+// The skew window is computed from the declared kubelet versions for every
+// hop, not only where a signed rule fires: a hop outside it is ATTENTION
+// labelled as computed, never a pass, and the action names the highest
+// minimum kubelet across the hops. The exit is unchanged.
+func TestKubernetesJumpKubeletWindowEveryHop(t *testing.T) {
+	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
+	command := args(paths, "--from", "kubernetes=1.29.6", "--to", "kubernetes=1.33.1", "--kubelet-version-min", "1.26.0")
+	result := mustScan(t, newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"}), command...)
+	jump := result.Report.Paths[0].Jump
+	if jump == nil || len(jump.Hops) != 4 || jump.Status == scanreport.JumpStepwisePass {
+		t.Fatalf("jump %+v", jump)
+	}
+	for _, hop := range jump.Hops {
+		if hop.Status != scanreport.JumpHopAttention || len(hop.Entries) != 1 || !strings.Contains(hop.Entries[0], "upgrade kubelets to >= 1.30.0 (the highest minimum across the hops) before the first hop") {
+			t.Fatalf("hop %+v", hop)
+		}
+	}
+	first := jump.Hops[0].Entries[0]
+	if !strings.HasPrefix(first, "computed: declared kubelet 1.26.0 is outside the supported skew for 1.30;") {
+		t.Fatalf("first hop %q", first)
+	}
+	// With the signed rule at the last hop, its rule id is cited there.
+	if !strings.Contains(jump.Hops[3].Entries[0], "kubelet-version-skew") && !strings.HasPrefix(jump.Hops[3].Entries[0], "computed:") {
+		t.Fatalf("last hop %q", jump.Hops[3].Entries[0])
+	}
+	withExit := scanreport.Exit(result.Report)
+	result.Report.Paths[0].Jump = nil
+	if scanreport.Exit(result.Report) != withExit || withExit != result.Exit {
+		t.Fatalf("exit %d", withExit)
+	}
+	// Inside the window nothing is computed: kubelet 1.29 over 1.29.6 to 1.31.2.
+	insideResult := mustScan(t, newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"}), args(paths, "--from", "kubernetes=1.29.6", "--to", "kubernetes=1.31.2", "--kubelet-version-min", "1.29.0")...)
+	inside := insideResult.Report.Paths[0].Jump
+	if inside == nil || len(inside.Hops) != 2 {
+		t.Fatalf("inside the window %+v", inside)
+	}
+	for _, hop := range inside.Hops {
+		if len(hop.Entries) != 0 && strings.HasPrefix(hop.Entries[0], "computed:") {
+			t.Fatalf("computed line inside the window: %+v", hop)
+		}
 	}
 }
 
