@@ -405,7 +405,7 @@ func gitReleaseTags(t *testing.T) (tags []releaseTag, reason string) {
 	if len(names) == 0 {
 		return nil, "the checkout has no release tags (fetch them: fetch-depth 0)"
 	}
-	added, err := git("log", "--diff-filter=A", "--format=%H", "--", "internal/cncfcheck/listedfloor.go")
+	added, err := git("log", "--diff-filter=A", "--format=%H", "--", "listedfloor.go")
 	lines := strings.Fields(added)
 	if err != nil || len(lines) == 0 {
 		return nil, "the checkout has no history back to the commit that added the family floor"
