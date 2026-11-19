@@ -19,6 +19,12 @@ Download from the GitHub release page and verify before you run anything. The
 full procedure, and what each step proves, is in [releasing](releasing.md#verifying-a-release).
 In short:
 
+Stock Debian, Ubuntu and Alpine images have no `curl`. Install it first
+(`apt-get update && apt-get install -y curl ca-certificates`, or
+`apk add curl ca-certificates`), or replace `curl -fsSLO URL` below with
+`wget URL` (`wget` ships with Alpine's busybox; `apt-get install -y wget
+ca-certificates` on Debian and Ubuntu).
+
 ```sh
 TAG=v0.1.0-beta.0
 ARCHIVE="prufyx_${TAG}_linux_amd64.tar.gz"   # linux or darwin, amd64 or arm64
@@ -28,7 +34,8 @@ curl -fsSLO "$BASE/SHA256SUMS" && curl -fsSLO "$BASE/$ARCHIVE"
 # 1. Checksum: detects changed bytes only, says nothing about who built it.
 grep " $ARCHIVE\$" SHA256SUMS | sha256sum -c -     # macOS: shasum -a 256 -c -
 
-# 2. Attestation: the archive was built by this repository's release workflow.
+# 2. Attestation (needs the gh CLI, installed and logged in with `gh auth
+#    login`; without it, rely on the SHA256SUMS check alone): the archive was built by this repository's release workflow.
 gh attestation verify "$ARCHIVE" \
   --repo prufyx/prufyx \
   --signer-workflow prufyx/prufyx/.github/workflows/release.yml \
@@ -239,7 +246,44 @@ expired rule, a missing declaration. Read the reason lines. Full tables:
   --bootstrap-root-digest sha256:...`: you need a package source you operate
   and a root you verified independently.
 - `prufyx db verify FILE` checks a package offline; `db import` installs a
-  package you carried over; `db status` (no flags) shows the default store, or the age of the embedded knowledge when none is installed.
+  package you carried over; `db status` (no flags) shows the default store
+  `db update` writes to (`$XDG_DATA_HOME/prufyx/knowledge/cncf-projects`, else
+  `~/.local/share/prufyx/knowledge/cncf-projects`). With nothing installed it
+  prints the age of the embedded knowledge and exits `11` ("no verified
+  knowledge database is selected; checks use the embedded knowledge"): that is
+  the normal state of a fresh machine, not a failure. Builds up to and
+  including `v0.1.0-beta.0` read a bare `db status` as the `cert-manager`
+  profile and exit `2`; there, run `prufyx db status --profile cncf-projects`.
+- Where to get the root for `db verify` and the manual `db update`: the
+  official initial root is `cli/internal/knowledgepin/root.json` in the source
+  tree of the tag you installed; it is not a release asset and the binary has
+  no command that prints it. The digest the binary pins is
+  `sha256:11eff27032c4a3db126d030ae860e881e8e0dd1e7c37fcc4f10ef5fde70a326a`
+  (`cncf-projects`). Do not trust a root only because its download hashes to a
+  digest from the same place: compare the digest you compute with the one in
+  `cli/internal/knowledgepin/pin.go` of the verified tag. From a clean machine
+  (needs `curl` or `wget`, see section 1):
+
+  ```sh
+  TAG=v0.1.0-beta.0
+  curl -fsSLO https://prufyx.github.io/prufyx/knowledge/cncf-projects.tar
+  curl -fsSL -o root.json \
+    "https://raw.githubusercontent.com/prufyx/prufyx/$TAG/cli/internal/knowledgepin/root.json"
+  # without curl: wget -O root.json "<same URL>"
+  DIGEST="sha256:$(sha256sum root.json | cut -d' ' -f1)"
+  # macOS: DIGEST="sha256:$(shasum -a 256 root.json | cut -d' ' -f1)"
+  echo "$DIGEST"   # must equal the pinned digest above
+  prufyx db verify cncf-projects.tar --profile cncf-projects \
+    --bootstrap-root root.json --bootstrap-root-digest "$DIGEST"
+  ```
+
+  The current feed package carries an engine capability that
+  `v0.1.0-beta.0` does not have, so on beta.0 `db verify` most likely exits
+  `15` (`KNOWLEDGE_CAPABILITY_MISMATCH`) until beta.1; the root and signatures
+  are not the problem (see `knowledge-updates.md`). What beta.0 can prove today:
+  the root file's digest (the `sha256sum` result equals the pinned digest above)
+  and the release `SHA256SUMS` check in section 1. The full `db verify` works
+  from beta.1 on.
 - Offline behaviour: checks never touch the network. With no store they use the
   embedded knowledge. If a default local store exists, the newer knowledge wins:
   the latest evidence review date of the store and of the embedded knowledge are
