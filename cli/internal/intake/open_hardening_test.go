@@ -266,9 +266,9 @@ func TestOpenDenseFlowSequenceIsRefusedCheaply(t *testing.T) {
 			t.Fatalf("%d bytes: %d MiB allocated before refusal", size, allocated>>20)
 		}
 	}
-	// The default per-file bound refuses the 8 MiB file before reading it.
+	// The default per-file bound refuses a file over 8 MiB before reading it.
 	path := filepath.Join(root(t), "big.yaml")
-	write(t, path, "["+strings.Repeat("1,", 4<<20-2)+"1]\n", 0o600)
+	write(t, path, "["+strings.Repeat("1,", 4<<20)+"1]\n", 0o600)
 	if _, err := Open([]string{path}, Options{}); !errors.Is(err, ErrLimit) {
 		t.Fatalf("default limits: %v", err)
 	}
@@ -424,5 +424,66 @@ func TestOpenAllowlist(t *testing.T) {
 	}
 	if w.AllowlistSkipped != 3 || len(w.Omissions) != 4 || !hasReason(w, filepath.Join(dir, ".github"), ReasonHiddenDirectorySkipped) || !hasReason(w, filepath.Join(dir, "a.tpl"), ReasonNotManifestName) {
 		t.Fatalf("skipped %d omissions %+v", w.AllowlistSkipped, w.Omissions)
+	}
+}
+
+// realistic returns about size bytes of ordinary manifests, one ConfigMap per
+// document, the shape of a rendered chart.
+func realistic(size int) (string, int) {
+	var b strings.Builder
+	docs := 0
+	for b.Len() < size {
+		fmt.Fprintf(&b, "---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: cm-%d\n  namespace: monitoring\ndata:\n  rules.yaml: \"%s\"\n", docs, strings.Repeat("x", 12000))
+		docs++
+	}
+	return b.String(), docs
+}
+
+func TestOpenAdmitsWholeRenderedChartInOneFile(t *testing.T) {
+	text, docs := realistic(3_500_000)
+	path := filepath.Join(root(t), "rendered.yaml")
+	write(t, path, text, 0o600)
+	w, err := Open([]string{path}, Options{})
+	if err != nil {
+		t.Fatalf("3.5 MB single file: %v", err)
+	}
+	if len(w.Documents) != docs {
+		t.Fatalf("documents %d, want %d", len(w.Documents), docs)
+	}
+}
+
+func TestOpenRefusesFileOverDefaultCapWithWorkaround(t *testing.T) {
+	text, _ := realistic(int(DefaultFileBytes) + 1)
+	path := filepath.Join(root(t), "huge.yaml")
+	write(t, path, text, 0o600)
+	_, err := Open([]string{path}, Options{})
+	if !errors.Is(err, ErrLimit) {
+		t.Fatalf("over the cap: %v", err)
+	}
+	for _, want := range []string{"more than 8388608 bytes per file", "8 MiB", "split the input into several files in a directory"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("message %q lacks %q", err, want)
+		}
+	}
+	under := text[:DefaultFileBytes]
+	under = under[:strings.LastIndex(under, "\n---\n")+1]
+	write(t, path, under, 0o600)
+	if _, err := Open([]string{path}, Options{}); err != nil {
+		t.Fatalf("under the cap: %v", err)
+	}
+}
+
+// The raised byte cap must not loosen the node and document bounds: a small
+// but dense file and a file of many tiny documents are still refused.
+func TestOpenDefaultNodeAndDocumentCapsRefuseSmallDenseFiles(t *testing.T) {
+	dense := filepath.Join(root(t), "dense.yaml")
+	write(t, dense, strings.Repeat("---\n["+strings.Repeat("1,", 1499)+"1]\n", 400), 0o600) // ~1.2 MB, ~600k nodes
+	if _, err := Open([]string{dense}, Options{}); !errors.Is(err, ErrLimit) || !strings.Contains(err.Error(), "nodes") {
+		t.Fatalf("dense: %v", err)
+	}
+	many := filepath.Join(root(t), "many.yaml")
+	write(t, many, strings.Repeat("---\na: 1\n", DefaultDocuments+1), 0o600)
+	if _, err := Open([]string{many}, Options{}); !errors.Is(err, ErrLimit) || !strings.Contains(err.Error(), "documents") {
+		t.Fatalf("many documents: %v", err)
 	}
 }
