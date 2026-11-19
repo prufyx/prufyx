@@ -68,6 +68,11 @@ func renderCSV(report Report, options RenderOptions) ([]byte, error) {
 			return nil, err
 		}
 	}
+	for _, cr := range report.CustomResources {
+		if err := writer.Write(csvCustomResourceRow(cr)); err != nil {
+			return nil, err
+		}
+	}
 	if options.ShowPasses {
 		for _, pass := range report.Passes {
 			row := make([]string, len(csvColumns))
