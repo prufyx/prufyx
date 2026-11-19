@@ -37,12 +37,12 @@ const (
 	RefChartCRDs = "chart-crds-dir"
 )
 
-// TreeRef is one literal reference. To is a normalised tree path; a directory
+// TreeRef is one literal reference. Target is a normalised tree path; a directory
 // ends in "/".
 type TreeRef struct {
-	From string `json:"from"`
-	To   string `json:"to"`
-	Kind string `json:"kind"`
+	Referrer string `json:"from"`
+	Target   string `json:"to"`
+	Kind     string `json:"kind"`
 }
 
 // maxRefsPerFile bounds the entries read from one file.
@@ -149,26 +149,26 @@ func ReadTreeRefs(entries []Entry, read func(p string) ([]byte, error)) []TreeRe
 					}
 					switch {
 					case files[q]:
-						add(TreeRef{From: e.Path, To: q, Kind: set.kind})
+						add(TreeRef{Referrer: e.Path, Target: q, Kind: set.kind})
 					case dirs[q]:
-						add(TreeRef{From: e.Path, To: q + "/", Kind: set.kind})
+						add(TreeRef{Referrer: e.Path, Target: q + "/", Kind: set.kind})
 					}
 				}
 			}
 		case base == "Chart.yaml":
 			crds := path.Join(path.Dir(e.Path), "crds")
 			if dirs[crds] && !links[crds] {
-				add(TreeRef{From: e.Path, To: crds + "/", Kind: RefChartCRDs})
+				add(TreeRef{Referrer: e.Path, Target: crds + "/", Kind: RefChartCRDs})
 			}
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {
 		a, b := out[i], out[j]
-		if a.From != b.From {
-			return a.From < b.From
+		if a.Referrer != b.Referrer {
+			return a.Referrer < b.Referrer
 		}
-		if a.To != b.To {
-			return a.To < b.To
+		if a.Target != b.Target {
+			return a.Target < b.Target
 		}
 		return a.Kind < b.Kind
 	})
@@ -196,12 +196,12 @@ func CoveredFiles(entries []Entry, refs []TreeRef) map[string]bool {
 	}
 	for _, r := range refs {
 		switch {
-		case !strings.HasSuffix(r.To, "/"):
-			if isFile[r.To] {
-				cov[r.To] = true
+		case !strings.HasSuffix(r.Target, "/"):
+			if isFile[r.Target] {
+				cov[r.Target] = true
 			}
 		case r.Kind == RefChartCRDs:
-			for _, f := range byDir[r.To] {
+			for _, f := range byDir[r.Target] {
 				cov[f] = true
 			}
 		}

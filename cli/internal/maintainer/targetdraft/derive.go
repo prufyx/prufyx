@@ -439,7 +439,7 @@ func (d *deriveTags) deriveTag(i int) (tagDerivation, []Stop) {
 	refs := ReadTreeRefs(entries, d.trees[i].Read)
 	external := false
 	for _, r := range refs {
-		if !strings.HasPrefix(r.From, dir) && (r.To == dir || strings.HasPrefix(r.To, dir)) {
+		if !strings.HasPrefix(r.Referrer, dir) && (r.Target == dir || strings.HasPrefix(r.Target, dir)) {
 			external = true
 			break
 		}
