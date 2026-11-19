@@ -26,6 +26,7 @@ const (
 	MaxSubchartDepth  = 4         // nested chart archives and directories
 	MaxTemplateDepth  = 8         // helper include depth
 	MaxNestDepth      = 64        // control-structure nesting in one template
+	MaxHelperWork     = 20000     // helper evaluations in one chart
 	MaxEntries        = 4096      // listed (apiVersion, kind) occurrences
 	MaxValueSetSize   = 64        // finite alternatives of one value
 	maxChartYAMLBytes = 1 << 20

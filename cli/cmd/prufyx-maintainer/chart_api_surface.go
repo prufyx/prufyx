@@ -47,7 +47,7 @@ func runChartAPISurface(args []string, stdout, stderr io.Writer) error {
 		return &commandError{code: 1, message: "chart-api-surface: " + err.Error()}
 	}
 	if *oracle != "" {
-		rendered, err := chartapisurface.RunOracleCommand(*oracle, *chart)
+		rendered, err := chartapisurface.RunOracleCommand(*oracle, raw)
 		if err != nil {
 			led.MarkOracleUnavailable(err.Error())
 		} else {

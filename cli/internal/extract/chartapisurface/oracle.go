@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
@@ -20,6 +21,7 @@ const (
 	MaxOracleBytes   = 16 << 20
 	MaxOracleDocs    = 4096
 	OracleTimeout    = 60 * time.Second
+	OracleWaitDelay  = 5 * time.Second
 	OracleOK         = "ok"
 	OracleMismatch   = "mismatch"
 	OracleExtraOnWH  = "extra_objects_chart_withheld"
@@ -99,18 +101,30 @@ func (l *Ledger) ApplyOracle(rendered []byte) {
 }
 
 // RunOracleCommand runs an operator-provided offline renderer: an absolute
-// path, run without a shell, with the chart archive path as its only
-// argument and a bounded time. Its stdout is a multi-document YAML render of
-// the chart with default values. The reader has no renderer of its own and
-// adds no dependency; the factory supplies this command.
-func RunOracleCommand(cmdPath, chartPath string) ([]byte, error) {
+// path, run without a shell, with a private copy of the already-read chart
+// archive bytes as its only argument and a bounded time. Its stdout is a
+// multi-document YAML render of the chart with default values. The archive is
+// not re-opened from its original path, so the render is of the bytes the
+// reader scanned. The reader has no renderer of its own and adds no
+// dependency; the factory supplies this command.
+func RunOracleCommand(cmdPath string, archive []byte) ([]byte, error) {
 	if !filepath.IsAbs(cmdPath) {
 		return nil, errors.New("oracle command must be an absolute path")
+	}
+	dir, err := os.MkdirTemp("", "chart-oracle-")
+	if err != nil {
+		return nil, fmt.Errorf("oracle workspace: %v", err)
+	}
+	defer os.RemoveAll(dir)
+	chartPath := filepath.Join(dir, "chart.tgz")
+	if err := os.WriteFile(chartPath, archive, 0o600); err != nil {
+		return nil, fmt.Errorf("oracle workspace: %v", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), OracleTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, cmdPath, chartPath)
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "LC_ALL=C"}
+	cmd.WaitDelay = OracleWaitDelay
 	var out limitBuf
 	cmd.Stdout = &out
 	if err := cmd.Run(); err != nil {

@@ -60,7 +60,9 @@ type scanner struct {
 	defs      map[string][]tmplDef
 	usesFiles bool
 	hadDocs   int // templated files that are not pure helpers
-	cache     map[string]vres
+	work      int
+	offsets   map[string][]int
+	offLens   map[string]int
 	fileText  map[string]string
 
 	// per file
@@ -88,7 +90,29 @@ func (s *scanner) lineOf(off int) int {
 	if off > len(s.text) {
 		off = len(s.text)
 	}
-	return 1 + strings.Count(s.text[:off], "\n")
+	if off < 0 {
+		off = 0
+	}
+	offs := s.offsets[s.file]
+	if offs == nil || len(s.text) != s.offsetsLen(s.file) {
+		offs = []int{0}
+		for i := 0; i < len(s.text); i++ {
+			if s.text[i] == '\n' {
+				offs = append(offs, i+1)
+			}
+		}
+		s.offsets[s.file] = offs
+		s.offLens[s.file] = len(s.text)
+	}
+	// number of line starts at or before off
+	return sort.Search(len(offs), func(i int) bool { return offs[i] > off })
+}
+
+func (s *scanner) offsetsLen(file string) int {
+	if n, ok := s.offLens[file]; ok {
+		return n
+	}
+	return -1
 }
 
 // Read reads one archive and returns its ledger without a served-API check.
@@ -105,7 +129,7 @@ func Read(raw []byte) (*Ledger, error) {
 		Schema: Schema, Mode: Mode,
 		Chart: ChartID{Name: root.meta.Name, Version: root.meta.Version, ArchiveSHA256: "sha256:" + hex.EncodeToString(sum[:])},
 	}
-	s := &scanner{led: led, defs: map[string][]tmplDef{}, cache: map[string]vres{}, fileText: map[string]string{}}
+	s := &scanner{led: led, defs: map[string][]tmplDef{}, offsets: map[string][]int{}, offLens: map[string]int{}, fileText: map[string]string{}}
 	s.run(root)
 	led.Finish()
 	return led, nil
@@ -390,14 +414,8 @@ func (s *scanner) walkList(nodes []parse.Node, cond bool) {
 				s.events = append(s.events, ev)
 			}
 		case *parse.ActionNode:
-			if usesFilesIn(n.Pipe) {
-				prevNL := i == 0
-				if t, ok := nodes[i-boolToInt(i > 0)].(*parse.TextNode); ok && i > 0 {
-					prevNL = bytes.HasSuffix(t.Text, []byte("\n"))
-				}
-				if prevNL {
-					s.withhold(CodeFilesOrTpl, "document-level file or string rendering", s.lineOf(int(n.Pos)))
-				}
+			if usesFilesIn(n.Pipe) && !inScalarValue(nodes, i) {
+				s.withhold(CodeFilesOrTpl, "document-level file or string rendering", s.lineOf(int(n.Pos)))
 			}
 		case *parse.IfNode:
 			s.walkList(listNodes(n.List), true)
@@ -412,11 +430,28 @@ func (s *scanner) walkList(nodes []parse.Node, cond bool) {
 	}
 }
 
-func boolToInt(b bool) int {
-	if b {
-		return 1
+var scalarPrefixRE = regexp.MustCompile(`\S[^\n]*:(\s|$)`)
+
+// inScalarValue reports whether the action at nodes[i] sits on a line that
+// already holds a "key:" before it, so its output is a value inside a
+// mapping. The text before it on the line is rebuilt across earlier nodes,
+// whatever their kind and however whitespace was trimmed; when no line start
+// is found the answer is no, which withholds.
+func inScalarValue(nodes []parse.Node, i int) bool {
+	prefix := ""
+	for j := i - 1; j >= 0; j-- {
+		t, ok := nodes[j].(*parse.TextNode)
+		if !ok {
+			continue
+		}
+		txt := string(t.Text)
+		if k := strings.LastIndexByte(txt, '\n'); k >= 0 {
+			prefix = txt[k+1:] + prefix
+			break
+		}
+		prefix = txt + prefix
 	}
-	return 0
+	return scalarPrefixRE.MatchString(prefix)
 }
 
 func listNodes(l *parse.ListNode) []parse.Node {
@@ -745,6 +780,10 @@ func (s *scanner) evalPipe(p *parse.PipeNode, depth int) vres {
 func (s *scanner) evalHelper(name string, at parse.Node, depth int) vres {
 	if depth >= MaxTemplateDepth {
 		return s.fail(CodeTemplateDepth, name, at)
+	}
+	s.work++
+	if s.work > MaxHelperWork {
+		return s.fail(CodeWorkExceeded, "helper evaluations", at)
 	}
 	for _, on := range s.stack {
 		if on == name {

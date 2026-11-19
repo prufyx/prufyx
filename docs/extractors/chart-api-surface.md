@@ -55,15 +55,31 @@ With `--served-apis` (a served-list document) and `--lines`, each line gets
 `would-block` (an unconditional entry the line does not serve),
 `would-pass` (nothing blocks and the chart is complete; unserved conditional
 entries are notices) or `withheld` (chart withheld, no list for the line, or a
-partial list). Pairs whose group no served list knows are reported as
-`not_builtin` and never decided. Freshness of the served list is not judged
+partial list, a tool-bug oracle mismatch, or a group that is neither in a
+served list nor classifiable). A tool-bug mismatch overrides `would-block`.
+A group missing from every supplied served list is built-in only when it is in
+the fixed built-in group list in code (a removed built-in group is then
+unserved); a dotted group outside that list and not under `k8s.io` is reported
+as `not_builtin` and never decided; any other is withheld as
+`group_not_classified`. Freshness of the served list is not judged
 here.
 
 ## Oracle
 
 The reader has no renderer and adds no dependency. `--oracle-cmd` names an
-absolute path the factory provides; it runs without a shell with the archive
-path as its only argument and prints an offline render with default values.
+absolute path the factory provides; it runs without a shell, with a private
+copy of the archive bytes the reader scanned (not the original path) as its
+only argument, a time bound and a kill delay and prints an offline render with default values.
 Every rendered pair must be in the static set. A miss on a complete chart is
 `tool_bug_oracle_mismatch` and withholds it; a requested oracle that cannot
 run or whose output is unreadable withholds with `oracle_unavailable`.
+
+## Scope of an empty scan
+
+`empty_scan` is chart-level: it fires when templates exist and no object was
+listed in the whole chart. A single template that lists nothing in a chart
+that lists others is not flagged; per-template emptiness belongs to the
+attestation design. Document-level `tpl` and `.Files` rendering is withheld
+as `objects_from_files_or_tpl` wherever it appears and whatever else was
+listed; only a use inside a `key: value` line is treated as a scalar. Helper
+evaluation is bounded by a work counter (`work_budget_exceeded`).

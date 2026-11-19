@@ -44,6 +44,8 @@ const (
 	CodeHelperAmbiguous    = "helper_ambiguous"
 	CodeTemplateDepth      = "template_depth_exceeded"
 	CodeTemplateParse      = "template_parse_error"
+	CodeWorkExceeded       = "work_budget_exceeded"
+	CodeGroupUnclassified  = "group_not_classified"
 	CodeDocumentPairing    = "document_pairing"
 	CodeListKind           = "list_kind_items_unscanned"
 	CodeEmptyScan          = "empty_scan"

@@ -295,6 +295,41 @@ func TestFileBackedObjectsAreRefused(t *testing.T) {
 	}
 }
 
+func TestMixedChartFileRenderedDocumentWithheld(t *testing.T) {
+	lit := "apiVersion: v1\nkind: ConfigMap\n"
+	for name, tail := range map[string]string{
+		"trimmed text":  "---\n{{- tpl .Values.x . }}\n",
+		"after action":  "---\n{{ $x := 1 }}{{ .Files.Get \"f\" }}\n",
+		"trimmed files": "---\n{{- .Files.Get \"f\" }}\n",
+		"list item":     "---\n- {{ tpl .Values.x . }}\n",
+	} {
+		l := read(t, map[string]string{"templates/a.yaml": lit + tail})
+		if l.Status != StatusWithheld || len(l.APIs) == 0 || !hasCode(l, CodeFilesOrTpl) {
+			t.Fatalf("%s: %v", name, codes(l))
+		}
+	}
+}
+
+func TestHelperWorkBudget(t *testing.T) {
+	var h strings.Builder
+	const levels = MaxTemplateDepth - 1
+	for i := 0; i < levels; i++ {
+		fmt.Fprintf(&h, "{{ define \"h%d\" }}", i)
+		for j := 0; j < 10; j++ {
+			fmt.Fprintf(&h, "{{ include \"h%d\" . }}", i+1)
+		}
+		h.WriteString("{{ end }}\n")
+	}
+	fmt.Fprintf(&h, "{{ define \"h%d\" }}v1{{ end }}\n", levels)
+	l := read(t, map[string]string{
+		"templates/_h.tpl": h.String(),
+		"templates/a.yaml": "apiVersion: {{ include \"h0\" . }}\nkind: ConfigMap\n",
+	})
+	if l.Status != StatusWithheld || !hasCode(l, CodeWorkExceeded) {
+		t.Fatal(codes(l))
+	}
+}
+
 func TestChartWithoutTemplatesIsCompleteAndEmpty(t *testing.T) {
 	l := read(t, map[string]string{"values.yaml": "a: 1\n"})
 	if l.Status != StatusComplete || len(l.APIs) != 0 {
@@ -532,6 +567,32 @@ func TestServedCheckNegatives(t *testing.T) {
 	l.CheckServed(served, []string{"1.26", "1.99"})
 	if l.ServedChecks[0].Result != ResultWithheld || l.ServedChecks[1].Result != ResultWithheld || len(l.ServedChecks[0].Unknown) != 1 {
 		t.Fatalf("%+v", l.ServedChecks)
+	}
+}
+
+func TestRemovedBuiltinGroupAndUnclassified(t *testing.T) {
+	// a built-in group no record lists is not foreign: unserved, so it blocks
+	l := read(t, map[string]string{"templates/a.yaml": "apiVersion: extensions/v1beta1\nkind: Ingress\n"})
+	l.CheckServed(served, []string{"1.25"})
+	if c := l.ServedChecks[0]; c.Result != ResultWouldBlock || len(c.NotBuiltin) != 0 {
+		t.Fatalf("%+v", c)
+	}
+	// an unlisted dotless or k8s.io group is withheld, not foreign
+	for _, av := range []string{"newgroup/v1", "future.k8s.io/v1"} {
+		l = read(t, map[string]string{"templates/a.yaml": "apiVersion: " + av + "\nkind: Thing\n"})
+		l.CheckServed(served, []string{"1.25"})
+		if c := l.ServedChecks[0]; c.Result != ResultWithheld || len(c.NotBuiltin) != 0 {
+			t.Fatalf("%s %+v", av, c)
+		}
+	}
+}
+
+func TestToolBugOverridesWouldBlock(t *testing.T) {
+	l := read(t, map[string]string{"templates/pdb.yaml": "apiVersion: policy/v1beta1\nkind: PodDisruptionBudget\n"})
+	l.ApplyOracle([]byte("apiVersion: policy/v1beta1\nkind: PodDisruptionBudget\n---\napiVersion: v1\nkind: Secret\n"))
+	l.CheckServed(served, []string{"1.25"})
+	if c := l.ServedChecks[0]; c.Result != ResultWithheld {
+		t.Fatalf("%+v", c)
 	}
 }
 
