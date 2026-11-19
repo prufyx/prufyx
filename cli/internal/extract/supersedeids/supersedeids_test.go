@@ -147,11 +147,12 @@ func goList(t *testing.T, env []string, args ...string) []string {
 const (
 	supersedeidsPath     = "github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	supersedefixturePath = "github.com/prufyx/prufyx/cli/internal/extract/supersedefixture"
+	testclockPath        = "github.com/prufyx/prufyx/cli/internal/testclock"
 	goldenfilePath       = "github.com/prufyx/prufyx/cli/internal/goldenfile"
 )
 
 // testOnly are the packages that exist for tests only.
-var testOnly = []string{supersedeidsPath, supersedefixturePath, goldenfilePath}
+var testOnly = []string{supersedeidsPath, supersedefixturePath, goldenfilePath, testclockPath}
 
 // targets are the platforms the release builds, as GOOS/GOARCH.
 var targets = []string{"linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64"}
@@ -194,8 +195,10 @@ func TestTestOnlyPackagesAreNotInAnyBinary(t *testing.T) {
 			// a package no binary links today, is the first step to a binary.
 			for _, forbidden := range testOnly {
 				for _, importer := range goList(t, env, withTags(tags, "-f", `{{range .Imports}}{{if eq . "`+forbidden+`"}}{{$.ImportPath}} {{end}}{{end}}`, "./...")...) {
-					// The fixture package builds on the id package.
-					if importer != supersedefixturePath || forbidden != supersedeidsPath {
+					// The fixture and testclock packages are test-only themselves
+					// (listed above, so no binary and no other non-test package
+					// may import them) and build on the id package.
+					if (importer != supersedefixturePath && importer != testclockPath) || forbidden != supersedeidsPath {
 						t.Errorf("%s: %s imports %s outside its tests", label, importer, forbidden)
 					}
 				}
