@@ -112,8 +112,9 @@ func setDiff(label string, generated, reviewed []string) []string {
 }
 
 const usage = "usage: prufyx-maintainer target-draft record --dir CHECKOUT --slug SLUG --name NAME --repo github.com/OWNER/NAME --tags TAG[,TAG...] --expected-target FILE --expected-row FILE [--catalog cncf|community] [--component PURL] [--fact-project ID] [--rules FILE] [--strict-window] [--range-check-tags TAG[,TAG...]] [--collapse-directories]\n" +
-	"       prufyx-maintainer target-draft generate --dir CHECKOUT --slug SLUG --name NAME --repo github.com/OWNER/NAME --tags TAG[,TAG...] --out DIR [--catalog cncf|community] [--component PURL] [--fact-project ID] [--rules FILE] [--compare-a FILE] [--compare-b FILE] [--compare-report FILE] [--strict-window] [--range-check-tags TAG[,TAG...]] [--collapse-directories]\n" +
+	"       prufyx-maintainer target-draft generate --dir CHECKOUT --slug SLUG --name NAME --repo github.com/OWNER/NAME --tags TAG[,TAG...] --out DIR [--catalog cncf|community] [--component PURL] [--fact-project ID] [--rules FILE] [--compare-a FILE] [--compare-b FILE] [--compare-report FILE] [--strict-window] [--range-check-tags TAG[,TAG...]] [--collapse-directories] [--derive-rules [--emit-proposals FILE]]\n" +
 	"a typed stop ends the run with no draft written: among others repo-not-canonical (use github.com/<owner>/<name> in lower case), component-not-canonical (use pkg:github/<owner>/<name> in lower case matching the repo) and upstream-not-canonical (a community row's upstream block must name https://<repo> and a licence file under it; a CNCF row takes none)\n" +
+	"--derive-rules (default off; excludes --rules and --range-check-tags) computes the rules from tree facts: installPaths by rule R2 or R3, computed foreign-carrier exclusions only with a positive proof of foreign origin at every tag, and owner-record proposals (never records, --emit-proposals FILE, also written on a typed stop); a scope that needs the owner is the stop scope-needs-owner; see DERIVE.md\n" +
 	"the targets are embedded in the extractor and covered by its code digest, so a reviewed target equals the draft only when the bytes are equal; --compare-a and --compare-b report any byte difference (a whitespace-only one too) and --compare-report compares the facts digest of a reviewed report.json; an optional installPaths list in the rules file names the only source files or directories (path ending in /) of the target, each with a reason and evidence; every other definition file is reported as a non-install-copy in report.json (path, groups, count) and is not read, an entry that matches no definition file at a tag is the stop install-path-matches-nothing, an optional pathFilter list (anchored globs with only * inside one path segment, each with a reason, evidence and a required expectFiles, the exact number of files the entry matches at every tag, a positive integer the rules author pins from reviewed evidence; it needs installPaths) removes matching files under installPaths from the install surface and reports each in report.json as a filtered-copy (path, groups, tags); a filter that matches nothing at a tag is the stop path-filter-matches-nothing, a different file count than expectFiles is path-filter-count-mismatch, a filter never hides an unreadable file; a filtered file is allowed only when every group it defines is a reserved or Kubernetes group or has a known other owner in the ownership index, a group the target reads or the index lists for this project is the stop filter-hides-owned-group and a group with no single known owner is filter-hides-unowned-group; an installPaths entry may carry optional:true (an exact definition file, never a directory) with absentTags naming the tags of the window where its absence is proven: at such a tag the entry is tolerated only on verified true absence from the full local git tree (lazy fetch disabled), a symbolic link, submodule, unreadable or opaque tree entry or a file as parent directory is a stop (optional-path-link, optional-path-unverifiable), a file present at a listed tag is optional-path-present-at-absent-tag, and absence at the newest tag is optional-absent-at-newest; report.json lists per tag whether each optional entry was read or verified-absent and the facts digest covers it; an installPaths entry may carry a role and a tag range (fromTag and toTag, inclusive, tags of the run; an omitted bound is the window edge) and never optional (parse error range-with-optional): entries of one role are the same logical source moving over time, their ranges must be disjoint, contiguous and cover the tag window exactly (range-overlap, range-gap, range-not-covering-window), inside its range an entry is mandatory (range-path-absent-in-range), outside its range its path must be absent from the full local git tree (range-path-present-out-of-range), anything unprovable is range-path-unverifiable; a pathFilter under a ranged entry applies only inside the range; the emitted target lists the union of the paths read (its format is unchanged), report.json lists per tag the selected entry (rangedPaths) and the facts digest covers it; --range-check-tags takes ALL tags of the lines of the run (local git only, never classified) and applies the same presence and absence check to each, so a move in the middle of a line is seen (without it only the one tag per line is seen); a rules file without installPaths behaves as before; a shrunk window (older tags withheld) is a WARNING window-shrunk and exit 0, a typed stop window-shortened with --strict-window; patch fragment handling (always on) sets aside, as non-install and non-definition files listed in report.json (patchFragments, part of the facts digest), unreadable files whose own content proves a kustomize patch fragment (a CustomResourceDefinition mapping or JSON-patch list that touches only metadata, spec.conversion or spec.preserveUnknownFields, no template syntax, no definition key); a fragment never ranks, never counts as an install file and never hides a definition, a fragment reached through a symbolic link and anything ambiguous stays the stop unreadable-shape"
 
 // Run implements "target-draft generate". Exit codes: 0 drafts written (and
@@ -152,7 +153,8 @@ func run(args []string, stdout, stderr io.Writer, open func(dir string) Source) 
 	fl := flag.NewFlagSet("target-draft generate", flag.ContinueOnError)
 	fl.SetOutput(io.Discard)
 	var dir, slug, name, repo, tags, out, catalog, component, fact, rulesPath, cmpA, cmpB, cmpRep string
-	var strict, collapse bool
+	var strict, collapse, deriveRules bool
+	var emitProposals string
 	var rangeTags string
 	fl.StringVar(&dir, "dir", "", "")
 	fl.StringVar(&slug, "slug", "", "")
@@ -170,8 +172,14 @@ func run(args []string, stdout, stderr io.Writer, open func(dir string) Source) 
 	fl.StringVar(&rangeTags, "range-check-tags", "", "")
 	fl.BoolVar(&strict, "strict-window", false, "")
 	fl.BoolVar(&collapse, "collapse-directories", false, "")
+	fl.BoolVar(&deriveRules, "derive-rules", false, "")
+	fl.StringVar(&emitProposals, "emit-proposals", "", "")
 	if err := fl.Parse(args[1:]); err != nil || fl.NArg() != 0 || dir == "" || slug == "" || name == "" || repo == "" || tags == "" || out == "" {
 		fmt.Fprintln(stderr, usage)
+		return 2
+	}
+	if (deriveRules && rulesPath != "") || (emitProposals != "" && !deriveRules) {
+		fmt.Fprintln(stderr, "target-draft: --derive-rules and --rules are mutually exclusive; --emit-proposals needs --derive-rules")
 		return 2
 	}
 	var rules *Rules
@@ -201,10 +209,16 @@ func run(args []string, stdout, stderr io.Writer, open func(dir string) Source) 
 		checkTags = strings.Split(rangeTags, ",")
 	}
 	res, err := Generate(Input{Slug: slug, Name: name, Repo: repo, Component: component, FactProject: fact, Catalog: catalog,
-		Tags: strings.Split(tags, ","), Source: open(dir), Rules: rules, StrictWindow: strict, RangeCheckTags: checkTags, CollapseDirectories: collapse})
+		Tags: strings.Split(tags, ","), Source: open(dir), Rules: rules, StrictWindow: strict, RangeCheckTags: checkTags, CollapseDirectories: collapse, DeriveRules: deriveRules})
 	if err != nil {
 		var se *StopError
 		if errors.As(err, &se) {
+			if emitProposals != "" {
+				if werr := writeProposals(emitProposals, slug, repo, true, nil, se.Proposals, nil); werr != nil {
+					fmt.Fprintf(stderr, "target-draft: %v\n", werr)
+					return 2
+				}
+			}
 			fmt.Fprintln(stdout, se.Error())
 			fmt.Fprintf(stdout, "target-draft: %d typed stop(s); no draft written\n", len(se.Stops))
 			return 1
@@ -280,6 +294,21 @@ func run(args []string, stdout, stderr io.Writer, open func(dir string) Source) 
 		fmt.Fprintln(stdout, "target-draft: differs from the reviewed files; no draft written")
 		return status
 	}
+	if deriveRules {
+		files["rules.json"] = res.RulesJSON
+		names = append(names, "rules.json")
+		sort.Strings(names)
+		if emitProposals != "" {
+			var loose []LooseningItem
+			if res.Report.DerivedRules != nil {
+				loose = res.Report.DerivedRules.Loosening
+			}
+			if werr := writeProposals(emitProposals, slug, repo, false, loose, res.Proposals, res.RulesJSON); werr != nil {
+				fmt.Fprintf(stderr, "target-draft: %v\n", werr)
+				return 2
+			}
+		}
+	}
 	if err := writeAtomic(out, names, files); err != nil {
 		fmt.Fprintf(stderr, "target-draft: %v\n", err)
 		return 2
@@ -350,4 +379,24 @@ func readBounded(p string) ([]byte, error) {
 		return nil, fmt.Errorf("%s: over 4 MiB", p)
 	}
 	return b, nil
+}
+
+// writeProposals writes the owner-proposal document of a derive run (also on a
+// typed stop). It never touches the output directory.
+func writeProposals(file, slug, repo string, stopped bool, loose []LooseningItem, props []OwnerProposal, rules []byte) error {
+	if loose == nil {
+		loose = []LooseningItem{}
+	}
+	if props == nil {
+		props = []OwnerProposal{}
+	}
+	doc := ProposalsDoc{Schema: ProposalsSchema, Slug: slug, Repo: repo, Stopped: stopped, Loosening: loose, Proposals: props}
+	if len(rules) > 0 {
+		doc.RulesDigest = sumHex(rules)
+	}
+	raw, err := marshal(doc)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(file, raw, 0o644)
 }

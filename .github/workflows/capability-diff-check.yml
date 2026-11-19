@@ -1,0 +1,32 @@
+name: Capability diff check
+
+# A capability pull request changes code, never data: no target, recipe, table,
+# guard, rules or ownership file, no catalogue project name in added code, and
+# fixtures pinned by hash. Runs for topic branches named capability/*.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diff-check:
+    name: Capability diff check
+    if: startsWith(github.head_ref, 'capability/')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out the pull request with history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Run the diff check against the base
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          bash scripts/check-no-project-names "${BASE_SHA}" "${HEAD_SHA}"

@@ -37,6 +37,9 @@ const (
 	inferRule     = "R2"
 	inferReason   = "inferred: rule R2 install directory"
 	inferEvidence = "inferred: rule R2 chose this directory at every tag of the run"
+	// inferNoCandidate is the detail of the stop of a tag with no ranked
+	// definition directory; derive mode reads it to try rule R3 (derive.go).
+	inferNoCandidate = "no ranked definition directory (rule R2)"
 )
 
 // inferSkipExact are directory segments that are never an install location.
@@ -204,7 +207,7 @@ func inferOne(tag string, fs []*finding) (string, int, InferTagFact, []Stop) {
 		return a.Dir < b.Dir
 	})
 	if len(cs) == 0 {
-		return "", 0, fact, ambiguous(tag, "no ranked definition directory (rule R2)")
+		return "", 0, fact, ambiguous(tag, inferNoCandidate)
 	}
 	// Tier: ranks 1 and 2 when any exists, otherwise rank 3.
 	tierMax := 3
