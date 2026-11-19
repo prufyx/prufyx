@@ -17,6 +17,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/extract/extractcli"
 	"github.com/prufyx/prufyx/cli/internal/extract/k8sservedapis"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencerepin"
 )
 
@@ -383,8 +384,9 @@ func TestGateReviewedAttestationApproval(t *testing.T) {
 	t.Run("stagger", func(t *testing.T) {
 		base, head := attestedTrees(t, []string{"1.22"}, []string{"1.22"}, func(p *packDoc, atts []map[string]any) []map[string]any {
 			a := reviewedAttestation(t, p, "1.19")
-			// 2026-W50, where most of the shipped pack's leases end.
-			a["evidence"].(map[string]any)["validUntil"] = "2026-12-08T12:00:00Z"
+			// The week where most of the shipped pack's leases end, computed
+			// from the pack: a renewal moves it.
+			a["evidence"].(map[string]any)["validUntil"] = busiestEndNoon(t, p.entries).Format(time.RFC3339)
 			return append(atts, a)
 		})
 		key.pinBoth(t, base, head, "airstand")
@@ -821,4 +823,31 @@ func TestSupersededRecordApprovalCannotReturn(t *testing.T) {
 	if why := liveRecordApproval(Options{Base: base, Head: head, Now: gateNow}, DefaultLayout().ApprovalDir+"/cncf/"+id+".json", true); !strings.Contains(why, "decided strictly later") {
 		t.Fatalf("overwrite at the same time: %q", why)
 	}
+}
+
+// busiestEndNoon is noon (UTC) of a day in the ISO week where the most of the
+// entries' evidence ends (the earliest such week on a tie).
+func busiestEndNoon(t *testing.T, entries []map[string]any) time.Time {
+	t.Helper()
+	counts := map[string]int{}
+	days := map[string]time.Time{}
+	best := ""
+	for _, e := range entries {
+		until, err := time.Parse(time.RFC3339, evidenceOf(e)["validUntil"].(string))
+		if err != nil {
+			t.Fatal(err)
+		}
+		week := evidencereattest.ISOWeek(until)
+		counts[week]++
+		days[week] = time.Date(until.Year(), until.Month(), until.Day(), 12, 0, 0, 0, time.UTC)
+	}
+	for week, n := range counts {
+		if best == "" || n > counts[best] || (n == counts[best] && week < best) {
+			best = week
+		}
+	}
+	if best == "" {
+		t.Fatal("the pack has no entry")
+	}
+	return days[best]
 }
