@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/bundlechart"
 )
 
 const (
@@ -32,11 +34,14 @@ type Options struct {
 	AllowPartial                  bool
 	AcknowledgeExecRisk           bool
 	ExecEnv                       []string
-	Kubectl                       string
-	Now                           func() time.Time
-	Random                        io.Reader
-	kubeconfigSnapshot            []byte
-	outputRootIdentity            os.FileInfo
+	// ChartDeclaration is the user's own chart identity declaration, already
+	// parsed and validated by bundlechart.ParseDeclaration. Nil means none.
+	ChartDeclaration   []bundlechart.Declared
+	Kubectl            string
+	Now                func() time.Time
+	Random             io.Reader
+	kubeconfigSnapshot []byte
+	outputRootIdentity os.FileInfo
 }
 
 type Collector struct{ Runner Runner }
@@ -160,6 +165,8 @@ func (c Collector) Collect(ctx context.Context, opts Options, stdout, stderr io.
 		configuration := []any{}
 		componentOmissions := []any{}
 		certManagerSeen := false
+		chartLabels := []bundlechart.LabelObservation{}
+		unreadChartSources := 0
 		var discoveredGroups map[string]bool
 
 		for _, q := range baseQueries {
@@ -169,6 +176,9 @@ func (c Collector) Collect(ctx context.Context, opts Options, stdout, stderr io.
 				failedReads++
 				addOmission(&omissions, q.name, code)
 				histogram[code]++
+				if isWorkload(q.name) {
+					unreadChartSources++
+				}
 				if isWorkload(q.name) && opts.IncludeComponentConfiguration {
 					componentOmissions = append(componentOmissions, componentFailure(q.name, code))
 				}
@@ -180,10 +190,14 @@ func (c Collector) Collect(ctx context.Context, opts Options, stdout, stderr io.
 				if err != nil {
 					addOmission(&omissions, q.name, "projection_filter_rejected")
 					histogram["projection_filter_rejected"]++
+					unreadChartSources++
 					if opts.IncludeComponentConfiguration {
 						componentOmissions = append(componentOmissions, componentFailure(q.name, "projection_filter_rejected"))
 					}
 					continue
+				}
+				if labels, ok := payload["chartLabels"].([]bundlechart.LabelObservation); ok {
+					chartLabels = append(chartLabels, labels...)
 				}
 				images, _ := payload["publicImages"].([]any)
 				if images == nil {
@@ -247,6 +261,13 @@ func (c Collector) Collect(ctx context.Context, opts Options, stdout, stderr io.
 				return "", 2
 			}
 		}
+
+		chartSet, err := writeChartIdentity(dir, opts.ChartDeclaration, chartLabels, unreadChartSources)
+		if err != nil {
+			fmt.Fprintln(stderr, "Cannot write chart identity.")
+			return "", 2
+		}
+		fmt.Fprintln(stdout, bundlechart.Summary(chartSet))
 
 		if err := writeOmissions(filepath.Join(dir, "omissions.tsv"), omissions); err != nil {
 			fmt.Fprintln(stderr, "Cannot write omission report.")
