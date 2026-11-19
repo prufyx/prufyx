@@ -161,6 +161,7 @@ func (c Collector) Collect(ctx context.Context, opts Options, stdout, stderr io.
 		configuration := []any{}
 		componentOmissions := []any{}
 		certManagerSeen := false
+		templates := ownerTemplates{}
 		var discoveredGroups map[string]bool
 
 		for _, q := range baseQueries {
@@ -177,7 +178,7 @@ func (c Collector) Collect(ctx context.Context, opts Options, stdout, stderr io.
 			}
 
 			if isWorkload(q.name) {
-				payload, err := projectWorkload(root, adapter, opts.ComponentConfigurationProfile, now)
+				payload, err := projectWorkloadWith(root, adapter, opts.ComponentConfigurationProfile, now, templates)
 				if err != nil {
 					addOmission(&omissions, q.name, "projection_filter_rejected")
 					histogram["projection_filter_rejected"]++

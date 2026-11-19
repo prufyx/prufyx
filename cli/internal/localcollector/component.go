@@ -28,6 +28,8 @@ type containerRecord struct {
 	// ephemeral marks an ephemeral container, which no controller template
 	// carries, so no owner chain can represent it.
 	ephemeral bool
+	// podOwner is the template key of the Pod's managing controller, or "".
+	podOwner string
 }
 
 // ownerRef is the part of a metadata.ownerReferences entry the derivation
@@ -37,7 +39,18 @@ type ownerRef struct {
 	controller       bool
 }
 
+// ownerTemplates maps "Kind/namespace/name" of a read controller to the set of
+// container images its pod template declares. It lives in memory for one
+// context's collection and is never written.
+type ownerTemplates map[string]map[string]bool
+
 func projectWorkload(root any, adapter adapterAssets, profile string, now time.Time) (map[string]any, error) {
+	return projectWorkloadWith(root, adapter, profile, now, nil)
+}
+
+// projectWorkloadWith additionally records every template workload's images in
+// templates (when non-nil) and, for Pods, cross-checks against them.
+func projectWorkloadWith(root any, adapter adapterAssets, profile string, now time.Time, templates ownerTemplates) (map[string]any, error) {
 	items, err := listRoot(root, 50000)
 	if err != nil {
 		return nil, err
@@ -78,6 +91,23 @@ func projectWorkload(root any, adapter adapterAssets, profile string, now time.T
 			}
 		}
 		owners := ownerRefs(item)
+		if kind != "Pod" && templates != nil {
+			if key := objectKey(kind, item); key != "" {
+				set := map[string]bool{}
+				for _, list := range [][]any{regularContainers, initContainers} {
+					for _, value := range list {
+						if image, ok := stringValue(at(value, "image")); ok {
+							set[image] = true
+						}
+					}
+				}
+				templates[key] = set
+			}
+		}
+		podOwner := ""
+		if kind == "Pod" {
+			podOwner = controllerKey(item, owners)
+		}
 		for _, list := range []struct {
 			values    []any
 			ephemeral bool
@@ -96,7 +126,7 @@ func projectWorkload(root any, adapter adapterAssets, profile string, now time.T
 				if !ok || strings.ContainsAny(image, "\x00\r\n") {
 					return nil, errProjection
 				}
-				record := containerRecord{index, kind, image, container, initContainers, owners, list.ephemeral}
+				record := containerRecord{index, kind, image, container, initContainers, owners, list.ephemeral, podOwner}
 				if list.presence {
 					presence = append(presence, record)
 				} else {
@@ -157,7 +187,11 @@ func projectWorkload(root any, adapter adapterAssets, profile string, now time.T
 			// so its row (or its own unbound omission) represents it.
 			continue
 		}
-		if record.workloadKind == "Pod" && !record.ephemeral && ownedByReadKind(record, matched.WorkloadKinds) {
+		if record.workloadKind == "Pod" && !record.ephemeral && templates != nil && record.podOwner != "" && templates[record.podOwner][record.image] {
+			// A controller-owned Pod container whose image its owner's
+			// template declares is represented by that controller's list. An
+			// image the template does not declare (an injected sidecar) is
+			// not, and falls through to the unbound omission.
 			continue
 		}
 		omissions = append(omissions, newProjectionOmission(OmissionComponentVersionUnbound, "A reviewed component image ran in an init, ephemeral or bare-Pod container that yields no reviewed binding; the component is present but unverified, so its absence cannot be concluded."))
@@ -669,6 +703,37 @@ func ownerRefs(item any) []ownerRef {
 	return out
 }
 
+// objectKey is the template key of a read object, "" without a name.
+func objectKey(kind string, item any) string {
+	name, ok := stringValue(at(item, "metadata", "name"))
+	if !ok {
+		return ""
+	}
+	ns, _ := at(item, "metadata", "namespace").(string)
+	return kind + "/" + ns + "/" + name
+}
+
+// controllerKey returns the template key of the Pod's managing controller
+// when it is a kind whose own list is read, with the exact apiVersion.
+func controllerKey(item any, owners []ownerRef) string {
+	ns, _ := at(item, "metadata", "namespace").(string)
+	refs, _ := array(nullDefault(at(item, "metadata", "ownerReferences"), []any{}))
+	for i, o := range owners {
+		switch o.kind {
+		case "ReplicaSet", "StatefulSet", "DaemonSet", "Job", "ReplicationController":
+		default:
+			continue
+		}
+		if !controlledBy([]ownerRef{o}, o.kind) {
+			continue
+		}
+		if name, ok := stringValue(at(refs[i], "name")); ok {
+			return o.kind + "/" + ns + "/" + name
+		}
+	}
+	return ""
+}
+
 // regularImageInWorkload reports whether a regular container of the same
 // workload object carries exactly this image.
 func regularImageInWorkload(containers []containerRecord, record containerRecord) bool {
@@ -698,22 +763,12 @@ func controlledBy(owners []ownerRef, kind string) bool {
 	return false
 }
 
-// ownedByReadKind reports whether a ReplicaSet, Job or Pod is derived from a
+// ownedByReadKind reports whether a ReplicaSet or Job is derived from a
 // controller whose own list is read, so another row (or that list's own
 // unbound omission) already represents it. The owner must be the managing
 // controller with the exact apiVersion. A standalone object, a non-controller
 // owner or a foreign apiVersion is not exempt.
 func ownedByReadKind(record containerRecord, adapterKinds []string) bool {
-	if record.workloadKind == "Pod" {
-		// Every controller kind below has its own list in the collection, so
-		// a Pod it manages is covered there.
-		for _, kind := range []string{"ReplicaSet", "StatefulSet", "DaemonSet", "Job", "ReplicationController"} {
-			if controlledBy(record.owners, kind) {
-				return true
-			}
-		}
-		return false
-	}
 	derived := map[string]string{"ReplicaSet": "Deployment", "Job": "CronJob"}
 	want, ok := derived[record.workloadKind]
 	if !ok || !contains(adapterKinds, want) {

@@ -51,8 +51,16 @@ objects are not written, including to intermediate files. The legacy raw-image
 diagnostic output is no longer produced. Current-bundle evaluation consumes the
 typed public component summaries.
 
-`--include-pod-status-images` adds the declared Pod read without changing that
-privacy boundary. A recognized reference with strict public version syntax is
+Every collection reads Pods (`pod-images.json`) so that an image running only
+in an init container, an ephemeral container, a bare Pod or an injected sidecar
+is never reported as an absent component. Only each container's image and the
+Pod's owner kind, apiVersion, controller flag and name are used, in memory;
+only public component rows and the fixed unbound omission are written. If the
+Pod read is denied or fails, the collection is partial and component absence is
+not concluded.
+
+`--include-pod-status-images` adds the Pod status read (image IDs, ready and
+restart counts) without changing that privacy boundary. A recognized reference with strict public version syntax is
 reduced to a typed component/version summary. Other image identities use the
 fixed `PRIVATE_IMAGE_IDENTITY_OMITTED` marker. Runtime image IDs reduce to a
 boolean that says whether the ID independently binds to the same public
@@ -62,8 +70,8 @@ The declared API read footprint is fixed. All collection uses GET or LIST:
 
 | Mode | Kubernetes API requests | Retained projection |
 | --- | --- | --- |
-| Always | `/version`, `/api`, `/apis`; Nodes; Deployments, DaemonSets, StatefulSets, ReplicaSets, Jobs, CronJobs, ReplicationControllers; paginated CustomResourceDefinitions; APIServices; mutating and validating webhook configurations; validating admission policies and bindings; StorageClasses; CSIDrivers; RuntimeClasses | Bounded version, architecture, public component/version, API capability, admission-rule, storage, CSI, and runtime-class fields described in `snapshot-metadata.json`; raw objects and names are discarded |
-| `--include-pod-status-images` | Pods across all namespaces | Typed public component/version summaries, a same-component image-ID binding boolean, scope class, and aggregate ready/restart counts; raw Pod/image/image-ID values are discarded |
+| Always | `/version`, `/api`, `/apis`; Nodes; Deployments, DaemonSets, StatefulSets, ReplicaSets, Jobs, CronJobs, ReplicationControllers, Pods; paginated CustomResourceDefinitions; APIServices; mutating and validating webhook configurations; validating admission policies and bindings; StorageClasses; CSIDrivers; RuntimeClasses | Bounded version, architecture, public component/version, API capability, admission-rule, storage, CSI, and runtime-class fields described in `snapshot-metadata.json`; raw objects and names are discarded; from Pods only container images (regular, init, ephemeral) and ownerReferences are read, never written |
+| `--include-pod-status-images` | Pods across all namespaces (status) | Typed public component/version summaries, a same-component image-ID binding boolean, scope class, and aggregate ready/restart counts; raw Pod/image/image-ID values are discarded |
 | `--include-component-configuration` | Workloads with registered public component identities; after an exact cert-manager workload match, ClusterRoles, Roles, RoleBindings, ClusterRoleBindings, Deployments, Services and Pods, ServiceMonitors, and PodMonitors | Typed public component/version and bounded command projections; cert-manager-specific CRD, admission, RBAC, health-count, monitor-presence, and install-mode predicates when its workload match gates the extra reads; names, subjects, labels, selectors, commands, and raw values are discarded |
 
 The component-configuration opt-in first reduces already-read workloads through
