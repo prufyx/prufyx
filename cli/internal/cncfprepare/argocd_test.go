@@ -68,7 +68,7 @@ func TestPrepareArgoCDExplicitConfigurationFeedsExistingRule(t *testing.T) {
 			if len(facts) != 2 || facts[0]["id"] != ArgoCDInheritanceDisabledFact || facts[1]["id"] != ArgoCDInheritedPermissionsFact {
 				t.Fatalf("facts=%v", facts)
 			}
-			got, err := cncfcheck.Check("argo-cd", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 9, 6, 0, 0, 0, time.UTC)))
+			got, err := cncfcheck.Check("argo-cd", prepared.CanonicalInputJSON, argoBetweenReviewsClock(t))
 			claims := map[string]struct{ status, reason string }{}
 			for _, claim := range got.Check.Claims {
 				claims[claim.RuleID] = struct{ status, reason string }{claim.Status, claim.ReasonCode}
@@ -130,4 +130,28 @@ func TestPrepareArgoCDRejectsWrongResourceAndDuplicateKeys(t *testing.T) {
 			}
 		})
 	}
+}
+
+// argoBetweenReviewsClock is the clock of the scoped-predicate premise: the
+// required-rbac-inheritance rule is in force and the resource-exclusions rule
+// is not yet reviewed. It is the later of one hour before the second rule's
+// review and the first rule's review, computed from the rule data; the test
+// stops if the data leave no such instant.
+func argoBetweenReviewsClock(t *testing.T) time.Time {
+	t.Helper()
+	inForce, _ := testclock.RuleEvidence("argo-cd.required-rbac-inheritance.3-0")
+	notYet, _ := testclock.RuleEvidence("argo-cd.resource-exclusions-v2-visibility-preservation.3-0")
+	first, err1 := time.Parse(time.RFC3339, inForce)
+	second, err2 := time.Parse(time.RFC3339, notYet)
+	if err1 != nil || err2 != nil {
+		t.Fatalf("review times %q %q: %v %v", inForce, notYet, err1, err2)
+	}
+	at := second.Add(-time.Hour)
+	if at.Before(first) {
+		at = first
+	}
+	if !at.Before(second) {
+		t.Fatalf("no instant has the rbac rule in force (%s) and the exclusions rule not reviewed (%s)", inForce, notYet)
+	}
+	return at.UTC()
 }
