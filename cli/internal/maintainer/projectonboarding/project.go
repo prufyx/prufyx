@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -37,19 +38,24 @@ const (
 	maxAggregate      = 32 << 20
 	maxCorpusBytes    = 16 << 20
 	maxRequests       = 108
+	releasePageSize   = 100
+	maxReleasePages   = 10
+	maxWindowRequests = maxRequests + maxReleasePages
 	maxJSONDepth      = 32
 	maxJSONTokens     = 1 << 16
 )
 
 var (
-	ErrRejected    = errors.New("project onboarding rejected")
-	ErrNoEligible  = errors.New("no eligible releases")
-	ErrRateLimited = errors.New("github rate limited")
-	ErrUnavailable = errors.New("repository unavailable")
-	ErrNetwork     = errors.New("network failure")
-	tagRE          = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,95}(?:/[A-Za-z0-9][A-Za-z0-9._-]{0,95}){0,7}$`)
-	pathRE         = regexp.MustCompile(`^(?:[A-Za-z0-9_][A-Za-z0-9._+-]{0,127}/)*[A-Za-z0-9_][A-Za-z0-9._+-]{0,127}$`)
-	objectRE       = regexp.MustCompile(`^sha256/[0-9a-f]{64}$`)
+	selectionLegacy    = "FIRST_PAGE_RECENT_PUBLISHED_NON_PRERELEASE"
+	selectionByVersion = "NEWEST_BY_VERSION_PUBLISHED_NON_PRERELEASE"
+	ErrRejected        = errors.New("project onboarding rejected")
+	ErrNoEligible      = errors.New("no eligible releases")
+	ErrRateLimited     = errors.New("github rate limited")
+	ErrUnavailable     = errors.New("repository unavailable")
+	ErrNetwork         = errors.New("network failure")
+	tagRE              = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,95}(?:/[A-Za-z0-9][A-Za-z0-9._-]{0,95}){0,7}$`)
+	pathRE             = regexp.MustCompile(`^(?:[A-Za-z0-9_][A-Za-z0-9._+-]{0,127}/)*[A-Za-z0-9_][A-Za-z0-9._+-]{0,127}$`)
+	objectRE           = regexp.MustCompile(`^sha256/[0-9a-f]{64}$`)
 )
 
 var snapshotLimitations = []string{
@@ -126,7 +132,7 @@ type githubRelease struct {
 
 func decodeReleaseList(raw []byte) ([]githubRelease, error) {
 	var releases []githubRelease
-	if decodeAPILimit(raw, maxReleaseListAPI, &releases) != nil || len(releases) > 30 {
+	if decodeAPILimit(raw, maxReleaseListAPI, &releases) != nil || len(releases) > releasePageSize {
 		return nil, ErrRejected
 	}
 	for _, release := range releases {
@@ -191,7 +197,7 @@ func runInit(args []string, stderr io.Writer) int {
 	flags.StringVar(&repository, "repository", "", "canonical public GitHub repository")
 	flags.StringVar(&output, "output", "", "new request file")
 	flags.StringVar(&slug, "slug", "", "project slug")
-	flags.IntVar(&limit, "release-limit", 5, "recent release limit")
+	flags.IntVar(&limit, "release-limit", 5, "number of newest releases by version")
 	flags.StringVar(&prefix, "tag-prefix", "", "optional tag prefix")
 	flags.StringVar(&pathsCSV, "changelog-paths", "", "comma-separated commit-pinned changelog candidate paths")
 	flags.StringVar(&license, "license-disposition", "NOT_REVIEWED", "declared license disposition")
@@ -348,6 +354,8 @@ func runSync(ctx context.Context, args []string, stdout, stderr io.Writer, optio
 		switch {
 		case errors.Is(err, ErrNoEligible):
 			return rejectReason(stderr, "NO_ELIGIBLE_RELEASES")
+		case errors.Is(err, ErrWindowCap):
+			return rejectReason(stderr, "RELEASE_LIST_CAP_REACHED")
 		case errors.Is(err, ErrRateLimited):
 			return rejectReason(stderr, "GITHUB_RATE_LIMITED")
 		case errors.Is(err, ErrUnavailable):
@@ -564,7 +572,7 @@ func Sync(ctx context.Context, r request, previousSnapshot map[string]any, prior
 	aggregate, sourceAggregate, requestCount := 0, 0, 0
 	fetch := func(host, path string) ([]byte, int, error) {
 		requestCount++
-		if requestCount > maxRequests {
+		if requestCount > maxWindowRequests {
 			return nil, 0, ErrRejected
 		}
 		return fetcher.Fetch(ctx, host, path)
@@ -616,30 +624,35 @@ func Sync(ctx context.Context, r request, previousSnapshot map[string]any, prior
 	if decodeAPI(repoRaw, &repoWire) != nil || repoWire.ID < 1 || repoWire.FullName != r.owner+"/"+r.name || repoWire.HTMLURL != r.repo {
 		return nil, nil, nil, nil, ErrRejected
 	}
-	releasesRaw, releasesDigest, err := api("/repos/"+r.owner+"/"+r.name+"/releases?per_page=30&page=1", maxReleaseListAPI)
-	if err != nil {
-		return nil, nil, nil, nil, err
+	pages := [][]githubRelease{}
+	pageObjects := []string{}
+	for page := 1; page <= maxReleasePages; page++ {
+		raw, digest, pageErr := api("/repos/"+r.owner+"/"+r.name+"/releases?per_page="+strconv.Itoa(releasePageSize)+"&page="+strconv.Itoa(page), maxReleaseListAPI)
+		if pageErr != nil {
+			return nil, nil, nil, nil, pageErr
+		}
+		decoded, decodeErr := decodeReleaseList(raw)
+		if decodeErr != nil {
+			return nil, nil, nil, nil, ErrRejected
+		}
+		pages = append(pages, decoded)
+		pageObjects = append(pageObjects, "sha256/"+strings.TrimPrefix(digest, "sha256:"))
+		if len(decoded) < releasePageSize {
+			break
+		}
 	}
-	wireReleases, decodeErr := decodeReleaseList(releasesRaw)
-	if decodeErr != nil {
-		return nil, nil, nil, nil, ErrRejected
+	chosen, skippedNonSemver, candidateCount, truncated, selectErr := selectByVersion(pages, r)
+	if selectErr != nil {
+		return nil, nil, nil, nil, selectErr
 	}
 	releases := []any{}
 	sources := []any{}
 	corpusRecords := []any{}
-	seenReleaseIDs, seenReleaseTags, seenImmutable := map[int64]bool{}, map[string]bool{}, map[string]bool{}
+	seenImmutable := map[string]bool{}
 	captured := now().UTC().Truncate(time.Second).Format(time.RFC3339)
-	for _, rel := range wireReleases {
-		if len(releases) >= r.limit {
-			break
-		}
-		if *rel.Draft || *rel.Prerelease || rel.ID < 1 || !tagRE.MatchString(rel.Tag) || (r.prefix != "" && !strings.HasPrefix(rel.Tag, r.prefix)) || !validTimestamp(rel.Published) {
-			continue
-		}
-		if seenReleaseIDs[rel.ID] || seenReleaseTags[rel.Tag] {
-			return nil, nil, nil, nil, ErrRejected
-		}
-		seenReleaseIDs[rel.ID], seenReleaseTags[rel.Tag] = true, true
+	for _, choice := range chosen {
+		rel := choice.release
+		releasesDigest := pageObjects[choice.page]
 		refRaw, refDigest, refErr := api("/repos/"+r.owner+"/"+r.name+"/git/ref/tags/"+url.PathEscape(rel.Tag), maxAPI)
 		if refErr != nil {
 			return nil, nil, nil, nil, refErr
@@ -674,7 +687,7 @@ func Sync(ctx context.Context, r request, previousSnapshot map[string]any, prior
 			annotatedObject = "sha256/" + strings.TrimPrefix(tagDigest, "sha256:")
 			annotatedSHA = outerSHA
 		}
-		entry := map[string]any{"releaseID": rel.ID, "tag": rel.Tag, "publishedAt": rel.Published, "releaseBodyDigest": sourcecorpus.SHA([]byte(releaseBody(rel))), "releaseListObject": "sha256/" + strings.TrimPrefix(releasesDigest, "sha256:"), "tagReferenceObject": "sha256/" + strings.TrimPrefix(refDigest, "sha256:"), "annotatedTagObject": annotatedObject, "annotatedTagSHA": annotatedSHA, "commit": ref.Object.SHA}
+		entry := map[string]any{"releaseID": rel.ID, "tag": rel.Tag, "publishedAt": rel.Published, "releaseBodyDigest": sourcecorpus.SHA([]byte(releaseBody(rel))), "releaseListObject": releasesDigest, "tagReferenceObject": "sha256/" + strings.TrimPrefix(refDigest, "sha256:"), "annotatedTagObject": annotatedObject, "annotatedTagSHA": annotatedSHA, "commit": ref.Object.SHA}
 		releases = append(releases, entry)
 		for _, p := range r.paths {
 			immutable := r.repo + "/blob/" + ref.Object.SHA + "/" + p
@@ -774,7 +787,7 @@ func Sync(ctx context.Context, r request, previousSnapshot map[string]any, prior
 	if len(sources) == 0 {
 		adapterState = "OMITTED_NO_CHANGELOG_BYTES"
 	}
-	snapshot := map[string]any{"schema": SnapshotSchema, "authority": Authority, "request": r.document, "requestDigest": r.digest, "observedAt": captured, "repository": map[string]any{"canonicalRepositoryURL": r.repo, "repositoryID": repoWire.ID, "fullName": repoWire.FullName, "repositoryObject": "sha256/" + strings.TrimPrefix(repoDigest, "sha256:")}, "window": map[string]any{"selection": "FIRST_PAGE_RECENT_PUBLISHED_NON_PRERELEASE", "page": int64(1), "candidatePageSize": int64(30), "candidateReleaseCount": int64(len(wireReleases)), "pageMayBeTruncated": len(wireReleases) == 30, "releaseLimit": int64(r.limit), "priorAbsentState": "OUTSIDE_SELECTED_WINDOW"}, "releases": releases, "sources": sources, "corpusAdapterState": adapterState, "license": licenseObservation, "review": map[string]any{"state": "NOT_REVIEWED", "admissionState": "NOT_ADMITTED"}, "previousSnapshotDigest": previousDigest, "limitations": toAny(snapshotLimitations)}
+	snapshot := map[string]any{"schema": SnapshotSchema, "authority": Authority, "request": r.document, "requestDigest": r.digest, "observedAt": captured, "repository": map[string]any{"canonicalRepositoryURL": r.repo, "repositoryID": repoWire.ID, "fullName": repoWire.FullName, "repositoryObject": "sha256/" + strings.TrimPrefix(repoDigest, "sha256:")}, "window": map[string]any{"selection": selectionByVersion, "pageCount": int64(len(pages)), "candidatePageSize": int64(releasePageSize), "listObjects": toAny(pageObjects), "candidateReleaseCount": int64(candidateCount), "nonSemverSkippedCount": int64(skippedNonSemver), "pageMayBeTruncated": truncated, "releaseLimit": int64(r.limit), "priorAbsentState": "OUTSIDE_SELECTED_WINDOW"}, "releases": releases, "sources": sources, "corpusAdapterState": adapterState, "license": licenseObservation, "review": map[string]any{"state": "NOT_REVIEWED", "admissionState": "NOT_ADMITTED"}, "previousSnapshotDigest": previousDigest, "limitations": toAny(snapshotLimitations)}
 	corpus := map[string]any{"schema": sourcecorpus.Schema, "revision": onboardingRevision(r), "authority": sourcecorpus.DeclaredAuthority, "records": corpusRecords}
 	corpusRaw, _ := sourcecorpus.Canonical(corpus)
 	corpusDigest := any(nil)
@@ -1141,7 +1154,7 @@ func VerifySnapshot(directory string) (map[string]any, map[string][]byte, error)
 		if cached, ok := objects[digest]; ok {
 			return cached, nil
 		}
-		if len(objects) >= maxRequests {
+		if len(objects) >= maxWindowRequests {
 			return nil, ErrRejected
 		}
 		b, e := sourcecorpus.ReadPrivateTreeFile(directory, "objects/"+name, maxObject)
@@ -1220,7 +1233,11 @@ func exact(object map[string]any, fields ...string) bool {
 	return true
 }
 func nonnegative(value any) bool { n, ok := value.(int64); return ok && n >= 0 && n <= 30 }
-func boolValue(value any) bool   { _, ok := value.(bool); return ok }
+func countUpTo(value any, max int64) bool {
+	n, ok := value.(int64)
+	return ok && n >= 0 && n <= max
+}
+func boolValue(value any) bool { _, ok := value.(bool); return ok }
 func exactStrings(value any, expected []string) bool {
 	items, ok := value.([]any)
 	if !ok || len(items) != len(expected) {
@@ -1258,7 +1275,26 @@ func closedSnapshot(snapshot map[string]any) bool {
 		return false
 	}
 	window, ok := snapshot["window"].(map[string]any)
-	if !ok || !exact(window, "selection", "page", "candidatePageSize", "candidateReleaseCount", "pageMayBeTruncated", "releaseLimit", "priorAbsentState") || window["selection"] != "FIRST_PAGE_RECENT_PUBLISHED_NON_PRERELEASE" || window["page"] != int64(1) || window["candidatePageSize"] != int64(30) || window["priorAbsentState"] != "OUTSIDE_SELECTED_WINDOW" || window["releaseLimit"] != int64(boundRequest.limit) || !nonnegative(window["candidateReleaseCount"]) || !boolValue(window["pageMayBeTruncated"]) {
+	if !ok {
+		return false
+	}
+	switch window["selection"] {
+	case selectionLegacy:
+		if !exact(window, "selection", "page", "candidatePageSize", "candidateReleaseCount", "pageMayBeTruncated", "releaseLimit", "priorAbsentState") || window["page"] != int64(1) || window["candidatePageSize"] != int64(30) || window["priorAbsentState"] != "OUTSIDE_SELECTED_WINDOW" || window["releaseLimit"] != int64(boundRequest.limit) || !nonnegative(window["candidateReleaseCount"]) || !boolValue(window["pageMayBeTruncated"]) {
+			return false
+		}
+	case selectionByVersion:
+		pageCount, countOK := window["pageCount"].(int64)
+		objects, objectsOK := window["listObjects"].([]any)
+		if !exact(window, "selection", "pageCount", "candidatePageSize", "listObjects", "candidateReleaseCount", "nonSemverSkippedCount", "pageMayBeTruncated", "releaseLimit", "priorAbsentState") || !countOK || !objectsOK || pageCount < 1 || pageCount > maxReleasePages || int64(len(objects)) != pageCount || window["candidatePageSize"] != int64(releasePageSize) || window["priorAbsentState"] != "OUTSIDE_SELECTED_WINDOW" || window["releaseLimit"] != int64(boundRequest.limit) || !countUpTo(window["candidateReleaseCount"], maxReleasePages*releasePageSize) || !countUpTo(window["nonSemverSkippedCount"], maxReleasePages*releasePageSize) || !boolValue(window["pageMayBeTruncated"]) {
+			return false
+		}
+		for _, object := range objects {
+			if !objectRE.MatchString(stringOf(object)) {
+				return false
+			}
+		}
+	default:
 		return false
 	}
 	if snapshot["previousSnapshotDigest"] != nil {
@@ -1372,6 +1408,20 @@ func firstSelectedReleaseCommit(snapshot map[string]any, request request, read f
 		release := item.(map[string]any)
 		byID[release["releaseID"].(int64)] = stringOf(release["commit"])
 	}
+	if snapshot["window"].(map[string]any)["selection"] == selectionByVersion {
+		pages, err := readWindowPages(snapshot, read)
+		if err != nil {
+			return "", ErrRejected
+		}
+		chosen, _, _, _, err := selectByVersion(pages, request)
+		if err != nil || len(chosen) == 0 {
+			return "", ErrRejected
+		}
+		if commitValue := byID[chosen[0].release.ID]; commitValue != "" {
+			return commitValue, nil
+		}
+		return "", ErrRejected
+	}
 	listObject := stringOf(releases[0].(map[string]any)["releaseListObject"])
 	raw, err := read(listObject)
 	if err != nil {
@@ -1393,6 +1443,25 @@ func firstSelectedReleaseCommit(snapshot map[string]any, request request, read f
 	return "", ErrRejected
 }
 
+// readWindowPages loads the retained release-list pages named by a
+// by-version window, in page order.
+func readWindowPages(snapshot map[string]any, read func(string) ([]byte, error)) ([][]githubRelease, error) {
+	objects := snapshot["window"].(map[string]any)["listObjects"].([]any)
+	pages := make([][]githubRelease, 0, len(objects))
+	for _, object := range objects {
+		raw, err := read(stringOf(object))
+		if err != nil {
+			return nil, ErrRejected
+		}
+		page, decodeErr := decodeReleaseList(raw)
+		if decodeErr != nil {
+			return nil, ErrRejected
+		}
+		pages = append(pages, page)
+	}
+	return pages, nil
+}
+
 func hasFixedLicensePath(immutable, repo, commitValue string) bool {
 	for _, path := range []string{"LICENSE", "LICENSE.md", "LICENSE.txt", "LICENCE", "LICENCE.md", "COPYING"} {
 		if immutable == repo+"/blob/"+commitValue+"/"+path {
@@ -1409,6 +1478,11 @@ func verifyReleaseObservations(snapshot map[string]any, request request, read fu
 	}
 	byID := map[int64]map[string]any{}
 	seenTags := map[string]bool{}
+	window, windowOK := snapshot["window"].(map[string]any)
+	if !windowOK {
+		return ErrRejected
+	}
+	legacy := window["selection"] == selectionLegacy
 	listObject := ""
 	lastTag := ""
 	for _, value := range releases {
@@ -1421,10 +1495,12 @@ func verifyReleaseObservations(snapshot map[string]any, request request, read fu
 		if !idOK || id < 1 || !tagRE.MatchString(tag) || request.prefix != "" && !strings.HasPrefix(tag, request.prefix) || !validTimestamp(stringOf(release["publishedAt"])) || !commit(stringOf(release["commit"])) || !validDigest(release["releaseBodyDigest"]) || !objectRE.MatchString(stringOf(release["releaseListObject"])) || !objectRE.MatchString(stringOf(release["tagReferenceObject"])) || byID[id] != nil || seenTags[tag] || lastTag != "" && tag <= lastTag {
 			return ErrRejected
 		}
-		if listObject == "" {
-			listObject = stringOf(release["releaseListObject"])
-		} else if release["releaseListObject"] != listObject {
-			return ErrRejected
+		if legacy {
+			if listObject == "" {
+				listObject = stringOf(release["releaseListObject"])
+			} else if release["releaseListObject"] != listObject {
+				return ErrRejected
+			}
 		}
 		if prior, exists := release["priorReleaseBodyDigest"]; exists {
 			if snapshot["previousSnapshotDigest"] == nil || !validDigest(prior) || release["releaseBodyState"] == "UNCHANGED" && prior != release["releaseBodyDigest"] || release["releaseBodyState"] == "CHANGED" && prior == release["releaseBodyDigest"] {
@@ -1433,32 +1509,46 @@ func verifyReleaseObservations(snapshot map[string]any, request request, read fu
 		}
 		byID[id], seenTags[tag], lastTag = release, true, tag
 	}
-	raw, err := read(listObject)
-	if err != nil {
-		return ErrRejected
-	}
-	apiReleases, decodeErr := decodeReleaseList(raw)
-	if decodeErr != nil {
-		return ErrRejected
-	}
-	window := snapshot["window"].(map[string]any)
-	if window["candidateReleaseCount"] != int64(len(apiReleases)) || window["pageMayBeTruncated"] != (len(apiReleases) == 30) {
-		return ErrRejected
-	}
 	expected := make([]map[string]any, 0, request.limit)
-	selectedIDs, selectedTags := map[int64]bool{}, map[string]bool{}
-	for _, candidate := range apiReleases {
-		if len(expected) >= request.limit {
-			break
-		}
-		if *candidate.Draft || *candidate.Prerelease || candidate.ID < 1 || !tagRE.MatchString(candidate.Tag) || request.prefix != "" && !strings.HasPrefix(candidate.Tag, request.prefix) || !validTimestamp(candidate.Published) {
-			continue
-		}
-		if selectedIDs[candidate.ID] || selectedTags[candidate.Tag] {
+	if legacy {
+		raw, err := read(listObject)
+		if err != nil {
 			return ErrRejected
 		}
-		selectedIDs[candidate.ID], selectedTags[candidate.Tag] = true, true
-		expected = append(expected, map[string]any{"releaseID": candidate.ID, "tag": candidate.Tag, "publishedAt": candidate.Published, "releaseBodyDigest": sourcecorpus.SHA([]byte(releaseBody(candidate)))})
+		apiReleases, decodeErr := decodeReleaseList(raw)
+		if decodeErr != nil {
+			return ErrRejected
+		}
+		if window["candidateReleaseCount"] != int64(len(apiReleases)) || window["pageMayBeTruncated"] != (len(apiReleases) == 30) {
+			return ErrRejected
+		}
+		selectedIDs, selectedTags := map[int64]bool{}, map[string]bool{}
+		for _, candidate := range apiReleases {
+			if len(expected) >= request.limit {
+				break
+			}
+			if *candidate.Draft || *candidate.Prerelease || candidate.ID < 1 || !tagRE.MatchString(candidate.Tag) || request.prefix != "" && !strings.HasPrefix(candidate.Tag, request.prefix) || !validTimestamp(candidate.Published) {
+				continue
+			}
+			if selectedIDs[candidate.ID] || selectedTags[candidate.Tag] {
+				return ErrRejected
+			}
+			selectedIDs[candidate.ID], selectedTags[candidate.Tag] = true, true
+			expected = append(expected, map[string]any{"releaseID": candidate.ID, "tag": candidate.Tag, "publishedAt": candidate.Published, "releaseBodyDigest": sourcecorpus.SHA([]byte(releaseBody(candidate)))})
+		}
+	} else {
+		pages, err := readWindowPages(snapshot, read)
+		if err != nil {
+			return ErrRejected
+		}
+		chosen, skipped, candidates, truncated, selectErr := selectByVersion(pages, request)
+		if selectErr != nil || window["candidateReleaseCount"] != int64(candidates) || window["nonSemverSkippedCount"] != int64(skipped) || window["pageMayBeTruncated"] != truncated {
+			return ErrRejected
+		}
+		objects := window["listObjects"].([]any)
+		for _, c := range chosen {
+			expected = append(expected, map[string]any{"releaseID": c.release.ID, "tag": c.release.Tag, "publishedAt": c.release.Published, "releaseBodyDigest": sourcecorpus.SHA([]byte(releaseBody(c.release))), "releaseListObject": objects[c.page]})
+		}
 	}
 	sort.Slice(expected, func(i, j int) bool { return stringOf(expected[i]["tag"]) < stringOf(expected[j]["tag"]) })
 	if len(expected) != len(releases) {
@@ -1466,7 +1556,7 @@ func verifyReleaseObservations(snapshot map[string]any, request request, read fu
 	}
 	for i, expectedRelease := range expected {
 		release := releases[i].(map[string]any)
-		if release["releaseID"] != expectedRelease["releaseID"] || release["tag"] != expectedRelease["tag"] || release["publishedAt"] != expectedRelease["publishedAt"] || release["releaseBodyDigest"] != expectedRelease["releaseBodyDigest"] {
+		if release["releaseID"] != expectedRelease["releaseID"] || release["tag"] != expectedRelease["tag"] || release["publishedAt"] != expectedRelease["publishedAt"] || release["releaseBodyDigest"] != expectedRelease["releaseBodyDigest"] || expectedRelease["releaseListObject"] != nil && release["releaseListObject"] != expectedRelease["releaseListObject"] {
 			return ErrRejected
 		}
 		refRaw, err := read(stringOf(release["tagReferenceObject"]))
