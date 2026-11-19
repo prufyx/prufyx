@@ -364,6 +364,9 @@ func promAnnotationValue(text string) bool {
 // Prometheus alert templates, which are evaluated by Prometheus, not Helm.
 // Keys, every other field and any other kind are checked in full.
 func objectHasTemplateSyntax(object map[string]any, api, kind string) bool {
+	if kind == "CustomResourceDefinition" && strings.HasPrefix(api, "apiextensions.k8s.io/") {
+		return crdHasTemplateSyntax(object)
+	}
 	if kind != "PrometheusRule" || !strings.HasPrefix(api, "monitoring.coreos.com/") {
 		return valueHasTemplateSyntax(object)
 	}
@@ -450,6 +453,104 @@ func ruleHasTemplateSyntax(rule any) bool {
 							return true
 						}
 					} else if valueHasTemplateSyntax(mv) {
+						return true
+					}
+				}
+				continue
+			}
+		}
+		if valueHasTemplateSyntax(child) {
+			return true
+		}
+	}
+	return false
+}
+
+// crdHasTemplateSyntax is valueHasTemplateSyntax with one exception: string
+// values of schema `description` keys under spec.versions[].schema.
+// openAPIV3Schema and spec.validation.openAPIV3Schema are documentation text
+// that Helm never renders into structure, so they may hold literal braces.
+// Keys, default, enum, pattern, example and every other field are checked.
+func crdHasTemplateSyntax(object map[string]any) bool {
+	return mapWalk(object, "", func(path string, child any) (handled bool, bad bool) {
+		if path == "spec.validation.openAPIV3Schema" || path == "spec.versions.schema.openAPIV3Schema" {
+			return true, schemaHasTemplateSyntax(child)
+		}
+		return false, false
+	})
+}
+
+// mapWalk checks keys and values like valueHasTemplateSyntax, but offers the
+// child at each path to onChild first; the path names only map keys, with
+// list elements transparent.
+func mapWalk(value any, path string, onChild func(string, any) (bool, bool)) bool {
+	switch typed := value.(type) {
+	case string:
+		return hasTemplateSyntax(typed)
+	case map[string]any:
+		for key, child := range typed {
+			if hasTemplateSyntax(key) {
+				return true
+			}
+			childPath := key
+			if path != "" {
+				childPath = path + "." + key
+			}
+			if handled, bad := onChild(childPath, child); handled {
+				if bad {
+					return true
+				}
+				continue
+			}
+			if mapWalk(child, childPath, onChild) {
+				return true
+			}
+		}
+	case []any:
+		for _, child := range typed {
+			if mapWalk(child, path, onChild) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// schemaHasTemplateSyntax checks an OpenAPI schema node. Only a string
+// `description` of a schema node is exempt; the children that are schemas
+// are followed, everything else is checked in full.
+func schemaHasTemplateSyntax(node any) bool {
+	m, ok := node.(map[string]any)
+	if !ok {
+		return valueHasTemplateSyntax(node)
+	}
+	for key, child := range m {
+		if hasTemplateSyntax(key) {
+			return true
+		}
+		switch key {
+		case "description":
+			if _, isString := child.(string); isString {
+				continue
+			}
+		case "properties", "patternProperties", "definitions", "$defs":
+			if named, ok := child.(map[string]any); ok {
+				for name, sub := range named {
+					if hasTemplateSyntax(name) || schemaHasTemplateSyntax(sub) {
+						return true
+					}
+				}
+				continue
+			}
+		case "items", "additionalProperties", "additionalItems", "not":
+			if schemaHasTemplateSyntax(child) {
+				return true
+			}
+			continue
+		case "allOf", "anyOf", "oneOf":
+			if list, ok := child.([]any); ok {
+				for _, sub := range list {
+					if schemaHasTemplateSyntax(sub) {
 						return true
 					}
 				}
