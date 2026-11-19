@@ -132,6 +132,9 @@ const (
 	GapCustomResourceJumpNoReview GapKey = ReasonLineNotAttested + "/custom-resources-jump-no-review"
 	GapCustomResourceJumpRelease  GapKey = ReasonLineNotAttested + "/custom-resources-jump-release"
 	GapCustomResourceJumpOpen     GapKey = ReasonLineNotAttested + "/custom-resources-jump-undecided"
+	// Hops of a jump through several minor lines of a change-list component.
+	GapChangeListJumpNoRecord GapKey = ReasonComponentNotCovered + "/change-list-jump-no-record"
+	GapChangeListJumpRecord   GapKey = ReasonComponentNotCovered + "/change-list-jump-record"
 	// GapChartValuesOnly: a declared chart hop, checked only against the
 	// rules about the chart's values and Kubernetes version.
 	GapChartValuesOnly GapKey = ReasonComponentNotCovered + "/chart-values-only"
@@ -318,6 +321,10 @@ var gapMessages = map[GapKey]gapMessage{
 		"read the upstream upgrade guide for the major change %[1]s -> %[2]s, or request coverage", 2},
 	GapLinesNotListed: {"release lines after %[1]s and before %[2]s.0 are not known to this client; each needs its own review",
 		"request a review of each release line after %[1]s and before %[2]s.0", 2},
+	GapChangeListJumpNoRecord: {"no change-list record of line %[1]s exists, so the hop into it lists nothing",
+		"read the %[2]s release notes of line %[1]s by hand", 1},
+	GapChangeListJumpRecord: {"the change-list record of line %[1]s cannot be used (%[2]s), so the hop into it is not decided",
+		"use knowledge with a valid current change-list record of line %[1]s, or read the %[3]s release notes by hand", 1},
 	GapChartValuesOnly: {"%[1]s chart %[2]s: only its values and Kubernetes-version rules are checked, not the rest of the upgrade",
 		"verify the rest of the chart's upgrade notes and the %[1]s release notes by hand", 2},
 	GapHelmValuesNotComplete: {"%[1]s chart %[2]s: the supplied values are not declared complete, so no required key is confirmed",
