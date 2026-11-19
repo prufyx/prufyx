@@ -126,8 +126,8 @@ func firstNonEmpty(a, b string) string {
 
 // majorPlan is the path of an upgrade across one or more major lines, for a
 // component with ordinary minor lines: the minor lines of the old major that
-// the knowledge reviews (consecutive from the actual line, up to the first
-// line it does not review), then ONE hop that enters the first line of the
+// the knowledge reviews (every line from the actual line up to the last
+// line it reviews, a line it does not review stays its own hop), then ONE hop that enters the first line of the
 // next major (X.0), then the minor lines of that major up to the target. A
 // major in between enters its own X.0 the same way and has the lines it
 // reviews. The hop that changes the major is its own hop, never merged into a
@@ -155,12 +155,20 @@ func (r *customResourceRun) majorPlan(family lineattest.Family, policy *upgradep
 	line := func(major, minor uint64) string {
 		return strconv.FormatUint(major, 10) + "." + strconv.FormatUint(minor, 10)
 	}
-	for minor := fmin + 1; len(lines) <= upgradepath.MaxHops; minor++ {
-		if !reviewed(line(fm, minor)) {
-			break
+	// An unreviewed line between reviewed ones stays its own hop (undecided);
+	// the tail ends at the last reviewed line within MaxHops lines.
+	tail := func(major, first uint64) {
+		last := uint64(0)
+		for minor := first; minor < first+upgradepath.MaxHops; minor++ {
+			if reviewed(line(major, minor)) {
+				last = minor
+			}
 		}
-		lines = append(lines, line(fm, minor))
+		for minor := first; last >= first && minor <= last; minor++ {
+			lines = append(lines, line(major, minor))
+		}
 	}
+	tail(fm, fmin+1)
 	for major := fm + 1; major <= tm; major++ {
 		lines = append(lines, line(major, 0))
 		if major == tm {
@@ -169,12 +177,7 @@ func (r *customResourceRun) majorPlan(family lineattest.Family, policy *upgradep
 			}
 			continue
 		}
-		for minor := uint64(1); len(lines) <= upgradepath.MaxHops; minor++ {
-			if !reviewed(line(major, minor)) {
-				break
-			}
-			lines = append(lines, line(major, minor))
-		}
+		tail(major, 1)
 	}
 	if len(lines) > upgradepath.MaxHops || len(lines) < 2 || lines[len(lines)-1] != toLine {
 		return upgradepath.Plan{}, false
@@ -291,7 +294,9 @@ func (r *customResourceRun) composeJump(path *scanreport.Path, plan upgradepath.
 		if major && len(decision.blocks) == 0 && !allNoticed(decision.neutral) {
 			// The change of major line is decided only by a rule scoped to
 			// that transition; the absence of one is never a pass.
-			hop.Reasons = append(hop.Reasons, r.gap(&ref, scanreport.GapMajorHopNotCovered, hop.From.String(), hop.To.String()))
+			fromLine, _ := endpointLine(upgradepath.Endpoint{Version: hop.From.Version, Line: hop.From.Line})
+			toLine, _ := endpointLine(upgradepath.Endpoint{Version: hop.To.Version, Line: hop.To.Line})
+			hop.Reasons = append(hop.Reasons, r.gap(&ref, scanreport.GapMajorHopNotCovered, fromLine, toLine))
 		}
 		switch {
 		case len(decision.blocks) > 0:

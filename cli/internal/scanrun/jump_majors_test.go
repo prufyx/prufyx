@@ -193,3 +193,49 @@ func hasReason(list []string, want string) bool {
 	}
 	return false
 }
+
+// An unreviewed line between reviewed lines of the old major is its own
+// undecided hop with a named gap, and the hop count equals the jump's hops.
+func TestJumpAcrossMajorKeepsAnUnreviewedLine(t *testing.T) {
+	t.Parallel()
+	all := map[string]lineattest.LineAttestation{
+		"0.50": jumpAtt("0.50", jumpReleases("0.49.0"), jumpReleases("0.50.0"), ""),
+		"0.52": jumpAtt("0.52", jumpReleases("0.51.0"), jumpReleases("0.52.0"), ""),
+	}
+	k := attestedCRD{crdKnowledge: newCRDKnowledge(t)}
+	k.attestations = lineattest.NewIndex([]lineattest.LineAttestation{all["0.50"], all["0.52"]})
+	result := majorScan(t, k, "0.49.0", "1.0.0")
+	path, jump := strimziJump(t, result.Report)
+	var lines []string
+	for _, h := range path.Hops {
+		lines = append(lines, h.To.String())
+	}
+	if !reflect.DeepEqual(lines, []string{"0.50", "0.51", "0.52", "1.0.0"}) {
+		t.Fatalf("hops %v", lines)
+	}
+	requireNeverBare(t, "gap line", jump, 4)
+	if jump.Hops[1].Status != scanreport.JumpHopUndecided || !hasReason(jump.Hops[1].Reasons, scanreport.ReasonLineNotAttested) {
+		t.Fatalf("unreviewed hop %+v", jump.Hops[1])
+	}
+}
+
+// The major hop names both exact lines and never claims compatibility.
+func TestMajorHopNamesBothLinesWithoutCompatibilityClaims(t *testing.T) {
+	t.Parallel()
+	result := majorScan(t, majorKnowledge(t, "0.50", "0.51", "1.1"), "0.49.0", "1.1.0")
+	text := jumpText(result.Report)
+	for _, want := range []string{"major upgrade: no reviewed rule for 0.51 -> 1.0"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("text lacks %q:\n%s", want, text)
+		}
+	}
+	for _, gap := range result.Report.Gaps {
+		if gap.Reason != scanreport.ReasonMajorHopNotCovered {
+			continue
+		}
+		all := strings.ToLower(gap.Detail + " " + gap.Action)
+		if !strings.Contains(gap.Detail, "0.51 -> 1.0") || strings.Contains(all, "compatible") || strings.Contains(all, "supported") {
+			t.Fatalf("gap %+v", gap)
+		}
+	}
+}
