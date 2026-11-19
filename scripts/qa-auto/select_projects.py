@@ -19,9 +19,9 @@ RULES_PATHS = (RULES, RULES_COMMUNITY)
 RULES_OF = {ATTEST: RULES, ATTEST_COMMUNITY: RULES_COMMUNITY}
 APPROVAL = re.compile(r"cli/knowledge/approvals/(cncf|community)/([a-z0-9]+(?:-[a-z0-9]+)*)\.[^/]+")
 SLUG = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
-RULES_META = {"revision", "policyDigest", "landscapeFileDigest", "registryDigest"}
 RULES_KEYED = {"lineAttestations": ("component", "line", "factFamily"),
                "servedAPIs": ("component", "line"), "pathPolicies": ("component", "policy")}
+RULES_META = {"revision", "policyDigest", "landscapeFileDigest", "registryDigest"}
 ATTEST_META = {"revision", "packDigest", "ruleSetDigest", "ruleCount"}
 
 
@@ -113,8 +113,62 @@ def _changed_keys(a, b):
     return [k for k in set(a) | set(b) if (_canon(a[k]) if k in a else None) != (_canon(b[k]) if k in b else None)]
 
 
-def aggregate_projects(path, old_raw, new_raw, slugs, rules_pair=None, trusted=None, catalogue=()):
-    """Projects whose entries differ between old and new aggregate data file; raises Unattributable (=> full)."""
+def _comps(entry):
+    facts = entry.get("requiredFacts", [])
+    _need(isinstance(facts, list), "requiredFacts shape")
+    out = set()
+    for f in facts:
+        _need(isinstance(f, dict) and isinstance(f.get("component"), str), "fact shape")
+        out.add(f["component"])
+    return out
+
+
+def _closure(entry_sets, seed_ids, seed_comps, trusted, known):
+    """Projects reachable from the seeds through shared components, transitively and in both directions.
+
+    An entry joins when one of its requiredFacts components is already in the set (so the changed entry's referenced
+    components' entries, and every entry that requires the changed entry's components, are both covered); the
+    component's own target binding and last-segment slug join too. The result must be a subset of the QA slugs (checked
+    by the caller); any malformed data raises Unattributable (=> full)."""
+    _need(isinstance(trusted, dict), "no trusted base component bindings")
+    pool = []
+    for es in entry_sets:
+        pool.extend(es.values())
+    comps, projects = set(seed_comps), set()
+    for es in entry_sets:
+        for rid in seed_ids:
+            if rid in es:
+                projects.add(es[rid]["project"])
+                comps |= _comps(es[rid])
+    grown = True
+    while grown:
+        grown = False
+        for e in pool:
+            ec = _comps(e)
+            if (ec & comps) and (not ec <= comps or e["project"] not in projects):
+                comps |= ec
+                projects.add(e["project"])
+                grown = True
+    for c in comps:
+        if c in trusted:
+            projects.add(trusted[c])
+        last = c.rsplit("/", 1)[-1]
+        if last in known:
+            projects.add(last)
+    return projects
+
+
+def _only_targets(projects, slugs):
+    gone = set(projects) - set(slugs)
+    _need(not gone, "project without a QA target: " + ",".join(sorted(gone))[:80])
+    return set(projects)
+
+
+def aggregate_projects(path, old_raw, new_raw, slugs, rules_pair=None, trusted=None, catalogue=(), strict=False):
+    """Projects whose entries differ between old and new aggregate data file; raises Unattributable (=> full).
+
+    strict (the batch-scope selector): pack-level changes, non-QA projects and the requiredFacts closure force full.
+    The default keeps the older validator contract that k8s_oracle relies on."""
     old, new = _load(old_raw), _load(new_raw)
     _need(isinstance(old, dict) and isinstance(new, dict) and set(old) == set(new), "top-level shape differs")
     _need(_canon(old.get("schema")) == _canon(new.get("schema")) and isinstance(new.get("schema"), str), "schema differs")
@@ -125,13 +179,22 @@ def aggregate_projects(path, old_raw, new_raw, slugs, rules_pair=None, trusted=N
     oe, ne = _entries(rules_pair[0]), _entries(rules_pair[1])
     cmap = _component_map([oe])  # base entries only: the PR cannot bind components
     known = set(slugs) | {e["project"] for e in oe.values()} | set(catalogue)
-    found = set()
+    found, seed_comps = set(), set()
     if path in RULES_PATHS:
-        for k in set(old) - {"schema", "entries"} - RULES_META - set(RULES_KEYED):
-            _need(_canon(old[k]) == _canon(new[k]), "unknown section changed: " + str(k)[:40])
-        for k in RULES_META & (set(old) | set(new)):
-            _need(isinstance(old.get(k), str) and isinstance(new.get(k), str), "metadata shape")
+        if strict:
+            # Every pack-level key (revision, policyDigest, registryDigest, landscapeFileDigest, policyId, any other) must
+            # be unchanged. No exceptions: renewals do not touch them (measured on the renewal PRs), so a change is a real
+            # pack change that can alter every project.
+            for k in set(old) - {"schema", "entries"} - set(RULES_KEYED):
+                _need(_canon(old[k]) == _canon(new[k]), "pack-level field changed: " + str(k)[:40])
+        else:
+            for k in set(old) - {"schema", "entries"} - RULES_META - set(RULES_KEYED):
+                _need(_canon(old[k]) == _canon(new[k]), "unknown section changed: " + str(k)[:40])
+            for k in RULES_META & (set(old) | set(new)):
+                _need(isinstance(old.get(k), str) and isinstance(new.get(k), str), "metadata shape")
+        seed_ids = set()
         for rid in _changed_keys(oe, ne):
+            seed_ids.add(rid)
             for side in (oe, ne):
                 if rid in side:
                     _need(side[rid]["project"] in known, "entry project unknown: " + side[rid]["project"])
@@ -142,7 +205,13 @@ def aggregate_projects(path, old_raw, new_raw, slugs, rules_pair=None, trusted=N
                 continue
             ok, nk = _keyed(old, name, fields), _keyed(new, name, fields)
             for key in _changed_keys(ok, nk):
-                found |= _attribute(key[0], cmap, known, trusted)
+                got = _attribute(key[0], cmap, known, trusted)
+                if strict:
+                    _need(got <= set(slugs), "keyed item of a project without a QA target: " + key[0][:60])
+                found |= got
+                seed_comps.add(key[0])
+        if strict:
+            found |= _closure([oe, ne], seed_ids, seed_comps, trusted, known)
     else:
         for k in set(old) - {"schema", "components"} - ATTEST_META:
             _need(_canon(old[k]) == _canon(new[k]), "unknown section changed: " + str(k)[:40])
@@ -152,21 +221,35 @@ def aggregate_projects(path, old_raw, new_raw, slugs, rules_pair=None, trusted=N
         _need(isinstance(oc, list) and isinstance(nc, list), "components shape")
         _need(all(isinstance(c, str) for c in oc + nc) and len(set(oc)) == len(oc) and len(set(nc)) == len(nc), "components shape")
         for c in set(oc) ^ set(nc):
-            found |= _attribute(c, cmap, known, trusted)
-    return found & set(slugs)
+            got = _attribute(c, cmap, known, trusted)
+            if strict:
+                _need(got <= set(slugs), "attestation component of a project without a QA target: " + c[:60])
+            found |= got
+            seed_comps.add(c)
+        if strict:
+            found |= _closure([oe, ne], (), seed_comps, trusted, known)
+    return _only_targets(found, slugs) if strict else found & set(slugs)
 
 
-def _approval_rule_project(path, group, prefix, reader):
-    """File prefix is not a project id: resolve the approved rule id to its head rules.json entry's project; None on any doubt."""
-    if reader is None:
-        return None
-    try:
-        rule_id = _load(reader(path)[1])["record"]["ruleId"]
-        rules = _load(reader(RULES if group == "cncf" else RULES_COMMUNITY)[1])
-        _need(isinstance(rule_id, str) and rule_id.startswith(prefix + "."), "approval rule id")
-        return _entries(rules)[rule_id]["project"]
-    except (Unattributable, OSError, ValueError, KeyError, TypeError, AttributeError, subprocess.SubprocessError):
-        return None
+def _approval_projects(path, group, reader, trusted, slugs, catalogue):
+    """The file name prefix is never trusted: resolve the approved rule id in the BASE rules.json of the group, then take
+    its project and the closure of its components. Any doubt (unreadable, id not in base, mismatch) raises."""
+    _need(reader is not None, "no diff objects for approval")
+    pair = reader(path)
+    ids = set()
+    for raw in pair:
+        if raw is not None:
+            rid = _load(raw)["record"]["ruleId"]
+            _need(isinstance(rid, str) and rid, "approval rule id")
+            ids.add(rid)
+    _need(len(ids) == 1, "approval rule id missing or differs between base and head")
+    rules_path = RULES if group == "cncf" else RULES_COMMUNITY
+    base_rules = _entries(_load(reader(rules_path)[0]))
+    rid = ids.pop()
+    _need(rid in base_rules, "approval rule id not in base rules")
+    known = set(slugs) | {e["project"] for e in base_rules.values()} | set(catalogue)
+    got = _closure([base_rules], [rid], (), trusted, known)
+    return _only_targets(got, slugs)
 
 
 def selection(changed, slugs, reader=None, trusted=None, catalogue=()):
@@ -187,23 +270,23 @@ def selection(changed, slugs, reader=None, trusted=None, catalogue=()):
             if gone:
                 full = True; reasons.append("target removed or unreadable " + p); continue
             projects.add(m.group(1)); reasons.append("target " + m.group(1)); continue
-        if re.fullmatch(r"cli/docs/generated/[^/]+", p) and not (RULES in changed or RULES_COMMUNITY in changed):
-            full = True; reasons.append("generated file changed without rules.json " + p); continue
+        # Derived files (generated docs, README, corpus-attestation) are not recomputed here: they are trusted only when a
+        # rules.json changed in the same diff (the scoped entries then explain them); alone they force full.
+        if (re.fullmatch(r"cli/docs/generated/[^/]+", p) or p == "README.md") and not (RULES in changed or RULES_COMMUNITY in changed):
+            full = True; reasons.append("derived file changed without rules.json " + p); continue
+        if p in RULES_OF and RULES_OF[p] not in changed:
+            full = True; reasons.append("attestation changed without its rules.json " + p); continue
+        if p == "README.md":
+            continue
         am = APPROVAL.fullmatch(p)
         if not am and p.startswith("cli/knowledge/approvals/"):
             full = True; reasons.append("approval path of unknown shape " + p); continue
         if am:
-            # approval file <project>.<rule>.json: the project is the first dotted segment, and must be a known catalogue id
-            first = am.group(2)
-            if first not in slugs and first not in catalogue:
-                first = _approval_rule_project(p, am.group(1), first, reader) or first
-            if first in slugs:
-                projects.add(first); reasons.append("approval " + first)
-            elif first in catalogue and SLUG.fullmatch(first):
-                reasons.append("approval (catalogue project without QA target) " + first)
-            else:
-                full = True; reasons.append("approval (unknown project) " + p)
-            continue
+            try:
+                got = _approval_projects(p, am.group(1), reader, trusted, slugs, catalogue)
+            except (Unattributable, OSError, ValueError, KeyError, TypeError, AttributeError, subprocess.SubprocessError) as e:
+                full = True; reasons.append("approval unresolvable (%s) %s" % (e, p)); continue
+            projects.update(got); reasons.append("approval %s -> %s" % (p, sorted(got))); continue
         if re.search(r"coveragereport/testdata/lines-.*\.json$", p) or re.search(r"(^|/)(knowledge|data)/", p):
             hit = [s for s in slugs if s in p]
             if p in AGGREGATE:
@@ -215,7 +298,7 @@ def selection(changed, slugs, reader=None, trusted=None, catalogue=()):
                     if p in RULES_OF:
                         r_old, r_new = reader(RULES_OF[p])
                         pair = (_load(r_old), _load(r_new))
-                    got = aggregate_projects(p, old, new, slugs, pair, trusted, catalogue)
+                    got = aggregate_projects(p, old, new, slugs, pair, trusted, catalogue, strict=True)
                 except (Unattributable, OSError, ValueError, KeyError, TypeError, AttributeError, subprocess.SubprocessError) as e:
                     full = True; reasons.append("data aggregate unattributable (%s) %s" % (e, p)); continue
                 projects.update(got); reasons.append("data aggregate %s -> %s" % (p, sorted(got))); continue
