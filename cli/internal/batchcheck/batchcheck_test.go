@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"syscall"
 	"testing"
@@ -56,7 +57,8 @@ func TestEvaluateMixedOutcomesAndDeterministicPrecedence(t *testing.T) {
 		{ID: "m-blocked", Kind: "community_project", Project: "loki", From: "2.9.8", To: "3.0.0", InputPath: "loki.json"},
 	}}
 	planPath := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
-	report, exit, err := Evaluate(planPath, root, testclock.Floor(time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC)))
+	now, relnotesPending := mixedOutcomesClock(t)
+	report, exit, err := Evaluate(planPath, root, now)
 	if err != nil || exit != 10 || report.Decision != "UNKNOWN" || report.AggregateCategory != "BLOCKED" {
 		t.Fatalf("report=%+v exit=%d err=%v", report, exit, err)
 	}
@@ -66,10 +68,15 @@ func TestEvaluateMixedOutcomesAndDeterministicPrecedence(t *testing.T) {
 	if len(report.Items[1].Report) == 0 || !strings.Contains(string(report.Items[1].Report), `"inputDigest":"sha256:`) || strings.Contains(string(report.Items[1].Report), "a-pass") {
 		t.Fatalf("sealed child report missing or leaked plan label: %s", report.Items[1].Report)
 	}
-	// thanos now ships a crossing rule that this hop does not decide: it is
-	// named as not yet reviewed beside the unknown claim.
-	if len(report.Items[0].Categories) != 2 || report.Items[0].Categories[0] != "NOT_YET_REVIEWED" || report.Items[0].Categories[1] != "UNKNOWN_CLAIM" {
-		t.Fatalf("unexpected category set: %+v", report.Items[0].Categories)
+	// thanos ships a crossing rule that this hop does not decide: while the
+	// clock is before that rule's review it is named as not yet reviewed beside
+	// the unknown claim; from its review on only the unknown claims remain.
+	want := []string{"UNKNOWN_CLAIM"}
+	if relnotesPending {
+		want = []string{"NOT_YET_REVIEWED", "UNKNOWN_CLAIM"}
+	}
+	if !reflect.DeepEqual(report.Items[0].Categories, want) {
+		t.Fatalf("unexpected category set: %+v, want %v", report.Items[0].Categories, want)
 	}
 }
 
@@ -392,4 +399,39 @@ func TestEvaluateRejectsPublicHardlinkAndFIFOInputs(t *testing.T) {
 			t.Fatalf("unsafe %s accepted: exit=%d err=%v", inputPath, exit, err)
 		}
 	}
+}
+
+// mixedOutcomesClock is the evaluation clock of the mixed-outcomes plan,
+// computed from the rule data. The plan needs the loki rules and the two
+// thanos rules of its hops in force; the premise of the test is that the one
+// thanos release-notes rule the hop 0.40.0 -> 0.42.0 crosses is not yet
+// reviewed. That clock (one hour before the release-notes rule's review) is
+// used when it is late enough for the other rules; when a renewal has
+// reviewed the other rules after the release-notes rule, no clock keeps both
+// premises, and the clock is the earliest one at which every rule of both
+// projects is in force (relnotesPending false).
+func mixedOutcomesClock(t *testing.T) (now time.Time, relnotesPending bool) {
+	t.Helper()
+	parse := func(id string) time.Time {
+		reviewed, _ := testclock.RuleEvidence(id)
+		at, err := time.Parse(time.RFC3339, reviewed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return at
+	}
+	need := testclock.ProjectNewest("loki")
+	for _, id := range []string{"thanos.receive-store-flags-removed.0-42", "thanos.receive-store-flags-target-argv.0-41-0-to-0-42-4"} {
+		if at := parse(id).Add(time.Hour); at.After(need) {
+			need = at
+		}
+	}
+	pre := parse("thanos.relnotes.flag-removed.log-request-decision.0-33").Add(-time.Hour)
+	if !pre.Before(need) {
+		return pre, true
+	}
+	if all := testclock.ProjectNewest("thanos"); all.After(need) {
+		need = all
+	}
+	return need, false
 }
