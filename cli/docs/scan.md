@@ -404,6 +404,50 @@ Each hop has a status in JSON (`paths[].hops[].status`, and with `--verbose`):
 (no rule and no current review). Every hop that is not `COVERED` or `BLOCKED`
 lists the gap reasons that explain it.
 
+## Upgrades through several minor lines (jump)
+
+An upgrade of a custom-resource project across more than one minor line (for
+example 1.14.5 to 1.16.0) is answered from the hops of the stepwise path, one
+hop per minor line, not as one direct hop that no rule covers. Scan does this
+when the component has no reviewed path policy, or the policy is
+`sequential_minor`. A policy that allows a direct hop, an upgrade across a
+major line, and an upgrade of one line or of adjacent lines are not
+decomposed.
+
+Every intermediate end is the highest final release that the review of its
+line and the review of the next line both read, pinned to the same commit; it
+is named in the answer with that commit. A line without such a release stays a
+whole line: it still finds a blocker (a rule covers the whole previous line),
+but its hop is not decided.
+
+The jump (`paths[].jump` in JSON) lists every hop with its own status, never
+one bare answer:
+
+| Hop status | Meaning |
+| --- | --- |
+| `BLOCKED` | A rule that blocks the hop, with its sources (as a finding). |
+| `PASS` | The review of the hop's line decided the custom-resource versions family for it; within that scope only. |
+| `ATTENTION` | The hop has change-list entries to check, cited; never a pass. |
+| `UNDECIDED` | A named gap (`LINE_NOT_ATTESTED`) and the next action. |
+
+The jump status is `BLOCKED` when any hop is `BLOCKED` (the answer says that it
+holds for the stepwise path through that hop, and that a direct skip was not
+evaluated); else `ATTENTION` when a hop has entries; else `STEPWISE_PASS` only
+when every hop is `PASS`, in an unbroken chain, on one object set (every hop
+carries the same `objectSetDigest`); else `UNKNOWN`, with the table, the hops
+that are not decided and what each lacks. Undecided hops are listed beside a
+`BLOCKED` or `ATTENTION` jump.
+
+`STEPWISE_PASS` means: no listed custom-resource version removal affects the
+manifests, as they are today, on any hop of the stepwise upgrade through the
+named releases. It is never a statement that a direct jump is safe, and it
+does not cover stored versions and conversion, hooks and data migrations,
+other patch releases of an intermediate line, or a release that was retagged
+or withdrawn (not detectable offline). The jump never changes the report's
+verdict or exit code: a scan with `STEPWISE_PASS` stays `UNKNOWN` (exit 11)
+because the project is never covered; a `BLOCKED` jump is a blocked report
+(exit 10) because its rule is a finding.
+
 ## Gaps
 
 Every gap has a reason, a detail and an action.

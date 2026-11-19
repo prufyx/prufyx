@@ -205,8 +205,6 @@ func TestScanCustomResourceAttestationNotApplied(t *testing.T) {
 			scanreport.ReasonLineNotAttested, "did not read release 0.51.1"},
 		"earlier release newer than the review": {newAttestedCRD(t, &mech), []string{kafkaV1Doc}, []string{"--from", "strimzi=0.50.4", "--to", "strimzi=0.51.0", "--resource-scope-complete"},
 			scanreport.ReasonLineNotAttested, "did not read release 0.50.4"},
-		"hop across two lines": {newAttestedCRD(t, &mech), []string{kafkaV1Doc}, []string{"--from", "strimzi=0.49.0", "--to", "strimzi=0.51.0", "--resource-scope-complete"},
-			scanreport.ReasonLineNotAttested, "is not a next-minor upgrade"},
 		"upgrade within the line": {newAttestedCRD(t, &mech), []string{kafkaV1Doc}, []string{"--from", "strimzi=0.51.0", "--to", "strimzi=0.51.1", "--resource-scope-complete"},
 			scanreport.ReasonLineNotAttested, "0.51.0 -> 0.51.1 stays within one minor line"},
 		"expired review": {newAttestedCRD(t, &expired), []string{kafkaV1Doc}, []string{"--from", "strimzi=0.50.1", "--to", "strimzi=0.51.0", "--resource-scope-complete"},

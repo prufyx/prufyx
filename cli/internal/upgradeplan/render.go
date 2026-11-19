@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/providerfacts"
+	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
 
 // Formats are the plan output formats.
@@ -61,6 +62,22 @@ func render(plan Plan, md bool) []byte {
 			continue
 		}
 		line("  %s  %s -> %s  (%s; %d hops)", r.Component, r.From, r.To, policy, r.Hops)
+		if r.Jump != nil {
+			for _, text := range scanreport.JumpLines(r.Component, r.From, r.To, *r.Jump) {
+				line("  %s", text)
+			}
+			continue
+		}
+		for _, h := range r.HopTable {
+			text := fmt.Sprintf("    hop %d %s -> %s: %s", h.Index, h.From, h.To, h.Status)
+			switch {
+			case len(h.RuleIDs) > 0:
+				text += " " + strings.Join(h.RuleIDs, ", ")
+			case len(h.Reasons) > 0:
+				text += " (" + strings.Join(h.Reasons, ", ") + ")"
+			}
+			line("%s", text)
+		}
 	}
 	head("Stages")
 	for _, s := range plan.Stages {

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"slices"
 	"sort"
 	"time"
@@ -114,6 +115,13 @@ func (r *customResourceRun) evaluate(from, to string) error {
 	}
 	policy := status.Policy()
 	plan := upgradepath.PlanPath(r.component, from, to, policy)
+	// A jump through several minor lines is decomposed into the stepwise path
+	// (one hop per minor line) when no reviewed policy says that upstream
+	// allows skipping, or the reviewed policy is sequential_minor.
+	jumpPlan, jumping := r.jumpPlan(plan, policy, from, to)
+	if jumping {
+		plan = jumpPlan
+	}
 	if plan.Gap != upgradepath.GapNone {
 		outcome := reasonOutcomes[string(plan.Gap)]
 		if outcome.gap == "" {
@@ -124,25 +132,30 @@ func (r *customResourceRun) evaluate(from, to string) error {
 		return nil
 	}
 	// Without a policy the plan is the one direct hop.
-	if plan.Component != r.component || len(plan.Hops) == 0 || (policy == nil && len(plan.Hops) != 1) {
+	if plan.Component != r.component || len(plan.Hops) == 0 || (policy == nil && !jumping && len(plan.Hops) != 1) {
 		return ErrIntegrity
 	}
 	if policy != nil {
 		path.Policy = policy.Policy
 	}
+	var decisions []hopDecision
 	for _, planned := range plan.Hops {
-		hop, err := r.hop(planned, nil)
+		hop, decision, err := r.hop(planned, nil)
 		if err != nil {
 			return err
 		}
 		path.Hops = append(path.Hops, hop)
+		decisions = append(decisions, decision)
 	}
 	if len(plan.Hops) > 1 {
 		// A rule that spans the whole upgrade matches no single hop; it is
 		// judged on the end-to-end pair, once.
-		if _, err := r.hop(upgradepath.Hop{From: upgradepath.Endpoint{Version: from}, To: upgradepath.Endpoint{Version: to}}, wholeUpgradeRules(plan)); err != nil {
+		if _, _, err := r.hop(upgradepath.Hop{From: upgradepath.Endpoint{Version: from}, To: upgradepath.Endpoint{Version: to}}, wholeUpgradeRules(plan)); err != nil {
 			return err
 		}
+	}
+	if jumping {
+		r.composeJump(&path, plan, decisions)
 	}
 	return nil
 }
@@ -193,7 +206,8 @@ func (r *customResourceRun) componentGaps() {
 // upgrade instead: hop is the end-to-end pair, only the rules only selects
 // are judged, and the caller drops the returned hop (findings, passes and
 // gaps carry the whole-upgrade reference).
-func (r *customResourceRun) hop(hop upgradepath.Hop, only func(cncfcheck.ScanRule) bool) (scanreport.Hop, error) {
+func (r *customResourceRun) hop(hop upgradepath.Hop, only func(cncfcheck.ScanRule) bool) (scanreport.Hop, hopDecision, error) {
+	var decision hopDecision
 	ref := scanreport.HopRef{Index: hop.Index, From: hop.From.String(), To: hop.To.String(), WholeUpgrade: only != nil}
 	result := scanreport.Hop{
 		Index: hop.Index,
@@ -208,19 +222,20 @@ func (r *customResourceRun) hop(hop upgradepath.Hop, only func(cncfcheck.ScanRul
 		if hop.From.MajorLine() || hop.To.MajorLine() {
 			result.Status = scanreport.HopNoData
 			result.Reasons = []string{r.gap(&ref, scanreport.GapIntermediateMajor)}
-			return result, nil
+			return result, decision, nil
 		}
-		return scanreport.Hop{}, ErrIntegrity
+		return scanreport.Hop{}, hopDecision{}, ErrIntegrity
 	}
 	prepared, err := cncfprepare.PrepareCustomResourceVersions(r.workspace, r.slug, fromVersion, toVersion, r.declarations.scopeComplete)
 	if err != nil {
-		return scanreport.Hop{}, ErrIntegrity
+		return scanreport.Hop{}, hopDecision{}, ErrIntegrity
 	}
 	sum := sha256.Sum256(prepared.Prepared.CanonicalInputJSON)
 	if prepared.Prepared.InputDigest != "sha256:"+hex.EncodeToString(sum[:]) || prepared.Fact != r.fact {
-		return scanreport.Hop{}, ErrIntegrity
+		return scanreport.Hop{}, hopDecision{}, ErrIntegrity
 	}
 	result.InputDigest = prepared.Prepared.InputDigest
+	decision.setDigest = objectSetDigest(r.fact, prepared, r.declarations.scopeComplete)
 	if len(prepared.Unattributed) > 0 {
 		r.rootGap(scanreport.GapDocumentsCustomGroup, len(prepared.Unattributed))
 	}
@@ -228,10 +243,10 @@ func (r *customResourceRun) hop(hop upgradepath.Hop, only func(cncfcheck.ScanRul
 	if errors.Is(err, ErrRefused) {
 		result.Status = scanreport.HopNoData
 		result.Reasons = []string{r.rootGaps[scanreport.GapCustomResourcesOnly].Reason}
-		return result, nil
+		return result, decision, nil
 	}
 	if err != nil {
-		return scanreport.Hop{}, ErrIntegrity
+		return scanreport.Hop{}, hopDecision{}, ErrIntegrity
 	}
 	result.EngineContractDigest = evaluation.EngineContractDigest
 	if r.report.Provenance.EngineContractDigest == "" {
@@ -241,7 +256,7 @@ func (r *customResourceRun) hop(hop upgradepath.Hop, only func(cncfcheck.ScanRul
 	for _, claim := range evaluation.Claims {
 		rule, known := r.byID[claim.RuleID]
 		if _, dup := claims[claim.RuleID]; dup || !known || !customResourceClaimValid(rule, claim, r.policy) {
-			return scanreport.Hop{}, ErrIntegrity
+			return scanreport.Hop{}, hopDecision{}, ErrIntegrity
 		}
 		claims[claim.RuleID] = claim
 	}
@@ -304,7 +319,7 @@ func (r *customResourceRun) hop(hop upgradepath.Hop, only func(cncfcheck.ScanRul
 	}
 	for id, claim := range claims {
 		if (claim.Status == "PASS" || claim.Status == "BLOCKED") && !overlapping[id] {
-			return scanreport.Hop{}, ErrIntegrity
+			return scanreport.Hop{}, hopDecision{}, ErrIntegrity
 		}
 	}
 	// The family is decided on a hop between two exact versions only: an
@@ -331,7 +346,43 @@ func (r *customResourceRun) hop(hop upgradepath.Hop, only func(cncfcheck.ScanRul
 		result.Status = scanreport.HopPartial
 	}
 	result.Reasons = uniqueStrings(result.Reasons)
-	return result, nil
+	for id, blocks := range blocks {
+		if blocks {
+			decision.blocks = append(decision.blocks, id)
+		}
+	}
+	sort.Strings(decision.blocks)
+	if len(result.Families) == 1 {
+		family := result.Families[0]
+		decision.family = &family
+	}
+	return result, decision, nil
+}
+
+// hopDecision is what a jump reads of one evaluated hop: the rules that
+// blocked it, the family result of its line review (nil when the review did
+// not decide it) and the digest of the object set it was evaluated on.
+type hopDecision struct {
+	blocks    []string
+	family    *scanreport.FamilyResult
+	setDigest string
+}
+
+// objectSetDigest is the digest of the object set a hop was evaluated on:
+// the project's set fact, its sorted members, whether the set is complete
+// and why not. It does not depend on the versions of the hop.
+func objectSetDigest(fact string, prepared cncfprepare.CustomResourceScan, scopeComplete bool) string {
+	members := make([]string, 0, len(prepared.Members))
+	for member := range prepared.Members {
+		members = append(members, member)
+	}
+	sort.Strings(members)
+	h := sha256.New()
+	for _, part := range append([]string{"prufyx/object-set/v1", fact, prepared.Prepared.Reason, fmt.Sprint(scopeComplete), fmt.Sprint(len(prepared.Unattributed))}, members...) {
+		h.Write([]byte(part))
+		h.Write([]byte{0})
+	}
+	return "sha256:" + hex.EncodeToString(h.Sum(nil))
 }
 
 // lineReview decides the custom-resource version family on the hop from

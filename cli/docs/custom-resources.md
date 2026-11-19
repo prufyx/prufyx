@@ -326,10 +326,11 @@ presence of `attestation`.
 A family result never makes the hop `COVERED`, the project covered, or the
 scan pass: the answer stays `UNKNOWN` (exit 11), or `BLOCKED` (exit 10) when a
 listed rule blocks. A review that exists but does not apply (not current,
-basis left out, a hop that skips or stays within a line, a release the review
+basis left out, a hop that stays within a line or skips a line under a policy that allows direct hops, a release the review
 did not read, a listed rule that does not decide the hop, an unlisted rule)
 is a named `LINE_NOT_ATTESTED` gap of the hop. Without a review of the target
-line, the hop is evaluated as before.
+line, the hop is evaluated as before. An upgrade through several minor lines is answered from the hops of the stepwise
+path, see [scan.md](scan.md#upgrades-through-several-minor-lines-jump).
 
 ## Guarding the table and the targets
 

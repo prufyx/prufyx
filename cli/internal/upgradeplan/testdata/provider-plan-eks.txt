@@ -3,6 +3,10 @@ Not decided: 4 of 4 stages. Prufyx never reports PASS for a stage it cannot prov
 
 Routes
   kubernetes  1.29.15 -> 1.33.0  (sequential_minor; 4 hops)
+    hop 1 1.29.15 -> 1.30: UNDECIDED (HOP_ACTIONS_NOT_CHECKED, NODE_ROLLS_NOT_PLANNED)
+    hop 2 1.30 -> 1.31: UNDECIDED (HOP_ACTIONS_NOT_CHECKED, NODE_ROLLS_NOT_PLANNED)
+    hop 3 1.31 -> 1.32: UNDECIDED (HOP_ACTIONS_NOT_CHECKED, NODE_ROLLS_NOT_PLANNED)
+    hop 4 1.32 -> 1.33.0: UNDECIDED (HOP_ACTIONS_NOT_CHECKED, NODE_ROLLS_NOT_PLANNED)
 
 Stages
 Stage 1  kubernetes 1.29.15 -> 1.30  UNKNOWN  [required order: reviewed path policy sequential_minor forces one hop per minor line]

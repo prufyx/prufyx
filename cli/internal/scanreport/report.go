@@ -154,6 +154,9 @@ type Path struct {
 	// Chart is present for a declared chart hop: From and To are then chart
 	// versions of this chart, never application versions.
 	Chart *PathChart `json:"chart,omitempty"`
+	// Jump is the composed answer for a path of several minor lines. It is
+	// informational: the verdict and the exit code never read it.
+	Jump *Jump `json:"jump,omitempty"`
 }
 
 // PathChart describes a chart path: the chart, and what the scan read of
