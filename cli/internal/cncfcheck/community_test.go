@@ -26,11 +26,11 @@ import (
 // and are never published.
 
 const (
-	communitySlug      = "gateway-api"
-	communityComponent = "pkg:github/kubernetes-sigs/gateway-api"
-	communityFact      = "component.gateway_api.custom_resource_versions_set"
-	communityRuleID    = "gateway-api.crd-version-removal.gateways-gateway-networking-k8s-io.1-1-0-to-1-2-0"
-	communityMember    = "gateway.networking.k8s.io/v1beta1/Gateway"
+	communitySlug      = "cluster-api"
+	communityComponent = "pkg:github/kubernetes-sigs/cluster-api"
+	communityFact      = "component.cluster_api.custom_resource_versions_set"
+	communityRuleID    = "cluster-api.crd-version-removal.clusters-cluster-x-k8s-io.1-1-0-to-1-2-0"
+	communityMember    = "cluster.x-k8s.io/v1beta1/Cluster"
 )
 
 // communityEntry is a test-only rule of the shape the CRD extractor derives
@@ -38,9 +38,9 @@ const (
 func communityEntry() Entry {
 	rule := `{"id":"` + communityRuleID + `","operator":"forbid_set_member","subject":{"component":"` + communityComponent + `","from":"1.1.0","to":"1.2.0"},` +
 		`"setCondition":{"side":"proposed","component":"` + communityComponent + `","factId":"` + communityFact + `","members":["` + communityMember + `"]},` +
-		`"evidence":{"state":"active","reviewedAt":"2026-09-20T00:00:00Z","validUntil":"2026-12-19T00:00:00Z","sources":[{"id":"crd-1-2-0","url":"https://github.com/kubernetes-sigs/gateway-api/blob/` + syntheticRevision + `/config/crd/standard/gateway.networking.k8s.io_gateways.yaml","revision":"` + syntheticRevision + `","contentDigest":"sha256:` + strings.Repeat("0", 64) + `","startLine":1,"endLine":2}]},` +
-		`"reasonCode":"CRD_VERSION_NOT_SERVED","nextAction":"change apiVersion of Gateway to gateway.networking.k8s.io/v1 before upgrading to 1.2.0"}`
-	return Entry{Project: communitySlug, Description: "Synthetic test-only CRD version removal of a community project.", RequiredFacts: []Fact{{Side: "proposed", ID: communityFact, Component: communityComponent, Type: constraintengine.FactSet, Description: "Custom-resource versions of the Gateway API custom resources."}}, Rule: json.RawMessage(rule)}
+		`"evidence":{"state":"active","reviewedAt":"2026-09-20T00:00:00Z","validUntil":"2026-12-19T00:00:00Z","sources":[{"id":"crd-1-2-0","url":"https://github.com/kubernetes-sigs/cluster-api/blob/` + syntheticRevision + `/config/crd/standard/cluster.x-k8s.io_clusters.yaml","revision":"` + syntheticRevision + `","contentDigest":"sha256:` + strings.Repeat("0", 64) + `","startLine":1,"endLine":2}]},` +
+		`"reasonCode":"CRD_VERSION_NOT_SERVED","nextAction":"change apiVersion of Cluster to cluster.x-k8s.io/v1 before upgrading to 1.2.0"}`
+	return Entry{Project: communitySlug, Description: "Synthetic test-only CRD version removal of a community project.", RequiredFacts: []Fact{{Side: "proposed", ID: communityFact, Component: communityComponent, Type: constraintengine.FactSet, Description: "Custom-resource versions of the Cluster API custom resources."}}, Rule: json.RawMessage(rule)}
 }
 
 // communityPack is the embedded pack plus entries under schema.
@@ -301,7 +301,7 @@ func TestCommunityTableOverlapRefusesThePack(t *testing.T) {
 				return []customresources.Project{p}
 			}
 		}
-		t.Fatal("no gateway-api")
+		t.Fatal("no cluster-api")
 		return nil
 	}
 	if _, err := assembleWithCommunity(landscape, priority, pack, compiledDefinitions(), community(func(*customresources.Project) {})); err != nil {
@@ -314,14 +314,14 @@ func TestCommunityTableOverlapRefusesThePack(t *testing.T) {
 			p.Upstream.Repository = "https://github.com/strimzi/strimzi-kafka-operator"
 		},
 		"repository that is not GitHub": func(p *customresources.Project) {
-			p.Upstream.Repository = "https://gitlab.com/kubernetes-sigs/gateway-api"
+			p.Upstream.Repository = "https://gitlab.com/kubernetes-sigs/cluster-api"
 		},
 		"repository with a user": func(p *customresources.Project) {
-			p.Upstream.Repository = "https://x@github.com/kubernetes-sigs/gateway-api"
+			p.Upstream.Repository = "https://x@github.com/kubernetes-sigs/cluster-api"
 		},
 		"component not named by repository": func(p *customresources.Project) { p.Component = "pkg:github/kubernetes-sigs/other" },
 		"empty upstream name":               func(p *customresources.Project) { p.Upstream.Name = "" },
-		"slug that is not a catalog slug":   func(p *customresources.Project) { p.Slug = "Gateway_API" },
+		"slug that is not a catalog slug":   func(p *customresources.Project) { p.Slug = "Cluster_API" },
 		"project of the table marked CNCF":  func(p *customresources.Project) { p.Catalog = customresources.CatalogCNCF },
 	} {
 		table := community(mutate)
@@ -344,7 +344,7 @@ func TestCommunityTableOverlapRefusesThePack(t *testing.T) {
 	if _, err := assembleWithCommunity(landscape, priority, pack, compiledDefinitions(), []customresources.Project{one, two}); !errors.Is(err, ErrIntegrity) {
 		t.Fatalf("repeated community project accepted: %v", err)
 	}
-	two.Slug = "gateway-api-copy"
+	two.Slug = "cluster-api-copy"
 	if _, err := assembleWithCommunity(landscape, priority, pack, compiledDefinitions(), []customresources.Project{one, two}); !errors.Is(err, ErrIntegrity) {
 		t.Fatalf("one component for two community projects accepted: %v", err)
 	}
@@ -394,7 +394,7 @@ func TestCommunityEntryShapeIsClosed(t *testing.T) {
 		entry := communityEntry()
 		entry.Rule = json.RawMessage(`{"id":"` + communityRuleID + `","operator":"forbid_predicate_value","subject":{"component":"` + communityComponent + `","from":"1.1.0","to":"1.2.0"},` +
 			`"condition":{"side":"proposed","component":"` + communityComponent + `","factId":"` + communityFact + `","comparison":"eq","value":true},` +
-			`"evidence":{"state":"active","reviewedAt":"2026-09-20T00:00:00Z","validUntil":"2026-12-19T00:00:00Z","sources":[{"id":"crd-1-2-0","url":"https://github.com/kubernetes-sigs/gateway-api/blob/` + syntheticRevision + `/a.yaml","revision":"` + syntheticRevision + `","contentDigest":"sha256:` + strings.Repeat("0", 64) + `","startLine":1,"endLine":2}]},"reasonCode":"X","nextAction":"y"}`)
+			`"evidence":{"state":"active","reviewedAt":"2026-09-20T00:00:00Z","validUntil":"2026-12-19T00:00:00Z","sources":[{"id":"crd-1-2-0","url":"https://github.com/kubernetes-sigs/cluster-api/blob/` + syntheticRevision + `/a.yaml","revision":"` + syntheticRevision + `","contentDigest":"sha256:` + strings.Repeat("0", 64) + `","startLine":1,"endLine":2}]},"reasonCode":"X","nextAction":"y"}`)
 		return entry
 	}
 	otherFact := communityEntry()
@@ -534,7 +534,7 @@ func TestCommunityStaysOutOfTheCNCFCountsAndCorpus(t *testing.T) {
 func TestCommunityTargetPaths(t *testing.T) {
 	t.Parallel()
 	for slug, want := range map[string]string{
-		"gateway-api": "knowledge/community/projects/gateway-api.v1.json",
+		"cluster-api": "knowledge/community/projects/cluster-api.v1.json",
 		"strimzi":     "knowledge/cncf/projects/strimzi.v1.json",
 		"kubernetes":  "knowledge/cncf/projects/kubernetes.v1.json",
 	} {
@@ -548,14 +548,14 @@ func TestCommunityTargetPaths(t *testing.T) {
 	for _, bad := range []string{
 		// A community project lives under the community prefix only, a
 		// CNCF one under the CNCF prefix only.
-		"knowledge/cncf/projects/gateway-api.v1.json",
+		"knowledge/cncf/projects/cluster-api.v1.json",
 		"knowledge/community/projects/strimzi.v1.json",
 		"knowledge/community/projects/unknown-project.v1.json",
-		"knowledge/community/projects/gateway-api.v2.json",
-		"knowledge/community/projects/Gateway-Api.v1.json",
+		"knowledge/community/projects/cluster-api.v2.json",
+		"knowledge/community/projects/Cluster-Api.v1.json",
 		"knowledge/community/projects/../cncf/projects/strimzi.v1.json",
-		"knowledge/community/gateway-api.v1.json",
-		"knowledge/communities/projects/gateway-api.v1.json",
+		"knowledge/community/cluster-api.v1.json",
+		"knowledge/communities/projects/cluster-api.v1.json",
 		"knowledge/community/projects/" + strings.Repeat("a", 65) + ".v1.json",
 	} {
 		if slug, ok := ProjectFromTargetPath(bad); ok {
@@ -588,7 +588,7 @@ func TestCommunityTargetsAndIndex(t *testing.T) {
 	for _, entry := range document.Projects {
 		if entry.Project == communitySlug {
 			communityTargets++
-			if entry.Catalog != CatalogCommunity || entry.TargetPath != "knowledge/community/projects/gateway-api.v1.json" || entry.Records {
+			if entry.Catalog != CatalogCommunity || entry.TargetPath != "knowledge/community/projects/cluster-api.v1.json" || entry.Records {
 				t.Fatalf("entry %+v", entry)
 			}
 		} else if isCommunitySlug(entry.Project) {
@@ -634,7 +634,7 @@ func TestCommunityTargetsAndIndex(t *testing.T) {
 		if err != nil {
 			t.Fatalf("envelope: %v", err)
 		}
-		prepared, err := cncfprepare.PrepareCustomResourceVersionsBytes([]byte("apiVersion: gateway.networking.k8s.io/v1beta1\nkind: Gateway\nmetadata:\n  name: main\n"), communitySlug, "1.1.0", "1.2.0", true)
+		prepared, err := cncfprepare.PrepareCustomResourceVersionsBytes([]byte("apiVersion: cluster.x-k8s.io/v1beta1\nkind: Cluster\nmetadata:\n  name: main\n"), communitySlug, "1.1.0", "1.2.0", true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -691,7 +691,7 @@ func TestCommunityIndexRefusals(t *testing.T) {
 		"community entry without its catalog":       encode(func(d *externalIndexDocument) { at(d).Catalog = "" }),
 		"CNCF entry labelled community":             encode(func(d *externalIndexDocument) { cncfAt(d).Catalog = CatalogCommunity }),
 		"unknown catalog":                           encode(func(d *externalIndexDocument) { at(d).Catalog = "cncf" }),
-		"community entry under the CNCF prefix":     encode(func(d *externalIndexDocument) { at(d).TargetPath = "knowledge/cncf/projects/gateway-api.v1.json" }),
+		"community entry under the CNCF prefix":     encode(func(d *externalIndexDocument) { at(d).TargetPath = "knowledge/cncf/projects/cluster-api.v1.json" }),
 		"community entry under the v1 index schema": encode(func(d *externalIndexDocument) { d.Schema = ExternalIndexSchema }),
 		"community entry under the v2 index schema": encode(func(d *externalIndexDocument) { d.Schema = ExternalIndexSchemaRecords }),
 		"v3 index with no community entry": encode(func(d *externalIndexDocument) {
