@@ -138,7 +138,8 @@ Use `if: ${{ !cancelled() }}` on steps that read the report, so they run when
 the scan step failed because of a blocker. When an input is refused, or `prufyx`
 does not run, no output is set and `exit-code` is empty. Each use of the action
 writes its report to its own directory, so two uses in one job keep both
-reports. Container jobs are not tested.
+reports. An empty manifest set (no documents read) is refused as invalid input
+(exit 2) and fails the step whatever `fail-on` says. Container jobs are not tested.
 
 ## Job summary
 

@@ -433,7 +433,11 @@ func (o *opener) consume(key, display string, reader io.Reader, size int64, perm
 				return limitError("YAML nodes", int64(o.limits.Nodes))
 			}
 		}
-		return fmt.Errorf("%w: %s", ErrDecode, display)
+		var named *DecodeError
+		if errors.As(err, &named) {
+			return named
+		}
+		return fmt.Errorf("%w: %q", ErrDecode, display)
 	}
 	o.nodes = nodes
 	// Every document, every List item and every omission counts.

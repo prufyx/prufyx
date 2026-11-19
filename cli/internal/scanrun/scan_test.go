@@ -3,6 +3,7 @@
 package scanrun
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -652,16 +653,17 @@ func TestScanUnreviewedAPIVersion(t *testing.T) {
 	}
 }
 
-// TestScanEmptyInput: no manifest at all is never a pass, even on a line
-// with no rule.
+// TestScanEmptyInput: no manifest at all is a usage refusal, never a pass or
+// an UNKNOWN verdict.
 func TestScanEmptyInput(t *testing.T) {
 	t.Parallel()
 	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	for _, from := range []string{"1.29.6", "1.24.17"} {
 		_, paths := files(t, map[string]string{"empty.yaml": "# nothing rendered\n---\n"})
-		result := mustScan(t, knowledge, args(paths, "--from", "kubernetes="+from, "--to", "kubernetes=1.30.4")...)
-		if result.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(result.Report), []string{"DOCUMENTS_NOT_EVALUATED"}) || !strings.Contains(result.Report.Gaps[0].Detail, "no Kubernetes manifests") {
-			t.Fatalf("from %s: exit %d gaps %+v", from, result.Exit, result.Report.Gaps)
+		_, err := scan(t, knowledge, args(paths, "--from", "kubernetes="+from, "--to", "kubernetes=1.30.4")...)
+		var usageErr *UsageError
+		if !errors.As(err, &usageErr) || !strings.Contains(usageErr.Message, "no documents read from ") {
+			t.Fatalf("from %s: error %v, want the no-documents refusal", from, err)
 		}
 	}
 }

@@ -713,6 +713,8 @@ const (
 	UsageInputLimit              = "the inputs exceed a size limit (8 MiB per file, 32 MiB in all, 2048 files, 8192 documents); split a large file into several files in a directory"
 	UsageInputWindows            = "file and directory input is not supported on Windows; pipe the manifest on standard input (use -)"
 	UsageInputDecode             = "an input file is not valid YAML or JSON within the supported subset"
+	UsageInputRefused            = "an input file is refused: %s"
+	UsageNoDocuments             = "no documents read from %s: pass rendered manifests (YAML or JSON)"
 	UsageInputDetail             = "%s (%s)"
 	UsageConfigInputs            = "inputs in prufyx.yaml are relative to its directory and must stay inside it"
 	UsageUnsupportedVersion      = "%s %s is not a version scan can plan"
