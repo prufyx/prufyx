@@ -57,7 +57,7 @@ func TestEvaluateMixedOutcomesAndDeterministicPrecedence(t *testing.T) {
 		{ID: "m-blocked", Kind: "community_project", Project: "loki", From: "2.9.8", To: "3.0.0", InputPath: "loki.json"},
 	}}
 	planPath := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
-	now, relnotesPending := mixedOutcomesClock(t)
+	now := mixedOutcomesClock(t)
 	report, exit, err := Evaluate(planPath, root, now)
 	if err != nil || exit != 10 || report.Decision != "UNKNOWN" || report.AggregateCategory != "BLOCKED" {
 		t.Fatalf("report=%+v exit=%d err=%v", report, exit, err)
@@ -68,15 +68,24 @@ func TestEvaluateMixedOutcomesAndDeterministicPrecedence(t *testing.T) {
 	if len(report.Items[1].Report) == 0 || !strings.Contains(string(report.Items[1].Report), `"inputDigest":"sha256:`) || strings.Contains(string(report.Items[1].Report), "a-pass") {
 		t.Fatalf("sealed child report missing or leaked plan label: %s", report.Items[1].Report)
 	}
-	// thanos ships a crossing rule that this hop does not decide: while the
-	// clock is before that rule's review it is named as not yet reviewed beside
-	// the unknown claim; from its review on only the unknown claims remain.
-	want := []string{"UNKNOWN_CLAIM"}
-	if relnotesPending {
-		want = []string{"NOT_YET_REVIEWED", "UNKNOWN_CLAIM"}
-	}
-	if !reflect.DeepEqual(report.Items[0].Categories, want) {
+	// The clock is one at which every rule of both projects is in force, so
+	// only the unknown claim of the hop remains for the first item.
+	if want := []string{"UNKNOWN_CLAIM"}; !reflect.DeepEqual(report.Items[0].Categories, want) {
 		t.Fatalf("unexpected category set: %+v, want %v", report.Items[0].Categories, want)
+	}
+	// The not-yet-reviewed premise does not depend on the shipped rules' dates:
+	// a synthetic signed rule pack reviewed two hours after the clock is always
+	// named as not yet reviewed.
+	synthetic := makeSignedBatchFixtureAt(t, true, time.Now().UTC().Truncate(time.Second).Add(2*time.Hour), time.Now().UTC().Truncate(time.Second).Add(26*time.Hour))
+	writeBatchFile(t, filepath.Join(root, "kyverno.json"), canonical("pkg:github/kyverno/kyverno", "1.12.5", "1.13.0", []any{}, []any{
+		map[string]any{"id": "component.kyverno.distribution", "state": "declared", "enumValue": "official_upstream"},
+		map[string]any{"id": "component.kyverno.execution_surface", "state": "declared", "enumValue": "reports_controller"},
+		map[string]any{"id": "component.kyverno.reports_chunk_size_flag_present", "state": "declared", "boolValue": false},
+	}))
+	pendingPlan := writeBatchFile(t, filepath.Join(root, "pending-plan.json"), signedKnowledgePlan([]Item{{ID: "pending", Kind: "cncf", Project: "kyverno", From: "1.12.5", To: "1.13.0", InputPath: "kyverno.json"}}))
+	pending, _, err := EvaluateWithStore(pendingPlan, root, synthetic.store)
+	if err != nil || len(pending.Items) != 1 || pending.Items[0].Category != "NOT_YET_REVIEWED" || !reflect.DeepEqual(pending.Items[0].Categories, []string{"NOT_YET_REVIEWED"}) {
+		t.Fatalf("synthetic not-yet-reviewed premise: %+v err=%v", pending, err)
 	}
 }
 
@@ -402,36 +411,13 @@ func TestEvaluateRejectsPublicHardlinkAndFIFOInputs(t *testing.T) {
 }
 
 // mixedOutcomesClock is the evaluation clock of the mixed-outcomes plan,
-// computed from the rule data. The plan needs the loki rules and the two
-// thanos rules of its hops in force; the premise of the test is that the one
-// thanos release-notes rule the hop 0.40.0 -> 0.42.0 crosses is not yet
-// reviewed. That clock (one hour before the release-notes rule's review) is
-// used when it is late enough for the other rules; when a renewal has
-// reviewed the other rules after the release-notes rule, no clock keeps both
-// premises, and the clock is the earliest one at which every rule of both
-// projects is in force (relnotesPending false).
-func mixedOutcomesClock(t *testing.T) (now time.Time, relnotesPending bool) {
+// computed from the rule data: the earliest instant at which every rule of
+// the loki and thanos packs is in force.
+func mixedOutcomesClock(t *testing.T) time.Time {
 	t.Helper()
-	parse := func(id string) time.Time {
-		reviewed, _ := testclock.RuleEvidence(id)
-		at, err := time.Parse(time.RFC3339, reviewed)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return at
+	now := testclock.ProjectNewest("loki")
+	if all := testclock.ProjectNewest("thanos"); all.After(now) {
+		now = all
 	}
-	need := testclock.ProjectNewest("loki")
-	for _, id := range []string{"thanos.receive-store-flags-removed.0-42", "thanos.receive-store-flags-target-argv.0-41-0-to-0-42-4"} {
-		if at := parse(id).Add(time.Hour); at.After(need) {
-			need = at
-		}
-	}
-	pre := parse("thanos.relnotes.flag-removed.log-request-decision.0-33").Add(-time.Hour)
-	if !pre.Before(need) {
-		return pre, true
-	}
-	if all := testclock.ProjectNewest("thanos"); all.After(need) {
-		need = all
-	}
-	return need, false
+	return now
 }
