@@ -184,10 +184,15 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          baselines=()
+          if [ -f knowledge/repin-baselines.json ]; then
+            baselines=(--baselines knowledge/repin-baselines.json)
+          fi
           go run ./cmd/prufyx-maintainer evidence repin --pinned-only \
             --rules internal/cncfcheck/data/rules.json \
             --rules internal/projectcheck/data/rules.json \
             --baseline release-line \
+            "${baselines[@]}" \
             --output "${RUNNER_TEMP}/pinned-worklist.json"
 
       - name: Build binaries

@@ -483,6 +483,33 @@ func TestReleaseWorkflowChecksPinnedCitations(t *testing.T) {
 	if strings.Contains(step.Run, "${{") || strings.Contains(step.Run, "|| true") {
 		t.Error("pinned check must not use expressions in run or swallow its status")
 	}
+	// The nightly gate passes the owner baselines when the file exists; the
+	// release check must read the same file (here relative to cli/), the same way.
+	gate := loadWorkflow(t, "knowledge-gate.yml")
+	var gateRun string
+	for _, job := range gate.Jobs {
+		for _, s := range job.Steps {
+			if s.Name == step.Name {
+				gateRun = s.Run
+			}
+		}
+	}
+	if gateRun == "" {
+		t.Fatal("knowledge-gate has no pinned citation check step")
+	}
+	const file = "knowledge/repin-baselines.json"
+	for _, want := range []string{
+		"if [ -f " + file + " ]; then",
+		"baselines=(--baselines " + file + ")",
+		`"${baselines[@]}"`,
+	} {
+		if !strings.Contains(step.Run, want) {
+			t.Errorf("pinned check lacks %q", want)
+		}
+		if !strings.Contains(gateRun, strings.ReplaceAll(want, file, "cli/"+file)) {
+			t.Errorf("knowledge-gate pinned check lacks the counterpart of %q", want)
+		}
+	}
 	index := map[string]int{}
 	for i, s := range wf.Jobs["build"].Steps {
 		index[s.Name] = i
