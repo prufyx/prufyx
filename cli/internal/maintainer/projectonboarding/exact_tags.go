@@ -112,7 +112,7 @@ func runExactTagInit(args []string, stderr io.Writer) int {
 	v := map[string]any{"schema": ExactTagRequestSchema, "authority": Authority, "project": map[string]any{"slug": slug, "canonicalRepositoryURL": canonical, "owner": owner, "repository": name}, "discovery": map[string]any{"mode": "EXPLICIT_GIT_TAGS", "exactTags": toAny(tags), "licenseAnchorTag": anchor, "changelogPaths": toAny(paths), "licenseDisposition": license}, "review": map[string]any{"state": "NOT_REVIEWED", "admissionState": "NOT_ADMITTED"}}
 	raw, e := sourcecorpus.Canonical(v)
 	if e != nil || writeNewPrivate(out, raw) != nil {
-		return reject(stderr)
+		return rejectPrivateDir(stderr, filepath.Dir(out))
 	}
 	return 0
 }
@@ -191,7 +191,7 @@ func parseExactTagRequest(raw []byte) (exactTagRequest, error) {
 
 func runExactTagSync(ctx context.Context, r exactTagRequest, parent, previous string, stdout, stderr io.Writer, opt Options) int {
 	if sourcecorpus.ValidatePrivateDirectoryPath(parent) != nil {
-		return reject(stderr)
+		return rejectPrivateDir(stderr, parent)
 	}
 	if opt.Fetcher == nil {
 		opt.Fetcher = FixedHTTPSFetcher{}
@@ -204,7 +204,10 @@ func runExactTagSync(ctx context.Context, r exactTagRequest, parent, previous st
 	var e error
 	if previous != "" {
 		prior, priorObjects, e = VerifySnapshot(previous)
-		if e != nil || prior["schema"] != ExactTagSnapshotSchema {
+		if e != nil {
+			return rejectPrivateDir(stderr, previous)
+		}
+		if prior["schema"] != ExactTagSnapshotSchema {
 			return reject(stderr)
 		}
 	}
@@ -845,7 +848,7 @@ func validExactTagLineage(value any, tags []string, observations []any) bool {
 func runExactTagVerify(args []string, stdout, stderr io.Writer) int {
 	s, _, e := VerifySnapshot(args[1])
 	if e != nil {
-		return reject(stderr)
+		return rejectPrivateDir(stderr, args[1])
 	}
 	lineage := "CONTINUITY_NOT_REPLAYED_PREVIOUS_NOT_SUPPLIED"
 	if s["lineage"] == nil {
@@ -853,7 +856,10 @@ func runExactTagVerify(args []string, stdout, stderr io.Writer) int {
 	}
 	if len(args) == 4 {
 		prior, _, err := VerifySnapshot(args[3])
-		if err != nil || prior["schema"] != ExactTagSnapshotSchema {
+		if err != nil {
+			return rejectPrivateDir(stderr, args[3])
+		}
+		if prior["schema"] != ExactTagSnapshotSchema {
 			return reject(stderr)
 		}
 		currentRepository, currentOK := s["repository"].(map[string]any)
@@ -892,7 +898,7 @@ func runExactTagVerify(args []string, stdout, stderr io.Writer) int {
 func runExactTagStatus(args []string, stdout, stderr io.Writer) int {
 	s, _, e := VerifySnapshot(args[1])
 	if e != nil {
-		return reject(stderr)
+		return rejectPrivateDir(stderr, args[1])
 	}
 	continuity := "NO_PREVIOUS_SNAPSHOT"
 	if s["lineage"] != nil {
@@ -928,7 +934,7 @@ func runExactTagInspect(path, tag string, notes bool, stdout, stderr io.Writer) 
 func runExactTagProposal(args []string, stdout, stderr io.Writer) int {
 	s, _, e := VerifySnapshot(args[1])
 	if e != nil {
-		return reject(stderr)
+		return rejectPrivateDir(stderr, args[1])
 	}
 	tags := []any{}
 	for _, v := range s["tagObservations"].([]any) {

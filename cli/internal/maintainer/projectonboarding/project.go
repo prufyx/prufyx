@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -180,6 +181,19 @@ func rejectReason(stderr io.Writer, reason string) int {
 	return 2
 }
 
+// rejectPrivateDir refuses with exit 2. When directory exists but is group or
+// other accessible, it says why and how to fix it; otherwise it prints the
+// generic reason unchanged.
+func rejectPrivateDir(stderr io.Writer, directory string) int {
+	if directory != "" {
+		if info, err := os.Lstat(directory); err == nil && info.Mode().IsDir() && info.Mode().Perm()&0o077 != 0 {
+			_, _ = io.WriteString(stderr, "project: INVALID_INPUT_OR_INTEGRITY_FAILURE: directory "+strconv.Quote(directory)+" must be private (mode 0700, not group/other writable or readable): run chmod 700 "+strconv.Quote(directory)+"\n")
+			return 2
+		}
+	}
+	return reject(stderr)
+}
+
 func runInit(args []string, stderr io.Writer) int {
 	if hasLongFlag(args, "--exact-tag") || hasLongFlag(args, "--license-anchor-tag") {
 		return runExactTagInit(args, stderr)
@@ -229,7 +243,7 @@ func runInit(args []string, stderr io.Writer) int {
 	value := map[string]any{"schema": RequestSchema, "authority": Authority, "project": map[string]any{"slug": slug, "canonicalRepositoryURL": repo, "owner": owner, "repository": name}, "discovery": map[string]any{"releaseLimit": int64(limit), "tagPrefix": prefixValue, "changelogPaths": toAny(paths), "licenseDisposition": license}, "review": map[string]any{"state": "NOT_REVIEWED", "admissionState": "NOT_ADMITTED"}}
 	raw, err := sourcecorpus.Canonical(value)
 	if err != nil || writeNewPrivate(output, raw) != nil {
-		return reject(stderr)
+		return rejectPrivateDir(stderr, filepath.Dir(output))
 	}
 	return 0
 }
@@ -324,8 +338,11 @@ func runSync(ctx context.Context, args []string, stdout, stderr io.Writer, optio
 			return runExactTagSync(ctx, exactRequest, parent, previous, stdout, stderr, options)
 		}
 	}
-	if err != nil || sourcecorpus.ValidatePrivateDirectoryPath(parent) != nil {
+	if err != nil {
 		return reject(stderr)
+	}
+	if sourcecorpus.ValidatePrivateDirectoryPath(parent) != nil {
+		return rejectPrivateDir(stderr, parent)
 	}
 	if options.Fetcher == nil {
 		options.Fetcher = FixedHTTPSFetcher{}
@@ -338,7 +355,10 @@ func runSync(ctx context.Context, args []string, stdout, stderr io.Writer, optio
 	var priorSnapshot map[string]any
 	if previous != "" {
 		priorSnapshot, previousObjects, err = VerifySnapshot(previous)
-		if err != nil || priorSnapshot["schema"] != SnapshotSchema || priorSnapshot["repository"].(map[string]any)["canonicalRepositoryURL"] != request.repo {
+		if err != nil {
+			return rejectPrivateDir(stderr, previous)
+		}
+		if priorSnapshot["schema"] != SnapshotSchema || priorSnapshot["repository"].(map[string]any)["canonicalRepositoryURL"] != request.repo {
 			return reject(stderr)
 		}
 		previousDigest = digestMust(priorSnapshot)
@@ -961,7 +981,7 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 	}
 	snapshot, _, err := VerifySnapshot(args[1])
 	if err != nil {
-		return reject(stderr)
+		return rejectPrivateDir(stderr, args[1])
 	}
 	if snapshot["schema"] == ExactTagSnapshotSchema {
 		return runExactTagVerify(args, stdout, stderr)
@@ -980,7 +1000,7 @@ func runStatus(args []string, stdout, stderr io.Writer) int {
 	}
 	snapshot, _, err := VerifySnapshot(args[1])
 	if err != nil {
-		return reject(stderr)
+		return rejectPrivateDir(stderr, args[1])
 	}
 	if snapshot["schema"] == ExactTagSnapshotSchema {
 		return runExactTagStatus(args, stdout, stderr)
@@ -1003,7 +1023,7 @@ func runInspect(args []string, stdout, stderr io.Writer) int {
 	}
 	snapshot, objects, err := VerifySnapshot(path)
 	if err != nil {
-		return reject(stderr)
+		return rejectPrivateDir(stderr, path)
 	}
 	if snapshot["schema"] == ExactTagSnapshotSchema {
 		return runExactTagInspect(path, tag, includeNotes, stdout, stderr)
@@ -1048,7 +1068,7 @@ func runProposal(args []string, stdout, stderr io.Writer) int {
 	}
 	snapshot, _, err := VerifySnapshot(args[1])
 	if err != nil {
-		return reject(stderr)
+		return rejectPrivateDir(stderr, args[1])
 	}
 	if snapshot["schema"] == ExactTagSnapshotSchema {
 		return runExactTagProposal(args, stdout, stderr)
