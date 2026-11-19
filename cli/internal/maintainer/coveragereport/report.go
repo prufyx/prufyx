@@ -247,6 +247,11 @@ type Report struct {
 	ExpiringProjects []string `json:"expiringProjects"`
 	// V2 is the metric v2 section; present only when Input.V2 is set.
 	V2 *V2 `json:"v2,omitempty"`
+	// OlderHops is the older hops block (older_hops.go): hops before the
+	// cohort window, counted apart from it and never summed into any total
+	// above. Absent unless attached with WithOlderHops, so the default
+	// report is byte-identical.
+	OlderHops *OlderHops `json:"olderHops,omitempty"`
 
 	// split and withPairs feed the README block only; the document does
 	// not carry them. Both cover the fleet (CNCF) projects.

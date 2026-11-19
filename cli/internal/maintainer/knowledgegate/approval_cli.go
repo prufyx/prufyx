@@ -537,6 +537,8 @@ func printApproval(w io.Writer, rec ApprovalRecord, key ApprovalKey) {
 	switch rec.Subject {
 	case ApprovalSubjectRepinBaseline:
 		fmt.Fprintf(w, "  subject    repinBaseline %s\n", rec.Scope)
+	case ApprovalSubjectTargetFloor:
+		fmt.Fprintf(w, "  subject    target floor %s\n", rec.Scope)
 	case ApprovalSubjectLineAttestation:
 		fmt.Fprintf(w, "  subject    line attestation %s/%s (%s)\n", rec.Pack, rec.RuleID, rec.Scope)
 	case ApprovalSubjectPathPolicy:

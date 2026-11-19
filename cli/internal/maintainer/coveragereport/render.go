@@ -94,6 +94,10 @@ func (r Report) Markdown() []byte {
 			fmt.Fprintf(&b, "- %s\n", p)
 		}
 	}
+	if r.OlderHops != nil {
+		b.WriteString("\n")
+		b.WriteString(r.OlderHops.Markdown())
+	}
 	return []byte(b.String())
 }
 
