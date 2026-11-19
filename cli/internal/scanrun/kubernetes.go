@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -80,8 +81,21 @@ func (r *kubernetesRun) evaluate(from, to string) error {
 	r.hopDigests = map[int]string{}
 	r.hopNeutral, r.wholeNeutral = map[int][]neutralRule{}, nil
 	r.rootGaps = r.componentGaps()
-	for _, gap := range r.rootGaps {
-		r.report.Gaps = append(r.report.Gaps, gap)
+	// Map order must not reach the report: the jump takes the first gap's
+	// action and the open reasons in this order. Declarations come first in
+	// their declared order, then the rest by key.
+	ordered := r.declarationGaps()
+	var rest []scanreport.GapKey
+	for key := range r.rootGaps {
+		if !slices.Contains(ordered, key) {
+			rest = append(rest, key)
+		}
+	}
+	slices.Sort(rest)
+	for _, key := range append(ordered, rest...) {
+		if gap, found := r.rootGaps[key]; found {
+			r.report.Gaps = append(r.report.Gaps, gap)
+		}
 	}
 	r.unresolvedSetGap(cncfprepare.KubernetesApplySetReason(r.workspace))
 

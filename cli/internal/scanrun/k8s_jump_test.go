@@ -3,6 +3,7 @@
 package scanrun
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -166,5 +167,38 @@ func TestKubernetesJumpComposition(t *testing.T) {
 	r.composeJump(&path)
 	if path.Jump.Status == scanreport.JumpBlocked || path.Jump.Status == scanreport.JumpStepwisePass {
 		t.Fatalf("a blocked hop without a cited rule: %+v", path.Jump)
+	}
+}
+
+// The jump takes the first matching gap's action and builds its open reasons
+// from the gaps in report order, so the order of the root gaps must not
+// depend on map iteration: repeated scans give byte-identical jumps.
+func TestKubernetesJumpDeterministic(t *testing.T) {
+	// No declarations: every declaration gap is a root gap at once.
+	dir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1})
+	var first string
+	for i := 0; i < 20; i++ {
+		var result Result
+		inDir(t, dir, func() {
+			result = mustScan(t, newKnowledge(t, knowledgeOptions{lines: without(allLines, "1.28"), policy: "current"}), "applyset.yaml", "--now", testNow, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")
+		})
+		var jump *scanreport.Jump
+		for _, path := range result.Report.Paths {
+			if path.Component == kubernetesSlug {
+				jump = path.Jump
+			}
+		}
+		if jump == nil {
+			t.Fatal("no jump")
+		}
+		raw, err := json.Marshal(jump)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if i == 0 {
+			first = string(raw)
+		} else if string(raw) != first {
+			t.Fatalf("run %d differs:\n%s\n%s", i, first, raw)
+		}
 	}
 }
