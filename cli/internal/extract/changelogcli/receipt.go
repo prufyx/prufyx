@@ -37,10 +37,8 @@ var (
 	hex64RE = regexp.MustCompile(`^[0-9a-f]{64}$`)
 	// The code digest is the extractor form "sha256:<hex>".
 	codeDigestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
-	// The mirror index digest is the first 8 bytes of its hash (16 hex).
-	mirrorHexRE = regexp.MustCompile(`^[0-9a-f]{16,64}$`)
-	slugRE      = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
-	fields      = []string{"step", "component", "rowDigest", "tagsDigest", "mirrorDigest", "codeDigest"}
+	slugRE       = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+	fields       = []string{"step", "component", "rowDigest", "tagsDigest", "mirrorDigest", "codeDigest"}
 )
 
 // ParseReceipt reads one canonical receipt line. It refuses any other field
@@ -71,8 +69,39 @@ func ParseReceipt(line string) (Receipt, error) {
 		return Receipt{}, errors.New("receipt: codeDigest must be sha256:<hex>")
 	case !hex64RE.MatchString(r.TagsDigest) && r.TagsDigest != "unreadable":
 		return Receipt{}, errors.New("receipt: tagsDigest must be sha256 hex or unreadable")
-	case !mirrorHexRE.MatchString(r.MirrorDigest) && r.MirrorDigest != "none":
-		return Receipt{}, errors.New("receipt: mirrorDigest must be hex or none")
+	case !hex64RE.MatchString(r.MirrorDigest) && r.MirrorDigest != "none":
+		return Receipt{}, errors.New("receipt: mirrorDigest must be sha256 hex (64) or none")
+	}
+	return r, nil
+}
+
+// Admissible is the consumer-side check a production consumer (batcher, QA
+// gate) must apply to a parsed receipt. It always refuses an unreadable tag
+// list, and refuses mirrorDigest=none unless the caller declares a fixture
+// run. Fail closed: anything else is admitted only if it has the closed shape
+// ParseReceipt enforces.
+func (r Receipt) Admissible(fixtureRun bool) error {
+	if r.TagsDigest == "unreadable" || !hex64RE.MatchString(r.TagsDigest) {
+		return errors.New("receipt: tag list was unreadable")
+	}
+	if r.MirrorDigest == "none" {
+		if !fixtureRun {
+			return errors.New("receipt: no mirror state (mirrorDigest=none) outside a declared fixture run")
+		}
+	} else if !hex64RE.MatchString(r.MirrorDigest) {
+		return errors.New("receipt: mirrorDigest must be 64 hex")
+	}
+	return nil
+}
+
+// ParseReceiptStrict parses a line and applies Admissible.
+func ParseReceiptStrict(line string, fixtureRun bool) (Receipt, error) {
+	r, err := ParseReceipt(line)
+	if err != nil {
+		return Receipt{}, err
+	}
+	if err := r.Admissible(fixtureRun); err != nil {
+		return Receipt{}, err
 	}
 	return r, nil
 }

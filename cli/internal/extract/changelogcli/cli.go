@@ -16,6 +16,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -147,8 +149,16 @@ func proposeRows(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return refuse(err)
 	}
+	td, err := repoTagsDigest(src, extract.RepoRef{Key: repo})
+	if err != nil {
+		return refuse(err)
+	}
+	md, err := mirrorDigestFull(src, mirror)
+	if err != nil {
+		return refuse(err)
+	}
 	rc := Receipt{Step: "propose", Component: component, RowDigest: rd,
-		TagsDigest: repoTagsDigest(src, extract.RepoRef{Key: repo}), MirrorDigest: mirrorDigestOrNone(src), CodeDigest: code}
+		TagsDigest: td, MirrorDigest: md, CodeDigest: code}
 	fmt.Fprintf(stdout, "%s\n%s\n", out, rc.Line())
 	return 0
 }
@@ -210,7 +220,12 @@ func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io
 		}
 	}
 	fmt.Fprintf(&out, "rows=%d failed=%d minLocatedNewest=%d tagsDigest=%s", len(results), failed, minLocated, tagSetDigest(src, table, component))
-	fmt.Fprintf(&out, " mirrorDigest=%s\n", mirrorDigestOrNone(src))
+	md, err := mirrorDigestFull(src, mirror)
+	if err != nil {
+		fmt.Fprintf(stderr, "changelog rows-check: %v\n", err)
+		return 2
+	}
+	fmt.Fprintf(&out, " mirrorDigest=%s\n", md)
 	// One canonical receipt line per checked row, in table order.
 	rows := table
 	if component != "" {
@@ -222,8 +237,13 @@ func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io
 		}
 	}
 	for _, t := range rows {
+		td, err := repoTagsDigest(src, t.Repo)
+		if err != nil {
+			fmt.Fprintf(stderr, "changelog rows-check: %v\n", err)
+			return 2
+		}
 		rc := Receipt{Step: "check", Component: t.Component, RowDigest: t.RowDigest(),
-			TagsDigest: repoTagsDigest(src, t.Repo), MirrorDigest: mirrorDigestOrNone(src), CodeDigest: digest}
+			TagsDigest: td, MirrorDigest: md, CodeDigest: digest}
 		out.WriteString(rc.Line())
 		out.WriteByte('\n')
 	}
@@ -256,7 +276,7 @@ func tagSetDigest(src source, table []changelogentries.Target, component string)
 			return "unreadable"
 		}
 		for _, tg := range tags {
-			names = append(names, t.Repo.Key+"@"+tg.Name)
+			names = append(names, t.Repo.Key+"@"+tg.Name+"="+tg.Commit)
 		}
 	}
 	sort.Strings(names)
@@ -264,28 +284,51 @@ func tagSetDigest(src source, table []changelogentries.Target, component string)
 	return hex.EncodeToString(sum[:])
 }
 
-// repoTagsDigest is the sha256 of the sorted, newline-joined "repo@tag" names
-// of one repository, "unreadable" when the tag list cannot be read.
-func repoTagsDigest(src source, repo extract.RepoRef) string {
+// repoTagsDigest is the sha256 of the sorted, newline-joined
+// "repo@tag=commit" lines of one repository (the peeled commit is bound, so a
+// retag changes it). An unreadable tag list is an error: no receipt is printed.
+func repoTagsDigest(src source, repo extract.RepoRef) (string, error) {
 	tags, err := src.Tags(repo)
 	if err != nil {
-		return "unreadable"
+		return "", fmt.Errorf("tag list of %s unreadable: %w", repo.Key, err)
 	}
-	names := make([]string, 0, len(tags))
+	lines := make([]string, 0, len(tags))
 	for _, tg := range tags {
-		names = append(names, repo.Key+"@"+tg.Name)
+		lines = append(lines, repo.Key+"@"+tg.Name+"="+tg.Commit)
 	}
-	sort.Strings(names)
-	sum := sha256.Sum256([]byte(strings.Join(names, "\n")))
-	return hex.EncodeToString(sum[:])
+	sort.Strings(lines)
+	sum := sha256.Sum256([]byte(strings.Join(lines, "\n")))
+	return hex.EncodeToString(sum[:]), nil
 }
 
-// mirrorDigestOrNone is the mirror digest, or the explicit "none" for a fixture.
-func mirrorDigestOrNone(src source) string {
-	if d := mirrorDigest(src); d != "" {
-		return d
+// mirrorDigestFull is the full sha256 (64 hex) of the mirror index file, or
+// the explicit "none" for a fixture. The reader's short digest must be the
+// prefix of it, so the file read is the one the reader saw; any mismatch or
+// read failure is an error.
+func mirrorDigestFull(src source, stateDir string) (string, error) {
+	short := mirrorDigest(src)
+	if stateDir == "" || short == "" {
+		if stateDir != "" {
+			return "", errors.New("mirror state has no index digest")
+		}
+		return "none", nil
 	}
-	return "none"
+	return fullFromShort(stateDir, short)
+}
+
+// fullFromShort hashes the index file in stateDir and checks the reader's short
+// digest is its prefix.
+func fullFromShort(stateDir, short string) (string, error) {
+	raw, err := os.ReadFile(filepath.Join(stateDir, "mirror-index.json"))
+	if err != nil {
+		return "", fmt.Errorf("mirror index: %w", err)
+	}
+	sum := sha256.Sum256(raw)
+	full := hex.EncodeToString(sum[:])
+	if short == "" || !strings.HasPrefix(full, short) {
+		return "", errors.New("mirror index changed while reading")
+	}
+	return full, nil
 }
 
 // mirrorDigest is the mirror state index digest, "" for a fixture.
