@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -74,12 +75,15 @@ func TestGatePathsDefaultList(t *testing.T) {
 		"cli/internal/maintainer/knowledgegate/gate.go", "cli/internal/maintainer/mergepolicy/x.go",
 		"cli/internal/maintainer/releasedocs/check.go", "cli/internal/maintainer/verifyprworkflow/workflow_test.go",
 		"cli/internal/maintainer/targetdraft/classify.go", "cli/cmd/prufyx-maintainer/gate.go",
+		"cli/go.mod", "cli/go.sum", "go.mod", "go.sum", "testdata/synthetic-cluster-scenarios/v4/go.mod", "testdata/x/y/go.sum",
+		"cli/vendor/golang.org/x/text/a.go", ".github/actions/setup/action.yml", "action.yml", "sub/dir/action.yaml",
+		"scripts/readme-coverage.sh", "scripts/publish-verify.sh", "scripts/action/run.sh", "scripts/brand-new.sh",
 	} {
 		if !l.gatePath(p) {
 			t.Errorf("%s is not a gate path", p)
 		}
 	}
-	for _, p := range []string{"README.md", "cli/knowledge/approvals/cncf/x.json", ".github/ISSUE_TEMPLATE/a.md", ".github/workflowsx", "scripts/other.sh"} {
+	for _, p := range []string{"README.md", "cli/knowledge/approvals/cncf/x.json", ".github/ISSUE_TEMPLATE/a.md", ".github/workflowsx", "scriptsx/a.sh", "cli/gomod", "docs/action.md"} {
 		if l.gatePath(p) {
 			t.Errorf("%s is a gate path", p)
 		}
@@ -99,6 +103,8 @@ func TestGatePathsNeedOwnerApproval(t *testing.T) {
 	for _, file := range []string{
 		".github/workflows/knowledge-gate.yml", ".github/workflows/ci.yml", ".github/workflows/merge-policy.yml",
 		"scripts/merge-policy-queue.sh", ".github/CODEOWNERS", "cli/internal/maintainer/knowledgegate/gate.go",
+		"cli/go.mod", "cli/go.sum", "testdata/synthetic-cluster-scenarios/v4/go.mod", ".github/actions/setup/action.yml",
+		"action.yml", "scripts/readme-coverage.sh", "scripts/not-listed-before.sh", "cli/vendor/modules.txt",
 	} {
 		t.Run(file, func(t *testing.T) {
 			f := newGatePathFixture(t, file)
@@ -271,5 +277,33 @@ func TestWorkflowPassesCandidateID(t *testing.T) {
 		if !strings.Contains(s, want) {
 			t.Errorf("knowledge-gate.yml lacks %q", want)
 		}
+	}
+}
+
+// Every script a workflow calls is a gate path, so a new call of an unlisted
+// script cannot slip through.
+func TestEveryWorkflowScriptIsGatePath(t *testing.T) {
+	t.Parallel()
+	files, err := filepath.Glob(filepath.Join(repoRoot, ".github", "workflows", "*.yml"))
+	if err != nil || len(files) == 0 {
+		t.Fatalf("no workflows: %v", err)
+	}
+	re := regexp.MustCompile(`scripts/[A-Za-z0-9_./-]*[A-Za-z0-9_]`)
+	l := DefaultLayout()
+	n := 0
+	for _, f := range files {
+		raw, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, m := range re.FindAllString(string(raw), -1) {
+			n++
+			if !l.gatePath(m) {
+				t.Errorf("%s calls %s, which is not a gate path", filepath.Base(f), m)
+			}
+		}
+	}
+	if n == 0 {
+		t.Fatal("no script call found; the guard reads the wrong files")
 	}
 }

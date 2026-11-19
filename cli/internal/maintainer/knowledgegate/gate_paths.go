@@ -5,6 +5,7 @@ package knowledgegate
 import (
 	"errors"
 	"fmt"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -45,9 +46,20 @@ func defaultGatePaths() []string {
 	return []string{
 		".github/workflows/",
 		".github/CODEOWNERS",
-		"scripts/merge-policy-pr.sh",
-		"scripts/merge-policy-queue.sh",
-		"scripts/ci-test-shard.sh",
+		".github/actions/",
+		"action.yml",
+		"action.yaml",
+		// Every script a workflow calls, and any added later.
+		"scripts/",
+		// The queue builds the head tree: a dependency, toolchain or vendored
+		// source edit changes what runs.
+		"cli/go.mod",
+		"cli/go.sum",
+		"cli/vendor/",
+		"go.mod",
+		"go.sum",
+		"go.work",
+		"go.work.sum",
 		"cli/internal/maintainer/knowledgegate/",
 		"cli/internal/maintainer/mergepolicy/",
 		"cli/internal/maintainer/releasedocs/",
@@ -60,6 +72,12 @@ func defaultGatePaths() []string {
 
 // gatePath reports whether rel is a gate file.
 func (l Layout) gatePath(rel string) bool {
+	// Module and action files of any directory (the repository holds more
+	// than one module), whatever the list says.
+	switch path.Base(rel) {
+	case "go.mod", "go.sum", "go.work", "go.work.sum", "action.yml", "action.yaml":
+		return true
+	}
 	for _, p := range l.GatePaths {
 		if strings.HasSuffix(p, "/") && strings.HasPrefix(rel, p) || rel == p {
 			return true
