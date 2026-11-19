@@ -205,12 +205,31 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+          # Full history and tags: the listed-family floor test reads them.
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
+
+      # The oldest supported client is built from its pinned commit and run
+      # against a package that carries the listed family: it must exit 15
+      # (too new), not fail the package as an integrity error.
+      - name: Pinned client refuses the listed family as too new
+        if: ${{ matrix.group == 'core-commands' }}
+        working-directory: cli
+        run: |
+          set -euo pipefail
+          pin="knowledge/oldest-supported-client.txt"
+          [ "$(grep -c '' "${pin}")" = 2 ] || { echo "${pin} must hold exactly two lines" >&2; exit 1; }
+          ref="$(sed -n '1p' "${pin}")"
+          [[ "${ref}" =~ ^ref=[0-9a-f]{40}$ ]] || { echo "the ref line of ${pin} is not a 40-hex commit" >&2; exit 1; }
+          src="${RUNNER_TEMP}/pinned-client"
+          mkdir -m 700 "${src}"
+          git archive "${ref#ref=}" | tar -x -C "${src}"
+          PRUFYX_PINNED_CLIENT_SRC="${src}" go test -timeout 40m -count=1 -run TestOldestClientRefusesListedFamilyTooNew -v ./internal/maintainer/knowledgerelease/
 
       - name: Test
         working-directory: cli
@@ -307,6 +326,8 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+          # Full history and tags: the listed-family floor test reads them.
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0

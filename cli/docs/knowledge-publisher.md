@@ -709,6 +709,16 @@ that does not know the family would fail the package as an integrity failure
   never accepts exit `15` for a package that names a minimum client (its message names the minimum, "upgrade
   prufyx to >= ..."): once the pin is at or above the floor the pinned client must exit `0`.
 
+The pinned-client behaviour is proved in CI, not by hand: the test job
+builds the client at the commit in `cli/knowledge/oldest-supported-client.txt`
+(`git archive` of that ref, `PRUFYX_PINNED_CLIENT_SRC`) and runs
+`TestOldestClientRefusesListedFamilyTooNew`, which needs that client to exit
+`15` ("upgrade prufyx to >= ...") on a package that carries the family, and `0`
+on a package it built itself. The floor is also checked against the real release
+tags of the checkout (`TestListedFamilyFloorAgainstTheRealTags`): a tag that
+predates the family must be below the floor, a tag that holds it at or above;
+on CI an unreadable tag list fails the job.
+
 L counts and the README coverage block are repository knowledge: they are
 computed from the repository, and a client receives the records only from the
 floor release on.

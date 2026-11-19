@@ -76,6 +76,9 @@ type Options struct {
 	// built and signed; empty means unknown and removes them too. A value that
 	// is not a version is refused.
 	OldestClient string
+	// listedCheck replaces the listed-family publish check. It is unexported,
+	// so only this package's tests can set it (the command line cannot).
+	listedCheck func(index []byte, targets [][]byte, oldestClient string) error
 	// Revision is the positive knowledge revision; Version is the positive
 	// TUF version used for the targets, snapshot and timestamp roles. With a
 	// previous package it must exceed that package's timestamp version.
@@ -247,7 +250,11 @@ func buildProjectTargets(o Options) (built, error) {
 	for _, project := range projects {
 		raws = append(raws, project.Bytes)
 	}
-	if err := checkListedShipping(index.Bytes, raws, o.OldestClient); err != nil {
+	check := o.listedCheck
+	if check == nil {
+		check = cncfcheck.CheckListedFamilyShipping
+	}
+	if err := check(index.Bytes, raws, o.OldestClient); err != nil {
 		return built{}, fmt.Errorf("listed family: %v: %w", err, ErrRejected)
 	}
 	parsed, err := cncfcheck.ParseExternalIndex(index.Bytes)
@@ -588,6 +595,5 @@ func wipe(b []byte) {
 
 // Test seams for the per-project builders.
 var (
-	buildPinned         = cncfcheck.BuildEmbeddedExternalTargetsPinned
-	checkListedShipping = cncfcheck.CheckListedFamilyShipping
+	buildPinned = cncfcheck.BuildEmbeddedExternalTargetsPinned
 )

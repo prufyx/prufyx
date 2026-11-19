@@ -334,28 +334,113 @@ func TestCheckListedFamilyShipping(t *testing.T) {
 	}
 }
 
-// The floor must be above everything that can already have been released and
-// above the oldest supported client: a floor at or below a released tag would
-// let a client that does not know the family past the floor (exit 3).
-func TestListedFamilyFloorIsAboveEveryReleaseAndThePin(t *testing.T) {
+// releaseTag is a release tag and whether the commit it points at already
+// holds the listed family.
+type releaseTag struct {
+	name      string
+	hasFamily bool
+}
+
+// floorProblems lists every way the floor fails to separate clients that know
+// the family from clients that do not: a tag that predates the family must be
+// below the floor (a client at it would pass the floor and fail the package
+// as an integrity error, exit 3), and a tag that holds the family must be at
+// or above it (otherwise that release would be refused as too new, or the
+// floor would be too high to be the first release that knows the family).
+func floorProblems(floor string, tags []releaseTag) []string {
+	var problems []string
+	for _, tag := range tags {
+		switch {
+		case !buildidentity.ValidVersion(tag.name):
+			problems = append(problems, tag.name+" is not a version")
+		case !tag.hasFamily && buildidentity.AtLeast(tag.name, floor):
+			problems = append(problems, tag.name+" predates the family but is not below the floor "+floor)
+		case tag.hasFamily && !buildidentity.AtLeast(tag.name, floor):
+			problems = append(problems, tag.name+" holds the family but is below the floor "+floor)
+		}
+	}
+	return problems
+}
+
+func TestFloorProblems(t *testing.T) {
+	before := []releaseTag{{"v0.0.1-alpha.1", false}, {"v0.1.0-beta.0", false}}
+	if p := floorProblems(ListedFamilyFloor, before); len(p) != 0 {
+		t.Fatalf("the floor %s is refused for the tags before the family: %v", ListedFamilyFloor, p)
+	}
+	// Tags cut later do not break the check: the release that ships the family
+	// is at the floor or above and holds the family.
+	later := append(append([]releaseTag(nil), before...), releaseTag{ListedFamilyFloor, true}, releaseTag{"v0.1.0-beta.4", true}, releaseTag{"v0.2.0", true})
+	if p := floorProblems(ListedFamilyFloor, later); len(p) != 0 {
+		t.Fatalf("a later tag broke the check: %v", p)
+	}
+	// Negative cases.
+	if p := floorProblems("v0.1.0-beta.0", before); len(p) == 0 {
+		t.Fatal("a floor lowered to the last released tag was accepted")
+	}
+	if p := floorProblems("v0.0.1-alpha.1", before); len(p) != 2 {
+		t.Fatalf("a floor at the first tag: %v", p)
+	}
+	if p := floorProblems(ListedFamilyFloor, append(append([]releaseTag(nil), before...), releaseTag{"v0.1.0-beta.2", true})); len(p) != 1 {
+		t.Fatalf("a release below the floor that holds the family: %v", p)
+	}
+	if p := floorProblems(ListedFamilyFloor, []releaseTag{{"latest", false}}); len(p) != 1 {
+		t.Fatalf("a tag that is not a version: %v", p)
+	}
+}
+
+// gitReleaseTags reads the release tags of the checkout and whether each holds
+// the commit that added the family floor. ok is false (with a reason) when the
+// checkout cannot say: no git, no tags, or no history back to that commit.
+func gitReleaseTags(t *testing.T) (tags []releaseTag, reason string) {
+	t.Helper()
+	git := func(args ...string) (string, error) {
+		out, err := exec.Command("git", args...).Output()
+		return strings.TrimSpace(string(out)), err
+	}
+	out, err := git("tag", "--list", "v*")
+	if err != nil {
+		return nil, "git is not usable here: " + err.Error()
+	}
+	names := strings.Fields(out)
+	if len(names) == 0 {
+		return nil, "the checkout has no release tags (fetch them: fetch-depth 0)"
+	}
+	added, err := git("log", "--diff-filter=A", "--format=%H", "--", "internal/cncfcheck/listedfloor.go")
+	lines := strings.Fields(added)
+	if err != nil || len(lines) == 0 {
+		return nil, "the checkout has no history back to the commit that added the family floor"
+	}
+	family := lines[len(lines)-1]
+	for _, name := range names {
+		has := exec.Command("git", "merge-base", "--is-ancestor", family, name).Run() == nil
+		tags = append(tags, releaseTag{name, has})
+	}
+	return tags, ""
+}
+
+// The floor must separate the releases that predate the family from the ones
+// that hold it, in this checkout's real tags. On CI an unreadable tag list is
+// a failure, never a pass; elsewhere the test is skipped with the reason.
+func TestListedFamilyFloorAgainstTheRealTags(t *testing.T) {
+	tags, reason := gitReleaseTags(t)
+	if reason != "" {
+		if os.Getenv("CI") != "" {
+			t.Fatalf("CI cannot read the release tags: %s", reason)
+		}
+		t.Skip(reason)
+	}
+	if p := floorProblems(ListedFamilyFloor, tags); len(p) != 0 {
+		t.Fatalf("floor %s: %v", ListedFamilyFloor, p)
+	}
+}
+
+// The floor is a version above the other client floors and above the oldest
+// supported client: the family would otherwise ship to a client that does not
+// know it, and the floor would not guard it.
+func TestListedFamilyFloorIsAboveTheOtherFloorsAndThePin(t *testing.T) {
 	if !buildidentity.ValidVersion(ListedFamilyFloor) {
 		t.Fatalf("floor %q is not a version", ListedFamilyFloor)
 	}
-	// Tags released when the family was added; the git tags extend this list
-	// whenever a checkout with tags is available.
-	released := []string{"v0.0.1-alpha.1", "v0.1.0-beta.0"}
-	if out, err := exec.Command("git", "tag", "--list", "v*").Output(); err == nil {
-		for _, tag := range strings.Fields(string(out)) {
-			released = append(released, tag)
-		}
-	}
-	for _, tag := range released {
-		if !buildidentity.ValidVersion(tag) || buildidentity.AtLeast(tag, ListedFamilyFloor) {
-			t.Errorf("released tag %s is not a version below the floor %s", tag, ListedFamilyFloor)
-		}
-	}
-	// Every other client floor is a release that ships before the family, so
-	// the family floor is above all of them.
 	for name, other := range map[string]string{"provider facts": ProviderFactsMinClientVersion, "pinned lease": PinnedLeaseMinClientVersion} {
 		if buildidentity.AtLeast(other, ListedFamilyFloor) {
 			t.Errorf("the %s floor %s is not below the floor %s", name, other, ListedFamilyFloor)

@@ -156,12 +156,11 @@ func TestOldestClientRefusesListedFamilyTooNew(t *testing.T) {
 		return index
 	}
 	withListedPack(t, dropFloor)
-	original := checkListedShipping
-	checkListedShipping = func([]byte, [][]byte, string) error { return nil }
-	defer func() { checkListedShipping = original }()
 	bare := projectsFixture(t)
 	bare.Now = o.Now
 	bare.OldestClient = cncfcheck.ListedFamilyFloor
+	// Lifted for this one build only, to record what the pinned client does.
+	bare.listedCheck = func([]byte, [][]byte, string) error { return nil }
 	bare.Root, bare.RootDigest, bare.TargetsKey, bare.SnapshotKey, bare.TimestampKey, bare.PassphraseFile = o.Root, o.RootDigest, o.TargetsKey, o.SnapshotKey, o.TimestampKey, o.PassphraseFile
 	if _, err := Run(bare); err != nil {
 		t.Fatalf("build of the package without the floor: %v", err)
