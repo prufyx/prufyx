@@ -5,13 +5,18 @@ name: Nightly main
 # queue group fails here. The one exception is the pull request that fixes it,
 # labelled nightly-fix, and only when that pull request's own latest ci.yml run
 # on its exact head finished with every job green, including each job that was
-# red in the nightly. The label alone changes nothing.
+# red in the nightly. The label alone changes nothing. A latest completed
+# nightly older than 36 hours (a disabled or stuck schedule) fails too, and so
+# does a cancelled one (it counts as red).
 #
 # Pull request event: reports a pass with a message, because the verdict is
 # about the queue group; the authoritative run is the merge_group one. The
-# merge_group job takes its definition from the queued commit, so a change to
-# this file is refused by the knowledge gate in the same group (it lists this
-# file among the paths that need the owner's trust-path approval).
+# merge_group job takes its definition from the queued commit, so this file can
+# be rewritten by the very change it judges. The group run does not protect
+# itself: the protection is the base-defined pull request gate, which must
+# require an owner trust-path approval for changes to this file, and the ruleset
+# must require that pull request Knowledge gate context. The queue merge method
+# must be "merge".
 
 on:
   pull_request:
@@ -120,10 +125,11 @@ jobs:
           tool="${RUNNER_TEMP}/prufyx-maintainer"
           dir="${RUNNER_TEMP}/nightly"
           mkdir -p "${dir}"
+          now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?branch=main&event=schedule&status=completed&per_page=100" > "${dir}/runs.json"
           case "${FIX}" in
             false)
-              "${tool}" gate nightly --runs "${dir}/runs.json"
+              "${tool}" gate nightly --runs "${dir}/runs.json" --now "${now}"
               ;;
             true)
               # The exception: read the jobs of the latest nightly run and of
@@ -139,7 +145,7 @@ jobs:
               fi
               gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${nightly_id}/jobs?per_page=100" > "${dir}/nightly-jobs.json"
               gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${pr_id}/jobs?per_page=100" > "${dir}/pr-jobs.json"
-              "${tool}" gate nightly --runs "${dir}/runs.json" --fix --pr-head "${PR_HEAD}" \
+              "${tool}" gate nightly --runs "${dir}/runs.json" --now "${now}" --fix --pr-head "${PR_HEAD}" \
                 --nightly-jobs "${dir}/nightly-jobs.json" --pr-runs "${dir}/pr-runs.json" --pr-jobs "${dir}/pr-jobs.json"
               ;;
             *)

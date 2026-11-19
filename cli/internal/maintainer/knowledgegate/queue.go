@@ -98,7 +98,10 @@ type queuePR struct {
 
 // protectedPaths are the files that define or run the checks of a queue
 // group. merge_group runs the workflow file of the queued commit, so a change
-// to any of them could rewrite the checks that judge it.
+// to any of them could rewrite the checks that judge it. This list is a
+// second line only: the run itself comes from the queued commit, so the real
+// protection is the base-defined pull request gate and the ruleset that
+// requires it.
 func protectedGatePath(p string) bool {
 	switch p {
 	case ".github/workflows/knowledge-gate.yml", ".github/workflows/merge-policy.yml",

@@ -30,7 +30,7 @@ const usage = `usage:
   prufyx-maintainer gate daily-count --git-dir DIR --commits FILE [--bot-login LOGIN]
   prufyx-maintainer gate queue-context --repo OWNER/NAME --ref REF --run-sha SHA --head-ref REF --head-sha SHA
                                   --base-ref REF --base-sha SHA --git-dir DIR --pr-json FILE --out FILE
-  prufyx-maintainer gate nightly  --runs FILE [--select [--pr-runs FILE --pr-head SHA]] [--fix --pr-head SHA --nightly-jobs FILE --pr-runs FILE --pr-jobs FILE]
+  prufyx-maintainer gate nightly  --runs FILE --now RFC3339 [--select [--pr-runs FILE --pr-head SHA]] [--fix --pr-head SHA --nightly-jobs FILE --pr-runs FILE --pr-jobs FILE]
   prufyx-maintainer gate limits   --base DIR --head DIR [--max-loosening N] [--json]
                                   [--max-withdraw-percent N] [--max-withdraw-project N]
                                   [--daily-loosening-count N] [--max-daily-loosening N]

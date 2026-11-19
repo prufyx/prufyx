@@ -525,7 +525,7 @@ func TestNightlyWorkflowShape(t *testing.T) {
 	for _, want := range []string{
 		`actions/workflows/ci.yml/runs?branch=main&event=schedule&status=completed`,
 		`gate queue-context`, `gate nightly --runs "${dir}/runs.json"`,
-		`head_sha=${PR_HEAD}`, `--select`, `--fix --pr-head "${PR_HEAD}"`,
+		`head_sha=${PR_HEAD}`, `--select`, `--now "${now}" --fix --pr-head "${PR_HEAD}"`, `now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"`,
 		`The nightly-fix label could not be read.`,
 	} {
 		if !strings.Contains(all, want) {

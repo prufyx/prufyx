@@ -9,7 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
+
+var nNow = time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC)
 
 const nPRHead = "5555555555555555555555555555555555555555"
 
@@ -45,6 +48,7 @@ func TestNightlyVerdictRefuses(t *testing.T) {
 		"newer red hides older green": {Runs: []CIRun{nRun(2, "2026-11-18T02:17:00Z", "failure"), nRun(1, "2026-11-17T02:17:00Z", "success")}},
 	}
 	for name, in := range cases {
+		in.Now = nNow
 		if _, err := NightlyVerdict(in); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
@@ -98,6 +102,7 @@ func TestNightlyVerdictRefuses(t *testing.T) {
 	}
 	for name, mod := range mods {
 		in := fixIn()
+		in.Now = nNow
 		mod(&in)
 		if _, err := NightlyVerdict(in); err == nil {
 			t.Errorf("%s: accepted", name)
@@ -108,15 +113,16 @@ func TestNightlyVerdictRefuses(t *testing.T) {
 func TestNightlyVerdictAccepts(t *testing.T) {
 	t.Parallel()
 	green := []CIRun{nRun(1, "2026-11-17T02:17:00Z", "failure"), nRun(2, "2026-11-18T02:17:00Z", "success")}
-	if msg, err := NightlyVerdict(NightlyInput{Runs: green}); err != nil || !strings.Contains(msg, "green") {
+	if msg, err := NightlyVerdict(NightlyInput{Runs: green, Now: nNow}); err != nil || !strings.Contains(msg, "green") {
 		t.Fatalf("%q %v", msg, err)
 	}
 	// An older red run does not matter when the newest is green (page order is not trusted).
-	if _, err := NightlyVerdict(NightlyInput{Runs: []CIRun{green[1], green[0]}}); err != nil {
+	if _, err := NightlyVerdict(NightlyInput{Runs: []CIRun{green[1], green[0]}, Now: nNow}); err != nil {
 		t.Fatal(err)
 	}
 	// Red with the label and a fully green run of the fix on its exact head.
 	in := NightlyInput{
+		Now:  nNow,
 		Runs: []CIRun{nRun(2, "2026-11-18T02:17:00Z", "failure")}, Fix: true, PRHead: nPRHead,
 		NightlyJobs:      []CIJob{{RunID: 2, Name: "race", Conclusion: "failure"}, {RunID: 2, Name: "slow", Conclusion: "cancelled"}, {RunID: 2, Name: "ok", Conclusion: "success"}},
 		NightlyJobsTotal: 3,
@@ -140,28 +146,29 @@ func TestNightlyCommand(t *testing.T) {
 		}
 		return p
 	}
+	nowArg := nNow.Format(time.RFC3339)
 	run := func(args ...string) (int, string) {
 		var so, se bytes.Buffer
 		c := Main(append([]string{"nightly"}, args...), func(string) string { return "" }, &so, &se)
 		return c, so.String()
 	}
-	if c, _ := run("--runs", filepath.Join(t.TempDir(), "missing.json")); c == 0 {
+	if c, _ := run("--runs", filepath.Join(t.TempDir(), "missing.json"), "--now", nowArg); c == 0 {
 		t.Fatal("unreadable runs accepted")
 	}
-	if c, _ := run("--runs", write(map[string]any{"workflow_runs": []CIRun{}})); c == 0 {
+	if c, _ := run("--runs", write(map[string]any{"workflow_runs": []CIRun{}}), "--now", nowArg); c == 0 {
 		t.Fatal("no runs accepted")
 	}
-	if c, _ := run("--runs", write(map[string]any{"message": "Server Error"})); c == 0 {
+	if c, _ := run("--runs", write(map[string]any{"message": "Server Error"}), "--now", nowArg); c == 0 {
 		t.Fatal("error body accepted")
 	}
 	redRuns := write(map[string]any{"workflow_runs": []CIRun{nRun(2, "2026-11-18T02:17:00Z", "failure")}})
-	if c, _ := run("--runs", redRuns); c == 0 {
+	if c, _ := run("--runs", redRuns, "--now", nowArg); c == 0 {
 		t.Fatal("red accepted")
 	}
-	if c, _ := run("--runs", redRuns, "--fix", "--pr-head", nPRHead); c == 0 {
+	if c, _ := run("--runs", redRuns, "--now", nowArg, "--fix", "--pr-head", nPRHead); c == 0 {
 		t.Fatal("--fix without the job payloads accepted")
 	}
-	if c, _ := run("--runs", write(map[string]any{"workflow_runs": []CIRun{nRun(2, "2026-11-18T02:17:00Z", "success")}})); c != 0 {
+	if c, _ := run("--runs", write(map[string]any{"workflow_runs": []CIRun{nRun(2, "2026-11-18T02:17:00Z", "success")}}), "--now", nowArg); c != 0 {
 		t.Fatal("green refused")
 	}
 	pr := write(map[string]any{"workflow_runs": []CIRun{nOwn(9, "2026-11-18T09:00:00Z", "success")}})
@@ -171,11 +178,54 @@ func TestNightlyCommand(t *testing.T) {
 	}
 	nj := write(map[string]any{"total_count": 1, "jobs": []CIJob{{RunID: 2, Name: "race", Conclusion: "failure"}}})
 	pj := write(map[string]any{"total_count": 1, "jobs": []CIJob{{RunID: 9, Name: "race", Conclusion: "success"}}})
-	if c, _ := run("--runs", redRuns, "--fix", "--pr-head", nPRHead, "--nightly-jobs", nj, "--pr-runs", pr, "--pr-jobs", pj); c != 0 {
+	if c, _ := run("--runs", redRuns, "--now", nowArg, "--fix", "--pr-head", nPRHead, "--nightly-jobs", nj, "--pr-runs", pr, "--pr-jobs", pj); c != 0 {
 		t.Fatal("proven fix refused")
 	}
 	pjBad := write(map[string]any{"total_count": 1, "jobs": []CIJob{{RunID: 9, Name: "race", Conclusion: "failure"}}})
-	if c, _ := run("--runs", redRuns, "--fix", "--pr-head", nPRHead, "--nightly-jobs", nj, "--pr-runs", pr, "--pr-jobs", pjBad); c == 0 {
+	if c, _ := run("--runs", redRuns, "--now", nowArg, "--fix", "--pr-head", nPRHead, "--nightly-jobs", nj, "--pr-runs", pr, "--pr-jobs", pjBad); c == 0 {
 		t.Fatal("red fix run accepted")
+	}
+}
+
+// TestNightlyAgeBound is the failing-before test for the age bound: a green
+// (or red-with-fix) nightly older than 36 hours is refused, because a
+// disabled schedule must not keep an old verdict alive.
+func TestNightlyAgeBound(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
+	green := func(at string) NightlyInput {
+		return NightlyInput{Now: now, Runs: []CIRun{nRun(1, at, "success")}}
+	}
+	for name, at := range map[string]string{
+		"37 hours old":    "2026-11-18T23:00:00Z",
+		"days old":        "2026-11-10T02:17:00Z",
+		"from the future": "2026-11-20T13:00:00Z",
+	} {
+		if _, err := NightlyVerdict(green(at)); err == nil {
+			t.Errorf("%s: a stale or future green nightly was accepted", name)
+		}
+	}
+	if _, err := NightlyVerdict(green("2026-11-19T02:17:00Z")); err != nil {
+		t.Fatalf("a 33-hour-old green nightly must pass: %v", err)
+	}
+	in := green("2026-11-20T02:17:00Z")
+	in.Now = time.Time{}
+	if _, err := NightlyVerdict(in); err == nil {
+		t.Fatal("no observation time must refuse")
+	}
+	// The bound also applies to a red nightly with the fix label.
+	stale := NightlyInput{Now: now, Runs: []CIRun{nRun(2, "2026-11-17T02:17:00Z", "failure")}, Fix: true, PRHead: nPRHead,
+		NightlyJobs: []CIJob{{RunID: 2, Name: "race", Conclusion: "failure"}}, NightlyJobsTotal: 1,
+		PRRuns: []CIRun{nOwn(9, "2026-11-20T09:00:00Z", "success")}, PRJobs: []CIJob{{RunID: 9, Name: "race", Conclusion: "success"}}, PRJobsTotal: 1}
+	if _, err := NightlyVerdict(stale); err == nil {
+		t.Fatal("a stale red nightly was cleared by the label")
+	}
+	// The command requires --now.
+	var so, se bytes.Buffer
+	p := filepath.Join(t.TempDir(), "r.json")
+	b, _ := json.Marshal(map[string]any{"workflow_runs": []CIRun{nRun(1, "2026-11-19T02:17:00Z", "success")}})
+	_ = os.WriteFile(p, b, 0o600)
+	if c := Main([]string{"nightly", "--runs", p}, func(string) string { return "" }, &so, &se); c == 0 {
+		t.Fatal("the command accepted a missing --now")
 	}
 }

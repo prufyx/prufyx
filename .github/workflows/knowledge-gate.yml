@@ -26,6 +26,11 @@ name: Knowledge gate
 # group's base and head. Any gap (more than one pull request, an unreadable
 # API answer, a head that differs from the reviewed one) fails the job. No
 # step in that mode is optional and nothing is allowed to continue on error.
+# The group run takes its definition from the queued commit, so it cannot
+# protect itself against a change to this very file: that protection is the
+# base-defined pull request gate (an owner trust-path approval for the gate and
+# CI files) together with a ruleset that requires the pull request Knowledge
+# gate context. The queue merge method must be "merge".
 
 on:
   pull_request_target:

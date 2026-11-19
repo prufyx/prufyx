@@ -20,6 +20,10 @@ import (
 // with every job green, including each job that was red in the nightly.
 // Anything unreadable or ambiguous refuses.
 
+// MaxNightlyAge bounds the age of the latest completed nightly run (a
+// nightly runs every 24 h; the margin covers a late start).
+const MaxNightlyAge = 36 * time.Hour
+
 const ciWorkflowPath = ".github/workflows/ci.yml"
 
 // CIRun is one workflow run as the Actions API lists it.
@@ -45,6 +49,10 @@ type CIJob struct {
 // NightlyInput holds the API payloads. Fix is set only when the pull request
 // has the nightly-fix label.
 type NightlyInput struct {
+	// Now is the observation time; MaxNightlyAge is how old the latest
+	// completed nightly may be. A disabled or stuck schedule must not keep
+	// an old green alive.
+	Now              time.Time
 	Runs             []CIRun
 	NightlyJobs      []CIJob
 	NightlyJobsTotal int
@@ -99,6 +107,17 @@ func NightlyVerdict(in NightlyInput) (string, error) {
 	if last == nil {
 		return "", errors.New("no completed nightly run of the CI workflow on main was found")
 	}
+	if in.Now.IsZero() {
+		return "", errors.New("no observation time was given")
+	}
+	created, err := time.Parse(time.RFC3339, last.CreatedAt)
+	if err != nil {
+		return "", errors.New("the latest nightly run has no valid creation time")
+	}
+	if age := in.Now.Sub(created); age > MaxNightlyAge || age < -5*time.Minute {
+		return "", fmt.Errorf("the latest completed nightly run %d is from %s, outside the %s bound (a disabled or stuck schedule); re-enable or re-run the nightly", last.ID, last.CreatedAt, MaxNightlyAge)
+	}
+	// A cancelled or otherwise unfinished-successfully nightly counts as red.
 	if last.Conclusion == "success" {
 		return fmt.Sprintf("nightly run %d is green", last.ID), nil
 	}
@@ -182,7 +201,7 @@ func readJSON(path string, v any) error {
 }
 
 func cmdNightly(args []string, stdout io.Writer) (int, error) {
-	var runs, njobs, pruns, prjobs, prHead string
+	var runs, njobs, pruns, prjobs, prHead, now string
 	var fix, sel bool
 	f := flag.NewFlagSet("gate nightly", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
@@ -192,6 +211,7 @@ func cmdNightly(args []string, stdout io.Writer) (int, error) {
 	f.StringVar(&prHead, "pr-head", "", "head commit of the labelled pull request")
 	f.StringVar(&pruns, "pr-runs", "", "CI runs on the pull request head")
 	f.StringVar(&prjobs, "pr-jobs", "", "jobs of the latest CI run on the pull request head")
+	f.StringVar(&now, "now", "", "observation time, RFC3339")
 	f.BoolVar(&sel, "select", false, "print the ids of the runs whose jobs are needed")
 	if err := parse(f, args); err != nil {
 		return 2, err
@@ -245,6 +265,11 @@ func cmdNightly(args []string, stdout io.Writer) (int, error) {
 		in.PRRuns = pr.Runs
 		in.PRJobs, in.PRJobsTotal = pj.Jobs, pj.Total
 	}
+	at, err := time.Parse(time.RFC3339, now)
+	if err != nil {
+		return 2, errors.New("--now (RFC3339) is required")
+	}
+	in.Now = at
 	msg, err := NightlyVerdict(in)
 	if err != nil {
 		return 2, err
