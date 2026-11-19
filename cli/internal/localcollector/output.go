@@ -17,6 +17,9 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/imageidentity"
 )
 
+// nameOmission is the disclosed name omission, including its one exception.
+const nameOmission = "object, namespace, workload, Pod, and node names (except the source workload kind, namespace and name kept by chart identity, only for workloads carrying the chart label)"
+
 func isWorkload(name string) bool {
 	return strings.HasSuffix(name, "-images.json") && name != "pod-status-images.json"
 }
@@ -192,7 +195,7 @@ func observationMetadata(now time.Time, ctxHash, status string, omissionCount in
 		},
 		"omittedByPolicy": []string{
 			"Secrets and Secret payloads", "ConfigMaps and ConfigMap payloads", "logs, events, metrics, and traces",
-			"raw Kubernetes manifests", "object, namespace, workload, Pod, and node names", "labels (except the single chart label), annotations, environment values, and command arguments",
+			"raw Kubernetes manifests", nameOmission, "labels (except the single chart label), annotations, environment values, and command arguments",
 			"unrecognized or private workload and Pod image identities and image IDs", "credentials, endpoints, provider instance IDs, and business data",
 			"package-manager release records, rendered values, and component configuration values",
 		},

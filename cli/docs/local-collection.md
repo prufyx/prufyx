@@ -121,10 +121,14 @@ The bundle field "chart identity" says which chart and chart version a
 component was installed from, so that a later rule can be keyed by the exact
 chart. Prufyx needs two strings per chart and nothing else.
 
+Names are omitted everywhere else: the one exception is the source workload kind, namespace and name
+kept by chart identity, only for workloads carrying the chart label.
+
 Sources, and only these:
 
 1. Your declaration, passed with `--chart-declaration FILE` (preferred,
-   explicit, offline). The file is JSON, at most 64 KiB, with
+   explicit, offline; for now this collector flag is the only declaration
+   path, there is no `prufyx.yaml` path yet). The file is JSON, at most 64 KiB, with
    `apiVersion: prufyx.io/chart-declaration/v1alpha1`, `kind: ChartDeclaration`
    and `charts: [{name, version}]`. Any other member, or an invalid name or
    version, makes the collector refuse to start.
