@@ -78,6 +78,27 @@ def proof_target(project, pair):
     return "crd-proof|" + "|".join([project] + [pair[k] for k in ("fromTag", "fromCommit", "toTag", "toCommit")])
 
 
+CATALOGUE_FILES = ("cli/internal/projectcheck/data/projects.json", "cli/internal/cncfcheck/data/landscape-projects.json")
+
+
+def catalogue_from(raws):
+    """Slugs of the community registry and the CNCF landscape; empty (=> approvals stay full) on any doubt."""
+    try:
+        out = set()
+        for raw in raws:
+            out |= {x["slug"] for x in parse(raw)["projects"]}
+        return {x for x in out if isinstance(x, str) and re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", x)}
+    except (ValueError, KeyError, TypeError, subprocess.SubprocessError, OSError):
+        return set()
+
+
+def base_catalogue(src, ref):
+    try:
+        return catalogue_from([blob(src, ref, f)[1] for f in CATALOGUE_FILES])
+    except (ValueError, subprocess.SubprocessError, OSError):
+        return set()
+
+
 def freeze(src, head, base, run_id, extra_projects=()):
     from select_projects import selection
     if (not re.fullmatch(r"[0-9a-f]{40}", head) or not re.fullmatch(r"[0-9a-f]{40}", base)
@@ -95,7 +116,7 @@ def freeze(src, head, base, run_id, extra_projects=()):
         trusted = base_components(src, BASE_REF)
     except (ValueError, KeyError, subprocess.SubprocessError, OSError):
         trusted = None  # aggregate data files then stay full
-    selected = selection(changed, slugs, diff_reader(src, BASE_REF, HEAD_REF), trusted)
+    selected = selection(changed, slugs, diff_reader(src, BASE_REF, HEAD_REF), trusted, base_catalogue(src, BASE_REF))
     projects = set(slugs if selected["mode"] == "full" else selected["projects"]) | set(extra_projects)
     batch_paths = [p for p in changed if p.startswith(BATCH_DIR)]
     envelopes = []
