@@ -24,6 +24,12 @@
 // version on the same pinned bytes with the same derivedAt yields
 // byte-identical output. Verify re-derives and compares byte for byte.
 //
+// Fixture reads (FixtureReader, the --fixture directory layout) represent a
+// symlink exactly as the mirror reader does: a mode 120000 blob entry whose
+// content is the link target text, never followed and never dereferenced into
+// the host filesystem. A link that is absolute or whose target leaves the
+// commit directory is refused with ErrFixtureSymlink.
+//
 // An extractor that cannot establish a pair completely withholds it
 // (Withheld): no candidate is emitted and the manifest records why. Absence
 // of evidence never becomes a rule.
