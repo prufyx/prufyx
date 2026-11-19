@@ -555,6 +555,22 @@ func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, string, 
 			sel = append(sel, t)
 		}
 	}
+	if o.TagPrefix != "" && len(o.Tags) == 0 {
+		// The default window takes every tag; with a prefix, the tags
+		// outside it (for example chart-release tags) are ignored.
+		var pre []snapTag
+		for _, t := range sel {
+			if strings.HasPrefix(t.Tag, o.TagPrefix) {
+				pre = append(pre, t)
+			} else {
+				notes = append(notes, fmt.Sprintf("note: tag %s ignored, it does not start with --tag-prefix %q", t.Tag, o.TagPrefix))
+			}
+		}
+		sel = pre
+		if len(sel) == 0 {
+			return nil, notes, check, refuse("--tag-prefix %q matches no tag in the snapshot", o.TagPrefix)
+		}
+	}
 	if len(sel) == 0 {
 		return nil, notes, check, refuse("snapshot has no release tags")
 	}
@@ -590,7 +606,7 @@ func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, string, 
 	if prefix != "" {
 		for _, t := range kept {
 			if !strings.HasPrefix(t.Tag, prefix) {
-				return nil, notes, check, refuse("--tag-prefix %q is not a prefix of tag %q", prefix, t.Tag)
+				return nil, notes, check, refuse("--tag-prefix %q is not a prefix of tag %q; drop that tag from --tags or change the prefix", prefix, t.Tag)
 			}
 		}
 	} else {
@@ -691,6 +707,9 @@ func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, string, 
 		if ti, err = loadTargetInput(o.TargetInput); err != nil {
 			return nil, notes, check, err
 		}
+	}
+	if !o.NoCRDs && (ti == nil || len(ti.paths) == 0) {
+		return nil, notes, check, refuse("no CRD paths found: pass --no-crds if the project ships no CustomResourceDefinitions, or --target-input with its CRD paths")
 	}
 	docs := map[string]any{
 		"project.json": map[string]any{

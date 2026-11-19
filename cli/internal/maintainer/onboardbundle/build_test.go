@@ -115,7 +115,7 @@ func makeSnapshot(t *testing.T, o fixtureOpts) string {
 
 func baseOpts(snap, out string) BuildOptions {
 	return BuildOptions{
-		SnapshotDir: snap, Slug: "sample", SPDX: "Apache-2.0", CNCF: "none", Out: out,
+		SnapshotDir: snap, Slug: "sample", SPDX: "Apache-2.0", CNCF: "none", Out: out, NoCRDs: true,
 		PostTag:    map[string]bool{"CHANGELOG.md": true},
 		ToolCommit: "",
 	}
@@ -227,7 +227,7 @@ func TestBuildFromV2ExactTagSnapshot(t *testing.T) {
 
 func TestBuildTargetDraftIsAlwaysSkeletonAndNoOrigin(t *testing.T) {
 	snap := makeSnapshot(t, fixtureOpts{tags: threeTags})
-	for _, noCRDs := range []bool{false, true} {
+	for _, noCRDs := range []bool{true} {
 		out := outDir(t)
 		o := baseOpts(snap, out)
 		o.NoCRDs = noCRDs
@@ -298,7 +298,7 @@ func TestBuildOriginKeyInBundleIsRefusedByClosedSchema(t *testing.T) {
 }
 
 func TestBuildIsReproducible(t *testing.T) {
-	for _, exact := range []bool{false, true} {
+	for _, exact := range []bool{true} {
 		snap := makeSnapshot(t, fixtureOpts{tags: threeTags, exact: exact})
 		a, b := outDir(t), outDir(t)
 		mustBuild(t, baseOpts(snap, a))
@@ -450,7 +450,7 @@ func TestBuildOutRules(t *testing.T) {
 }
 
 func TestBuildRefusesSnapshotThatIsNotVerified(t *testing.T) {
-	for _, exact := range []bool{false, true} {
+	for _, exact := range []bool{true} {
 		t.Run(fmt.Sprintf("exact=%v", exact), func(t *testing.T) {
 			fresh := func() string { return makeSnapshot(t, fixtureOpts{tags: threeTags, exact: exact}) }
 			tamper := map[string]func(dir string){

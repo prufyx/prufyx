@@ -105,7 +105,7 @@ func TestCheckoutEvidenceComesFromSnapshotBlobs(t *testing.T) {
 		}
 	}
 	// the same digests appear in the snapshot-derived relnotes rows
-	if td := readJSON(t, out, "target-draft.json"); td["status"] != "skeleton" {
+	if td := readJSON(t, out, "target-draft.json"); td["status"] != "no-crds" {
 		t.Fatalf("status %v", td["status"])
 	}
 }
@@ -267,6 +267,7 @@ func TestTargetInputShapesSkeletonNeverFilled(t *testing.T) {
 	out := outDir(t)
 	o := baseOpts(snap, out)
 	o.TargetInput = writeInput(t, goodInput)
+	o.NoCRDs = false
 	res := mustBuild(t, o)
 	assertValid(t, out)
 	td := readJSON(t, out, "target-draft.json")
@@ -299,6 +300,7 @@ func TestTargetInputCannotRequestStatusOrIdentity(t *testing.T) {
 		out := outDir(t)
 		o := baseOpts(snap, out)
 		o.TargetInput = writeInput(t, fmt.Sprintf(`{"%s": "filled", "paths": [{"path": "config/crd"}]}`, key))
+		o.NoCRDs = false
 		if _, err := Build(o); err == nil {
 			t.Fatalf("key %s accepted", key)
 		}
@@ -354,6 +356,7 @@ func TestTargetInputCapsAndCharset(t *testing.T) {
 		out := outDir(t)
 		o := baseOpts(snap, out)
 		o.TargetInput = writeInput(t, body)
+		o.NoCRDs = false
 		if _, err := Build(o); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
@@ -363,6 +366,7 @@ func TestTargetInputCapsAndCharset(t *testing.T) {
 	out := outDir(t)
 	o := baseOpts(snap, out)
 	o.TargetInput = filepath.Join(t.TempDir(), "missing.json")
+	o.NoCRDs = false
 	if _, err := Build(o); err == nil {
 		t.Error("missing file accepted")
 	}
@@ -373,6 +377,7 @@ func TestTargetInputCapsAndCharset(t *testing.T) {
 		t.Fatal(err)
 	}
 	o.TargetInput = link
+	o.NoCRDs = false
 	if _, err := Build(o); err == nil {
 		t.Error("symlinked file accepted")
 	}
@@ -385,7 +390,6 @@ func TestOfflineTargetCheckPassAndFail(t *testing.T) {
 		name, body, want, reason string
 	}{
 		{"pass", `{"paths": [{"path": "config/crd", "directory": true}]}`, "pass", ""},
-		{"no paths", `{"name": "Sample"}`, "fail", "no paths declared"},
 		{"duplicate path", `{"paths": [{"path": "a"}, {"path": "a"}]}`, "fail", "path a declared twice"},
 		{"changelog is not a target path", `{"paths": [{"path": "CHANGELOG.md"}]}`, "fail", "changelog or licence file"},
 		{"licence is not a target path", `{"paths": [{"path": "LICENSE"}]}`, "fail", "changelog or licence file"},
@@ -399,6 +403,7 @@ func TestOfflineTargetCheckPassAndFail(t *testing.T) {
 		out := outDir(t)
 		o := baseOpts(snap, out)
 		o.TargetInput = writeInput(t, c.body)
+		o.NoCRDs = false
 		res, err := Build(o)
 		if err != nil {
 			t.Fatalf("%s: %v", c.name, err)
@@ -426,7 +431,7 @@ func TestOfflineTargetCheckPassAndFail(t *testing.T) {
 
 func TestOfflineTargetCheckNotRunWithoutInput(t *testing.T) {
 	snap := makeSnapshot(t, fixtureOpts{tags: threeTags})
-	for _, noCRDs := range []bool{false, true} {
+	for _, noCRDs := range []bool{true} {
 		out := outDir(t)
 		o := baseOpts(snap, out)
 		o.NoCRDs = noCRDs
@@ -443,6 +448,7 @@ func TestOfflineCheckResultDoesNotSurviveEditsOrAreForgedByValidate(t *testing.T
 	out := outDir(t)
 	o := baseOpts(snap, out)
 	o.TargetInput = writeInput(t, goodInput)
+	o.NoCRDs = false
 	mustBuild(t, o)
 	// edit the draft, then re-seal: the stale "pass" must reset to not-run
 	p := filepath.Join(out, "target-draft.json")
@@ -473,6 +479,7 @@ func TestCheckoutAndTargetInputBuildIsReproducible(t *testing.T) {
 	for _, out := range []string{a, b} {
 		o := withCheckout(baseOpts(snap, out), clone, "LICENSE:other", "CHANGELOG.md:copy:per tag")
 		o.TargetInput = in
+		o.NoCRDs = false
 		mustBuild(t, o)
 		assertValid(t, out)
 	}
@@ -487,6 +494,7 @@ func TestCheckoutAndTargetInputBuildIsReproducible(t *testing.T) {
 	c := outDir(t)
 	o := withCheckout(baseOpts(snap, c), clone, "CHANGELOG.md:copy:per tag", "LICENSE:other")
 	o.TargetInput = in
+	o.NoCRDs = false
 	mustBuild(t, o)
 	x, _ := os.ReadFile(filepath.Join(a, "scan-notes.json"))
 	y, _ := os.ReadFile(filepath.Join(c, "scan-notes.json"))
@@ -532,18 +540,62 @@ func TestBuildHelpDescribesCheckoutAndOfflineCheck(t *testing.T) {
 func TestRunExitsOneOnFailedOfflineCheckButWritesBundle(t *testing.T) {
 	snap := makeSnapshot(t, fixtureOpts{tags: threeTags})
 	out := outDir(t)
-	in := writeInput(t, `{"name": "Sample"}`)
+	in := writeInput(t, `{"paths": [{"path": "LICENSE"}]}`)
 	var so, se bytes.Buffer
 	args := []string{"build", "-snapshot", snap, "-slug", "sample", "-spdx", "Apache-2.0", "-out", out, "-post-tag", "CHANGELOG.md", "-target-input", in}
 	if c := Run(args, &so, &se); c != 1 {
 		t.Fatalf("exit %d, want 1", c)
 	}
-	if !strings.Contains(so.String(), "no paths declared") || !strings.Contains(se.String(), "not ready to submit") {
+	if !strings.Contains(so.String(), "changelog or licence file") || !strings.Contains(se.String(), "not ready to submit") {
 		t.Fatalf("stdout %q stderr %q", so.String(), se.String())
 	}
 	assertValid(t, out)
 	rc := readJSON(t, out, "receipt.json")
 	if rc["checks"].(map[string]any)["targetCheckOffline"] != "fail" {
 		t.Fatalf("receipt %v", rc["checks"])
+	}
+}
+
+func TestBuildRequiresExplicitCRDDeclaration(t *testing.T) {
+	snap := makeSnapshot(t, fixtureOpts{tags: threeTags})
+	out := outDir(t)
+	o := baseOpts(snap, out)
+	o.NoCRDs = false
+	_, err := Build(o)
+	if err == nil || !strings.Contains(err.Error(), "no CRD paths found: pass --no-crds if the project ships no CustomResourceDefinitions, or --target-input with its CRD paths") {
+		t.Fatalf("no paths and no flag: %v", err)
+	}
+	noOutput(t, out)
+
+	o.NoCRDs = true
+	mustBuild(t, o)
+	if td := readJSON(t, out, "target-draft.json"); td["status"] != "no-crds" {
+		t.Fatalf("status %v", td["status"])
+	}
+
+	out2 := outDir(t)
+	o = baseOpts(snap, out2)
+	o.TargetInput = writeInput(t, goodInput)
+	if _, err := Build(o); err == nil || !strings.Contains(err.Error(), "contradict") {
+		t.Fatalf("--no-crds with paths: %v", err)
+	}
+	noOutput(t, out2)
+}
+
+func TestTagPrefixIgnoresOtherTagsInDefaultWindow(t *testing.T) {
+	snap := makeSnapshot(t, fixtureOpts{tags: []string{"v0.13.0", "chart-0.13.0", "v0.12.0", "chart-0.12.0"}})
+	out := outDir(t)
+	o := baseOpts(snap, out)
+	o.TagPrefix = "v"
+	mustBuild(t, o)
+	p := readJSON(t, out, "project.json")
+	if p["tagPrefix"] != "v" || len(p["releaseLines"].([]any)) != 2 {
+		t.Fatalf("project: %v", p)
+	}
+	o = baseOpts(snap, outDir(t))
+	o.TagPrefix = "v"
+	o.Tags = []string{"v0.13.0", "chart-0.12.0"}
+	if _, err := Build(o); err == nil || !strings.Contains(err.Error(), "drop that tag from --tags") {
+		t.Fatalf("explicit conflicting tags: %v", err)
 	}
 }
