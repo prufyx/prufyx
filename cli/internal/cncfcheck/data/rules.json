@@ -13894,6 +13894,174 @@
       }
     },
     {
+      "project": "kyverno",
+      "description": "Kyverno 1.13.4 no longer lists version v2alpha1 of CleanupPolicy (CustomResourceDefinition cleanuppolicies.kyverno.io) in spec.versions, which 1.10.7 served and stored. A cluster whose status.storedVersions still holds v2alpha1 cannot take the CRD update. Storage migration state, stored objects, conversion and other CRD changes are not checked.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.kyverno.custom_resource_versions_set",
+          "component": "pkg:github/kyverno/kyverno",
+          "type": "set",
+          "enumTokens": null,
+          "description": "Custom-resource versions (group/version/Kind) of the Kyverno custom resources in the complete target apply set."
+        }
+      ],
+      "rule": {
+        "id": "kyverno.crd-version-removal.cleanuppolicies-kyverno-io.1-10-7-to-1-13-4",
+        "operator": "forbid_set_member",
+        "subject": {
+          "component": "pkg:github/kyverno/kyverno",
+          "from": "1.10.7",
+          "to": "1.13.4"
+        },
+        "setCondition": {
+          "side": "proposed",
+          "component": "pkg:github/kyverno/kyverno",
+          "factId": "component.kyverno.custom_resource_versions_set",
+          "members": [
+            "kyverno.io/v2alpha1/CleanupPolicy"
+          ]
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-18T12:00:00Z",
+          "validUntil": "2027-02-16T12:00:00Z",
+          "sources": [
+            {
+              "id": "crd-cleanuppolicies-v2alpha1-served-stored-v1-10-7",
+              "url": "https://github.com/kyverno/kyverno/blob/f7d0b89b8565b09bd0342aefa96bc96f790a4a14/config/crds/kyverno.io_cleanuppolicies.yaml",
+              "revision": "f7d0b89b8565b09bd0342aefa96bc96f790a4a14",
+              "contentDigest": "sha256:5f56ac82ba74516e611d482fe99119bc5d73e673ceaf7b973d092308dd4daf9b",
+              "startLine": 20,
+              "endLine": 1108
+            },
+            {
+              "id": "crd-cleanuppolicies-versions-without-v2alpha1-v1-13-4",
+              "url": "https://github.com/kyverno/kyverno/blob/c6e3bcddee8648b95ab717e658e541809705f9bb/config/crds/kyverno/kyverno.io_cleanuppolicies.yaml",
+              "revision": "c6e3bcddee8648b95ab717e658e541809705f9bb",
+              "contentDigest": "sha256:10238c13e76ef253084b40a66e04cf04d7fbfa39514fc7dc14470fb0ea00321c",
+              "startLine": 20,
+              "endLine": 2587
+            }
+          ]
+        },
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "nextAction": "Migrate stored CleanupPolicy objects to kyverno.io/v2 and remove v2alpha1 from status.storedVersions of CRD cleanuppolicies.kyverno.io before upgrading to 1.13.4; the CRD update is rejected while it is listed."
+      }
+    },
+    {
+      "project": "kyverno",
+      "description": "Kyverno 1.13.4 no longer lists version v2alpha1 of ClusterCleanupPolicy (CustomResourceDefinition clustercleanuppolicies.kyverno.io) in spec.versions, which 1.10.7 served and stored. A cluster whose status.storedVersions still holds v2alpha1 cannot take the CRD update. Storage migration state, stored objects, conversion and other CRD changes are not checked.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.kyverno.custom_resource_versions_set",
+          "component": "pkg:github/kyverno/kyverno",
+          "type": "set",
+          "enumTokens": null,
+          "description": "Custom-resource versions (group/version/Kind) of the Kyverno custom resources in the complete target apply set."
+        }
+      ],
+      "rule": {
+        "id": "kyverno.crd-version-removal.clustercleanuppolicies-kyverno-io.1-10-7-to-1-13-4",
+        "operator": "forbid_set_member",
+        "subject": {
+          "component": "pkg:github/kyverno/kyverno",
+          "from": "1.10.7",
+          "to": "1.13.4"
+        },
+        "setCondition": {
+          "side": "proposed",
+          "component": "pkg:github/kyverno/kyverno",
+          "factId": "component.kyverno.custom_resource_versions_set",
+          "members": [
+            "kyverno.io/v2alpha1/ClusterCleanupPolicy"
+          ]
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-18T12:00:00Z",
+          "validUntil": "2027-02-16T12:00:00Z",
+          "sources": [
+            {
+              "id": "crd-clustercleanuppolicies-v2alpha1-served-stored-v1-10-7",
+              "url": "https://github.com/kyverno/kyverno/blob/f7d0b89b8565b09bd0342aefa96bc96f790a4a14/config/crds/kyverno.io_clustercleanuppolicies.yaml",
+              "revision": "f7d0b89b8565b09bd0342aefa96bc96f790a4a14",
+              "contentDigest": "sha256:1db0bb4b4a7354d40432e9cdc5ded6f069d5f1f6ef9d5f309d36560fd518908d",
+              "startLine": 20,
+              "endLine": 1108
+            },
+            {
+              "id": "crd-clustercleanuppolicies-versions-without-v2alpha1-v1-13-4",
+              "url": "https://github.com/kyverno/kyverno/blob/c6e3bcddee8648b95ab717e658e541809705f9bb/config/crds/kyverno/kyverno.io_clustercleanuppolicies.yaml",
+              "revision": "c6e3bcddee8648b95ab717e658e541809705f9bb",
+              "contentDigest": "sha256:2cce443ad1ca3413574beca8d2ae0b4686be2f355edf4a9d24337820dc018bf8",
+              "startLine": 20,
+              "endLine": 2587
+            }
+          ]
+        },
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "nextAction": "Migrate stored ClusterCleanupPolicy objects to kyverno.io/v2 and remove v2alpha1 from status.storedVersions of CRD clustercleanuppolicies.kyverno.io before upgrading to 1.13.4; the CRD update is rejected while it is listed."
+      }
+    },
+    {
+      "project": "kyverno",
+      "description": "Kyverno 1.13.4 no longer lists version v2alpha1 of PolicyException (CustomResourceDefinition policyexceptions.kyverno.io) in spec.versions, which 1.10.7 served and stored. A cluster whose status.storedVersions still holds v2alpha1 cannot take the CRD update. Storage migration state, stored objects, conversion and other CRD changes are not checked.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.kyverno.custom_resource_versions_set",
+          "component": "pkg:github/kyverno/kyverno",
+          "type": "set",
+          "enumTokens": null,
+          "description": "Custom-resource versions (group/version/Kind) of the Kyverno custom resources in the complete target apply set."
+        }
+      ],
+      "rule": {
+        "id": "kyverno.crd-version-removal.policyexceptions-kyverno-io.1-10-7-to-1-13-4",
+        "operator": "forbid_set_member",
+        "subject": {
+          "component": "pkg:github/kyverno/kyverno",
+          "from": "1.10.7",
+          "to": "1.13.4"
+        },
+        "setCondition": {
+          "side": "proposed",
+          "component": "pkg:github/kyverno/kyverno",
+          "factId": "component.kyverno.custom_resource_versions_set",
+          "members": [
+            "kyverno.io/v2alpha1/PolicyException"
+          ]
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-18T12:00:00Z",
+          "validUntil": "2027-02-16T12:00:00Z",
+          "sources": [
+            {
+              "id": "crd-policyexceptions-v2alpha1-served-stored-v1-10-7",
+              "url": "https://github.com/kyverno/kyverno/blob/f7d0b89b8565b09bd0342aefa96bc96f790a4a14/config/crds/kyverno.io_policyexceptions.yaml",
+              "revision": "f7d0b89b8565b09bd0342aefa96bc96f790a4a14",
+              "contentDigest": "sha256:68c57cad602bf0fe776807ebb30296c5b97c418a1c88948439003202dac074c6",
+              "startLine": 20,
+              "endLine": 520
+            },
+            {
+              "id": "crd-policyexceptions-versions-without-v2alpha1-v1-13-4",
+              "url": "https://github.com/kyverno/kyverno/blob/c6e3bcddee8648b95ab717e658e541809705f9bb/config/crds/kyverno/kyverno.io_policyexceptions.yaml",
+              "revision": "c6e3bcddee8648b95ab717e658e541809705f9bb",
+              "contentDigest": "sha256:83d0478d61e88890c0dbf1e8360f5e5b7bb7d5708d0cc2d52c7dab8cfc833dbc",
+              "startLine": 20,
+              "endLine": 1301
+            }
+          ]
+        },
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "nextAction": "Migrate stored PolicyException objects to kyverno.io/v2 and remove v2alpha1 from status.storedVersions of CRD policyexceptions.kyverno.io before upgrading to 1.13.4; the CRD update is rejected while it is listed."
+      }
+    },
+    {
       "description": "Kyverno 1.16.0 no longer serves version v1beta1 of UpdateRequest (CustomResourceDefinition updaterequests.kyverno.io), which 1.15.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 1.15 and 1.16, with a scan of the whole repository at each; it holds for upgrades from any 1.15 release to any 1.16 release. Storage versions, stored objects, conversion and schema changes are not checked.",
       "project": "kyverno",
       "requiredFacts": [

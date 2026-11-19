@@ -7,7 +7,7 @@
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
-      "digest": "sha256:e3bcbe3a8f6d4e687a14b7f3a4b59ee6fd0e8f66144bf8d23eec34cd189a3242"
+      "digest": "sha256:1231eb24f4fffd01772f5b80db73c3c46f6aae6782e71bf248da6e0a9908fd06"
     },
     "lines": {
       "capturedOn": "2026-10-31",
@@ -4006,7 +4006,7 @@
         "vc": 0.2,
         "vcA": 0,
         "covered": true,
-        "validRules": 7,
+        "validRules": 10,
         "rulesInWindow": 6,
         "expiring14d": 0
       },
@@ -5930,7 +5930,7 @@
   },
   "inventoryCounts": {
     "cncfRuleProjects": 54,
-    "cncfSourceRules": 253,
+    "cncfSourceRules": 256,
     "cncfSourceRulesWithdrawn": 1,
     "communityProjectRuleProjects": 10,
     "communityProjectSourceRules": 51,
@@ -5938,5 +5938,5 @@
     "selectedSourceOnlyProjects": 11,
     "selectedSourceProjects": 58
   },
-  "readmeBlockSha256": "ddaa6a1961b2d6dff41e1b6d651ad66e2a9b285065ea54944f676d87eebbd00a"
+  "readmeBlockSha256": "b260e73103b66ce956f4c51c0d94661a49452487122a75cf7c3f6576ff69d015"
 }

@@ -7,7 +7,7 @@ Prufyx checks a planned upgrade against upstream evidence and returns
 file, and line range it relies on, and says how it was established.
 
 <!-- basis-counts:begin -->
-Of the 304 active rules shipped today, 260 with basis `reviewed`, 44 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 220 release-line attestations and served-API lists are separate records: 220 with basis `mechanical`.
+Of the 307 active rules shipped today, 263 with basis `reviewed`, 44 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 220 release-line attestations and served-API lists are separate records: 220 with basis `mechanical`.
 <!-- basis-counts:end -->
 
 Each rule states which way it was established, and
@@ -328,7 +328,7 @@ Generated on 2026-11-18 by `scripts/readme-coverage.sh` (do not edit this block 
 
 | Executable rules | Count |
 | --- | --- |
-| CNCF source rules, active | 253 across 54 projects (1 withdrawn, not used) |
+| CNCF source rules, active | 256 across 54 projects (1 withdrawn, not used) |
 | Rules for further, non-CNCF projects | 51 across 10 projects |
 | Projects with at least one executable check (a rule, a named check or a profile; says nothing about which upgrades it decides) | 68 |
 | Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 52 of 79 |
@@ -379,7 +379,7 @@ Velero and others.
 Every rule in the CNCF and community-project packs is time-limited.
 
 <!-- validity-window:begin -->
-The 304 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-02-12 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 199 of the 304 stop being valid on or before 2026-12-12, in the 6 days starting on the earliest.
+The 307 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-02-16 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 199 of the 307 stop being valid on or before 2026-12-12, in the 6 days starting on the earliest.
 <!-- validity-window:end -->
 
 The named cert-manager and Prometheus checks are pinned to
