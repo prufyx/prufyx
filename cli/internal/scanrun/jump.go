@@ -301,11 +301,20 @@ func (r *customResourceRun) composeJump(path *scanreport.Path, plan upgradepath.
 			// change of major line. A wider rule (a removal crossing, an
 			// anchor on other lines) or a notice over it stays a finding or
 			// notice of the whole upgrade and decides nothing here.
-			decision.blocks = r.exactMajorIDs(decision.blocks, *hop)
+			exact := r.exactMajorIDs(decision.blocks, *hop)
+			for _, id := range decision.blocks {
+				if !slices.Contains(exact, id) {
+					jump.WiderRuleIDs = append(jump.WiderRuleIDs, id)
+				}
+			}
+			decision.blocks = exact
 			var neutral []neutralRule
 			for _, n := range decision.neutral {
-				if len(r.exactMajorIDs([]string{n.id}, *hop)) == 1 {
+				switch {
+				case len(r.exactMajorIDs([]string{n.id}, *hop)) == 1:
 					neutral = append(neutral, n)
+				case n.noticed:
+					jump.WiderNoticeIDs = append(jump.WiderNoticeIDs, n.id)
 				}
 			}
 			decision.neutral = neutral
@@ -316,6 +325,13 @@ func (r *customResourceRun) composeJump(path *scanreport.Path, plan upgradepath.
 			fromLine, _ := endpointLine(upgradepath.Endpoint{Version: hop.From.Version, Line: hop.From.Line})
 			toLine, _ := endpointLine(upgradepath.Endpoint{Version: hop.To.Version, Line: hop.To.Line})
 			hop.Reasons = append(hop.Reasons, r.gap(&ref, scanreport.GapMajorHopNotCovered, fromLine, toLine))
+		}
+		if major {
+			// The client holds no list of the release lines between the
+			// last reviewed line of the old major and the first of the next.
+			fromLine, _ := endpointLine(upgradepath.Endpoint{Version: hop.From.Version, Line: hop.From.Line})
+			next, _ := majorOf(firstNonEmpty(hop.To.Version, hop.To.Line))
+			hop.Reasons = append(hop.Reasons, r.gap(&ref, scanreport.GapLinesNotListed, fromLine, next))
 		}
 		switch {
 		case len(decision.blocks) > 0:

@@ -418,8 +418,10 @@ An upgrade across a major line is split into the minor hops of the old major
 changes the major (for example 2.14 to 3.0), and the minor hops of the new
 major up to the target. The major hop is decided only by a reviewed rule scoped
 to that transition; otherwise it is `UNDECIDED` with `MAJOR_HOP_NOT_COVERED`
-and the next action. It is never a pass by the absence of rules, so a jump
-across a major is never `STEPWISE_PASS`. The first line of a major (X.0) has no
+and the next action, and with `LINES_NOT_LISTED`. It is never a pass by the absence of rules, so a jump
+across a major is never `STEPWISE_PASS`. A wider-range rule (not scoped to the major hop) that blocks makes the jump
+`BLOCKED`, and a notice of one makes it `ATTENTION`, both labelled "wider-range rule, not scoped to this hop"
+(`widerRuleIds`, `widerNoticeIds` of the hop, which stays undecided). The first line of a major (X.0) has no
 review of its own, so the hops next to it keep a whole line end and are not
 decided.
 
@@ -499,6 +501,7 @@ Every gap has a reason, a detail and an action.
 | `PATH_POLICY_NOT_CURRENT` | A path policy exists but its review is expired or withdrawn. | Use knowledge with a current policy; until then scan one line at a time. |
 | `PATH_NOT_PLANNABLE` | The versions cannot be planned (equal versions, too many hops, a major change). | Check the versions, or scan each step. |
 | `MAJOR_HOP_NOT_COVERED` | A jump crosses a major version. The change of major line is its own hop and no reviewed rule scoped to that transition decides it. It is never a pass by the absence of rules. | Read the project's upgrade guide for that major change, or request coverage. |
+| `LINES_NOT_LISTED` | A jump crosses a major and the client holds no list of the release lines after the last reviewed line of the old major. Each such line needs its own review; none is assumed. | Look up those release lines and request their review, or check their upgrade notes by hand. |
 | `DOWNGRADE_NOT_REVIEWED` | The target is older than the current version. | Prufyx checks upgrades only: see the project's docs on downgrades (the Kubernetes control plane has none), or swap `--from` and `--to`. |
 | `COMPONENT_NOT_COVERED` | A targeted project is not evaluated by `scan` yet, or (the 23 CNCF projects of the custom-resource table) only its custom-resource versions are, or it is a declared chart hop, where only the chart's values rules are. | Run `prufyx check cncf --project NAME`, or verify the rest of its upgrade notes by hand. |
 | `PROJECT_NOT_IN_KNOWLEDGE` | With `--knowledge-db`, the selected per-project index has no target for a targeted project, so nothing about it was checked. | Update the knowledge database to a revision that covers it, or check by hand. |
