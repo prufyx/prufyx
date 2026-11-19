@@ -813,3 +813,23 @@ func TestChartFieldIsClosedInSchema(t *testing.T) {
 		t.Fatalf("unknown key inside chart not refused by the closed schema: %v", f)
 	}
 }
+
+func TestIgnoredTagsNoteIsClippedToSchemaLimit(t *testing.T) {
+	long := "chart-" + strings.Repeat("x", 394) // 400 characters
+	n := ignoredTagsNote(1, "v", []string{long})
+	if r := []rune(n); len(r) != 300 || !strings.HasPrefix(n, "1 tags outside --tag-prefix") {
+		t.Fatalf("note length %d", len(r))
+	}
+	multi := ignoredTagsNote(3, strings.Repeat("p", 30), []string{long, long, long})
+	if len([]rune(multi)) > 300 {
+		t.Fatal("multi-name note over the limit")
+	}
+	// the clipped note passes the schema-bound check used for scan-notes
+	if !textRE.MatchString(n) {
+		t.Fatal("clipped note leaves the allowed charset")
+	}
+	short := ignoredTagsNote(2, "v", []string{"chart-1", "chart-2"})
+	if short != `2 tags outside --tag-prefix "v" ignored (first: chart-1, chart-2)` {
+		t.Fatalf("short note changed: %s", short)
+	}
+}
