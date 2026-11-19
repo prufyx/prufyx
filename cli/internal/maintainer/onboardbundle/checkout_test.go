@@ -431,15 +431,13 @@ func TestOfflineTargetCheckPassAndFail(t *testing.T) {
 
 func TestOfflineTargetCheckNotRunWithoutInput(t *testing.T) {
 	snap := makeSnapshot(t, fixtureOpts{tags: threeTags})
-	for _, noCRDs := range []bool{true} {
-		out := outDir(t)
-		o := baseOpts(snap, out)
-		o.NoCRDs = noCRDs
-		mustBuild(t, o)
-		rc := readJSON(t, out, "receipt.json")
-		if got := rc["checks"].(map[string]any)["targetCheckOffline"]; got != "not-run" {
-			t.Fatalf("noCRDs=%v: %v, want not-run", noCRDs, got)
-		}
+	out := outDir(t)
+	o := baseOpts(snap, out)
+	o.NoCRDs = true
+	mustBuild(t, o)
+	rc := readJSON(t, out, "receipt.json")
+	if got := rc["checks"].(map[string]any)["targetCheckOffline"]; got != "not-run" {
+		t.Fatalf("%v, want not-run", got)
 	}
 }
 
@@ -587,7 +585,10 @@ func TestTagPrefixIgnoresOtherTagsInDefaultWindow(t *testing.T) {
 	out := outDir(t)
 	o := baseOpts(snap, out)
 	o.TagPrefix = "v"
-	mustBuild(t, o)
+	res := mustBuild(t, o)
+	if n := strings.Join(res.Notes, "\n"); !strings.Contains(n, "2 tags outside --tag-prefix \"v\" ignored (first: ") {
+		t.Fatalf("notes: %q", n)
+	}
 	p := readJSON(t, out, "project.json")
 	if p["tagPrefix"] != "v" || len(p["releaseLines"].([]any)) != 2 {
 		t.Fatalf("project: %v", p)

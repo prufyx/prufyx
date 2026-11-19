@@ -559,12 +559,20 @@ func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, string, 
 		// The default window takes every tag; with a prefix, the tags
 		// outside it (for example chart-release tags) are ignored.
 		var pre []snapTag
+		var ignored []string
 		for _, t := range sel {
 			if strings.HasPrefix(t.Tag, o.TagPrefix) {
 				pre = append(pre, t)
 			} else {
-				notes = append(notes, fmt.Sprintf("note: tag %s ignored, it does not start with --tag-prefix %q", t.Tag, o.TagPrefix))
+				ignored = append(ignored, t.Tag)
 			}
+		}
+		if len(ignored) > 0 {
+			listed := ignored
+			if len(listed) > 5 {
+				listed = listed[:5]
+			}
+			notes = append(notes, fmt.Sprintf("note: %d tags outside --tag-prefix %q ignored (first: %s)", len(ignored), o.TagPrefix, strings.Join(listed, ", ")))
 		}
 		sel = pre
 		if len(sel) == 0 {

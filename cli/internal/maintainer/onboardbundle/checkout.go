@@ -522,6 +522,7 @@ func offlineTargetCheck(ti *targetInput, repo, prefix, minFrom string, kept []sn
 			why = append(why, "tag "+t.Tag+" does not start with tag prefix "+prefix)
 		}
 	}
+	// Defensive: build refuses an input without paths before this runs.
 	if len(ti.pathList) == 0 {
 		why = append(why, "no paths declared")
 	}

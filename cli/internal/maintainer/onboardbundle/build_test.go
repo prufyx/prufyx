@@ -227,30 +227,24 @@ func TestBuildFromV2ExactTagSnapshot(t *testing.T) {
 
 func TestBuildTargetDraftIsAlwaysSkeletonAndNoOrigin(t *testing.T) {
 	snap := makeSnapshot(t, fixtureOpts{tags: threeTags})
-	for _, noCRDs := range []bool{true} {
-		out := outDir(t)
-		o := baseOpts(snap, out)
-		o.NoCRDs = noCRDs
-		mustBuild(t, o)
-		td := readJSON(t, out, "target-draft.json")
-		want := "skeleton"
-		if noCRDs {
-			want = "no-crds"
-		}
-		if td["status"] != want {
-			t.Fatalf("status %v, want %s", td["status"], want)
-		}
-		tg := td["target"].(map[string]any)
-		if len(tg["paths"].([]any)) != 0 || len(tg["exclude"].([]any)) != 0 || tg["minFrom"] != "0.11" {
-			t.Fatalf("target must be an empty skeleton: %v", tg)
-		}
-		for _, name := range []string{"project.json", "target-draft.json", "scan-notes.json", "relnotes-sources.json", "receipt.json"} {
-			raw, _ := os.ReadFile(filepath.Join(out, name))
-			low := strings.ToLower(string(raw))
-			for _, bad := range []string{"origin", "simulated", "\"filled\""} {
-				if strings.Contains(low, bad) {
-					t.Fatalf("%s contains %q", name, bad)
-				}
+	out := outDir(t)
+	o := baseOpts(snap, out)
+	o.NoCRDs = true
+	mustBuild(t, o)
+	td := readJSON(t, out, "target-draft.json")
+	if td["status"] != "no-crds" {
+		t.Fatalf("status %v, want no-crds", td["status"])
+	}
+	tg := td["target"].(map[string]any)
+	if len(tg["paths"].([]any)) != 0 || len(tg["exclude"].([]any)) != 0 || tg["minFrom"] != "0.11" {
+		t.Fatalf("target must be an empty skeleton: %v", tg)
+	}
+	for _, name := range []string{"project.json", "target-draft.json", "scan-notes.json", "relnotes-sources.json", "receipt.json"} {
+		raw, _ := os.ReadFile(filepath.Join(out, name))
+		low := strings.ToLower(string(raw))
+		for _, bad := range []string{"origin", "simulated", "\"filled\""} {
+			if strings.Contains(low, bad) {
+				t.Fatalf("%s contains %q", name, bad)
 			}
 		}
 	}
@@ -298,7 +292,7 @@ func TestBuildOriginKeyInBundleIsRefusedByClosedSchema(t *testing.T) {
 }
 
 func TestBuildIsReproducible(t *testing.T) {
-	for _, exact := range []bool{true} {
+	for _, exact := range []bool{false, true} {
 		snap := makeSnapshot(t, fixtureOpts{tags: threeTags, exact: exact})
 		a, b := outDir(t), outDir(t)
 		mustBuild(t, baseOpts(snap, a))
@@ -450,7 +444,7 @@ func TestBuildOutRules(t *testing.T) {
 }
 
 func TestBuildRefusesSnapshotThatIsNotVerified(t *testing.T) {
-	for _, exact := range []bool{true} {
+	for _, exact := range []bool{false, true} {
 		t.Run(fmt.Sprintf("exact=%v", exact), func(t *testing.T) {
 			fresh := func() string { return makeSnapshot(t, fixtureOpts{tags: threeTags, exact: exact}) }
 			tamper := map[string]func(dir string){
