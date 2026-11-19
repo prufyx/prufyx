@@ -16,13 +16,16 @@ import (
 // directory is well-formed, 1 when any has findings and 2 for usage or I/O
 // errors. Output is deterministic and offline.
 func Run(args []string, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == "seal" {
+		return runSeal(args[1:], stdout, stderr)
+	}
 	dirIsSlug := false
 	if len(args) > 1 && args[1] == "--dir-is-slug" {
 		dirIsSlug = true
 		args = append(args[:1:1], args[2:]...)
 	}
 	if len(args) < 2 || args[0] != "validate" {
-		fmt.Fprintln(stderr, "usage: prufyx-maintainer onboard-bundle validate [--dir-is-slug] DIR [DIR...]")
+		fmt.Fprintln(stderr, "usage: prufyx-maintainer onboard-bundle validate [--dir-is-slug] DIR [DIR...] | seal [flags] DIR (seal -h for details)")
 		return 2
 	}
 	status := 0
