@@ -7,6 +7,7 @@ package knowledge
 import (
 	"errors"
 	"fmt"
+	"github.com/prufyx/prufyx/cli/internal/knowledge/sealed"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
@@ -64,7 +65,9 @@ type Admission struct {
 	EvidenceExpiresAt      string
 }
 
-type AdmitFunc func(target []byte) (Admission, error)
+// AdmitFunc receives a sealed.Target, which only the verification path can
+// construct, so an admission function cannot be run on unverified bytes.
+type AdmitFunc func(target sealed.Target) (Admission, error)
 
 type ImportRequest struct {
 	PackagePath         string

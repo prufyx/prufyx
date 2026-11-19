@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/prufyx/prufyx/cli/internal/knowledge/sealed"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,11 +41,12 @@ func TestSignedImportCurrentHistoricalIdempotentAndTrustAdvance(t *testing.T) {
 	if err != nil || !v1.Valid() {
 		t.Fatalf("open one: %v", err)
 	}
-	reject := func(raw []byte) (knowledge.Admission, error) {
+	reject := func(verified sealed.Target) (knowledge.Admission, error) {
+		raw := verified.Bytes()
 		if bytes.Contains(raw, []byte(`"revision":"2"`)) {
 			return knowledge.Admission{}, knowledge.ErrInvalid
 		}
-		return knowledgecheck.AdmitBundle(raw)
+		return knowledgecheck.AdmitBundle(verified)
 	}
 	rejected, err := knowledge.Import(knowledge.ImportRequest{PackagePath: p2, StoreRoot: store, ExpectedRevision: "2", ExpectedBundleDigest: manifest.Revisions[1].BundleDigest}, reject)
 	if !errors.Is(err, knowledge.ErrInvalid) || rejected.Status != "REJECTED" || !rejected.TrustStateAdvanced {

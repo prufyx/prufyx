@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/prufyx/prufyx/cli/internal/knowledge/sealed"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -148,21 +149,10 @@ func unsupportedFailure(minVersion, format string, args ...any) error {
 }
 
 // checkMinClient fails with an unsupported error when the index names a
-// minimum client version above this build. raw must be hash-verified.
-func checkMinClient(raw []byte) error {
-	return checkMinClientVerified(verifiedTarget{raw: raw})
-}
-
-// verifiedTarget is target content that the TUF updater has authenticated
-// under the pinned root (signed metadata, then length and digest). Only
-// verifier code constructs it, after DownloadTarget succeeds; the
-// capability and schema readers in verifySplitTargets accept nothing else,
-// so they cannot run on unauthenticated package bytes.
-type verifiedTarget struct{ raw []byte }
-
-func checkMinClientVerified(v verifiedTarget) error {
-	raw := v.raw
-	min, ok := cncfcheck.ExternalIndexMinClient(raw)
+// minimum client version above this build. It accepts only a sealed target:
+// callers hand over an already-verified one.
+func checkMinClient(v sealed.Target) error {
+	min, ok := cncfcheck.ExternalIndexMinClient(v.Bytes())
 	if !ok || buildidentity.MeetsMinimum(min) {
 		return nil
 	}
@@ -223,10 +213,11 @@ func packageLayoutMismatch(raw []byte, profile profileSpec) error {
 	return nil
 }
 
-func admitConstraintsIndex(target []byte) (Admission, error) {
-	if err := checkMinClient(target); err != nil {
+func admitConstraintsIndex(verified sealed.Target) (Admission, error) {
+	if err := checkMinClient(verified); err != nil {
 		return Admission{}, err
 	}
+	target := verified.Bytes()
 	index, err := cncfcheck.ParseExternalIndex(target)
 	if err != nil {
 		return Admission{}, indexParseFailure(err, target, "index target parse")
@@ -268,8 +259,8 @@ func validateSplitTargetsRole(targets *metadata.Metadata[metadata.TargetsType], 
 // downloads the selected project targets through the TUF updater. The set of
 // project targets in the index must equal the set in the targets role, with
 // identical lengths and digests. A nil selection downloads every project.
-func verifySplitTargets(u *updater.Updater, targets *metadata.Metadata[metadata.TargetsType], index0 verifiedTarget, targetDir string, only map[string]bool) (map[string][]byte, error) {
-	indexRaw := index0.raw
+func verifySplitTargets(u *updater.Updater, targets *metadata.Metadata[metadata.TargetsType], index0 sealed.Target, targetDir string, only map[string]bool) (map[string][]byte, error) {
+	indexRaw := index0.Bytes()
 	// Authenticate every signed project target before any manifest field is
 	// read: a flipped byte in a package that is also unreadable by this build
 	// is tampering, not a capability mismatch. A selective open (only != nil)
@@ -294,7 +285,7 @@ func verifySplitTargets(u *updater.Updater, targets *metadata.Metadata[metadata.
 	}
 	// indexRaw was hash-verified by DownloadTarget: a failure to read it is
 	// a package this build does not understand, not tampering.
-	if err := checkMinClientVerified(index0); err != nil {
+	if err := checkMinClient(index0); err != nil {
 		return nil, err
 	}
 	index, err := cncfcheck.ParseExternalIndex(indexRaw)

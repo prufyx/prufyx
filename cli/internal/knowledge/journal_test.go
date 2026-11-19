@@ -5,6 +5,7 @@ package knowledge
 import (
 	"encoding/json"
 	"errors"
+	"github.com/prufyx/prufyx/cli/internal/knowledge/sealed"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -486,7 +487,8 @@ func TestCompletedRetryClearFailureReturnsDurableRecoveryReceipt(t *testing.T) {
 	}
 }
 
-func journalAdmission(raw []byte) (Admission, error) {
+func journalAdmission(verified sealed.Target) (Admission, error) {
+	raw := verified.Bytes()
 	var header struct {
 		Revision string `json:"revision"`
 		Purpose  string `json:"purpose"`
