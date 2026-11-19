@@ -120,13 +120,15 @@ func okNotReportedCode(c string) bool {
 type notReportedFile struct {
 	Reportable *bool  `json:"reportable"`
 	ReasonCode string `json:"reason_code"`
+	// Reason is free text for the operator; it is type-checked and never output.
+	Reason *string `json:"reason"`
 }
 
 // notReportedMark reads the explicit opt-out of one run directory: the
 // NOT-REPORTED.json marker file, or a top-level "reportable": false in
 // RESULT.json (reason code "other"). It returns the reason code, or "" when
 // the run is not marked. A malformed marker is refused. A marked run is never
-// parsed. The marker's free text is not accepted: unknown keys are refused.
+// parsed. The free-text "reason" is accepted as a string and dropped; unknown keys are refused.
 func notReportedMark(runDir string, result []byte) (string, error) {
 	p := filepath.Join(runDir, "NOT-REPORTED.json")
 	info, lerr := os.Lstat(p)
