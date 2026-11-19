@@ -153,6 +153,32 @@ locate) and never a compatibility verdict about any release or upgrade. A
 version recorded under two tag names (`v1.2.3` and `1.2.3`) is one slot of the
 newest window, and the slot counts as located only when every tag of it is.
 
+## Receipt line
+
+`propose-rows` (when a row is printed) and `rows-check` (one per checked row,
+after the summary line) print one canonical receipt line per row:
+
+```
+receipt/v1 step=<propose|check> component=<slug> rowDigest=<hex64> tagsDigest=<hex64|unreadable> mirrorDigest=<hex|none> codeDigest=sha256:<hex64>
+```
+
+The field order is fixed and every field is required; a consumer must refuse
+any other order, a missing or repeated field, or an unknown field. The line
+holds a component slug and digests only, never changelog text or headings.
+
+- `rowDigest`: sha256 of the resolved row (component, repo, form, path, the
+  fixed style patterns). A proposed row and the same row in `targets.json`
+  give the same value.
+- `tagsDigest`: sha256 of the sorted `repo@tag` names recorded for the row's
+  repository; `unreadable` when the tag list cannot be read (refuse it).
+- `mirrorDigest`: the mirror index digest, or the explicit `none` when the
+  source is a fixture and has no mirror state. It is never omitted.
+- `codeDigest`: the extractor code digest of the reader that ran, in the
+  `sha256:<hex64>` form the other extractors use.
+
+For one row the `propose` and `check` receipts are equal except for `step`.
+The `rows-check` summary line also prints `mirrorDigest=none` for a fixture.
+
 ## Proposing rows
 
 ```
