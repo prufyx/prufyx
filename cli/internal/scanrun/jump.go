@@ -112,9 +112,9 @@ func crossesMajor(from, to string) bool {
 
 // isMajorHop reports whether the hop changes the major line.
 func isMajorHop(hop scanreport.Hop) bool {
-	from, ok1 := majorOf(firstNonEmpty(hop.From.Version, hop.From.Line))
-	to, ok2 := majorOf(firstNonEmpty(hop.To.Version, hop.To.Line))
-	return ok1 && ok2 && from != to
+	oldMajor, ok1 := majorOf(firstNonEmpty(hop.From.Version, hop.From.Line))
+	newMajor, ok2 := majorOf(firstNonEmpty(hop.To.Version, hop.To.Line))
+	return ok1 && ok2 && oldMajor != newMajor
 }
 
 func firstNonEmpty(a, b string) string {
