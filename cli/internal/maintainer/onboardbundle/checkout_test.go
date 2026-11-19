@@ -589,6 +589,14 @@ func TestTagPrefixIgnoresOtherTagsInDefaultWindow(t *testing.T) {
 	if n := strings.Join(res.Notes, "\n"); !strings.Contains(n, "2 tags outside --tag-prefix \"v\" ignored (first: ") {
 		t.Fatalf("notes: %q", n)
 	}
+	ents := readJSON(t, out, "scan-notes.json")["entries"].([]any)
+	if len(ents) != 1 {
+		t.Fatalf("scan-notes entries: %v", ents)
+	}
+	if e := ents[0].(map[string]any); e["class"] != "other" || e["path"] != "tags-outside-tag-prefix" || e["note"] != `2 tags outside --tag-prefix "v" ignored (first: chart-0.12.0, chart-0.13.0)` {
+		t.Fatalf("scan-notes entry: %v", e)
+	}
+	assertValid(t, out)
 	p := readJSON(t, out, "project.json")
 	if p["tagPrefix"] != "v" || len(p["releaseLines"].([]any)) != 2 {
 		t.Fatalf("project: %v", p)
@@ -598,5 +606,18 @@ func TestTagPrefixIgnoresOtherTagsInDefaultWindow(t *testing.T) {
 	o.Tags = []string{"v0.13.0", "chart-0.12.0"}
 	if _, err := Build(o); err == nil || !strings.Contains(err.Error(), "drop that tag from --tags") {
 		t.Fatalf("explicit conflicting tags: %v", err)
+	}
+}
+
+func TestIgnoredTagNamesAreSortedBeforeCap(t *testing.T) {
+	tags := []string{"v0.13.0", "chart-7", "chart-3", "chart-1", "chart-6", "chart-2", "chart-5", "chart-4", "v0.12.0"}
+	snap := makeSnapshot(t, fixtureOpts{tags: tags})
+	out := outDir(t)
+	o := baseOpts(snap, out)
+	o.TagPrefix = "v"
+	mustBuild(t, o)
+	ents := readJSON(t, out, "scan-notes.json")["entries"].([]any)
+	if got := ents[0].(map[string]any)["note"]; got != `7 tags outside --tag-prefix "v" ignored (first: chart-1, chart-2, chart-3, chart-4, chart-5)` {
+		t.Fatalf("note: %v", got)
 	}
 }

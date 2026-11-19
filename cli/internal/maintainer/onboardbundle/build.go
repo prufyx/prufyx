@@ -537,6 +537,7 @@ func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, string, 
 		byTag[t.Tag] = t
 	}
 	var sel []snapTag
+	var ignoredNote string // set when --tag-prefix drops tags; recorded in scan-notes
 	if len(o.Tags) == 0 {
 		for _, t := range sv.Tags {
 			sel = append(sel, t)
@@ -568,11 +569,20 @@ func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, string, 
 			}
 		}
 		if len(ignored) > 0 {
+			sort.Strings(ignored)
 			listed := ignored
 			if len(listed) > 5 {
 				listed = listed[:5]
 			}
-			notes = append(notes, fmt.Sprintf("note: %d tags outside --tag-prefix %q ignored (first: %s)", len(ignored), o.TagPrefix, strings.Join(listed, ", ")))
+			// Kept within the schema's note length.
+			for {
+				ignoredNote = fmt.Sprintf("%d tags outside --tag-prefix %q ignored (first: %s)", len(ignored), o.TagPrefix, strings.Join(listed, ", "))
+				if len(ignoredNote) <= 300 || len(listed) == 1 {
+					break
+				}
+				listed = listed[:len(listed)-1]
+			}
+			notes = append(notes, "note: "+ignoredNote)
 		}
 		sel = pre
 		if len(sel) == 0 {
@@ -706,6 +716,11 @@ func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, string, 
 	scan, err := scanEntries(o, sv, kept)
 	if err != nil {
 		return nil, notes, check, err
+	}
+	if ignoredNote != "" {
+		// A typed "other" entry: the closed scan-notes schema has no other
+		// place for a bundle-level note, and the receipt is not widened.
+		scan = append(scan, map[string]any{"path": "tags-outside-tag-prefix", "class": "other", "note": ignoredNote, "evidence": []any{}})
 	}
 	var ti *targetInput
 	if o.TargetInput != "" {
