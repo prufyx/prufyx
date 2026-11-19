@@ -8,6 +8,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/intake"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
+	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
 
 const kafkaOtherDoc = "apiVersion: kafka.strimzi.io/v1\nkind: Kafka\nmetadata:\n  name: other\n  namespace: kafka\n"
@@ -143,14 +144,14 @@ func TestCustomResourceReportNeedsEveryHop(t *testing.T) {
 	run := func(hops ...*hopCover) map[string]*customResourceRun {
 		return map[string]*customResourceRun{"strimzi": {ran: true, decided: true, hops: hops, blocked: map[intake.Source]bool{}}}
 	}
-	decided := &hopCover{label: "hop 1 A -> B", decided: true, kinds: map[string]bool{kind: true}}
-	empty := &hopCover{label: "hop 2 B -> C", kinds: map[string]bool{}}
+	decided := &hopCover{label: "hop 1 A -> B", evaluated: true, decided: true, kinds: map[string]bool{kind: true}}
+	empty := &hopCover{label: "hop 2 B -> C", evaluated: true, kinds: map[string]bool{}}
 	never := func(string) bool { return false }
 	got := customResourceReport(workspace, inventory, never, run(decided, empty))
 	if len(got) != 1 || got[0].Status != scanreport.CRStatusNotEvaluated || got[0].Reason != scanreport.CRPairNotCovered || !strings.Contains(got[0].Next, "hop 2 B -> C") {
 		t.Fatalf("one hop undecided: %+v", got)
 	}
-	got = customResourceReport(workspace, inventory, never, run(decided, &hopCover{label: "hop 2 B -> C", decided: true, kinds: map[string]bool{kind: true}}))
+	got = customResourceReport(workspace, inventory, never, run(decided, &hopCover{label: "hop 2 B -> C", evaluated: true, decided: true, kinds: map[string]bool{kind: true}}))
 	if len(got) != 1 || got[0].Status != scanreport.CRStatusEvaluated {
 		t.Fatalf("all hops decided: %+v", got)
 	}
@@ -165,5 +166,33 @@ func TestScanListsOneCustomResourceEntryPerDocument(t *testing.T) {
 	list := result.Report.CustomResources
 	if len(list) != 2 || list[0].File == list[1].File || list[0].Name != "events" || list[1].Name != "events" {
 		t.Fatalf("entries %+v", list)
+	}
+}
+
+// A planned hop that is not evaluated (a whole major line has no engine
+// version) is recorded, and an object is then NOT_EVALUATED although another
+// hop of the plan decided its kind.
+func TestCustomResourceUnevaluatedPlannedHopIsRecorded(t *testing.T) {
+	t.Parallel()
+	run := &customResourceRun{report: &scanreport.Report{}, rootGaps: map[scanreport.GapKey]scanreport.Gap{}, blocked: map[intake.Source]bool{}, ran: true}
+	major, _, err := run.hop(upgradepath.Hop{Index: 1, From: upgradepath.Endpoint{Version: "0.50.0"}, To: upgradepath.Endpoint{Line: "1"}}, nil)
+	if err != nil || major.Status != scanreport.HopNoData || len(run.hops) != 1 || run.hops[0].evaluated {
+		t.Fatalf("hop %+v err %v recorded %+v", major, err, run.hops)
+	}
+	kind := "kafka.strimzi.io/Kafka"
+	run.hops = append(run.hops, &hopCover{label: "hop 2 1.0.0 -> 1.1.0", evaluated: true, decided: true, kinds: map[string]bool{kind: true}})
+	run.decided = true
+	reason, hop := run.coverage(kind)
+	if reason != scanreport.CRPairNotCovered || !strings.Contains(hop, "hop 1") {
+		t.Fatalf("coverage %q %q", reason, hop)
+	}
+	workspace, err := intake.Decode("k.yaml", []byte(kafkaV1Doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory := map[string]*scanreport.Component{"strimzi": {Name: "strimzi", Current: "0.50.0", Target: "1.1.0"}}
+	got := customResourceReport(workspace, inventory, func(string) bool { return false }, map[string]*customResourceRun{"strimzi": run})
+	if len(got) != 1 || got[0].Status != scanreport.CRStatusNotEvaluated || got[0].Reason != scanreport.CRPairNotCovered || !strings.Contains(got[0].Next, "hop 1") {
+		t.Fatalf("report %+v", got)
 	}
 }

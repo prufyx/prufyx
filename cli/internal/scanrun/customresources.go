@@ -232,6 +232,18 @@ func (r *customResourceRun) hop(hop upgradepath.Hop, only func(cncfcheck.ScanRul
 		From:  scanreport.Endpoint{Version: hop.From.Version, Line: hop.From.Line},
 		To:    scanreport.Endpoint{Version: hop.To.Version, Line: hop.To.Line},
 	}
+	// Every planned hop is recorded before any early return, so a hop that is
+	// not evaluated is never skipped by the coverage of an object.
+	cover := &hopCover{label: "hop " + strconv.Itoa(hop.Index) + " " + ref.From + " -> " + ref.To, kinds: map[string]bool{}}
+	if only != nil {
+		cover.label = "whole upgrade " + ref.From + " -> " + ref.To
+		if r.whole == nil {
+			r.whole = &hopCover{label: cover.label, kinds: map[string]bool{}}
+		}
+		cover = r.whole
+	} else {
+		r.hops = append(r.hops, cover)
+	}
 	fromVersion, fromOK := hop.From.EngineVersion()
 	toVersion, toOK := hop.To.EngineVersion()
 	if !fromOK || !toOK {
@@ -279,16 +291,7 @@ func (r *customResourceRun) hop(hop upgradepath.Hop, only func(cncfcheck.ScanRul
 		claims[claim.RuleID] = claim
 	}
 
-	cover := &hopCover{label: "hop " + strconv.Itoa(hop.Index) + " " + ref.From + " -> " + ref.To, kinds: map[string]bool{}}
-	if only != nil {
-		cover.label = "whole upgrade " + ref.From + " -> " + ref.To
-		if r.whole == nil {
-			r.whole = &hopCover{label: cover.label, kinds: map[string]bool{}}
-		}
-		cover = r.whole
-	} else {
-		r.hops = append(r.hops, cover)
-	}
+	cover.evaluated = true
 	blocked, applicable := false, 0
 	overlapping := map[string]bool{}
 	// applicableIDs are the verdict rules that overlap the hop; decided
@@ -778,10 +781,13 @@ func isPreviousLine(component, fromLine, toLine string) bool {
 // hopCover is what one evaluated hop decided: the group/Kind pairs its
 // decided rules name, or every kind when a line review decided the family.
 type hopCover struct {
-	label   string
-	decided bool
-	all     bool
-	kinds   map[string]bool
+	label string
+	// evaluated is true once the hop's engine evaluation ran and its claims
+	// were accepted.
+	evaluated bool
+	decided   bool
+	all       bool
+	kinds     map[string]bool
 }
 
 // memberKind is "group/Kind" of a set member "group/version/Kind".
@@ -799,11 +805,12 @@ func (r *customResourceRun) coverage(kind string) (reason, hop string) {
 	if len(r.hops) == 0 {
 		return scanreport.CRPairNotCovered, ""
 	}
-	covered, anyDecided := 0, false
+	covered, anyDecided, allEvaluated := 0, r.whole != nil && r.whole.decided, true
 	var missing string
 	for _, h := range r.hops {
 		anyDecided = anyDecided || h.decided
-		if h.all || h.kinds[kind] || r.whole != nil && (r.whole.all || r.whole.kinds[kind]) {
+		allEvaluated = allEvaluated && h.evaluated
+		if h.evaluated && (h.all || h.kinds[kind] || r.whole != nil && (r.whole.all || r.whole.kinds[kind])) {
 			covered++
 		} else if missing == "" {
 			missing = h.label
@@ -812,7 +819,7 @@ func (r *customResourceRun) coverage(kind string) (reason, hop string) {
 	switch {
 	case covered == len(r.hops):
 		return "", ""
-	case covered == 0 && anyDecided:
+	case covered == 0 && anyDecided && allEvaluated:
 		return scanreport.CRKindNotCoveredByRules, missing
 	default:
 		return scanreport.CRPairNotCovered, missing
