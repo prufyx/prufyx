@@ -331,6 +331,7 @@ func TestConverterFieldsKnownAndNeverOutput(t *testing.T) {
 	writeRun(t, root, "m3-x", m3(func(m map[string]any) {
 		m["convertedFrom"], m["summaryFile"] = hostPath, hostPath
 		first(m)["sourceCited"] = "https://convhost.example.net/home/convuser/doc"
+		first(m)["oracle"].(map[string]any)["typeSource"] = "convhost.example.net:/home/convuser/typesrc"
 	}))
 	rep, err := Build(root)
 	if err != nil {
@@ -341,7 +342,7 @@ func TestConverterFieldsKnownAndNeverOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, doc := range [][]byte{j, md} {
-		for _, v := range []string{"convhost", "convuser", "summary.md", "sourceCited", "convertedFrom", "summaryFile"} {
+		for _, v := range []string{"convhost", "convuser", "summary.md", "sourceCited", "convertedFrom", "summaryFile", "typeSource", "typesrc"} {
 			if bytes.Contains(doc, []byte(v)) {
 				t.Errorf("%q reached the output", v)
 			}
@@ -352,6 +353,7 @@ func TestConverterFieldsKnownAndNeverOutput(t *testing.T) {
 		"convertedFrom not a string": func(m map[string]any) { m["convertedFrom"] = 5 },
 		"summaryFile not a string":   func(m map[string]any) { m["summaryFile"] = true },
 		"sourceCited not a string":   func(m map[string]any) { first(m)["sourceCited"] = true },
+		"typeSource not a string":    func(m map[string]any) { first(m)["oracle"].(map[string]any)["typeSource"] = 7 },
 	} {
 		if _, err := ParseRun("m3-x", m3(mut)); err == nil {
 			t.Errorf("%s: accepted", name)

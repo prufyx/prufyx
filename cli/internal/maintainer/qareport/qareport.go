@@ -367,6 +367,8 @@ type m3Check struct {
 	Oracle    struct {
 		Observed json.RawMessage `json:"observed"`
 		Type     string          `json:"type"`
+		// Converter field: known, type-checked, never output.
+		TypeSource *string `json:"typeSource"`
 	} `json:"oracle"`
 	Project string `json:"project"`
 	Result  string `json:"result"`
