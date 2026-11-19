@@ -49,15 +49,16 @@ class AggregateScope(unittest.TestCase):
         r = run([RULES], {RULES: (old, new)})
         self.assertEqual((r["mode"], r["projects"]), ("incremental", ["alpha", "gamma"]))
 
-    def test_metadata_only_is_none_not_full(self):
-        new = rules(); new["revision"] = "r2"
-        r = run([RULES], {RULES: (rules(), new)})
-        self.assertEqual((r["mode"], r["projects"]), ("none", []))
+    def test_pack_level_change_is_full(self):
+        for key in ("revision", "policyDigest", "registryDigest", "landscapeFileDigest"):
+            new = rules(); new[key] = "changed"
+            r = run([RULES], {RULES: (rules(), new)})
+            self.assertEqual(r["mode"], "full", key)
 
-    def test_nontarget_project_attributed_without_crd_slug(self):
+    def test_nontarget_project_entry_change_is_full(self):
         new = rules(); new["entries"][3]["description"] = "x"
         r = run([RULES], {RULES: (rules(), new)})
-        self.assertEqual((r["mode"], r["projects"]), ("none", []))
+        self.assertEqual(r["mode"], "full", r["reasons"])
 
     def test_line_attestation_attributed_by_component(self):
         new = rules(); new["lineAttestations"][0]["x"] = 2
@@ -66,7 +67,7 @@ class AggregateScope(unittest.TestCase):
 
     def test_attestation_component_added(self):
         new = attest(("pkg:github/o/alpha", "pkg:github/o/beta", "pkg:github/o/gamma"), ruleCount=5, packDigest="z")
-        r = run([ATTEST], {ATTEST: (attest(), new), RULES: (rules(), rules())})
+        r = run([RULES, ATTEST], {ATTEST: (attest(), new), RULES: (rules(), rules())})
         self.assertEqual(r["projects"], ["gamma"])
 
     def test_both_files_union(self):
@@ -88,7 +89,7 @@ class AggregateScope(unittest.TestCase):
         self.full([RULES], {RULES: (rules(), new)})
 
     def test_unattributable_attestation_component_full(self):
-        self.full([ATTEST], {ATTEST: (attest(), attest(("pkg:github/o/alpha", "pkg:github/o/mystery"))), RULES: (rules(), rules())})
+        self.full([RULES, ATTEST], {ATTEST: (attest(), attest(("pkg:github/o/alpha", "pkg:github/o/mystery"))), RULES: (rules(), rules())})
 
     def test_malformed_json_full(self):
         self.full([RULES], {RULES: (rules(), b"{not json")})
@@ -117,10 +118,10 @@ class AggregateScope(unittest.TestCase):
         self.full([RULES], {RULES: (rules(), new)})
 
     def test_attestation_limitations_change_full(self):
-        self.full([ATTEST], {ATTEST: (attest(), attest(limitations=["other"])), RULES: (rules(), rules())})
+        self.full([RULES, ATTEST], {ATTEST: (attest(), attest(limitations=["other"])), RULES: (rules(), rules())})
 
     def test_attestation_needs_rules(self):
-        self.full([ATTEST], {ATTEST: (attest(), attest(("pkg:github/o/alpha",))), RULES: (rules(), b"x")})
+        self.full([RULES, ATTEST], {ATTEST: (attest(), attest(("pkg:github/o/alpha",))), RULES: (rules(), b"x")})
 
     def test_no_trusted_bindings_full(self):
         new = rules(); new["lineAttestations"][0]["x"] = 2
@@ -140,12 +141,11 @@ class AggregateScope(unittest.TestCase):
         poisoned = rules([entry("a.1", "alpha"), entry("p.1", "kubernetes", "pkg:github/o/zeta")])
         na = attest(("pkg:github/o/alpha", "pkg:github/o/beta", "pkg:github/o/zeta"))
         # zeta only bound by the PR's own entry: unattributable => full
-        self.full([ATTEST], {ATTEST: (attest(), na), RULES: (rules(), poisoned)})
-        # gamma bound by trusted target: attributed to gamma despite PR entry saying kubernetes
+        self.full([RULES, ATTEST], {ATTEST: (attest(), na), RULES: (rules(), poisoned)})
+        # gamma bound by trusted target; the PR's kubernetes entry is itself a changed non-target entry => full
         poisoned = rules([entry("p.1", "kubernetes", "pkg:github/o/gamma")] + rules()["entries"])
         na = attest(("pkg:github/o/alpha", "pkg:github/o/beta", "pkg:github/o/gamma"))
-        r = run([ATTEST], {ATTEST: (attest(), na), RULES: (rules(), poisoned)})
-        self.assertEqual(r["projects"], ["gamma"])
+        self.full([RULES, ATTEST], {ATTEST: (attest(), na), RULES: (rules(), poisoned)})
 
     def test_deleted_entry_selects_its_project(self):
         new = rules([entry("a.1", "alpha"), entry("b.1", "beta"), entry("k.1", "kube", "pkg:github/o/kube")])
@@ -156,7 +156,7 @@ class AggregateScope(unittest.TestCase):
         self.assertEqual(run([RULES], {RULES: (rules(), new)})["projects"], ["alpha", "beta"])
 
     def test_attestation_component_removal(self):
-        r = run([ATTEST], {ATTEST: (attest(), attest(("pkg:github/o/alpha",))), RULES: (rules(), rules())})
+        r = run([RULES, ATTEST], {ATTEST: (attest(), attest(("pkg:github/o/alpha",))), RULES: (rules(), rules())})
         self.assertEqual(r["projects"], ["beta"])
 
     def test_true_vs_one_is_a_change(self):
