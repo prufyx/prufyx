@@ -389,3 +389,71 @@ func mustRead(t *testing.T, p string) string {
 	}
 	return string(raw)
 }
+
+func TestReadmeListsSchemaScanNoteClasses(t *testing.T) {
+	raw, err := os.ReadFile("schema.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var schema any
+	if err := json.Unmarshal(raw, &schema); err != nil {
+		t.Fatal(err)
+	}
+	var find func(v any) []any
+	find = func(v any) []any {
+		switch x := v.(type) {
+		case map[string]any:
+			if c, ok := x["class"].(map[string]any); ok {
+				if e, ok := c["enum"].([]any); ok {
+					return e
+				}
+			}
+			for _, child := range x {
+				if e := find(child); e != nil {
+					return e
+				}
+			}
+		case []any:
+			for _, child := range x {
+				if e := find(child); e != nil {
+					return e
+				}
+			}
+		}
+		return nil
+	}
+	want := map[string]bool{}
+	for _, c := range find(schema) {
+		want[c.(string)] = true
+	}
+	if len(want) == 0 {
+		t.Fatal("no class enum in schema")
+	}
+	doc, err := os.ReadFile("../../../../contrib/onboard-bundles/README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(doc)
+	i := strings.Index(text, "### Scan-notes classes")
+	if i < 0 {
+		t.Fatal("README has no scan-notes class section")
+	}
+	section := text[i:]
+	if j := strings.Index(section, "\n## "); j >= 0 {
+		section = section[:j]
+	}
+	got := map[string]bool{}
+	for _, line := range strings.Split(section, "\n") {
+		if strings.HasPrefix(line, "| `") {
+			got[strings.Split(line, "`")[1]] = true
+		}
+	}
+	if len(got) != len(want) {
+		t.Fatalf("README classes %v, schema classes %v", got, want)
+	}
+	for c := range want {
+		if !got[c] {
+			t.Fatalf("README misses class %s", c)
+		}
+	}
+}

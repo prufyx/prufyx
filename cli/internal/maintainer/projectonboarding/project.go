@@ -151,6 +151,12 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, options O
 	if len(args) == 0 {
 		return reject(stderr)
 	}
+	if len(args) == 2 && (args[1] == "-h" || args[1] == "--help") {
+		switch args[0] {
+		case "init", "validate", "sync", "verify", "status", "inspect", "proposal":
+			args = []string{"help"}
+		}
+	}
 	switch args[0] {
 	case "help", "--help", "-h":
 		_, _ = io.WriteString(stdout, "usage: prufyx-maintainer project <init|validate|sync|verify|status|inspect|proposal> [options]\nvalidate --request REQUEST\ninit --repository HTTPS_GITHUB_REPO --output NEW_REQUEST [--slug SLUG] [--release-limit 1..10] [--tag-prefix PREFIX] [--changelog-paths PATH,...]\nexact-tag init: init --repository HTTPS_GITHUB_REPO --exact-tag TAG [--exact-tag TAG ...] --license-anchor-tag TAG --output NEW_REQUEST [--slug SLUG] [--changelog-paths PATH,...]\nsync --manifest REQUEST --output-parent PRIVATE_DIR [--previous SNAPSHOT]\nverify --snapshot SNAPSHOT [--previous PRIOR_EXACT_TAG_SNAPSHOT]\nstatus|proposal --snapshot SNAPSHOT\ninspect --snapshot SNAPSHOT [--tag TAG] [--include-notes]\n")

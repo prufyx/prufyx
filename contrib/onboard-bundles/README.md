@@ -54,6 +54,68 @@ maintainer does not have; that is part of the same gap.
 Never in a bundle: rules, tables, batches, approvals, signatures, scripts,
 archives, credentials, private paths or host names. Only JSON files.
 
+## Where each field comes from
+
+Nothing in the table below needs to be guessed except the items marked
+"maintainer". `snapshot` means the output of `prufyx-maintainer project sync`
+and `project proposal --snapshot SNAPSHOT`
+(see [project onboarding](../../cli/docs/project-onboarding.md)).
+
+| File and field | Value comes from |
+| --- | --- |
+| `project.json` `repo`, `slug`, `tagPrefix` | the request: `--repository`, `--slug`, `--tag-prefix`; the slug must equal the directory name |
+| `project.json` `licence.path`, `licence.commit` | proposal: licence file path and the commit it was read at |
+| `project.json` `licence.sha256` | proposal `license.fileDigest` (the hex digest after `sha256:`) |
+| `project.json` `licence.spdxGuess` | maintainer: your reading of the licence text; a guess, not a determination |
+| `project.json` `cncfStatusClaim` | maintainer: what the project says about its own CNCF status; a claim, not checked |
+| `project.json` `releaseLines[].tag`, `.commit` | proposal: release tag and its resolved commit |
+| `project.json` `releaseLines[].line` | maintainer: the minor line of that tag, for example `0.20` for `v0.20.6` |
+| `target-draft.json` `target.*` (paths, excludes, `minFrom`, `tagPrefixes`) | maintainer: read the checkout. A hand-written draft is only a hint: it is re-derived by the maintainers and never creates coverage by itself; the validator checks structure only |
+| `target-draft.json` `copiesEvidence`, `exclude[].evidence` | maintainer: what you compared, in words |
+| `scan-notes.json` `entries[].path`, `class`, `note` | maintainer: files outside the listed paths that define or name CRD kinds; `class` is one of the classes below |
+| `scan-notes.json` `entries[].evidence[].tag`, `.commit` | proposal: tag and commit the file was read at |
+| `scan-notes.json` `entries[].evidence[].sha256` | maintainer: digest of that file at that commit (`git show COMMIT:PATH \| sha256sum`) |
+| `relnotes-sources.json` `rows[].path`, `form` | maintainer: the release-note file in the checkout; `form` as in the schema |
+| `relnotes-sources.json` `pairs[].fromTag`, `.toTag`, `.commit` | proposal: adjacent release tags and the commit of `toTag` |
+| `relnotes-sources.json` `pairs[].fileSha256` | maintainer: digest of the file at that commit |
+| `relnotes-sources.json` `pairs[].startLine`, `.endLine` | maintainer: line range of the section for that release pair; a hint, the validator cannot check it |
+| `receipt.json` (all fields) | derived by the import: do not write it |
+
+### Scan-notes classes
+
+`class` in `scan-notes.json` must be one of these (checked against the schema
+by a test):
+
+| Class | Use for |
+| --- | --- |
+| `copy` | a byte-equal copy of a listed CRD file |
+| `templated-copy` | a template (for example a Helm chart) that repeats listed CRDs |
+| `extra` | a CRD-defining file that is not in the listed paths |
+| `reference` | a file that only names a CRD kind (docs, examples, RBAC) |
+| `unread` | a file you did not read; say so in `note` |
+| `external` | a CRD defined in another repository |
+| `go-defined` | a CRD generated from Go types with no YAML in the repository |
+| `other` | none of the above; explain in `note` |
+
+## Release window and changelog files
+
+`project init --release-limit N` keeps the N newest GitHub releases by publish
+date, among releases that match `--tag-prefix` (if given). Backports count:
+a patch release of an older line published recently can push the newest line's
+patches out of the window (a pilot with `--release-limit 5` got
+v0.19.12, v0.19.13, v0.20.4, v0.20.5, v0.20.6). To get the lines you want,
+raise `--release-limit` (up to 10), narrow the window with `--tag-prefix`, or
+name the tags yourself with the exact-tag form (`--exact-tag`, see
+[project onboarding](../../cli/docs/project-onboarding.md)). Selecting the
+newest tags per release line would often be a better default; that is not
+implemented, and the selection described here is unchanged.
+
+`--changelog-paths` takes comma-separated paths, at most eight. The list
+replaces the defaults (`CHANGELOG.md`, `CHANGES.md`, `CHANGES`, `RELEASES.md`,
+`docs/CHANGELOG.md`) for every release in the request, so a project with one
+changelog file per minor line must list every file it needs, for example
+`--changelog-paths CHANGELOG/CHANGELOG-0.19.md,CHANGELOG/CHANGELOG-0.20.md`.
+
 ## Limits
 
 - at most 256 KiB per file and at most 12 files;
