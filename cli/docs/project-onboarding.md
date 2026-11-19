@@ -86,9 +86,9 @@ prufyx-maintainer project init \
   --output "$PRIVATE/project-request.json"
 ```
 
-The release window is the `--release-limit` newest releases by publish date
-that match `--tag-prefix`; backports of older lines count, so a window can hold
-patches of two lines and miss the newest. `--changelog-paths` takes
+`project init` selects the N newest releases by version (drafts, prereleases
+and non-version tags are skipped; it reads up to a fixed page cap and stops
+with `RELEASE_LIST_CAP_REACHED` if it cannot find N). `--changelog-paths` takes
 comma-separated paths (at most eight) and replaces the defaults for every
 release, so list one file per minor line when the project keeps a changelog per
 line. Details and examples are in

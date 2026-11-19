@@ -457,3 +457,52 @@ func TestReadmeListsSchemaScanNoteClasses(t *testing.T) {
 		}
 	}
 }
+
+func TestReadmeFieldTableCoversSchema(t *testing.T) {
+	raw, err := os.ReadFile("schema.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var schema struct {
+		Defs map[string]any `json:"$defs"`
+	}
+	if err := json.Unmarshal(raw, &schema); err != nil {
+		t.Fatal(err)
+	}
+	doc, err := os.ReadFile("../../../../contrib/onboard-bundles/README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(doc)
+	i := strings.Index(text, "## Where each field comes from")
+	j := strings.Index(text, "### Scan-notes classes")
+	if i < 0 || j < i {
+		t.Fatal("README field table section missing")
+	}
+	table := text[i:j]
+	var walk func(v any, prefix string, out *[]string)
+	walk = func(v any, prefix string, out *[]string) {
+		m, _ := v.(map[string]any)
+		props, _ := m["properties"].(map[string]any)
+		for k, c := range props {
+			*out = append(*out, prefix+k)
+			walk(c, prefix+k+".", out)
+			if cm, ok := c.(map[string]any); ok && cm["items"] != nil {
+				walk(cm["items"], prefix+k+"[].", out)
+			}
+		}
+	}
+	files := map[string]string{"project": "project.json", "targetDraft": "target-draft.json", "scanNotes": "scan-notes.json", "relnotesSources": "relnotes-sources.json", "leads": "leads.json", "receipt": "receipt.json"}
+	for def, file := range files {
+		var paths []string
+		walk(schema.Defs[def], "", &paths)
+		if len(paths) == 0 {
+			t.Fatalf("no properties for %s", def)
+		}
+		for _, p := range paths {
+			if !strings.Contains(table, "| `"+file+"` `"+p+"` |") {
+				t.Errorf("README field table misses %s %s", file, p)
+			}
+		}
+	}
+}

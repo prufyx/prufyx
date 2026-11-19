@@ -56,34 +56,126 @@ archives, credentials, private paths or host names. Only JSON files.
 
 ## Where each field comes from
 
-Nothing in the table below needs to be guessed except the items marked
-"maintainer". `snapshot` means the output of `prufyx-maintainer project sync`
-and `project proposal --snapshot SNAPSHOT`
-(see [project onboarding](../../cli/docs/project-onboarding.md)).
+Every schema field of the six bundle files is listed once (a test checks this
+against [`schema.json`](../../cli/internal/maintainer/onboardbundle/schema.json)).
+`proposal` means the output of `prufyx-maintainer project proposal --snapshot
+SNAPSHOT` after `project sync` (see
+[project onboarding](../../cli/docs/project-onboarding.md)); `request` means
+the options you gave `project init`.
 
 | File and field | Value comes from |
 | --- | --- |
-| `project.json` `repo`, `slug`, `tagPrefix` | the request: `--repository`, `--slug`, `--tag-prefix`; the slug must equal the directory name |
-| `project.json` `licence.path`, `licence.commit` | proposal: licence file path and the commit it was read at |
-| `project.json` `licence.sha256` | proposal `license.fileDigest` (the hex digest after `sha256:`) |
+| `project.json` `schema` | fixed text `prufyx.io/onboard-bundle/v1`; copy from `testdata/valid` |
+| `project.json` `kind` | fixed text `project` |
+| `project.json` `repo` | request: `--repository`, written as `github.com/OWNER/NAME` |
+| `project.json` `slug` | request: `--slug`; must equal the directory name |
+| `project.json` `licence` | object holding the four fields below |
+| `project.json` `licence.path` | proposal: licence file path |
+| `project.json` `licence.commit` | proposal: commit the licence file was read at |
+| `project.json` `licence.sha256` | proposal `license.fileDigest` (hex after `sha256:`) |
 | `project.json` `licence.spdxGuess` | maintainer: your reading of the licence text; a guess, not a determination |
-| `project.json` `cncfStatusClaim` | maintainer: what the project says about its own CNCF status; a claim, not checked |
-| `project.json` `releaseLines[].tag`, `.commit` | proposal: release tag and its resolved commit |
-| `project.json` `releaseLines[].line` | maintainer: the minor line of that tag, for example `0.20` for `v0.20.6` |
-| `target-draft.json` `target.*` (paths, excludes, `minFrom`, `tagPrefixes`) | maintainer: read the checkout. A hand-written draft is only a hint: it is re-derived by the maintainers and never creates coverage by itself; the validator checks structure only |
-| `target-draft.json` `copiesEvidence`, `exclude[].evidence` | maintainer: what you compared, in words |
-| `scan-notes.json` `entries[].path`, `class`, `note` | maintainer: files outside the listed paths that define or name CRD kinds; `class` is one of the classes below |
-| `scan-notes.json` `entries[].evidence[].tag`, `.commit` | proposal: tag and commit the file was read at |
-| `scan-notes.json` `entries[].evidence[].sha256` | maintainer: digest of that file at that commit (`git show COMMIT:PATH \| sha256sum`) |
-| `relnotes-sources.json` `rows[].path`, `form` | maintainer: the release-note file in the checkout; `form` as in the schema |
-| `relnotes-sources.json` `pairs[].fromTag`, `.toTag`, `.commit` | proposal: adjacent release tags and the commit of `toTag` |
-| `relnotes-sources.json` `pairs[].fileSha256` | maintainer: digest of the file at that commit |
-| `relnotes-sources.json` `pairs[].startLine`, `.endLine` | maintainer: line range of the section for that release pair; a hint, the validator cannot check it |
-| `receipt.json` (all fields) | derived by the import: do not write it |
+| `project.json` `tagPrefix` | request: `--tag-prefix` |
+| `project.json` `releaseLines` | list, one entry per release line in the window |
+| `project.json` `releaseLines[].line` | maintainer: minor line of the tag, for example `0.20` for `v0.20.6` |
+| `project.json` `releaseLines[].tag` | proposal: release tag |
+| `project.json` `releaseLines[].commit` | proposal: resolved commit of that tag |
+| `project.json` `cncfStatusClaim` | maintainer: what the project says about its CNCF status; a claim, not checked |
+| `target-draft.json` `schema` | fixed text `prufyx.io/onboard-bundle/v1`; copy from `testdata/valid` |
+| `target-draft.json` `kind` | fixed text `target-draft` |
+| `target-draft.json` `status` | maintainer: `filled` when you wrote the target (see schema for the other values) |
+| `target-draft.json` `target` | object, a candidate `crd-version-target/v1`; only a hint: maintainers re-derive it and it never creates coverage by itself; the validator checks structure only |
+| `target-draft.json` `target.project` | maintainer: read from the checkout (hint, see `target`) |
+| `target-draft.json` `target.name` | maintainer: read from the checkout (hint, see `target`) |
+| `target-draft.json` `target.repo` | maintainer: read from the checkout (hint, see `target`) |
+| `target-draft.json` `target.component` | maintainer: read from the checkout (hint, see `target`) |
+| `target-draft.json` `target.factProject` | maintainer: read from the checkout (hint, see `target`) |
+| `target-draft.json` `target.tagPrefixes` | maintainer: read from the checkout (hint, see `target`) |
+| `target-draft.json` `target.minFrom` | maintainer: read from the checkout (hint, see `target`) |
+| `target-draft.json` `target.attest` | maintainer: read from the checkout (hint, see `target`) |
+| `target-draft.json` `target.paths` | maintainer: read from the checkout (hint, see `target`) |
+| `target-draft.json` `target.paths[].path` | maintainer: read from the checkout (hint, see `target`) |
+| `target-draft.json` `target.paths[].directory` | maintainer: read from the checkout (hint, see `target`) |
+| `target-draft.json` `target.paths[].match` | maintainer: read from the checkout (hint, see `target`) |
+| `target-draft.json` `target.paths[].guard` | maintainer: read from the checkout (hint, see `target`) |
+| `target-draft.json` `target.exclude` | maintainer: read from the checkout (hint, see `target`) |
+| `target-draft.json` `target.exclude[].path` | maintainer: read from the checkout (hint, see `target`) |
+| `target-draft.json` `target.exclude[].repo` | maintainer: read from the checkout (hint, see `target`) |
+| `target-draft.json` `target.exclude[].reason` | maintainer: read from the checkout (hint, see `target`) |
+| `target-draft.json` `target.exclude[].evidence` | maintainer: read from the checkout (hint, see `target`) |
+| `target-draft.json` `target.exclude[].copies` | maintainer: read from the checkout (hint, see `target`) |
+| `target-draft.json` `copiesEvidence` | maintainer: what you compared at which tags, in words |
+| `target-draft.json` `copiesEvidence[].path` | maintainer: what you compared at which tags, in words |
+| `target-draft.json` `copiesEvidence[].comparedWith` | maintainer: what you compared at which tags, in words |
+| `target-draft.json` `copiesEvidence[].tags` | maintainer: what you compared at which tags, in words |
+| `target-draft.json` `copiesEvidence[].note` | maintainer: what you compared at which tags, in words |
+| `scan-notes.json` `schema` | fixed text `prufyx.io/onboard-bundle/v1`; copy from `testdata/valid` |
+| `scan-notes.json` `kind` | fixed text `scan-notes` |
+| `scan-notes.json` `entries` | list, one entry per file |
+| `scan-notes.json` `entries[].path` | maintainer: file outside the listed paths that defines or names CRD kinds |
+| `scan-notes.json` `entries[].class` | maintainer: one of the classes below |
+| `scan-notes.json` `entries[].note` | maintainer: one sentence |
+| `scan-notes.json` `entries[].evidence` | list, one entry per tag the file was read at |
+| `scan-notes.json` `entries[].evidence[].tag` | proposal: release tag |
+| `scan-notes.json` `entries[].evidence[].commit` | proposal: commit of that tag |
+| `scan-notes.json` `entries[].evidence[].sha256` | maintainer: digest of the file at that commit (`git show COMMIT:PATH | sha256sum`) |
+| `relnotes-sources.json` `schema` | fixed text `prufyx.io/onboard-bundle/v1`; copy from `testdata/valid` |
+| `relnotes-sources.json` `kind` | fixed text `relnotes-sources` |
+| `relnotes-sources.json` `rows` | list, one row per release-note file |
+| `relnotes-sources.json` `rows[].path` | maintainer: release-note file in the checkout |
+| `relnotes-sources.json` `rows[].form` | maintainer: kind of file, values in the schema |
+| `relnotes-sources.json` `rows[].postTag` | maintainer: `true` when the file is read after the tag, values in the schema |
+| `relnotes-sources.json` `rows[].pairs` | list, one entry per adjacent release pair |
+| `relnotes-sources.json` `rows[].pairs[].fromTag` | proposal: older release tag |
+| `relnotes-sources.json` `rows[].pairs[].toTag` | proposal: newer release tag |
+| `relnotes-sources.json` `rows[].pairs[].present` | maintainer: whether the file exists at that commit |
+| `relnotes-sources.json` `rows[].pairs[].commit` | proposal: commit of `toTag` |
+| `relnotes-sources.json` `rows[].pairs[].fileSha256` | maintainer: digest of the file at that commit |
+| `relnotes-sources.json` `rows[].pairs[].startLine` | maintainer: first line of the section; a hint, the validator cannot check it |
+| `relnotes-sources.json` `rows[].pairs[].endLine` | maintainer: last line of the section; a hint, the validator cannot check it |
+| `leads.json` `schema` | fixed text `prufyx.io/onboard-bundle/v1`; copy from `testdata/valid` |
+| `leads.json` `kind` | fixed text `leads` |
+| `leads.json` `leads` | optional file; see `testdata/valid` and the schema for the shape |
+| `leads.json` `leads[].type` | optional file; see `testdata/valid` and the schema for the shape |
+| `leads.json` `leads[].component` | optional file; see `testdata/valid` and the schema for the shape |
+| `leads.json` `leads[].artefact` | optional file; see `testdata/valid` and the schema for the shape |
+| `leads.json` `leads[].replacement` | optional file; see `testdata/valid` and the schema for the shape |
+| `leads.json` `leads[].changedIn` | optional file; see `testdata/valid` and the schema for the shape |
+| `leads.json` `leads[].refusal` | optional file; see `testdata/valid` and the schema for the shape |
+| `leads.json` `leads[].pair` | optional file; see `testdata/valid` and the schema for the shape |
+| `leads.json` `leads[].pair.fromTag` | optional file; see `testdata/valid` and the schema for the shape |
+| `leads.json` `leads[].pair.toTag` | optional file; see `testdata/valid` and the schema for the shape |
+| `leads.json` `leads[].path` | optional file; see `testdata/valid` and the schema for the shape |
+| `leads.json` `leads[].commit` | optional file; see `testdata/valid` and the schema for the shape |
+| `leads.json` `leads[].fileSha256` | optional file; see `testdata/valid` and the schema for the shape |
+| `leads.json` `leads[].quote` | optional file; see `testdata/valid` and the schema for the shape |
+| `leads.json` `leads[].quote.startLine` | optional file; see `testdata/valid` and the schema for the shape |
+| `leads.json` `leads[].quote.endLine` | optional file; see `testdata/valid` and the schema for the shape |
+| `leads.json` `leads[].quote.text` | optional file; see `testdata/valid` and the schema for the shape |
+| `leads.json` `leads[].certainty` | optional file; see `testdata/valid` and the schema for the shape |
+| `receipt.json` `schema` | fixed text `prufyx.io/onboard-bundle/v1`; copy from `testdata/valid` |
+| `receipt.json` `kind` | required file, written by `prufyx-maintainer onboard-bundle seal` (PR #750, open); until it merges, prepared via the invite route. Never by hand |
+| `receipt.json` `kit` | required file, written by `prufyx-maintainer onboard-bundle seal` (PR #750, open); until it merges, prepared via the invite route. Never by hand |
+| `receipt.json` `tool` | required file, written by `prufyx-maintainer onboard-bundle seal` (PR #750, open); until it merges, prepared via the invite route. Never by hand |
+| `receipt.json` `tool.prufyxCommit` | required file, written by `prufyx-maintainer onboard-bundle seal` (PR #750, open); until it merges, prepared via the invite route. Never by hand |
+| `receipt.json` `bundleSha256` | required file, written by `prufyx-maintainer onboard-bundle seal` (PR #750, open); until it merges, prepared via the invite route. Never by hand |
+| `receipt.json` `files` | required file, written by `prufyx-maintainer onboard-bundle seal` (PR #750, open); until it merges, prepared via the invite route. Never by hand |
+| `receipt.json` `files[].name` | required file, written by `prufyx-maintainer onboard-bundle seal` (PR #750, open); until it merges, prepared via the invite route. Never by hand |
+| `receipt.json` `files[].sha256` | required file, written by `prufyx-maintainer onboard-bundle seal` (PR #750, open); until it merges, prepared via the invite route. Never by hand |
+| `receipt.json` `review` | required file, written by `prufyx-maintainer onboard-bundle seal` (PR #750, open); until it merges, prepared via the invite route. Never by hand |
+| `receipt.json` `review.state` | required file, written by `prufyx-maintainer onboard-bundle seal` (PR #750, open); until it merges, prepared via the invite route. Never by hand |
+| `receipt.json` `review.admissionState` | required file, written by `prufyx-maintainer onboard-bundle seal` (PR #750, open); until it merges, prepared via the invite route. Never by hand |
+| `receipt.json` `agentLabel` | required file, written by `prufyx-maintainer onboard-bundle seal` (PR #750, open); until it merges, prepared via the invite route. Never by hand |
+| `receipt.json` `generatedAt` | required file, written by `prufyx-maintainer onboard-bundle seal` (PR #750, open); until it merges, prepared via the invite route. Never by hand |
+| `receipt.json` `checks` | required file, written by `prufyx-maintainer onboard-bundle seal` (PR #750, open); until it merges, prepared via the invite route. Never by hand |
+| `receipt.json` `checks.targetCheckOffline` | required file, written by `prufyx-maintainer onboard-bundle seal` (PR #750, open); until it merges, prepared via the invite route. Never by hand |
+| `receipt.json` `checks.extractRun` | required file, written by `prufyx-maintainer onboard-bundle seal` (PR #750, open); until it merges, prepared via the invite route. Never by hand |
+| `receipt.json` `checks.dropped` | required file, written by `prufyx-maintainer onboard-bundle seal` (PR #750, open); until it merges, prepared via the invite route. Never by hand |
+| `receipt.json` `checks.dropped[].file` | required file, written by `prufyx-maintainer onboard-bundle seal` (PR #750, open); until it merges, prepared via the invite route. Never by hand |
+| `receipt.json` `checks.dropped[].reason` | required file, written by `prufyx-maintainer onboard-bundle seal` (PR #750, open); until it merges, prepared via the invite route. Never by hand |
 
 ### Scan-notes classes
 
-`class` in `scan-notes.json` must be one of these (checked against the schema
+`class` in `scan-notes.json` (`entries[].class`) must be one of these (checked against the schema
 by a test):
 
 | Class | Use for |
@@ -97,18 +189,35 @@ by a test):
 | `go-defined` | a CRD generated from Go types with no YAML in the repository |
 | `other` | none of the above; explain in `note` |
 
+## Projects without CRDs
+
+Projects without CRDs are in scope. For such a project the evidence comes from
+the Helm chart, in chart families: the install API surface, the declared
+platform version range, and the values schema. These families are being built;
+the coverage table in the project README will show them as "none yet" (PR #756)
+until they produce data. A project with no cluster API surface at all gets a
+permanent gap with its reason.
+
+`onboard-bundle build --no-crds` (PR #753, open) changes one field: the
+`target-draft.json` `status` becomes `no-crds`. Use it only when the project
+ships no CRDs, and declare it explicitly. Building without the flag for a
+no-CRD project gives the same bundle apart from that field, so the flag is the
+only place the choice is recorded.
+
 ## Release window and changelog files
 
-`project init --release-limit N` keeps the N newest GitHub releases by publish
-date, among releases that match `--tag-prefix` (if given). Backports count:
-a patch release of an older line published recently can push the newest line's
-patches out of the window (a pilot with `--release-limit 5` got
-v0.19.12, v0.19.13, v0.20.4, v0.20.5, v0.20.6). To get the lines you want,
-raise `--release-limit` (up to 10), narrow the window with `--tag-prefix`, or
-name the tags yourself with the exact-tag form (`--exact-tag`, see
-[project onboarding](../../cli/docs/project-onboarding.md)). Selecting the
-newest tags per release line would often be a better default; that is not
-implemented, and the selection described here is unchanged.
+`project init` selects the N newest releases by version (drafts, prereleases
+and non-version tags are skipped; it reads up to a fixed page cap and stops
+with `RELEASE_LIST_CAP_REACHED` if it cannot find N). This needs the change in
+PR #757; before it, the window was the first page of GitHub's release list,
+where backports could displace the newest line. `--release-limit` is N (up
+to 10) and `--tag-prefix` restricts the tags considered. A repository that
+publishes chart-release tags next to app tags (for example
+`descheduler-helm-chart-x.y.z` next to `v0.x.y`) needs `--tag-prefix` for the
+app tags (for example `v`), or explicit tags (`--exact-tag` at `project init`,
+`--tags` where a command takes it). To name the tags
+yourself, use the exact-tag form (`--exact-tag`, see
+[project onboarding](../../cli/docs/project-onboarding.md)).
 
 `--changelog-paths` takes comma-separated paths, at most eight. The list
 replaces the defaults (`CHANGELOG.md`, `CHANGES.md`, `CHANGES`, `RELEASES.md`,
@@ -177,8 +286,8 @@ self-onboarding is complete end to end, and a merge is not a compatibility
 claim.
 
 Planned, not live: automatic status comments for every stage (received,
-validated, imported, classified in scope or blocked with a reason or out of
-scope, for example no CRDs, draft target proposed, in a batch pull request,
+validated, imported, classified in scope, blocked with a reason, or a permanent
+gap with its reason (no cluster API surface), draft target proposed, in a batch pull request,
 merged, pairs decided n of m). Until then maintainers answer by hand.
 No time frame is promised.
 

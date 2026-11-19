@@ -785,7 +785,7 @@ func TestProject_Validate_ExamplesAndRejects(t *testing.T) {
 
 func TestProjectSubcommandHelpExitsZero(t *testing.T) {
 	for _, sub := range []string{"init", "validate", "sync", "verify", "status", "inspect", "proposal"} {
-		for _, flagName := range []string{"--help", "-h"} {
+		for _, flagName := range []string{"--help", "-h", "-help"} {
 			var out, errOut bytes.Buffer
 			if code := Run(context.Background(), []string{sub, flagName}, &out, &errOut, Options{}); code != 0 || !strings.Contains(out.String(), "usage:") || errOut.Len() != 0 {
 				t.Fatalf("%s %s: code %d out %q err %q", sub, flagName, code, out.String(), errOut.String())
@@ -793,7 +793,11 @@ func TestProjectSubcommandHelpExitsZero(t *testing.T) {
 		}
 	}
 	var out, errOut bytes.Buffer
-	if code := Run(context.Background(), []string{"validate", "--bogus"}, &out, &errOut, Options{}); code != 2 {
-		t.Fatalf("unknown flag must stay rejected, got %d", code)
+	for _, sub := range []string{"validate", "init", "sync", "inspect"} {
+		out.Reset()
+		errOut.Reset()
+		if code := Run(context.Background(), []string{sub, "--bogus"}, &out, &errOut, Options{}); code != 2 {
+			t.Fatalf("%s: unknown flag must stay rejected, got %d", sub, code)
+		}
 	}
 }

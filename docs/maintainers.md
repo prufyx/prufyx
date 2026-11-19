@@ -124,9 +124,10 @@ Planned, not live today: automatic status comments. Until they exist, any stage
 after validation is reported, if at all, as a comment from a maintainer, and no
 time frame is given for any stage. When status comments exist, you will be told
 the stages in this order: received, validated, imported, then classified as in
-scope, blocked with a reason, or out of scope (for example a project with no
-CRDs), draft target proposed, included in a batch pull request, merged, and
-release pairs decided (n of m).
+scope, blocked with a reason, or a permanent gap with its reason (a project
+with no cluster API surface at all; projects without CRDs are in scope, see the
+onboarding bundle README), draft target proposed, included in a batch pull
+request, merged, and release pairs decided (n of m).
 
 Review: maintainers review every submission and every batch. Nothing is
 published without that review and the Prufyx maintainers' signature on the

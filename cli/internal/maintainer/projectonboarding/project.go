@@ -151,7 +151,7 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, options O
 	if len(args) == 0 {
 		return reject(stderr)
 	}
-	if len(args) == 2 && (args[1] == "-h" || args[1] == "--help") {
+	if len(args) == 2 && (args[1] == "-h" || args[1] == "--help" || args[1] == "-help") {
 		switch args[0] {
 		case "init", "validate", "sync", "verify", "status", "inspect", "proposal":
 			args = []string{"help"}
