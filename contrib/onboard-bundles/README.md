@@ -165,10 +165,11 @@ self-onboarding is complete end to end, and a merge is not a compatibility
 claim.
 
 Planned, not live: automatic status comments for every stage (received,
-validated, imported, classified in scope or blocked with a reason or out of
-scope, for example no CRDs, draft target proposed, in a batch pull request,
-merged, pairs decided n of m). Until then maintainers answer by hand.
-No time frame is promised.
+validated, imported, classified in scope or blocked with a reason, draft
+target proposed, in a batch pull request, merged, pairs decided n of m). Until
+then maintainers answer by hand. No time frame is promised.
+
+Projects without CRDs are in scope: declare --no-crds; their evidence comes from the chart families (see "Projects without CRDs" in this README, added by #754).
 
 Never collected: secrets, credentials, cluster data. Nothing is published
 without maintainer review and the Prufyx maintainers' signature on the knowledge bundle.
