@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/prufyx/prufyx/cli/internal/knowledge/sealed"
 	"os"
 	"path/filepath"
 	"strings"
@@ -378,7 +379,7 @@ func TestConstraintsProfileMixingAndMarkerDeletionFailClosed(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(state.store, "profile.json"), marker, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Import(ImportRequest{PackagePath: state.p1, StoreRoot: state.store}, func([]byte) (Admission, error) { return Admission{}, nil }); !errors.Is(err, ErrIntegrity) {
+	if _, err := Import(ImportRequest{PackagePath: state.p1, StoreRoot: state.store}, func(sealed.Target) (Admission, error) { return Admission{}, nil }); !errors.Is(err, ErrIntegrity) {
 		t.Fatalf("cert route accepted generic marker: %v", err)
 	}
 	status, err := InspectConstraints(state.store)

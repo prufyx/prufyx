@@ -5,6 +5,7 @@ package knowledge
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/prufyx/prufyx/cli/internal/knowledge/sealed"
 	"os"
 	"path/filepath"
 	"strings"
@@ -107,7 +108,7 @@ func TestInspectConstraintsRejectsChangedGenericAdmission(t *testing.T) {
 	store, _ := importConstraintsStatusFixture(t)
 	before := snapshotConstraintsStatusFiles(t, store)
 	forced := constraintsProfile()
-	forced.admit = func([]byte) (Admission, error) { return Admission{}, ErrIntegrity }
+	forced.admit = func(sealed.Target) (Admission, error) { return Admission{}, ErrIntegrity }
 	status, err := inspectProfile(store, forced)
 	if err != nil || status.State != "INTEGRITY_FAILURE" || status.CurrentEligible || status.NextAction != genericIntegrityNextAction || status.TrustStateDigest == "" || status.SelectedRevision != "1" {
 		t.Fatalf("forced generic admission status=%+v err=%v", status, err)
@@ -115,7 +116,7 @@ func TestInspectConstraintsRejectsChangedGenericAdmission(t *testing.T) {
 	assertStatusDurableFilesUnchanged(t, before, snapshotConstraintsStatusFiles(t, store))
 
 	mismatch := constraintsProfile()
-	mismatch.admit = func([]byte) (Admission, error) {
+	mismatch.admit = func(sealed.Target) (Admission, error) {
 		return Admission{Revision: "1", Purpose: "operator_provided", EngineCapabilityDigest: "sha256:" + strings.Repeat("0", 64), HasRule: false}, nil
 	}
 	status, err = inspectProfile(store, mismatch)
