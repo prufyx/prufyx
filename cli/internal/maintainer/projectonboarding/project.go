@@ -187,11 +187,29 @@ func rejectReason(stderr io.Writer, reason string) int {
 func rejectPrivateDir(stderr io.Writer, directory string) int {
 	if directory != "" {
 		if info, err := os.Lstat(directory); err == nil && info.Mode().IsDir() && info.Mode().Perm()&0o077 != 0 {
-			_, _ = io.WriteString(stderr, "project: INVALID_INPUT_OR_INTEGRITY_FAILURE: directory "+strconv.Quote(directory)+" must be private (mode 0700, not group/other writable or readable): run chmod 700 "+strconv.Quote(directory)+"\n")
+			fix := "the path contains control characters; fix its permissions to 0700"
+			if !hasControlChar(directory) {
+				fix = "run chmod 700 " + shellQuote(directory)
+			}
+			_, _ = io.WriteString(stderr, "project: INVALID_INPUT_OR_INTEGRITY_FAILURE: directory "+strconv.Quote(directory)+" must be private (mode 0700, not group/other writable or readable): "+fix+"\n")
 			return 2
 		}
 	}
 	return reject(stderr)
+}
+
+func hasControlChar(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] < 0x20 || s[i] == 0x7f {
+			return true
+		}
+	}
+	return false
+}
+
+// shellQuote wraps s in POSIX single quotes so a pasted command cannot expand it.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 func runInit(args []string, stderr io.Writer) int {

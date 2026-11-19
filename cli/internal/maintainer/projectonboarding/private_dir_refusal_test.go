@@ -60,3 +60,33 @@ func TestProject_MissingDirectoryKeepsGenericRefusal(t *testing.T) {
 		t.Fatalf("code=%d stderr=%q", code, stderr.String())
 	}
 }
+
+func TestProject_FixCommandIsShellSafe(t *testing.T) {
+	base := t.TempDir()
+	for name, want := range map[string]string{
+		"a$(id)b":  "chmod 700 '",
+		"a`id`b":   "chmod 700 '",
+		"it's":     `'\''`,
+		"nl\nname": "control characters; fix its permissions to 0700",
+	} {
+		dir := filepath.Join(base, name)
+		if err := os.Mkdir(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		var stderr bytes.Buffer
+		code := Run(context.Background(), []string{"status", "--snapshot", dir}, &bytes.Buffer{}, &stderr, Options{})
+		got := stderr.String()
+		if code != 2 || !strings.Contains(got, want) {
+			t.Errorf("%q: code=%d stderr=%q", name, code, got)
+		}
+		if strings.Contains(name, "\n") && strings.Contains(got, "chmod") {
+			t.Errorf("%q: copy-paste command printed: %q", name, got)
+		}
+		if strings.Contains(name, "$(") && !strings.Contains(got, "chmod 700 '"+dir+"'") {
+			t.Errorf("%q: not single-quoted: %q", name, got)
+		}
+	}
+}
