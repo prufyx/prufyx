@@ -74,26 +74,21 @@ func TestPlanCommand(t *testing.T) {
 	if code, _, _ := runPlan(t, append([]string{path, "--to", "no-such-app=newest-covered"}, declared...)...); code != ExitUsage {
 		t.Fatalf("newest-covered without lines %d", code)
 	}
-	// An application resolves from its line attestations; the wording says
-	// what the target is and no stage is PASS.
+	// An application resolves newest-covered only with a current reviewed
+	// path policy too. cert-manager has none in the embedded knowledge:
+	// refused, naming what is missing, no plan.
 	code, stdout, stderr = runPlan(t, path, "--from", "cert-manager=1.14.0", "--to", "cert-manager=newest-covered", "--now", supersedeids.ClockString(), "--format", "json")
+	if code != ExitUsage || stdout != "" || !strings.Contains(stderr, "no reviewed upgrade path policy for cert-manager: give an exact version with --to cert-manager=X.Y.Z") {
+		t.Fatalf("app newest-covered without policy %d\n%s\n%s", code, stdout, stderr)
+	}
+	// An explicit version without a policy stays: one hop, UNKNOWN, noted.
+	code, stdout, stderr = runPlan(t, path, "--from", "cert-manager=1.20.0", "--to", "cert-manager=1.21.3", "--now", supersedeids.ClockString(), "--format", "json")
 	var app upgradeplan.Plan
-	if err := json.Unmarshal([]byte(stdout), &app); err != nil || len(app.Routes) != 1 || app.Routes[0].Component != "cert-manager" || len(app.Notes) != 1 ||
-		!strings.Contains(app.Notes[0], "newest line with a complete reviewed rule set") || strings.Contains(app.Notes[0], "the newest release.") {
-		t.Fatalf("app newest-covered %d %v\n%s\n%s", code, err, stdout, stderr)
+	if err := json.Unmarshal([]byte(stdout), &app); err != nil || len(app.Stages) != 1 || app.Stages[0].Verdict != upgradeplan.VerdictUnknown ||
+		!slices.Contains(app.Stages[0].Notices, "no reviewed upgrade path policy for cert-manager: planned as one hop, UNKNOWN") {
+		t.Fatalf("explicit app version %d %v\n%s\n%s", code, err, stdout, stderr)
 	}
-	if app.Routes[0].To != "1.21.3" {
-		t.Fatalf("app target %s", app.Routes[0].To)
-	}
-	for _, s := range app.Stages {
-		if s.Verdict == upgradeplan.VerdictPass {
-			t.Fatalf("PASS stage %+v", s)
-		}
-	}
-	if len(app.Stages) != 1 || app.Stages[0].Verdict != upgradeplan.VerdictUnknown || !slices.Contains(app.Stages[0].Notices, "no reviewed upgrade path policy for cert-manager: planned as one hop, UNKNOWN") {
-		t.Fatalf("path policy note missing: %+v", app.Stages)
-	}
-	if _, human, _ := runPlan(t, path, "--from", "cert-manager=1.14.0", "--to", "cert-manager=newest-covered", "--now", supersedeids.ClockString()); !strings.Contains(human, "no reviewed upgrade path policy for cert-manager: planned as one hop, UNKNOWN") {
+	if _, human, _ := runPlan(t, path, "--from", "cert-manager=1.20.0", "--to", "cert-manager=1.21.3", "--now", supersedeids.ClockString()); !strings.Contains(human, "no reviewed upgrade path policy for cert-manager: planned as one hop, UNKNOWN") {
 		t.Fatalf("human output lacks the path policy note\n%s", human)
 	}
 	// A known catalog project with no line attestation reaches the not-found

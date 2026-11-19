@@ -679,6 +679,7 @@ const (
 	UsageUnknownComponentNoMatch = "unknown component %s; list the known projects with `prufyx catalog cncf`"
 	UsageConflict                = "%s is given two different versions for %s"
 	UsageNewestCovered           = "no current reviewed release line of %s: --to %s=newest-covered cannot be resolved; give a version"
+	UsageNewestCoveredNoPolicy   = "no reviewed upgrade path policy for %s: give an exact version with --to %s=X.Y.Z"
 	UsageNewestCoveredTwice      = "--to %s is given both as newest-covered and as a version"
 	UsageNoTarget                = "at least one target is required: --to COMPONENT=VERSION or target: in prufyx.yaml"
 	UsageKnowledgeDBNow          = "--now cannot be used with --knowledge-db: a knowledge database is verified and evaluated at the current time"
