@@ -3,6 +3,7 @@
 package knowledgegate
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -428,6 +429,21 @@ func TestWorkflowMergeGroup(t *testing.T) {
 		if s.ID == "verify" && s.If != "" {
 			t.Fatal("the verify step must always run")
 		}
+		// The App private key must never be read on merge_group: the run
+		// takes its workflow file from the queued commit.
+		if strings.Contains(s.Uses, "create-github-app-token") || strings.Contains(s.If, "KNOWLEDGE_GATE_APP_ID") {
+			if !strings.Contains(s.If, "github.event_name != 'merge_group'") {
+				t.Fatalf("step %q can run on merge_group and read the App private key: %q", s.Name, s.If)
+			}
+		}
+		for k, v := range s.With {
+			if strings.Contains(fmt.Sprint(v), "KNOWLEDGE_GATE_APP_PRIVATE_KEY") && !strings.Contains(s.If, "github.event_name != 'merge_group'") {
+				t.Fatalf("step %q passes the App private key without excluding merge_group (%s)", s.Name, k)
+			}
+		}
+	}
+	if strings.Count(code, "KNOWLEDGE_GATE_APP_PRIVATE_KEY") != 1 {
+		t.Fatal("the App private key must be referenced by exactly one step")
 	}
 	if queueAt < 0 || exportAt < 0 || queueAt > exportAt {
 		t.Fatalf("the queue entry must be verified before the trees are exported (queue %d, export %d)", queueAt, exportAt)
