@@ -150,6 +150,23 @@ class RenewalScope(unittest.TestCase):
     def test_readme_without_rules_is_full(self):
         self.assertEqual(run(["README.md"])["mode"], "full")
 
+    def test_slug_match_is_whole_token(self):
+        # "dex" must not match "index"; a path naming no slug token is full
+        r = selection(["cli/knowledge/data/index.json"], ["dex", "alpha"], None, {}, set())
+        self.assertEqual(r["mode"], "full", r["reasons"])
+        r = selection(["cli/knowledge/data/lines-dex.json"], ["dex", "alpha"], None, {}, set())
+        self.assertEqual((r["mode"], r["projects"]), ("incremental", ["dex"]))
+
+    def test_line_attestation_rule_ids_resolve_or_full(self):
+        def doc(ids, extra=0):
+            d = crules([ent("a.1", "alpha"), ent("b.1", "beta", comps=["pkg:x/b"])])
+            d["lineAttestations"] = [{"component": "pkg:github/o/alpha", "line": "1", "factFamily": "f", "ruleIds": ids, "x": extra}]
+            return d
+        self.assertEqual(run([RULES_COMMUNITY], {RULES_COMMUNITY: (doc(["a.1"]), doc(["a.1"], 1))})["projects"], ["alpha"])
+        self.assertEqual(run([RULES_COMMUNITY], {RULES_COMMUNITY: (doc(["b.1"]), doc(["b.1"], 1))})["projects"], ["alpha", "beta"])
+        for ids in (["missing.1"], "a.1", [1]):
+            self.assertEqual(run([RULES_COMMUNITY], {RULES_COMMUNITY: (doc(ids), doc(ids, 1))})["mode"], "full", ids)
+
     def test_community_rules_entry_change(self):
         old = crules([ent("a.1", "alpha"), ent("b.1", "beta")])
         new = crules([ent("a.1", "alpha", "changed"), ent("b.1", "beta")])
