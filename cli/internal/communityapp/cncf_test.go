@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 const syntheticHelmInput = `{"schema":"prufyx.io/operator-declared-constraint-input/v1alpha1","authority":"OPERATOR_DECLARED_MINIMIZED","current":{"components":[{"component":"pkg:github/helm/helm","version":"3.14.4","facts":[]}]},"proposed":{"components":[{"component":"pkg:github/helm/helm","version":"4.0.0","facts":[{"id":"component.helm.post_renderer_mode","state":"declared","enumValue":"plugin_name"}]}]}}`
@@ -33,8 +35,57 @@ func runCNCFCLI(t *testing.T, args ...string) (int, string, string) {
 func runCNCFCLIRaw(t *testing.T, args ...string) (int, string, string) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	code := Run(context.Background(), args, &stdout, &stderr, "test")
+	code := Run(context.Background(), floorNowArgs(args), &stdout, &stderr, "test")
 	return code, stdout.String(), stderr.String()
+}
+
+// floorNowArgs moves a --now earlier than the newest review of the named
+// project's rules up to that review (see testclock.ProjectNewest): the pinned
+// dates in the tests only need to be a time at which that project's rules are
+// in force, and renewing the rules must not make them stale. The clock is
+// computed up front from the rule data, never from the command's output. A
+// --now at or after the review (an expiry premise) and every other command keep
+// their arguments.
+func floorNowArgs(args []string) []string {
+	// Only the project and CNCF checks are floored: each evaluates the rules of
+	// the one project it names, from that project's own newest review.
+	sub := 1
+	for sub < len(args) && args[sub] == "--strict-exit" {
+		sub++
+	}
+	if len(args) <= sub || args[0] != "check" || (args[sub] != "project" && args[sub] != "cncf") {
+		return args
+	}
+	project := ""
+	for i, arg := range args {
+		switch {
+		case arg == "--project" && i+1 < len(args):
+			project = args[i+1]
+		case strings.HasPrefix(arg, "--project="):
+			project = strings.TrimPrefix(arg, "--project=")
+		}
+	}
+	if project == "" {
+		return args
+	}
+	out := append([]string(nil), args...)
+	floor := func(text string) string {
+		if _, exact := exactClocks.Load(text); exact {
+			return text
+		}
+		return testclock.FloorTextFor(project, text)
+	}
+	for i, arg := range out {
+		switch {
+		case (arg == "--now" || arg == "-now") && i+1 < len(out):
+			out[i+1] = floor(out[i+1])
+		case strings.HasPrefix(arg, "--now="):
+			out[i] = "--now=" + floor(strings.TrimPrefix(arg, "--now="))
+		case strings.HasPrefix(arg, "-now="):
+			out[i] = "-now=" + floor(strings.TrimPrefix(arg, "-now="))
+		}
+	}
+	return out
 }
 
 // ageNoteLine matches the knowledge age note line on standard error.
@@ -248,4 +299,19 @@ func TestCNCFCLIReplayRequiresExactCanonicalJSONAndPrivateReport(t *testing.T) {
 	if code != ExitUsage || stdout != "" || !strings.HasPrefix(stderr, "prufyx: CNCF replay report failed local admission: ") || !strings.Contains(stderr, "chmod 600") {
 		t.Fatalf("permissive replay code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
+}
+
+// effectiveNow is the --now the command runs at once floorNowArgs has moved it
+// (what a report states as "evaluated at"), or "" when args hold none.
+func effectiveNow(args []string) string {
+	floored := floorNowArgs(args)
+	for i, arg := range floored {
+		switch {
+		case (arg == "--now" || arg == "-now") && i+1 < len(floored):
+			return floored[i+1]
+		case strings.HasPrefix(arg, "--now="):
+			return strings.TrimPrefix(arg, "--now=")
+		}
+	}
+	return ""
 }

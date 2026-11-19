@@ -65,17 +65,44 @@ func TestScanKnowledgeAgeEmbedded(t *testing.T) {
 	first := embeddedEarliest(t)
 	_, inside, after := ageInstants()
 	at := func(d time.Duration) string { return first.Add(d).Format(time.RFC3339) }
+	// The verb follows how many rules end in the window or have ended at the
+	// instant (one rule: "expires", "has expired"), so it is derived from the
+	// rule data and a renewal that leaves one rule never changes this test.
+	sources, err := cncfcheck.EmbeddedKnowledgeAge()
+	if err != nil {
+		t.Fatal(err)
+	}
+	soon := func(now string) string {
+		at, _ := time.Parse(time.RFC3339, now)
+		n := 0
+		for _, end := range sources[0].Expiries {
+			if end.After(at) && !end.After(at.Add(knowledgeage.Window)) {
+				n++
+			}
+		}
+		return plural(n, "expires", "expire") + " within 30 days"
+	}
+	ended := func(now string) string {
+		at, _ := time.Parse(time.RFC3339, now)
+		n := 0
+		for _, end := range sources[0].Expiries {
+			if !end.After(at) {
+				n++
+			}
+		}
+		return plural(n, "has", "have") + " expired, the earliest on " + first.Format("2006-01-02")
+	}
 	cases := []struct {
 		name, now string
 		want      string // substring of the note; "" for none
 	}{
 		{"31 days before", at(-31 * 24 * time.Hour), ""},
 		{"edge: one second outside", at(-knowledgeage.Window - time.Second), ""},
-		{"edge: exactly 30 days", at(-knowledgeage.Window), "expire within 30 days"},
-		{"inside", inside, "expire within 30 days, the earliest on " + first.Format("2006-01-02") + " (in 17 days)"},
-		{"one second before the end", at(-time.Second), "expire within 30 days"},
-		{"the end date", at(0), "have expired, the earliest on " + first.Format("2006-01-02")},
-		{"after", after, "have expired, the earliest on " + first.Format("2006-01-02") + " (2 days ago)"},
+		{"edge: exactly 30 days", at(-knowledgeage.Window), soon(at(-knowledgeage.Window))},
+		{"inside", inside, soon(inside) + ", the earliest on " + first.Format("2006-01-02") + " (in 17 days)"},
+		{"one second before the end", at(-time.Second), soon(at(-time.Second))},
+		{"the end date", at(0), ended(at(0))},
+		{"after", after, ended(after) + " (2 days ago)"},
 	}
 	inDir(t, dir, func() {
 		for _, c := range cases {
@@ -182,8 +209,7 @@ func renewedAll(t *testing.T) []byte {
 func TestScanKnowledgeAgeStore(t *testing.T) {
 	reviewed, end := renewedWindow()
 	endDay := end.Format("2006-01-02")
-	before, _, after := ageInstants()
-	first := embeddedEarliest(t)
+	before, _, _ := ageInstants()
 	for _, layout := range storeLayouts {
 		renewed := newStoreFixture(t, layout)
 		renewed.importPack(renewedAll(t), "6")
@@ -213,16 +239,20 @@ func TestScanKnowledgeAgeStore(t *testing.T) {
 				}
 			}
 			// The embedded-pack database is described by its own dates: the
-			// embedded end dates are in December, the renewed ones are not.
-			expired := countRules(t, layout, after, stale.projects)
-			want := "note: " + itoa(expired) + " knowledge " + plural(expired, "rule has", "rules have") + " expired, the earliest on " + first.Format("2006-01-02") + " (2 days ago). Run `prufyx db update` to fetch newer knowledge, or build from newer source. Expired rules answer UNKNOWN."
-			if got := note(openAt(t, stale.store, after)); got != want || expired == 0 {
+			// earliest end among the rules this layout serves (derived from the
+			// rule data), not the earliest of the whole pack.
+			layoutFirst := earliestRuleEnd(t, layout, renewed.projects)
+			layoutAfter := layoutFirst.Add(2*24*time.Hour + time.Hour)
+			afterText := layoutAfter.Format(time.RFC3339)
+			expired := countRules(t, layout, afterText, stale.projects)
+			want := "note: " + itoa(expired) + " knowledge " + plural(expired, "rule has", "rules have") + " expired, the earliest on " + layoutFirst.Format("2006-01-02") + " (2 days ago). Run `prufyx db update` to fetch newer knowledge, or build from newer source. Expired rules answer UNKNOWN."
+			if got := note(openAt(t, stale.store, afterText)); got != want || expired == 0 {
 				t.Errorf("%s stale database: %q, want %q", layout, got, want)
 			}
 			if got := note(openAt(t, stale.store, before)); got != "" {
 				t.Errorf("%s stale database before the window: %q", layout, got)
 			}
-			if got := note(openAt(t, renewed.store, after)); got != "" {
+			if got := note(openAt(t, renewed.store, afterText)); got != "" {
 				t.Errorf("%s renewed database at a date the embedded pack would warn at: %q", layout, got)
 			}
 		})
@@ -268,4 +298,35 @@ func countRules(t *testing.T, layout, at string, projects []string) int {
 		return true
 	})
 	return count
+}
+
+// earliestRuleEnd is the earliest end among the active, non-crossing rules the
+// layout serves (the same selection as countRules).
+func earliestRuleEnd(t *testing.T, layout string, projects []string) time.Time {
+	t.Helper()
+	var first time.Time
+	editPack(t, embeddedPack(t), func(project string, rule map[string]any) bool {
+		evidence := rule["evidence"].(map[string]any)
+		end, err := time.Parse(time.RFC3339, evidence["validUntil"].(string))
+		if err != nil {
+			t.Fatal(err)
+		}
+		selected := project == kubernetesSlug
+		if layout == cncfknowledge.LayoutSingleTarget {
+			selected = false
+			for _, held := range projects {
+				if project == held {
+					selected = true
+				}
+			}
+		}
+		if _, crossing := rule["crossing"]; !crossing && evidence["state"] == "active" && selected && (first.IsZero() || end.Before(first)) {
+			first = end
+		}
+		return true
+	})
+	if first.IsZero() {
+		t.Fatal("no rule counted")
+	}
+	return first
 }

@@ -4,8 +4,10 @@ package communityapp
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 	"testing"
 )
@@ -54,7 +56,7 @@ func TestArgoCDRawConfigReviewSupportsEditAndRepeatWithoutIntermediateFiles(t *t
 	args := argoCDRawReviewArgs(path, "2.14.0", "3.0.0", &intent, "human")
 
 	code, before, stderr := runCNCFCLI(t, args...)
-	if code != ExitBlocked || stderr != "" || !strings.Contains(before, "setting server.rbac.disableApplicationFineGrainedRBACInheritance: true (read from ConfigMap)") || !strings.Contains(before, "requires inherited application update/delete permissions: true (operator-declared)") || !strings.Contains(before, "scoped result: BLOCKED (REVIEWED_SOURCE_CONSTRAINT)") || !strings.Contains(before, "aggregate: UNKNOWN") || !strings.Contains(before, "raw ConfigMap digest: sha256:") || !strings.Contains(before, "prepared input digest: sha256:") || !strings.Contains(before, "evaluated at: 2026-09-10T15:28:00Z") || !strings.Contains(before, "knowledge: embedded revision ") || !strings.Contains(before, "knowledge pack digest: sha256:") || !strings.Contains(before, "docs/operator-manual/upgrading/2.14-3.0.md") || !strings.Contains(before, "lines 12-24") || !strings.Contains(before, "permission impact: false restores v2 inheritance behavior") {
+	if code != ExitBlocked || stderr != "" || !strings.Contains(before, "setting server.rbac.disableApplicationFineGrainedRBACInheritance: true (read from ConfigMap)") || !strings.Contains(before, "requires inherited application update/delete permissions: true (operator-declared)") || !strings.Contains(before, "scoped result: BLOCKED (REVIEWED_SOURCE_CONSTRAINT)") || !strings.Contains(before, "aggregate: UNKNOWN") || !strings.Contains(before, "raw ConfigMap digest: sha256:") || !strings.Contains(before, "prepared input digest: sha256:") || !strings.Contains(before, "evaluated at: "+effectiveNow(args)) || !strings.Contains(before, "knowledge: embedded revision ") || !strings.Contains(before, "knowledge pack digest: sha256:") || !strings.Contains(before, "docs/operator-manual/upgrading/2.14-3.0.md") || !strings.Contains(before, argoCDRBACInheritanceLines(t)) || !strings.Contains(before, "permission impact: false restores v2 inheritance behavior") {
 		t.Fatalf("before code=%d stderr=%q output=%s", code, stderr, before)
 	}
 	assertArgoCDRawReviewRedacted(t, before, path)
@@ -245,4 +247,58 @@ func TestArgoCDRawConfigReviewKeepsOldRuleSealedAtGenericClock(t *testing.T) {
 		t.Fatalf("code=%d stderr=%q report=%s", code, stderr, stdout)
 	}
 	assertArgoCDRawReviewRedacted(t, stdout, path)
+}
+
+// argoCDRBACInheritanceLines is the cited span ("lines start-end") of the
+// embedded rule's 2.14-3.0 upgrade-guide source, read from the shipped rule
+// data, so a re-review that moves the span moves the expected text with it.
+func argoCDRBACInheritanceLines(t *testing.T) string {
+	t.Helper()
+	_, file, _, ok := goruntime.Caller(0)
+	if !ok {
+		t.Fatal("source location unknown")
+	}
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(filepath.Dir(file)), "cncfcheck", "data", "rules.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Entries []struct {
+			Rule struct {
+				ID       string `json:"id"`
+				Evidence struct {
+					Sources []struct {
+						URL       string `json:"url"`
+						StartLine int    `json:"startLine"`
+						EndLine   int    `json:"endLine"`
+					} `json:"sources"`
+				} `json:"evidence"`
+			} `json:"rule"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	lines := ""
+	for _, entry := range doc.Entries {
+		if entry.Rule.ID != "argo-cd.required-rbac-inheritance.3-0" {
+			continue
+		}
+		for _, source := range entry.Rule.Evidence.Sources {
+			if !strings.HasSuffix(source.URL, "docs/operator-manual/upgrading/2.14-3.0.md") {
+				continue
+			}
+			if lines != "" {
+				t.Fatal("the rule cites the upgrade guide more than once")
+			}
+			if source.StartLine <= 0 || source.EndLine < source.StartLine {
+				t.Fatalf("cited span %d-%d is not a span", source.StartLine, source.EndLine)
+			}
+			lines = fmt.Sprintf("lines %d-%d", source.StartLine, source.EndLine)
+		}
+	}
+	if lines == "" {
+		t.Fatal("the embedded rule does not cite the 2.14-3.0 upgrade guide")
+	}
+	return lines
 }

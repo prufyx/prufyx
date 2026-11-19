@@ -532,7 +532,7 @@ func (r runtime) checkPrepared(work, project string, raw []byte) (int, map[strin
 	if project == "opa" || project == "kyverno" {
 		evaluationTime = "2026-09-12T09:34:00Z"
 	}
-	code := child.cncf([]string{"--project", project, "--input", input, "--input-digest", communityDigest(raw), "--now", evaluationTime, "--format", "json"})
+	code := child.cncf([]string{"--project", project, "--input", input, "--input-digest", communityDigest(raw), "--now", exampleClock(project, evaluationTime), "--format", "json"})
 	var report map[string]any
 	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
 		return code, nil, fmt.Errorf("decode %s report: %w", project, err)

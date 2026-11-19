@@ -5,16 +5,20 @@ package communityapp
 import (
 	"bytes"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
-	"github.com/prufyx/prufyx/cli/internal/goldenfile"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 // A report saved by a build that predates the rewritten next-action text
 // still holds the same decisions. Replay needs exact bytes, so it is refused,
 // but with a message that says why, not as an integrity failure.
+// nextActionField is a claim's next-action text in a JSON check report.
+var nextActionField = regexp.MustCompile(`"nextAction":"(?:[^"\\]|\\.)*"`)
+
 func TestReplayOfPreRewriteReportNamesTheOlderContract(t *testing.T) {
 	t.Parallel()
 	input, err := os.ReadFile("testdata/replay-pre-pr/containerd-input.json")
@@ -25,28 +29,32 @@ func TestReplayOfPreRewriteReportNamesTheOlderContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	knowledge, err := cncfcheck.LoadScanKnowledge()
-	if err != nil {
-		t.Fatal(err)
-	}
 	inputPath := writeCNCFFile(t, "input.json", input, 0o600)
-	// The stored report holds placeholders for the pack revision and digest and
-	// for the rule set and registry digests, which move with the pack. Their
-	// current values are read from a fresh check of the same input.
-	_, fresh, _ := runCNCFCLI(t, "check", "cncf", "--project", "containerd", "--input", inputPath, "--now", "2026-10-08T00:00:00Z", "--format", "json")
-	current := ruleSetDigestField.Find([]byte(fresh))
-	if current == nil {
-		t.Fatalf("fresh check holds no rule set digest: %q", fresh)
+	// The stored report is what a build that predates the rewritten next-action
+	// text printed. Its rule digests, sources and dates move with every renewal
+	// of the containerd rules, so the report replayed here is a fresh check of
+	// the same input, at the earliest instant every containerd rule is in
+	// force, whose next-action text is put back to the stored older one: it
+	// differs from a current report in that text only.
+	now := testclock.ProjectNewest("containerd").Format(time.RFC3339)
+	_, fresh, _ := runCNCFCLI(t, "check", "cncf", "--project", "containerd", "--input", inputPath, "--now", now, "--format", "json")
+	stored, current := nextActionField.FindAll(report, -1), nextActionField.FindAll([]byte(fresh), -1)
+	if len(stored) == 0 || len(stored) != len(current) {
+		t.Fatalf("stored report holds %d next actions, fresh check %d: %q", len(stored), len(current), fresh)
 	}
-	report = bytes.ReplaceAll(report, []byte(maskedRuleSetDigestField), current)
-	registry := registryDigestField.Find([]byte(fresh))
-	if registry == nil {
-		t.Fatalf("fresh check holds no registry digest: %q", fresh)
+	older, i := 0, 0
+	report = nextActionField.ReplaceAllFunc([]byte(fresh), func(now []byte) []byte {
+		i++
+		if !bytes.Equal(stored[i-1], now) {
+			older++
+		}
+		return stored[i-1]
+	})
+	if older != 1 {
+		t.Fatalf("%d next actions differ from the older report's, want exactly 1", older)
 	}
-	report = bytes.ReplaceAll(report, []byte(maskedRegistryDigestField), registry)
-	report = goldenfile.UnmaskPack(report, knowledge.Revision(), knowledge.PackDigest())
 	args := func(report []byte) []string {
-		return []string{"check", "cncf", "--project", "containerd", "--input", inputPath, "--now", "2026-10-08T00:00:00Z", "--format", "json",
+		return []string{"check", "cncf", "--project", "containerd", "--input", inputPath, "--now", now, "--format", "json",
 			"--replay-report", writeCNCFFile(t, "report.json", report, 0o600)}
 	}
 

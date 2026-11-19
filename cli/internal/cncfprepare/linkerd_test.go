@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 func linkerdResource(t *testing.T, spec map[string]any, metadata any) []byte {
@@ -84,7 +85,7 @@ func TestPrepareLinkerdSelectorsAndCheckOutcomes(t *testing.T) {
 			if !bytes.Equal(prepared.CanonicalInputJSON, append(bytes.TrimSuffix(prepared.CanonicalInputJSON, []byte{'\n'}), '\n')) || bytes.HasSuffix(prepared.CanonicalInputJSON, []byte("\n\n")) {
 				t.Fatalf("canonical newline invalid")
 			}
-			if got, err := cncfcheck.Check("linkerd", prepared.CanonicalInputJSON, time.Date(2026, 9, 8, 23, 0, 0, 0, time.UTC)); err != nil {
+			if got, err := cncfcheck.Check("linkerd", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 8, 23, 0, 0, 0, time.UTC))); err != nil {
 				t.Fatal(err)
 			} else if len(got.Check.Claims) != 1 || got.Check.Claims[0].Status != tc.wantCheck {
 				t.Fatalf("check=%+v", got.Check.Claims)
@@ -119,7 +120,7 @@ func TestPrepareLinkerdGuardBoundaries(t *testing.T) {
 			if facts[0].(map[string]any)["state"] != tc.wantDistState || facts[3].(map[string]any)["state"] != tc.wantSchemaState {
 				t.Fatalf("facts=%v", facts)
 			}
-			got, err := cncfcheck.Check("linkerd", prepared.CanonicalInputJSON, time.Date(2026, 9, 8, 23, 0, 0, 0, time.UTC))
+			got, err := cncfcheck.Check("linkerd", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 8, 23, 0, 0, 0, time.UTC)))
 			if err != nil || len(got.Check.Claims) != 1 || got.Check.Claims[0].Status != "UNKNOWN" {
 				t.Fatalf("check=%+v err=%v", got.Check.Claims, err)
 			}

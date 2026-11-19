@@ -9,6 +9,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/projectprepare"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 func TestMariaDBOperatorNativeActionPreservesSealedCheck(t *testing.T) {
@@ -17,7 +18,7 @@ func TestMariaDBOperatorNativeActionPreservesSealedCheck(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	now := time.Date(2026, 9, 13, 9, 0, 0, 0, time.UTC)
+	now := testclock.Floor(time.Date(2026, 9, 13, 9, 0, 0, 0, time.UTC))
 	native, err := CheckRule(projectprepare.MariaDBOperatorProject, prepared.CanonicalInputJSON, now, "mariadb-operator.upgrade-26-6.requires-dataplane-prerequisite")
 	if err != nil {
 		t.Fatal(err)
@@ -51,7 +52,7 @@ func TestMariaDBOperatorNativeActionPreservesSealedCheck(t *testing.T) {
 }
 
 func TestMariaDBOperatorScopedOutcomesAndPrivacy(t *testing.T) {
-	now := time.Date(2026, 9, 13, 9, 0, 0, 0, time.UTC)
+	now := testclock.Floor(time.Date(2026, 9, 13, 9, 0, 0, 0, time.UTC))
 	for _, tc := range []struct {
 		name, raw            string
 		wantExit, wantStatus int
@@ -110,7 +111,7 @@ func TestMariaDBOperatorUnknownForWrongPairOrPhase(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		report, err := CheckRule(projectprepare.MariaDBOperatorProject, prepared.CanonicalInputJSON, time.Date(2026, 9, 13, 9, 0, 0, 0, time.UTC), "mariadb-operator.upgrade-26-6.requires-dataplane-prerequisite")
+		report, err := CheckRule(projectprepare.MariaDBOperatorProject, prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 13, 9, 0, 0, 0, time.UTC)), "mariadb-operator.upgrade-26-6.requires-dataplane-prerequisite")
 		if err != nil || ClaimExit(report) != 11 || len(report.Check.Claims) != tc.claims {
 			t.Fatalf("report=%+v err=%v", report, err)
 		}

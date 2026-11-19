@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"slices"
 	"sort"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/extract/crdbatchids"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 // The custom-resource version-removal rules of the batch crdbatchids states
@@ -42,9 +45,44 @@ func passExit(batchIDs []string) int {
 }
 
 // batchBeforeReview is the reason of a batch claim at an evaluation time
-// before the batch rules' review (every caller of checkBatchClaims
-// evaluates at such a time).
-const batchBeforeReview = "RULE_EVIDENCE_CLOCK_BEFORE_REVIEW"
+// before the batch rule's review; batchAfterReview are its reasons at or
+// after the review: the native routes do not supply the custom-resource
+// version set the rule reads. The tests' clocks follow the newest review of
+// the project's rules (testclock), which a renewal moves past the batch's own
+// review, so which of the two a claim holds is derived from the claim's own
+// review time and the report's evaluation time, never from a pinned date.
+const (
+	batchBeforeReview = "RULE_EVIDENCE_CLOCK_BEFORE_REVIEW"
+)
+
+// batchAfterReview are the reasons of a batch claim at or after its review: the
+// rule is in force and still UNKNOWN, because the native route does not
+// supply the version set it reads (RULE_FACT_UNAVAILABLE) or the hop lies
+// outside the range the rule reviewed. Anything else fails.
+var batchAfterReview = []string{
+	"RULE_FACT_UNAVAILABLE",
+	"RULE_RELEASE_BOUNDARY_NOT_REVIEWED",
+	"RULE_TRANSITION_NOT_REVIEWED",
+}
+
+// batchReasonOK reports whether reason is the reason a batch claim reviewed at
+// reviewedAt holds in a report evaluated at evaluatedAt (both RFC 3339): exactly
+// batchBeforeReview before the review, one of batchAfterReview from it on.
+func batchReasonOK(t *testing.T, evaluatedAt, reviewedAt, reason string) bool {
+	t.Helper()
+	now, err := time.Parse(time.RFC3339, evaluatedAt)
+	if err != nil {
+		t.Fatalf("report evaluatedAt %q: %v", evaluatedAt, err)
+	}
+	reviewed, err := time.Parse(time.RFC3339, reviewedAt)
+	if err != nil {
+		t.Fatalf("claim evidenceReviewedAt %q: %v", reviewedAt, err)
+	}
+	if now.Before(reviewed) {
+		return reason == batchBeforeReview
+	}
+	return slices.Contains(batchAfterReview, reason)
+}
 
 // checkBatchClaims fails unless the claims of the JSON CNCF check report
 // stdout that name a rule of the batch are exactly want, each UNKNOWN with
@@ -53,10 +91,12 @@ func checkBatchClaims(t *testing.T, stdout string, want []string) {
 	t.Helper()
 	var report struct {
 		Check struct {
-			Claims []struct {
-				RuleID     string `json:"ruleId"`
-				Status     string `json:"status"`
-				ReasonCode string `json:"reasonCode"`
+			EvaluatedAt string `json:"evaluatedAt"`
+			Claims      []struct {
+				RuleID             string `json:"ruleId"`
+				Status             string `json:"status"`
+				ReasonCode         string `json:"reasonCode"`
+				EvidenceReviewedAt string `json:"evidenceReviewedAt"`
 			} `json:"claims"`
 		} `json:"check"`
 	}
@@ -72,7 +112,7 @@ func checkBatchClaims(t *testing.T, stdout string, want []string) {
 		if !batch[claim.RuleID] {
 			continue
 		}
-		if claim.Status != "UNKNOWN" || claim.ReasonCode != batchBeforeReview {
+		if claim.Status != "UNKNOWN" || !batchReasonOK(t, report.Check.EvaluatedAt, claim.EvidenceReviewedAt, claim.ReasonCode) {
 			t.Fatalf("batch claim %s is %s %s", claim.RuleID, claim.Status, claim.ReasonCode)
 		}
 		got = append(got, claim.RuleID)
@@ -171,4 +211,41 @@ func batchClaimStatuses(t *testing.T, stdout string) map[string]string {
 		out[claim.RuleID] = claim.Status
 	}
 	return out
+}
+
+// exactClocks are evaluation clocks a test derived itself and that
+// floorNowArgs must keep as they are.
+var exactClocks sync.Map
+
+// exactClock registers at as a clock that is never floored and returns its text.
+func exactClock(at time.Time) string {
+	text := at.UTC().Format(time.RFC3339)
+	exactClocks.Store(text, true)
+	return text
+}
+
+// batchPreReviewClock is the clock of a test whose premise is that the
+// project's custom-resource batch rules are not yet reviewed: one hour before
+// the earliest review of the project's batch rules in the shipped pack,
+// computed from the rule data. A project without batch rules, or a pack that
+// does not hold the batch, keeps fallback.
+func batchPreReviewClock(project, fallback string) string {
+	if !crdbatchids.Shipped() {
+		return fallback
+	}
+	var oldest time.Time
+	for _, r := range crdbatchids.ProjectRules(project) {
+		reviewed, _ := testclock.RuleEvidence(r.ID)
+		at, err := time.Parse(time.RFC3339, reviewed)
+		if err != nil {
+			panic(err)
+		}
+		if oldest.IsZero() || at.Before(oldest) {
+			oldest = at
+		}
+	}
+	if oldest.IsZero() {
+		return fallback
+	}
+	return exactClock(oldest.Add(-time.Hour))
 }

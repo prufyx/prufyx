@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 func karmadaResource(t *testing.T, kind string, spec map[string]any, extra map[string]any) []byte {
@@ -74,7 +75,7 @@ func TestPrepareKarmadaOnlyWitnessesLegacyPresence(t *testing.T) {
 			} else if condition["state"] != "unsupported" || condition["boolValue"] != nil {
 				t.Fatalf("safe singleton derived false: %v", condition)
 			}
-			got, err := cncfcheck.Check("karmada", prepared.CanonicalInputJSON, time.Date(2026, 9, 9, 4, 55, 0, 0, time.UTC))
+			got, err := cncfcheck.Check("karmada", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 9, 4, 55, 0, 0, time.UTC)))
 			if err != nil || len(got.Check.Claims) != 1 || got.Check.Claims[0].Status != tc.check || got.Check.Assessment != "UNKNOWN" {
 				t.Fatalf("check=%+v err=%v", got.Check, err)
 			}
@@ -110,7 +111,7 @@ func TestPrepareKarmadaUnknownPathAndGuardStates(t *testing.T) {
 			if prepared.State != tc.state || facts[2]["state"] != tc.condition {
 				t.Fatalf("prepared=%+v facts=%v", prepared, facts)
 			}
-			got, err := cncfcheck.Check("karmada", prepared.CanonicalInputJSON, time.Date(2026, 9, 9, 4, 55, 0, 0, time.UTC))
+			got, err := cncfcheck.Check("karmada", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 9, 4, 55, 0, 0, time.UTC)))
 			if err != nil || got.Check.Claims[0].Status != "UNKNOWN" || got.Check.Assessment != "UNKNOWN" {
 				t.Fatalf("check=%+v err=%v", got.Check, err)
 			}

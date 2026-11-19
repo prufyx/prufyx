@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 const (
@@ -127,7 +128,7 @@ func mustTime(t *testing.T, value string) time.Time {
 	if err != nil {
 		t.Fatalf("parse time %q: %v", value, err)
 	}
-	return parsed.UTC()
+	return testclock.Floor(parsed.UTC())
 }
 
 // TestAttestationOverAComponentWithNoRuleIsRejected is the single most
@@ -282,14 +283,18 @@ func TestComponentInScopeWithoutAnAttestationStaysUnknown(t *testing.T) {
 // TestExpiredRuleDoesNotPoisonAnUnrelatedComponent is the property scope.go:24
 // warns about, exercised against the real corpus at a real expiry boundary.
 //
-// This pack's evidence expires between 2026-12-10T19:30:00Z and
-// 2026-12-12T08:16:03Z. At 2026-12-11T13:00:00Z every rule in the pack has
-// expired except the mariadb-operator rule. A completeness verdict for
-// mariadb-operator must survive that: applicability rests on declared versions
-// and declared fact values, never on another rule's evidence freshness.
+// The clock is one hour after the earliest end of the loki rules, so a loki
+// rule has expired; the premise that the mariadb-operator rule the pair
+// uses is still in force is checked below, not assumed. A completeness
+// verdict for mariadb-operator must survive that: applicability rests on
+// declared versions and declared fact values, never on another rule's
+// evidence freshness.
 func TestExpiredRuleDoesNotPoisonAnUnrelatedComponent(t *testing.T) {
 	b := testBundle(t)
-	now := mustTime(t, "2026-12-11T13:00:00Z")
+	now := testclock.AfterProjectFirstExpiry("loki")
+	if _, until := testclock.RuleEvidence("mariadb-operator.upgrade-26-6.requires-dataplane-prerequisite"); !now.Before(mustTime(t, until)) {
+		t.Fatalf("no instant has a loki rule expired and the operator rule in force: %s, rule ends %s", now.Format(time.RFC3339), until)
+	}
 
 	// Confirm the premise rather than assuming it: loki's rules really are
 	// stale at this instant, and they really are in the same corpus.

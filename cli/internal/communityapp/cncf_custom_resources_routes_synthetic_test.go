@@ -124,7 +124,7 @@ func TestGenericInputNeverPassesCustomResourceRules(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stdout, errout bytes.Buffer
-	code = Run(t.Context(), []string{"check", "batch", "--plan", planPath, "--root", root, "--now", now, "--format", "json"}, &stdout, &errout, "test")
+	code = Run(t.Context(), floorNowArgs([]string{"check", "batch", "--plan", planPath, "--root", root, "--now", now, "--format", "json"}), &stdout, &errout, "test")
 	var batch batchcheck.Report
 	if err := json.Unmarshal(stdout.Bytes(), &batch); err != nil {
 		t.Fatalf("batch: code=%d stdout=%q stderr=%q", code, stdout.String(), errout.String())

@@ -18,7 +18,7 @@ import (
 func runPlan(t *testing.T, args ...string) (int, string, string) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	code := Run(context.Background(), append([]string{"plan"}, args...), &stdout, &stderr, "test")
+	code := Run(context.Background(), floorNowArgs(append([]string{"plan"}, args...)), &stdout, &stderr, "test")
 	return code, stdout.String(), stderr.String()
 }
 

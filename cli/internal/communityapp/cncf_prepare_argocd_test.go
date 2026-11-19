@@ -10,6 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 func argoCDPreparationResource(t *testing.T, value any, include bool) []byte {
@@ -60,7 +63,7 @@ func TestArgoCDPreparationFeedsScopedExistingRule(t *testing.T) {
 				t.Fatalf("prepare code=%d stderr=%q input=%s", code, stderr, input)
 			}
 			prepared := writeCNCFFile(t, "prepared.json", []byte(input), 0o600)
-			code, report, stderr := runCNCFCLI(t, "check", "cncf", "--project", "argo-cd", "--input", prepared, "--input-digest", cncfDigest([]byte(input)), "--now", "2026-09-09T06:00:00Z", "--format", "json")
+			code, report, stderr := runCNCFCLI(t, "check", "cncf", "--project", "argo-cd", "--input", prepared, "--input-digest", cncfDigest([]byte(input)), "--now", argoBetweenReviewsClock(t), "--format", "json")
 			if code != tc.checkCode || stderr != "" || !strings.Contains(report, `"status":"`+tc.status+`"`) || !strings.Contains(report, `"assessment":"UNKNOWN"`) || strings.Contains(report, "argo-canary-never-retain") || strings.Contains(report, "private-argo") {
 				t.Fatalf("check code=%d stderr=%q report=%s", code, stderr, report)
 			}
@@ -107,7 +110,7 @@ func TestArgoCDPreparationRejectsUnsafeFlagsAndBadPin(t *testing.T) {
 	}
 	for _, format := range []string{"human", "json", "input"} {
 		var stderr bytes.Buffer
-		code := Run(context.TODO(), append(append(argoCDPreparationArgs(path), "--requires-inherited-application-permissions", "true", "--format", format), []string{}...), failedPreparationWriter{}, &stderr, "test")
+		code := Run(context.TODO(), floorNowArgs(append(append(argoCDPreparationArgs(path), "--requires-inherited-application-permissions", "true", "--format", format), []string{}...)), failedPreparationWriter{}, &stderr, "test")
 		if code != ExitIntegrity || stderr.String() != "prufyx: CNCF_PREPARATION_INTEGRITY_FAILURE\n" {
 			t.Fatalf("format=%s output failure code=%d stderr=%q", format, code, stderr.String())
 		}
@@ -168,4 +171,28 @@ func TestArgoCDLatestPreparationGuardAndRoutingPreflight(t *testing.T) {
 			t.Fatalf("extra=%v code=%d stdout=%q stderr=%q", extra, code, stdout, stderr)
 		}
 	}
+}
+
+// argoBetweenReviewsClock is the clock of the scoped-predicate premise: the
+// required-rbac-inheritance rule is in force and the resource-exclusions rule
+// is not yet reviewed. It is the later of one hour before the second rule's
+// review and the first rule's review, computed from the rule data; the test
+// stops if the data leave no such instant.
+func argoBetweenReviewsClock(t *testing.T) string {
+	t.Helper()
+	inForce, _ := testclock.RuleEvidence("argo-cd.required-rbac-inheritance.3-0")
+	notYet, _ := testclock.RuleEvidence("argo-cd.resource-exclusions-v2-visibility-preservation.3-0")
+	first, err1 := time.Parse(time.RFC3339, inForce)
+	second, err2 := time.Parse(time.RFC3339, notYet)
+	if err1 != nil || err2 != nil {
+		t.Fatalf("review times %q %q: %v %v", inForce, notYet, err1, err2)
+	}
+	at := second.Add(-time.Hour)
+	if at.Before(first) {
+		at = first
+	}
+	if !at.Before(second) {
+		t.Fatalf("no instant has the rbac rule in force (%s) and the exclusions rule not reviewed (%s)", inForce, notYet)
+	}
+	return exactClock(at)
 }

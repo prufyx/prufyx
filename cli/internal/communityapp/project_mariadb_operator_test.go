@@ -14,6 +14,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/projectcheck"
 	"github.com/prufyx/prufyx/cli/internal/projectprepare"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 const mariadbOperatorTestResource = `{"apiVersion":"k8s.mariadb.com/v1alpha1","kind":"MariaDB","metadata":{"name":"PRIVATE_OPERATOR_NATIVE"},"spec":{"galera":{"enabled":true},"updateStrategy":{"autoUpdateDataPlane":true}}}`
@@ -62,7 +63,7 @@ func TestMariaDBOperatorPartialFactsReachActualCheck(t *testing.T) {
 				args = append(args, "--pre-operator-update")
 			}
 			var out, stderr bytes.Buffer
-			exit := Run(t.Context(), args, &out, &stderr, "test")
+			exit := Run(t.Context(), floorNowArgs(args), &out, &stderr, "test")
 			if exit != tc.want || strings.Contains(out.String(), "PRIVATE_OPERATOR_NATIVE") {
 				t.Fatalf("exit=%d want=%d stdout=%s stderr=%s", exit, tc.want, out.String(), stderr.String())
 			}
@@ -127,7 +128,7 @@ func TestMariaDBOperatorPartialFactsReachActualCheck(t *testing.T) {
 			out.Reset()
 			stderr.Reset()
 			bad := append(append([]string{}, args...), "--mariadb-resource-digest", "sha256:"+strings.Repeat("0", 64))
-			if code := Run(t.Context(), bad, &out, &stderr, "test"); code != ExitIntegrity {
+			if code := Run(t.Context(), floorNowArgs(bad), &out, &stderr, "test"); code != ExitIntegrity {
 				t.Fatalf("digest mismatch exit%d", code)
 			}
 		})
@@ -146,7 +147,7 @@ func TestMariaDBOperatorMissingSettingHumanAction(t *testing.T) {
 			args = append(args, "--verbose")
 		}
 		var out, stderr bytes.Buffer
-		if code := Run(t.Context(), args, &out, &stderr, "test"); code != ExitUnknown || stderr.Len() != 0 || !strings.Contains(out.String(), "spec.updateStrategy.autoUpdateDataPlane") || !strings.Contains(out.String(), "--mariadb-resource") {
+		if code := Run(t.Context(), floorNowArgs(args), &out, &stderr, "test"); code != ExitUnknown || stderr.Len() != 0 || !strings.Contains(out.String(), "spec.updateStrategy.autoUpdateDataPlane") || !strings.Contains(out.String(), "--mariadb-resource") {
 			t.Fatalf("exit=%d stdout=%s stderr=%s", code, out.String(), stderr.String())
 		}
 	}
@@ -164,7 +165,7 @@ func TestMariaDBOperatorNativeGuardsRemainUnknownWhenOmitted(t *testing.T) {
 		{"check", "project", "--project", "mariadb-operator", "--mariadb-resource", resourcePath, "--from", "26.3.0", "--to", "26.6.0", "--now", "2026-09-13T09:00:00Z", "--format", "json"},
 	} {
 		var stdout, stderr bytes.Buffer
-		if exit := Run(t.Context(), args, &stdout, &stderr, "test"); exit != ExitUnknown || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"assessment":"UNKNOWN"`) || strings.Contains(stdout.String(), "PRIVATE_OPERATOR_NATIVE") {
+		if exit := Run(t.Context(), floorNowArgs(args), &stdout, &stderr, "test"); exit != ExitUnknown || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"assessment":"UNKNOWN"`) || strings.Contains(stdout.String(), "PRIVATE_OPERATOR_NATIVE") {
 			t.Fatalf("omitted guard accepted: args=%v exit=%d stdout=%s stderr=%s", args, exit, stdout.String(), stderr.String())
 		}
 	}
@@ -196,7 +197,7 @@ func TestMariaDBOperatorPreparedGuardsPropagateThroughBatch(t *testing.T) {
 				prepareArgs = append(prepareArgs, "--pre-operator-update")
 			}
 			var prepareOut, prepareErr bytes.Buffer
-			if exit := Run(t.Context(), prepareArgs, &prepareOut, &prepareErr, "test"); exit != tc.wantPrepare || prepareErr.Len() != 0 {
+			if exit := Run(t.Context(), floorNowArgs(prepareArgs), &prepareOut, &prepareErr, "test"); exit != tc.wantPrepare || prepareErr.Len() != 0 {
 				t.Fatalf("prepare exit=%d want=%d stdout=%s stderr=%s", exit, tc.wantPrepare, prepareOut.String(), prepareErr.String())
 			}
 			if strings.Contains(prepareOut.String(), "PRIVATE_OPERATOR_NATIVE") || !strings.Contains(prepareOut.String(), `"id":"component.mariadb_operator.pre_operator_update"`) || !strings.Contains(prepareOut.String(), `"id":"component.mariadb_operator.resource_complete"`) {
@@ -220,7 +221,7 @@ func TestMariaDBOperatorPreparedGuardsPropagateThroughBatch(t *testing.T) {
 				t.Fatal(err)
 			}
 			var batchOut, batchErr bytes.Buffer
-			batchExit := Run(t.Context(), []string{"check", "batch", "--plan", planPath, "--root", root, "--now", "2026-09-13T09:00:00Z", "--format", "json"}, &batchOut, &batchErr, "test")
+			batchExit := Run(t.Context(), []string{"check", "batch", "--plan", planPath, "--root", root, "--now", testclock.FloorTextFor("mariadb-operator", "2026-09-13T09:00:00Z"), "--format", "json"}, &batchOut, &batchErr, "test")
 			if batchExit != tc.wantBatch || batchErr.Len() != 0 || !strings.Contains(batchOut.String(), `"outcome":"`+tc.wantOutcome+`"`) || strings.Contains(batchOut.String(), "PRIVATE_OPERATOR_NATIVE") {
 				t.Fatalf("batch exit=%d want=%d stdout=%s stderr=%s", batchExit, tc.wantBatch, batchOut.String(), batchErr.String())
 			}

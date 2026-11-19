@@ -24,6 +24,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/knowledgefixture"
 	"github.com/prufyx/prufyx/cli/internal/knowledgereleaseplan"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgepublish"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 type publishedRelease struct {
@@ -36,10 +37,12 @@ type publishedRelease struct {
 
 const (
 	kyvernoReportsChunkSizeRuleID = "kyverno.reports-chunk-size-removed.1-13"
-	kyvernoReportsReviewedAt      = "2026-09-09T00:53:06Z"
-	kyvernoReportsValidUntil      = "2026-12-08T00:53:06Z"
 	kyvernoInputUnknown           = `{"schema":"prufyx.io/operator-declared-constraint-input/v1alpha1","authority":"OPERATOR_DECLARED_MINIMIZED","current":{"components":[{"component":"pkg:github/kyverno/kyverno","version":"1.12.5","facts":[]}]},"proposed":{"components":[{"component":"pkg:github/kyverno/kyverno","version":"1.13.0","facts":[{"id":"component.kyverno.reports_chunk_size_flag_present","state":"declared","boolValue":false}]}]}}`
 )
+
+// The review identity of the Kyverno rule follows the shipped rule data, so a
+// renewal of the rule does not move this test.
+var kyvernoReportsReviewedAt, kyvernoReportsValidUntil = testclock.RuleEvidence(kyvernoReportsChunkSizeRuleID)
 
 func TestKnowledgeReleasePlanNonemptyReviewedRuleProducerToAdopter(t *testing.T) {
 	t.Parallel()

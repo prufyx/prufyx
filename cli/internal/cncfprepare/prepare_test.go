@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 func kyvernoWorkload(t *testing.T, command, args []string, image string) []byte {
@@ -91,7 +92,7 @@ func TestPrepareKyvernoScopedFeedsScopedRule(t *testing.T) {
 			if facts[KyvernoDistributionFact]["enumValue"] != KyvernoDistributionOfficial || facts[KyvernoExecutionSurfaceFact]["enumValue"] != KyvernoSurfaceReportsController || facts[KyvernoFact]["boolValue"] != tc.wantValue {
 				t.Fatalf("facts=%v", facts)
 			}
-			report, err := cncfcheck.Check("kyverno", prepared.CanonicalInputJSON, time.Date(2026, 9, 9, 1, 0, 0, 0, time.UTC))
+			report, err := cncfcheck.Check("kyverno", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 9, 1, 0, 0, 0, time.UTC)))
 			if err != nil || len(report.Check.Claims) != 1 || report.Check.Claims[0].Status != tc.wantStatus || report.Assessment != "UNKNOWN" {
 				t.Fatalf("report=%+v err=%v", report, err)
 			}

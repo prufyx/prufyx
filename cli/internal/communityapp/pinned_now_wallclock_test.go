@@ -6,14 +6,13 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
-	"github.com/prufyx/prufyx/cli/internal/projectcheck"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 // setWallClock fixes the real time the pinned --now guard compares with.
@@ -36,7 +35,10 @@ func pinnedNowArgs(path, now string) []string {
 // knowledge has really expired: the guard must turn that PASS into UNKNOWN.
 func TestPinnedNowCannotHideWallClockExpiry(t *testing.T) {
 	path := writeCNCFFile(t, "cilium-policy.json", ciliumPolicyNativeResource(t, []any{}), 0o600)
-	const pinned = "2026-10-18T00:00:00Z"
+	// The pinned time and the "inside the window" wall clock are derived from
+	// the rule data (the newest review of the shipped rules), not fixed dates.
+	start := testclock.Newest().UTC()
+	pinned := start.Format(time.RFC3339)
 	for _, test := range []struct {
 		name     string
 		wall     time.Time
@@ -44,9 +46,9 @@ func TestPinnedNowCannotHideWallClockExpiry(t *testing.T) {
 		wantExit int
 		warn     bool
 	}{
-		{"wall clock inside the window", time.Date(2026, 10, 30, 0, 0, 0, 0, time.UTC), "json", ExitOK, false},
-		{"wall clock after the rules expired, json", time.Date(2027, 6, 1, 0, 0, 0, 0, time.UTC), "json", ExitUnknown, true},
-		{"wall clock after the rules expired, human", time.Date(2027, 6, 1, 0, 0, 0, 0, time.UTC), "human", ExitUnknown, true},
+		{"wall clock inside the window", start.Add(12 * 24 * time.Hour), "json", ExitOK, false},
+		{"wall clock after the rules expired, json", testclock.AfterAllExpiry(), "json", ExitUnknown, true},
+		{"wall clock after the rules expired, human", testclock.AfterAllExpiry(), "human", ExitUnknown, true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			setWallClock(t, test.wall)
@@ -75,7 +77,7 @@ func TestPinnedNowGuardSkipsReplayAndDatabase(t *testing.T) {
 	setWallClock(t, time.Date(2027, 6, 1, 0, 0, 0, 0, time.UTC))
 	for _, extra := range []string{"replay-report", "knowledge-db"} {
 		ran := 0
-		code := runtime{}.pinnedNowGuard([]string{"--now", "2026-10-18T00:00:00Z", "--" + extra, "x"}, nil, func(runtime, []string) int { ran++; return ExitOK })
+		code := runtime{}.pinnedNowGuard([]string{"--now", testclock.Newest().Format(time.RFC3339), "--" + extra, "x"}, nil, func(runtime, []string) int { ran++; return ExitOK })
 		if code != ExitOK || ran != 1 {
 			t.Fatalf("%s: code=%d ran=%d", extra, code, ran)
 		}
@@ -119,19 +121,20 @@ func TestPinnedNowBatchCommunityProjectCannotHideWallClockExpiry(t *testing.T) {
 	// time (the CNCF pack's evidence is unchanged then), so the guard needs the
 	// project pack's end dates; the pinned run must still PASS, as the
 	// kibana rule is the one ending at that instant.
-	projects, err := projectcheck.EmbeddedKnowledgeAge()
-	if err != nil {
-		t.Fatal(err)
-	}
 	cncf, err := cncfcheck.EmbeddedEvidenceAge()
 	if err != nil {
 		t.Fatal(err)
 	}
-	ends := append([]time.Time(nil), projects[0].Expiries...)
-	sort.Slice(ends, func(i, j int) bool { return ends[i].Before(ends[j]) })
+	// The plan's kibana 8.18.0 -> 9.0.0 item is decided by one rule: the end of
+	// that rule's own evidence window is the instant that isolates the project
+	// pack. It is read from the rule data, so a renewal moves it.
+	ends := []time.Time{ruleEnd(t, "kibana.reporting-roles-allow.8-18-to-9-0")}
 	tested := false
 	for _, end := range ends {
 		pinned, wall := end.Add(-time.Second), end.Add(time.Second)
+		if pinned.Before(testclock.Newest()) {
+			continue // a rule already past its end at the newest review is no isolating end
+		}
 		if knowledgeage.Summarize(cncf, wall).Expired != knowledgeage.Summarize(cncf, pinned).Expired {
 			continue
 		}
@@ -151,4 +154,37 @@ func TestPinnedNowBatchCommunityProjectCannotHideWallClockExpiry(t *testing.T) {
 	if !tested {
 		t.Fatal("no project rule end date isolates the project pack")
 	}
+}
+
+// ruleEnd is the validUntil of one shipped community project rule.
+func ruleEnd(t *testing.T, ruleID string) time.Time {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("..", "projectcheck", "data", "rules.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pack struct {
+		Entries []struct {
+			Rule struct {
+				ID       string `json:"id"`
+				Evidence struct {
+					ValidUntil string `json:"validUntil"`
+				} `json:"evidence"`
+			} `json:"rule"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(raw, &pack); err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range pack.Entries {
+		if entry.Rule.ID == ruleID {
+			end, err := time.Parse(time.RFC3339, entry.Rule.Evidence.ValidUntil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return end
+		}
+	}
+	t.Fatalf("rule %s not in the project pack", ruleID)
+	return time.Time{}
 }

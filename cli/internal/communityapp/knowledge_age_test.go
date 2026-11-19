@@ -17,6 +17,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 	"github.com/prufyx/prufyx/cli/internal/scanrun"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 // embeddedEnd is the earliest end date of the embedded pack's active rules.
@@ -168,7 +169,7 @@ func TestKnowledgeAgeCheckCNCFStore(t *testing.T) {
 func TestKnowledgeAgeScan(t *testing.T) {
 	t.Parallel()
 	path, base := scanFormatsFixture(t)
-	for _, clock := range []string{"2026-10-04T00:00:00Z", ageInside(), ageAfter()} {
+	for _, clock := range []string{testclock.Newest().Format(time.RFC3339), ageInside(), ageAfter()} {
 		for _, redact := range []bool{false, true} {
 			for _, format := range scanreport.Formats() {
 				args := []string{path, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--distribution", "official_upstream", "--resource-scope-complete", "--target-api-apply-required", "--now", clock, "--format", format}
@@ -210,7 +211,7 @@ func TestKnowledgeAgeScanNoNoteOnFailure(t *testing.T) {
 		t.Fatalf("%d %q", code, stderr)
 	}
 	var out bytes.Buffer
-	code = Run(context.Background(), []string{"scan", path, "--to", "kubernetes=1.25.3", "--now", ageInside()}, failedBatchWriter{}, &out, "test")
+	code = Run(context.Background(), floorNowArgs([]string{"scan", path, "--to", "kubernetes=1.25.3", "--now", ageInside()}), failedBatchWriter{}, &out, "test")
 	if code != ExitIntegrity || ageNoteLine.MatchString(out.String()) {
 		t.Fatalf("%d %q", code, out.String())
 	}
@@ -224,7 +225,7 @@ func TestKnowledgeAgeBatchEmbedded(t *testing.T) {
 	for _, now := range []string{"2026-10-04T00:00:00Z", ageInside(), ageAfter()} {
 		for _, format := range []string{"human", "json"} {
 			var stdout, stderr bytes.Buffer
-			code := Run(context.Background(), []string{"check", "batch", "--plan", plan, "--root", root, "--now", now, "--format", format}, &stdout, &stderr, "test")
+			code := Run(context.Background(), floorNowArgs([]string{"check", "batch", "--plan", plan, "--root", root, "--now", now, "--format", format}), &stdout, &stderr, "test")
 			if want := embeddedNote(t, now); stderr.String() != want {
 				t.Errorf("%s %s: stderr %q, want %q", now, format, stderr.String(), want)
 			}
@@ -237,7 +238,7 @@ func TestKnowledgeAgeBatchEmbedded(t *testing.T) {
 		}
 	}
 	var stdout, stderr bytes.Buffer
-	if code := Run(context.Background(), []string{"check", "batch", "--plan", plan, "--root", root, "--now", ageInside(), "--format", "json"}, failedBatchWriter{}, &stderr, "test"); code != ExitIntegrity || ageNoteLine.MatchString(stderr.String()) {
+	if code := Run(context.Background(), floorNowArgs([]string{"check", "batch", "--plan", plan, "--root", root, "--now", ageInside(), "--format", "json"}), failedBatchWriter{}, &stderr, "test"); code != ExitIntegrity || ageNoteLine.MatchString(stderr.String()) {
 		t.Fatalf("write failure: %d %q", code, stderr.String())
 	}
 	_ = stdout
@@ -260,7 +261,7 @@ func TestKnowledgeAgeBatchStore(t *testing.T) {
 	}
 	for _, format := range []string{"human", "json"} {
 		var stdout, stderr bytes.Buffer
-		code := Run(context.Background(), []string{"check", "batch", "--plan", planPath, "--root", root, "--knowledge-db", fixture.store, "--format", format}, &stdout, &stderr, "test")
+		code := Run(context.Background(), floorNowArgs([]string{"check", "batch", "--plan", planPath, "--root", root, "--knowledge-db", fixture.store, "--format", format}), &stdout, &stderr, "test")
 		pattern := regexp.MustCompile(`^prufyx: note: 1 knowledge rule expires within 30 days, the earliest on \d{4}-\d\d-\d\d \(in (less than a day|1 day)\)\. Run ` + "`prufyx db update`" + ` to fetch newer knowledge, or build from newer source before they expire\.\n$`)
 		if code != ExitBlocked || !pattern.MatchString(stderr.String()) || strings.Contains(stdout.String(), "knowledge rule expires") || strings.Contains(stderr.String(), fixture.store) {
 			t.Fatalf("%s: code=%d stderr=%q stdout=%s", format, code, stderr.String(), stdout.String())

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/evidencereattest"
 	"github.com/prufyx/prufyx/cli/internal/servedapis"
 	"github.com/prufyx/prufyx/cli/internal/servedlists"
 )
@@ -100,8 +101,40 @@ func TestServedIntroductionOfNineteenLists(t *testing.T) {
 		return runGate(t, Options{Base: base, Head: head, Source: src, Now: now, DailyLoosening: &daily})
 	}
 
+	// The derived lists end 88 days after the gate clock. Which week of the
+	// pack is busy, and which is empty, follows the shipped rules, so the two
+	// clocks are computed from the base pack's own ends and never pinned.
+	weekDays := func(t *testing.T) (busyDay, quietDay time.Time, busyWeek string) {
+		t.Helper()
+		base, _ := trees(t)
+		counts := map[string]int{}
+		days := map[string]time.Time{}
+		var latest time.Time
+		for _, e := range readPack(t, base, cncfRulesPath).entries {
+			until, err := time.Parse(time.RFC3339, evidenceOf(e)["validUntil"].(string))
+			if err != nil {
+				t.Fatal(err)
+			}
+			week := evidencereattest.ISOWeek(until)
+			counts[week]++
+			days[week] = time.Date(until.Year(), until.Month(), until.Day(), 12, 0, 0, 0, time.UTC)
+			if until.After(latest) {
+				latest = until
+			}
+		}
+		for week, n := range counts {
+			if n > counts[busyWeek] || (n == counts[busyWeek] && week < busyWeek) {
+				busyWeek = week
+			}
+		}
+		busyDay = days[busyWeek]
+		quietDay = time.Date(latest.Year(), latest.Month(), latest.Day(), 12, 0, 0, 0, time.UTC).AddDate(0, 0, 7)
+		return busyDay, quietDay, busyWeek
+	}
+
 	t.Run("derived on a day that lands in a quiet week", func(t *testing.T) {
-		now := time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC) // validUntil 2027-01-25, an empty week
+		_, quietDay, _ := weekDays(t)
+		now := quietDay.AddDate(0, 0, -88) // the week after every other end: empty
 		report := gateAt(t, now, 0)
 		if n := requireServedAdmitted(t, report); n != 19 {
 			t.Fatalf("%d lists", n)
@@ -121,11 +154,12 @@ func TestServedIntroductionOfNineteenLists(t *testing.T) {
 	})
 
 	t.Run("derived on a day that lands in a busy week", func(t *testing.T) {
-		// 2026-09-12 plus 88 days is in 2026-W50, where most of the pack's
+		// The gate clock plus 88 days is in the week where most of the pack's
 		// rules expire.
-		report := gateAt(t, time.Date(2026, 9, 12, 12, 0, 0, 0, time.UTC), 0)
+		busyDay, _, busyWeek := weekDays(t)
+		report := gateAt(t, busyDay.AddDate(0, 0, -88), 0)
 		c, ok := check(report, "stagger/cncf/records")
-		if !ok || c.OK || !strings.Contains(c.Detail, "2026-W50 holds") {
+		if !ok || c.OK || !strings.Contains(c.Detail, busyWeek+" holds") {
 			t.Fatalf("stagger: %+v", c)
 		}
 		if report.Passed() {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/goldenfile"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 // maskPack replaces the embedded pack's revision and digest with fixed
@@ -17,5 +18,5 @@ func maskPack(t testing.TB, got []byte) []byte {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return goldenfile.MaskPack(got, knowledge.Revision(), knowledge.PackDigest())
+	return testclock.MaskClocks(goldenfile.MaskPack(got, knowledge.Revision(), knowledge.PackDigest()))
 }

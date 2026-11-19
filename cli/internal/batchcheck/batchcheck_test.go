@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"syscall"
 	"testing"
@@ -15,6 +16,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledgefixture"
+	"github.com/prufyx/prufyx/cli/internal/testclock"
 )
 
 func writeBatchFile(t *testing.T, path string, value any) string {
@@ -55,7 +57,8 @@ func TestEvaluateMixedOutcomesAndDeterministicPrecedence(t *testing.T) {
 		{ID: "m-blocked", Kind: "community_project", Project: "loki", From: "2.9.8", To: "3.0.0", InputPath: "loki.json"},
 	}}
 	planPath := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
-	report, exit, err := Evaluate(planPath, root, time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC))
+	now := mixedOutcomesClock(t)
+	report, exit, err := Evaluate(planPath, root, now)
 	if err != nil || exit != 10 || report.Decision != "UNKNOWN" || report.AggregateCategory != "BLOCKED" {
 		t.Fatalf("report=%+v exit=%d err=%v", report, exit, err)
 	}
@@ -65,10 +68,24 @@ func TestEvaluateMixedOutcomesAndDeterministicPrecedence(t *testing.T) {
 	if len(report.Items[1].Report) == 0 || !strings.Contains(string(report.Items[1].Report), `"inputDigest":"sha256:`) || strings.Contains(string(report.Items[1].Report), "a-pass") {
 		t.Fatalf("sealed child report missing or leaked plan label: %s", report.Items[1].Report)
 	}
-	// thanos now ships a crossing rule that this hop does not decide: it is
-	// named as not yet reviewed beside the unknown claim.
-	if len(report.Items[0].Categories) != 2 || report.Items[0].Categories[0] != "NOT_YET_REVIEWED" || report.Items[0].Categories[1] != "UNKNOWN_CLAIM" {
-		t.Fatalf("unexpected category set: %+v", report.Items[0].Categories)
+	// The clock is one at which every rule of both projects is in force, so
+	// only the unknown claim of the hop remains for the first item.
+	if want := []string{"UNKNOWN_CLAIM"}; !reflect.DeepEqual(report.Items[0].Categories, want) {
+		t.Fatalf("unexpected category set: %+v, want %v", report.Items[0].Categories, want)
+	}
+	// The not-yet-reviewed premise does not depend on the shipped rules' dates:
+	// a synthetic signed rule pack reviewed two hours after the clock is always
+	// named as not yet reviewed.
+	synthetic := makeSignedBatchFixtureAt(t, true, time.Now().UTC().Truncate(time.Second).Add(2*time.Hour), time.Now().UTC().Truncate(time.Second).Add(26*time.Hour))
+	writeBatchFile(t, filepath.Join(root, "kyverno.json"), canonical("pkg:github/kyverno/kyverno", "1.12.5", "1.13.0", []any{}, []any{
+		map[string]any{"id": "component.kyverno.distribution", "state": "declared", "enumValue": "official_upstream"},
+		map[string]any{"id": "component.kyverno.execution_surface", "state": "declared", "enumValue": "reports_controller"},
+		map[string]any{"id": "component.kyverno.reports_chunk_size_flag_present", "state": "declared", "boolValue": false},
+	}))
+	pendingPlan := writeBatchFile(t, filepath.Join(root, "pending-plan.json"), signedKnowledgePlan([]Item{{ID: "pending", Kind: "cncf", Project: "kyverno", From: "1.12.5", To: "1.13.0", InputPath: "kyverno.json"}}))
+	pending, _, err := EvaluateWithStore(pendingPlan, root, synthetic.store)
+	if err != nil || len(pending.Items) != 1 || pending.Items[0].Category != "NOT_YET_REVIEWED" || !reflect.DeepEqual(pending.Items[0].Categories, []string{"NOT_YET_REVIEWED"}) {
+		t.Fatalf("synthetic not-yet-reviewed premise: %+v err=%v", pending, err)
 	}
 }
 
@@ -78,13 +95,13 @@ func TestEvaluateClassifiesStaleEvidenceAndRejectsUnsafePaths(t *testing.T) {
 	_ = input
 	plan := Plan{Schema: PlanSchema, Authority: PlanAuthority, Knowledge: KnowledgeSelection{Mode: "embedded_only"}, Items: []Item{{ID: "stale", Kind: "cncf", Project: "thanos", From: "0.41.0", To: "0.42.0", InputPath: "input.json"}}}
 	planPath := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
-	report, exit, err := Evaluate(planPath, root, time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC))
+	report, exit, err := Evaluate(planPath, root, testclock.AfterAllExpiry())
 	if err != nil || exit != 11 || report.AggregateCategory != "STALE_EVIDENCE" || report.Items[0].Category != "STALE_EVIDENCE" {
 		t.Fatalf("report=%+v exit=%d err=%v", report, exit, err)
 	}
 	plan.Items[0].InputPath = "../input.json"
 	badPlan := writeBatchFile(t, filepath.Join(root, "bad-plan.json"), plan)
-	if _, exit, err := Evaluate(badPlan, root, time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC)); err == nil || exit != 2 {
+	if _, exit, err := Evaluate(badPlan, root, testclock.Floor(time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC))); err == nil || exit != 2 {
 		t.Fatalf("unsafe path accepted exit=%d err=%v", exit, err)
 	}
 }
@@ -97,7 +114,7 @@ func TestEvaluatePreflightAndPrivacyBoundaries(t *testing.T) {
 	}
 	plan := Plan{Schema: PlanSchema, Authority: PlanAuthority, Knowledge: KnowledgeSelection{Mode: "embedded_only"}, Items: []Item{{ID: "bad-project", Kind: "cncf", Project: "not-a-real-project", From: "1.0.0", To: "1.1.0", InputPath: "private-secret.json"}}}
 	planPath := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
-	if _, exit, err := Evaluate(planPath, root, time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC)); err == nil || exit != 2 {
+	if _, exit, err := Evaluate(planPath, root, testclock.Floor(time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC))); err == nil || exit != 2 {
 		t.Fatalf("unknown project accepted exit=%d err=%v", exit, err)
 	}
 	if strings.Contains(string(mustJSON(plan)), "must-not-appear") {
@@ -125,7 +142,7 @@ func TestEvaluateBindsPlanTransitionAndComponent(t *testing.T) {
 	writeBatchFile(t, filepath.Join(root, "input.json"), canonical("pkg:github/thanos-io/thanos", "0.41.0", "0.42.0", nil, nil))
 	plan := Plan{Schema: PlanSchema, Authority: PlanAuthority, Knowledge: KnowledgeSelection{Mode: "embedded_only"}, Items: []Item{{ID: "private-operator-label", Kind: "cncf", Project: "thanos", From: "0.40.0", To: "0.42.0", InputPath: "input.json"}}}
 	path := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
-	if _, exit, err := Evaluate(path, root, time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC)); err == nil || exit != 2 {
+	if _, exit, err := Evaluate(path, root, testclock.Floor(time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC))); err == nil || exit != 2 {
 		t.Fatalf("mismatched transition accepted: exit=%d err=%v", exit, err)
 	}
 }
@@ -140,7 +157,7 @@ func TestEvaluateAllowsValidatedDependencyComponents(t *testing.T) {
 	path := writeBatchFile(t, filepath.Join(root, "input.json"), input)
 	plan := Plan{Schema: PlanSchema, Authority: PlanAuthority, Knowledge: KnowledgeSelection{Mode: "embedded_only"}, Items: []Item{{ID: "rook-with-dependency", Kind: "cncf", Project: "rook", From: "1.19.5", To: "1.20.0", InputPath: filepath.Base(path)}}}
 	planPath := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
-	report, exit, err := Evaluate(planPath, root, time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC))
+	report, exit, err := Evaluate(planPath, root, testclock.Floor(time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC)))
 	if err != nil {
 		t.Fatalf("dependency input rejected: exit=%d err=%v", exit, err)
 	}
@@ -183,7 +200,7 @@ func TestEvaluateRejectsSymlinkedInputAncestor(t *testing.T) {
 	}
 	plan := Plan{Schema: PlanSchema, Authority: PlanAuthority, Knowledge: KnowledgeSelection{Mode: "embedded_only"}, Items: []Item{{ID: "symlinked", Kind: "cncf", Project: "thanos", From: "0.41.0", To: "0.42.0", InputPath: "nested/input.json"}}}
 	path := writeBatchFile(t, filepath.Join(root, "plan.json"), plan)
-	if _, exit, err := Evaluate(path, root, time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC)); err == nil || exit != 2 {
+	if _, exit, err := Evaluate(path, root, testclock.Floor(time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC))); err == nil || exit != 2 {
 		t.Fatalf("symlinked input accepted: exit=%d err=%v", exit, err)
 	}
 }
@@ -387,8 +404,20 @@ func TestEvaluateRejectsPublicHardlinkAndFIFOInputs(t *testing.T) {
 	for _, inputPath := range []string{"hard.json", "public.json", "pipe.json"} {
 		plan := Plan{Schema: PlanSchema, Authority: PlanAuthority, Knowledge: KnowledgeSelection{Mode: "embedded_only"}, Items: []Item{{ID: "unsafe", Kind: "cncf", Project: "thanos", From: "0.41.0", To: "0.42.0", InputPath: inputPath}}}
 		planPath := writeBatchFile(t, filepath.Join(root, inputPath+".plan"), plan)
-		if _, exit, err := Evaluate(planPath, root, time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC)); err == nil || exit != 2 {
+		if _, exit, err := Evaluate(planPath, root, testclock.Floor(time.Date(2026, 9, 12, 22, 0, 0, 0, time.UTC))); err == nil || exit != 2 {
 			t.Fatalf("unsafe %s accepted: exit=%d err=%v", inputPath, exit, err)
 		}
 	}
+}
+
+// mixedOutcomesClock is the evaluation clock of the mixed-outcomes plan,
+// computed from the rule data: the earliest instant at which every rule of
+// the loki and thanos packs is in force.
+func mixedOutcomesClock(t *testing.T) time.Time {
+	t.Helper()
+	now := testclock.ProjectNewest("loki")
+	if all := testclock.ProjectNewest("thanos"); all.After(now) {
+		now = all
+	}
+	return now
 }
