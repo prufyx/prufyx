@@ -562,3 +562,54 @@ func TestListRefusalsCollectsAllNeverValues(t *testing.T) {
 		t.Error("Build accepted a refused set")
 	}
 }
+
+func TestHarnessVerdictsAndRuleIDs(t *testing.T) {
+	set := func(verdict string, ids []string) func(m map[string]any) {
+		return func(m map[string]any) {
+			first(m)["assertion"] = map[string]any{"command": "scan", "verdict": verdict, "ids": ids}
+		}
+	}
+	ok := []struct {
+		verdict string
+		ids     []string
+		code    string
+	}{
+		{"not flagged (scan verdict BLOCKED); kind listed as not evaluated", nil, "NOT_FLAGGED_SCAN_BLOCKED"},
+		{"not flagged (scan verdict PASS)", nil, "NOT_FLAGGED_SCAN_PASS"},
+		{"no finding for this app (scan verdict BLOCKED)", nil, "NO_FINDING_SCAN_BLOCKED"},
+		{"2 of the app's old documents flagged by scan findings", nil, "OLD_DOCUMENTS_FLAGGED"},
+		{"rc=0: cert-manager is catalogued but has no rules yet; request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml", nil, "CATALOGUED_NO_RULES_YET"},
+		{"rc=0: embedded source-rule identities: 11", nil, "EMBEDDED_SOURCE_RULE_IDENTITIES"},
+		{"rc=2: prufyx: unknown project \"gateway-api\"; list projects with `prufyx catalog cncf`", nil, "CHECK_UNKNOWN_PROJECT"},
+		{"rc=2: prufyx: invalid native format check arguments; use --help", nil, "CHECK_INVALID_ARGUMENTS"},
+		{"BLOCKED kyverno.crd-version-removal.updaterequests-kyverno-io.1-15-0-to-1-16-0", []string{"kyverno.crd-version-removal.updaterequests-kyverno-io.1-15-0-to-1-16-0"}, "BLOCKED"},
+	}
+	for _, c := range ok {
+		run, err := ParseRun("m3-x", m3(set(c.verdict, c.ids)))
+		if err != nil {
+			t.Errorf("%q: %v", c.verdict, err)
+			continue
+		}
+		if run.Checks[0].Reason != c.code {
+			t.Errorf("%q: reason %q", c.verdict, run.Checks[0].Reason)
+		}
+	}
+	bad := []struct {
+		verdict string
+		ids     []string
+	}{
+		{"not flagged (scan verdict MAYBE)", nil},
+		{"rc=0: embedded source-rule identities: many", nil},
+		{"rc=2: prufyx: unknown project \"x y /home/z\"; list projects with `prufyx catalog cncf`", nil},
+		{"rc=0: x is catalogued but has no rules yet; request coverage: https://example.net/leak", nil},
+		{"x of the app's old documents flagged by scan findings", nil},
+		{"2 of the app's old documents flagged by scan findings leakhost-7", nil},
+		{"BLOCKED x", []string{"leakhost-7.not-a-rule"}},
+		{"BLOCKED x", []string{"Kyverno.crd.slug.1-1-1-to-2-2-2"}},
+	}
+	for _, c := range bad {
+		if _, err := ParseRun("m3-x", m3(set(c.verdict, c.ids))); err == nil {
+			t.Errorf("accepted: %q %v", c.verdict, c.ids)
+		}
+	}
+}
