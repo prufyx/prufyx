@@ -131,6 +131,7 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
 | `--verbose` | Shows the status of every hop and the pinned sources of each finding (human and Markdown output). |
 | `--redact` | Prints `sha256:` digests instead of file paths, object names and namespaces. Human and Markdown output show the first 12 hex characters; SARIF uses a name under `redacted/`. |
 | `--input-permissions` | `refuse-writable` (default) or `strict`. See below. |
+| `--max-memory-profile` | `default` or `small`. `small` lowers the input limits to 32 MiB in all, 2048 files, 8192 documents and 500000 YAML nodes (about 150 MB at the limit) so a machine with little memory refuses an input instead of being killed; it can never raise a limit. |
 | `--require-basis` | The evidence bases whose rules are evaluated, a comma-separated subset of `reviewed`, `mechanical`, `empirical`, `consensus`, `lead`. Default: `reviewed,mechanical,empirical,consensus`, the same as `prufyx check cncf`. A rule left out that applies to a hop keeps the hop undecided (`RULE_NOT_DECIDED`) and the report says how many were left out. |
 | `--knowledge-db` | Read the knowledge from this verified local knowledge database instead of the knowledge built into the binary. See "Knowledge database" below. |
 | `--now` | The evaluation instant, canonical UTC with whole seconds (`2026-10-04T00:00:00Z`). Default: the current time, truncated to the second. It is printed in every report; pass it to replay a scan exactly. Not accepted with `--knowledge-db`. |

@@ -220,3 +220,29 @@ func TestOpenNearBudgetInputStaysWithinCeiling(t *testing.T) {
 	}
 	t.Logf("%d documents in %v, heap %d MiB, process %d MiB", len(w.Documents), elapsed, m.HeapAlloc>>20, m.Sys>>20)
 }
+
+// The small profile only lowers: every bound is at or below the default.
+func TestSmallLimitsOnlyLower(t *testing.T) {
+	small, def := SmallLimits(), Limits{}.withDefaults()
+	if small.FileBytes > def.FileBytes || small.TotalBytes >= def.TotalBytes || small.Files >= def.Files || small.Documents >= def.Documents || small.Nodes >= def.Nodes {
+		t.Fatalf("small %+v is not below default %+v", small, def)
+	}
+}
+
+// The node budget is exact: a file of N nodes passes with a budget of N and is
+// refused, naming the nodes, with a budget of N-1.
+func TestOpenNodeBudgetBoundaryIsExact(t *testing.T) {
+	path := filepath.Join(root(t), "n.yaml")
+	write(t, path, configMapDoc("n", 8), 0o600)
+	budget := 1
+	for ; budget < 1000; budget++ {
+		if _, err := Open([]string{path}, Options{Limits: Limits{Nodes: budget}}); err == nil {
+			break
+		}
+	}
+	if budget == 1000 {
+		t.Fatal("never admitted")
+	}
+	_, err := Open([]string{path}, Options{Limits: Limits{Nodes: budget - 1}})
+	requireLimit(t, err, "YAML nodes")
+}

@@ -48,6 +48,14 @@ type Limits struct {
 	Nodes      int // YAML nodes over all files
 }
 
+// SmallLimits is the lower profile for a machine with little memory: it bounds
+// the worst case of one Open call to a few hundred MiB instead of about 2 GiB.
+// Every field is below the default, and no input or option raises a bound
+// above the defaults: a profile can only lower them.
+func SmallLimits() Limits {
+	return Limits{FileBytes: DefaultFileBytes, TotalBytes: 32 << 20, Files: 2048, Documents: 8192, Nodes: 500000}
+}
+
 func (l Limits) withDefaults() Limits {
 	if l.FileBytes <= 0 {
 		l.FileBytes = DefaultFileBytes

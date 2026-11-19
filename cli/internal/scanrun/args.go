@@ -52,6 +52,9 @@ type Request struct {
 	Redact              bool
 	Permissions         intake.PermissionPolicy
 	PermissionsName     string
+	// MemoryProfile is --max-memory-profile: "" or default keeps the built-in
+	// input limits, small lowers them. It can only lower them.
+	MemoryProfile string
 	// TrustPolicy is the --require-basis policy; the zero value is the
 	// default policy.
 	TrustPolicy cncfcheck.TrustPolicy
@@ -352,6 +355,18 @@ func ParseArgs(args []string) (Request, error) {
 				return Request{}, usage(scanreport.UsageBadValue, display)
 			}
 			request.PermissionsName = v
+		case "max-memory-profile":
+			if err := once(display); err != nil {
+				return Request{}, err
+			}
+			v, err := next()
+			if err != nil {
+				return Request{}, err
+			}
+			if v != "default" && v != "small" {
+				return Request{}, usage(scanreport.UsageBadValue, display)
+			}
+			request.MemoryProfile = v
 		case "now":
 			if err := once(display); err != nil {
 				return Request{}, err

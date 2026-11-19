@@ -796,6 +796,9 @@ with where it is and how to fix it, and every area that was not checked.
   --redact                  print digests instead of file paths, names and namespaces
                             (plain digests: short names can be recovered by guessing)
   --input-permissions strict|refuse-writable   default refuse-writable
+  --max-memory-profile default|small   small lowers the input limits (32 MiB in all, 2048 files, 8192
+                            documents, 500000 nodes) so a machine with little memory refuses
+                            instead of running out of memory; it cannot raise them
   --require-basis LIST      evidence bases to evaluate (default reviewed,mechanical,empirical,consensus);
                             a rule left out that applies keeps the answer from passing
   --knowledge-db DIR        read the knowledge from this verified local knowledge database
