@@ -15,7 +15,10 @@ request's limits and other submission routes.
 
 ## Build the local runner
 
-Run these commands from a shell with Go 1.26.10. Replace the two path values;
+Run these commands from a shell with Go 1.26 (any 1.26.x patch release;
+the module declares `go 1.26` and the build uses `GOTOOLCHAIN=local`, so no
+other patch is needed; the signed release binaries are built with exactly
+1.26.10, which does not apply to this local runner). Replace the two path values;
 keep `PRIVATE` outside the checkout and any shared or public directory.
 
 ```sh
@@ -23,7 +26,10 @@ set -eu
 umask 077
 COMMUNITY_ROOT=/path/to/prufyx
 PRIVATE=/path/to/private/prufyx-project
-test "$(go env GOVERSION)" = go1.26.10
+case "$(go env GOVERSION)" in
+  go1.26|go1.26.*) ;;
+  *) echo "need Go 1.26.x, found $(go env GOVERSION)" >&2; exit 1 ;;
+esac
 mkdir -m 700 -p "$PRIVATE/bin" "$PRIVATE/corpus"
 (cd "$COMMUNITY_ROOT/cli" && \
   CGO_ENABLED=0 GOTOOLCHAIN=local GOWORK=off \
@@ -59,11 +65,25 @@ with `review.state=NOT_REVIEWED` and `review.admissionState=NOT_ADMITTED`.
 The bounded selectors are:
 
 ```text
---slug SLUG
+--slug SLUG                        (default: owner-name-hash, see below)
 --release-limit 1..10             (default 5)
 --tag-prefix PREFIX               (optional, may end in /)
 --changelog-paths PATH,...        (replaces the default candidate paths)
 --license-disposition NOT_REVIEWED|DECLARED_UNKNOWN
+```
+
+Pass `--slug` with the short project name (for example `--slug jobset`)
+whenever the snapshot is meant for a bundle. Without it the slug is generated
+as `<owner>-<name>-<hash>` (for example `kubernetes-sigs-jobset-ffb9ec08`),
+and a bundle's slug must equal the project slug in `project.json` and the
+bundle directory name. The slug cannot be changed afterwards; run `init` again.
+
+```sh
+prufyx-maintainer project init \
+  --repository https://github.com/OWNER/REPOSITORY \
+  --slug REPOSITORY \
+  --release-limit 5 \
+  --output "$PRIVATE/project-request.json"
 ```
 
 ## Explicit Git-tag observations
@@ -95,6 +115,13 @@ Without `--changelog-paths`, the candidate paths are `CHANGELOG.md`,
 repository-relative candidate; it is not fetched until `sync`. The optional
 license disposition records a declaration for review and is not a legal or
 license determination.
+
+If the project has no file at any candidate path, `sync` still succeeds: the
+receipt shows `sourceCount 0` and `OMITTED_NO_CHANGELOG_BYTES`. That means no
+changelog bytes were captured, so the snapshot holds release metadata only and
+no release-note text. It is not an error. If the release notes live in another
+file, pass its repository-relative path with `--changelog-paths` (this replaces
+the defaults, so list every path you want).
 
 ## Check a request offline
 

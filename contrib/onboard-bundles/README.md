@@ -6,6 +6,12 @@ maintainers re-derive everything from their own copy of the upstream source,
 byte-compare every citation, and drop whatever does not match. A bundle that
 passes validation is only well-formed.
 
+Before you start, check whether the project already has a bundle: list
+`contrib/onboard-bundles/` in this repository (a directory per slug). An
+existing bundle, or an already onboarded project, is refused in review. Only a
+maintainer of the project who holds an invite can submit a bundle; see
+[For project maintainers](../../docs/maintainers.md).
+
 If you only want to suggest a project, use the
 [issue form](https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml)
 instead; a pull request is for people who can also supply the bundle files.
@@ -31,6 +37,20 @@ The schema is [`schema.json`](../../cli/internal/maintainer/onboardbundle/schema
 a complete fictional example is in
 [`testdata/valid`](../../cli/internal/maintainer/onboardbundle/testdata/valid).
 
+There is no command yet that writes these files for you: `onboard-bundle`
+only has `validate`. Today you write `project.json`, `scan-notes.json` and
+`relnotes-sources.json` by hand, following the schema and the example. The
+`receipt.json` digests (per-file digests and `bundleSha256`) cannot sensibly be
+computed by hand and no command writes them yet, so a new bundle cannot be
+finished from the public tools alone; this is a known gap. The `validate`
+output prints the computed `bundleSha256` when it differs. Until the builder
+exists, send the repository and a public maintainer link through the invite
+route and the maintainers prepare the bundle files with you. The only
+documented producer of `target-draft.json` is
+[`target-draft record`](../../cli/docs/target-draft-record.md), which needs a
+local checkout of the project and expected-target values that a first-time
+maintainer does not have; that is part of the same gap.
+
 Never in a bundle: rules, tables, batches, approvals, signatures, scripts,
 archives, credentials, private paths or host names. Only JSON files.
 
@@ -48,6 +68,9 @@ From a checkout of this repository:
 cd cli
 go run ./cmd/prufyx-maintainer onboard-bundle validate --dir-is-slug ../contrib/onboard-bundles/<slug>
 ```
+
+The first `go run` compiles the tool and can take a while with no
+progress output on a cold cache or a busy machine; later runs are fast.
 
 The check is offline: it reads the bundle directory and nothing else, and it
 executes nothing from the bundle. Exit code 0 means well-formed, 1 means
@@ -81,7 +104,7 @@ maintainers compare it with the upstream file in review.
 3. Open the pull request against `main` and sign the CLA when asked.
 4. CI re-runs the check with the validator from the base branch.
 
-Implemented today: steps 1-4, the maintainers' manual review, and the
+Steps 1-4 are manual today (no command writes the bundle). Implemented today: the offline check, the maintainers' manual review, and the
 automatic import of merged bundles. Who may submit, how to get an invite and
 the exact merge path are described only in
 [Intake is for invited maintainers only](../../docs/maintainers.md#intake-is-for-invited-maintainers-only);

@@ -4,6 +4,29 @@ Prufyx checks Kubernetes upgrades against facts taken from the upstream
 projects themselves: for example CRD changes between two versions. If you
 maintain a public project, you can tell us where those facts live.
 
+## Start here: which route
+
+1. Check first whether your project is already bundled: look for a directory
+   named after it in [`contrib/onboard-bundles/`](../contrib/onboard-bundles/)
+   (for example `ls contrib/onboard-bundles/` in a checkout). A project that
+   already has a bundle, or is already onboarded, is refused in review.
+2. Only an invited maintainer of the project can submit a bundle. To get an
+   invite, open the
+   [maintainer project form](https://github.com/prufyx/prufyx/issues/new?template=maintainer-project.yml)
+   (see [Intake is for invited maintainers only](#intake-is-for-invited-maintainers-only)).
+   The form only asks for an invite and imports nothing. After you open it, a
+   Prufyx maintainer checks your public link and, if it holds, records the
+   invite and tells you in a comment on that issue. No response time is
+   promised yet.
+3. Which form for what: invite request -> maintainer project form;
+   observation request (a public repository to look at, no bundle) ->
+   [onboarding request form](https://github.com/prufyx/prufyx/issues/new?template=onboarding-request.yml);
+   bundle -> a pull request from your own fork, neither form.
+4. Not automated yet: building the bundle files. There is no command that
+   writes the bundle from your snapshot or its receipt digests; see the
+   [bundle README](../contrib/onboard-bundles/README.md). Until then, ask for
+   the invite first and say so in the issue.
+
 ## Send information
 
 If you can supply the files, the preferred route is an
@@ -21,6 +44,7 @@ umask 077
 mkdir -m 700 -p "$PRIVATE/corpus"
 prufyx-maintainer project init \
   --repository https://github.com/OWNER/REPOSITORY \
+  --slug SHORT-NAME \
   --release-limit 5 \
   --output "$PRIVATE/project-request.json"
 prufyx-maintainer project sync \
@@ -28,9 +52,15 @@ prufyx-maintainer project sync \
   --output-parent "$PRIVATE/corpus"
 ```
 
+Pass `--slug` with the short project name (for example `jobset`). Without it
+the slug is `<owner>-<name>-<hash>`, which will not match a bundle directory.
+`prufyx-maintainer` must be on your `PATH`: the build block in the guide does
+that with `export PATH="$PRIVATE/bin:$PATH"`. Without that build, use
+`cd cli && go run ./cmd/prufyx-maintainer ...` instead of the bare command.
+
 The request and snapshot stay private; `init` leaves the project unreviewed
-and not admitted. Prepare the bundle separately using the documented layout,
-and submit only public material you can redistribute. CI validates changed
+and not admitted. The bundle is prepared separately using the documented layout; that step is
+not automated yet (see above). Submit only public material you can redistribute. CI validates changed
 bundles using the validator built from the pull request's base branch; it does
 not establish the truth of the hints or add a compatibility claim.
 
@@ -61,7 +91,9 @@ the project was analyzed or covered.
 
 You need no access to anything except this public repository.
 
-1. Build the maintainer tool from a checkout (`cd cli && go build ./cmd/prufyx-maintainer`).
+1. Build the maintainer tool from a checkout (`cd cli && go build ./cmd/prufyx-maintainer`;
+   the binary lands in `cli/`, so add that directory to `PATH` or use `go run`).
+   It needs Go 1.26 (any 1.26.x); the first build can take a while.
 2. Optional: run `project init` (and `project sync` if you want a private
    snapshot) as shown above. Both stay on your machine.
 3. Either prepare a bundle and validate it offline:
