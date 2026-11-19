@@ -19,6 +19,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
+	"github.com/prufyx/prufyx/cli/internal/knowledgepin"
 	"github.com/prufyx/prufyx/cli/internal/observation"
 	"github.com/prufyx/prufyx/cli/internal/projectcheck"
 	"github.com/prufyx/prufyx/cli/internal/prometheusmode"
@@ -248,12 +249,39 @@ func (r runtime) versionCommand(args []string) int {
 	if err != nil {
 		return r.fail("build identity integrity failure", ExitIntegrity)
 	}
+	knowledgeRoot := knowledgeRootDigest()
+	if knowledgeRoot == "" {
+		return r.fail("build identity integrity failure", ExitIntegrity)
+	}
 	if *format == "human" {
-		fmt.Fprintln(r.stdout, versionLine(identity))
+		fmt.Fprintln(r.stdout, versionLine(identity)+"; knowledge root "+knowledgeRoot)
 		return ExitOK
 	}
-	return r.writeEnvelope(envelope{SchemaVersion: legacyEnvelopeAPIVersion, Command: "version", Result: envelopeResult{Status: "OK", Scope: "local build identity", Reason: "build_identity_reported"}, Data: identity}, ExitOK)
+	return r.writeEnvelope(envelope{SchemaVersion: legacyEnvelopeAPIVersion, Command: "version", Result: envelopeResult{Status: "OK", Scope: "local build identity", Reason: "build_identity_reported"}, Data: versionData{Identity: identity, KnowledgeRootDigest: knowledgeRoot}}, ExitOK)
 }
+
+// versionData is the `prufyx version` payload: the build identity plus the
+// knowledge root the binary verifies the official feed with. The digest is
+// read from the compiled-in pin at run time, never from a linker flag, so it
+// cannot differ from what `db update` enforces. It is separate from
+// trustRootDigest, the release-signing slot, which stays UNPINNED.
+type versionData struct {
+	buildidentity.Identity
+	KnowledgeRootDigest string `json:"knowledgeRootDigest"`
+}
+
+// knowledgeRootDigest returns the pinned initial root digest of the default
+// official knowledge profile, or "" when it is unpinned or malformed, which
+// makes `version` fail closed.
+func knowledgeRootDigest() string {
+	d := knowledgepin.Digest(officialKnowledgeProfile)
+	if d == "" || !knowledgepin.Valid(d) {
+		return ""
+	}
+	return d
+}
+
+const officialKnowledgeProfile = "cncf-projects"
 
 // versionLine words a build identity for a person. A development build says
 // that it is a source build and not a release, and that its identity is not
