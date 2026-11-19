@@ -37,14 +37,39 @@ var rowsBeforeData = []Target{
 	},
 }
 
+// rowsAddedLater are the rows added after the first six. Append further new
+// rows here; dropping or editing any pinned row fails the test.
+var rowsAddedLater = []Target{
+	{Component: "coredns", Repo: extract.RepoRef{Key: "github.com/coredns/coredns"}, Form: FormPerVersionFile, Path: "notes/coredns-{version}.md"},
+	{
+		Component: "fluentd", Repo: extract.RepoRef{Key: "github.com/fluent/fluentd"},
+		Form: FormFile, Path: "CHANGELOG.md",
+		HeadingPattern:   headingStyles["release-v-slash-date"],
+		BoundaryPatterns: []string{boundaryStyles["line-heading-v"]},
+	},
+	{
+		Component: "openfga", Repo: extract.RepoRef{Key: "github.com/openfga/openfga"},
+		Form: FormFile, Path: "CHANGELOG.md",
+		HeadingPattern:   headingStyles["version-bracketed-date"],
+		BoundaryPatterns: []string{boundaryStyles["prerelease-linked-paren-date"]},
+	},
+	{
+		Component: "traefik", Repo: extract.RepoRef{Key: "github.com/traefik/traefik"},
+		Form: FormFile, Path: "CHANGELOG.md",
+		HeadingPattern:   headingStyles["version-linked-paren-date"],
+		BoundaryPatterns: []string{boundaryStyles["prerelease-linked-paren-date"]},
+	},
+}
+
 func TestShippedTableLoads(t *testing.T) {
 	if err := LoadError(); err != nil {
 		t.Fatal(err)
 	}
-	if len(Reviewed) < len(rowsBeforeData) {
-		t.Fatalf("%d rows, want at least %d", len(Reviewed), len(rowsBeforeData))
+	pinned := append(append([]Target{}, rowsBeforeData...), rowsAddedLater...)
+	if len(Reviewed) != len(pinned) {
+		t.Fatalf("%d rows, want exactly %d pinned", len(Reviewed), len(pinned))
 	}
-	for _, want := range rowsBeforeData {
+	for _, want := range pinned {
 		got, err := Lookup(Reviewed, want.Component)
 		if err != nil {
 			t.Fatal(err)
@@ -136,6 +161,9 @@ func TestReviewedRows(t *testing.T) {
 				m, err := BuildManifest(r, row, extract.Tag{Name: "v1.2.3", Commit: testCommit}, zeroDigest)
 				if err != nil || m.Entry == nil || m.Withheld != nil {
 					t.Fatalf("want an entry: %v %+v", err, m)
+				}
+				if len(m.Entry.Items) == 0 {
+					t.Fatalf("the located entry has no items: %+v", m.Entry)
 				}
 				// A version with no file is withheld, never read from a neighbour.
 				m, err = BuildManifest(r, row, extract.Tag{Name: "v1.2.4", Commit: testCommit}, zeroDigest)
