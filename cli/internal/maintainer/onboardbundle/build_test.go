@@ -21,6 +21,7 @@ type fixtureOpts struct {
 	exact     bool     // v2 exact-tag snapshot
 	noLicence bool
 	noLog     bool
+	extra     string                  // second changelog-path source, e.g. a chart file
 	commits   []string                // real commit ids per tag; default fixCommit
 	logBody   func(tag string) string // upstream CHANGELOG bytes; default fixed text
 }
@@ -66,6 +67,9 @@ func fixtureFetcher(o fixtureOpts) projectonboarding.Fetcher {
 				}
 				return []byte("# Changes " + o.tags[i] + "\n\n- item\n"), 200, nil
 			}
+			if o.extra != "" && path == pre+o.extra {
+				return []byte("# Changes " + o.tags[i] + "\n\nname: chart\n"), 200, nil
+			}
 			if path == pre+"LICENSE" && !o.noLicence {
 				return []byte("licence text\n"), 200, nil
 			}
@@ -82,7 +86,11 @@ func makeSnapshot(t *testing.T, o fixtureOpts) string {
 		t.Fatal(err)
 	}
 	req := filepath.Join(work, "request.json")
-	args := []string{"init", "--repository", "https://github.com/acme/sample", "--slug", "sample", "--changelog-paths", "CHANGELOG.md", "--output", req}
+	paths := "CHANGELOG.md"
+	if o.extra != "" {
+		paths = o.extra // the snapshot keeps the first path found per commit
+	}
+	args := []string{"init", "--repository", "https://github.com/acme/sample", "--slug", "sample", "--changelog-paths", paths, "--output", req}
 	if o.exact {
 		args = append(args, "--license-anchor-tag", o.tags[0])
 		for _, tg := range o.tags {
@@ -670,4 +678,138 @@ func TestBuildRejectsPositionalArgsAndPostTagDuplicates(t *testing.T) {
 		t.Fatalf("exit %d", c)
 	}
 	noOutput(t, out)
+}
+
+// ---- declared chart hint ----
+
+var threeTagsChart = fixtureOpts{tags: []string{"v1.2.0", "v1.1.0", "v1.0.0"}, extra: "charts/sample/CHANGELOG.md"}
+
+func chartOpts(t *testing.T, path, ver string) BuildOptions {
+	t.Helper()
+	snap := makeSnapshot(t, threeTagsChart)
+	o := baseOpts(snap, outDir(t))
+	o.PostTag = map[string]bool{"charts/sample/CHANGELOG.md": false}
+	o.ChartPath, o.ChartVersion = path, ver
+	return o
+}
+
+func TestBuildChartDeclaredIsRecordedAndSetsNothingElse(t *testing.T) {
+	for _, p := range []string{"charts/sample/CHANGELOG.md", "charts/sample"} {
+		o := chartOpts(t, p, "1.0.0+build.5")
+		o.Out = outDir(t)
+		if _, err := Build(o); err != nil {
+			t.Fatalf("%s: %v", p, err)
+		}
+		proj := readJSON(t, o.Out, "project.json")
+		ch, _ := proj["chart"].(map[string]any)
+		if ch["path"] != p || ch["version"] != "1.0.0+build.5" || len(ch) != 2 {
+			t.Fatalf("chart not recorded: %v", proj["chart"])
+		}
+		if f, err := Validate(o.Out); err != nil || len(f) != 0 {
+			t.Fatalf("bundle with chart does not validate: %v %v", f, err)
+		}
+		// no verdict or coverage fields; skeleton stays skeleton; receipt has no chart
+		td := readJSON(t, o.Out, "target-draft.json")
+		if td["status"] != "no-crds" {
+			t.Fatalf("status changed: %v", td["status"])
+		}
+		for _, name := range []string{"target-draft.json", "scan-notes.json", "relnotes-sources.json", "receipt.json"} {
+			raw, _ := os.ReadFile(filepath.Join(o.Out, name))
+			if strings.Contains(string(raw), "1.0.0+build.5") || strings.Contains(string(raw), "charts/sample/CHANGELOG") && name != "relnotes-sources.json" {
+				t.Fatalf("%s carries the chart declaration", name)
+			}
+		}
+		for k := range proj {
+			if k == "verdict" || k == "coverage" || k == "origin" {
+				t.Fatalf("unexpected key %s", k)
+			}
+		}
+	}
+}
+
+func TestBuildWithoutChartWritesNoChartKey(t *testing.T) {
+	o := chartOpts(t, "", "")
+	if _, err := Build(o); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := readJSON(t, o.Out, "project.json")["chart"]; ok {
+		t.Fatal("chart key written without a declaration")
+	}
+}
+
+func TestBuildChartRefusals(t *testing.T) {
+	long := strings.Repeat("a", 254)
+	cases := []struct{ name, path, ver, want string }{
+		{"version without path", "", "1.0.0", "go together"},
+		{"path without version", "charts/sample", "", "go together"},
+		{"path not in snapshot", "charts/other", "1.0.0", "snapshot holds no file"},
+		{"partial segment is not a directory", "charts/sam", "1.0.0", "snapshot holds no file"},
+		{"path over 253", long, "1.0.0", "253"},
+		{"path charset", "charts/sam ple", "1.0.0", "plain repo-relative"},
+		{"path dot segment", "charts/../x", "1.0.0", "plain repo-relative"},
+		{"path absolute", "/charts/sample", "1.0.0", "plain repo-relative"},
+		{"path glob", "charts/*", "1.0.0", "plain repo-relative"},
+		{"version over 128", "charts/sample", strings.Repeat("1", 129), "128"},
+		{"version charset", "charts/sample", "1.0.0;rm", "128 characters"},
+		{"version leading dash", "charts/sample", "-1", "128 characters"},
+	}
+	for _, c := range cases {
+		o := chartOpts(t, c.path, c.ver)
+		_, err := Build(o)
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: want refusal containing %q, got %v", c.name, c.want, err)
+		}
+		if _, e := os.Lstat(o.Out); e == nil {
+			t.Errorf("%s: output written on refusal", c.name)
+		}
+	}
+}
+
+func TestBuildChartPathHeldOnlyAtUnbuiltTagIsRefused(t *testing.T) {
+	o := chartOpts(t, "charts/sample", "1.0.0")
+	o.Tags = []string{"v1.2.0"}
+	// the file is held at every tag in this fixture, so build with the real
+	// view and drop the sources' commits: no kept tag holds the path.
+	sv, err := loadSnapshotView(o.SnapshotDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range sv.Sources {
+		sv.Sources[i].Commit = "ffffffffffffffffffffffffffffffffffffffff"
+	}
+	kept := []snapTag{{Tag: "v1.2.0", Commit: fixCommit(0)}}
+	if _, err := chartDecl(o, sv, kept); err == nil {
+		t.Fatal("accepted a path the snapshot holds at no built tag")
+	}
+}
+
+func TestBundleWithoutChartStillValidates(t *testing.T) {
+	// the committed fixtures predate the field
+	if f, err := Validate("testdata/valid"); err != nil || len(f) != 0 {
+		t.Fatalf("old bundle: %v %v", f, err)
+	}
+}
+
+func TestChartFieldIsClosedInSchema(t *testing.T) {
+	d := t.TempDir()
+	for _, n := range []string{"project.json", "target-draft.json", "scan-notes.json", "relnotes-sources.json", "receipt.json"} {
+		raw, err := os.ReadFile(filepath.Join("testdata/valid", n))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n == "project.json" {
+			raw = []byte(strings.Replace(string(raw), `"cncfStatusClaim"`, `"chart": {"path": "c", "version": "1", "verdict": "PASS"}, "cncfStatusClaim"`, 1))
+		}
+		os.WriteFile(filepath.Join(d, n), raw, 0o600)
+	}
+	f, _ := Validate(d)
+	found := false
+	for _, x := range f {
+		if strings.Contains(x, "chart") && strings.Contains(x, "verdict") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("unknown key inside chart not refused by the closed schema: %v", f)
+	}
 }

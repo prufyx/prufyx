@@ -100,7 +100,7 @@ Where each field comes from:
 | --- | --- |
 | repository, release lines (tag, commit), licence path, commit and sha256, changelog commits, file digests and line spans | the snapshot (derived, nothing guessed) |
 | `generatedAt` | the snapshot's observation time, so the same snapshot and flags give byte-identical files |
-| `spdxGuess`, `cncfStatusClaim`, `postTag`, `tagPrefix` (only when it cannot be derived), `minFrom` override, `no-crds` status | **declared by you** with `--spdx`, `--cncf` (default `none`, never looked up), `--post-tag` or `--no-post-tag` per changelog path, `--tag-prefix`, `--min-from`, `--no-crds` |
+| `spdxGuess`, `cncfStatusClaim`, `postTag`, `tagPrefix` (only when it cannot be derived), `minFrom` override, `no-crds` status | **declared by you** with `--spdx`, `--cncf` (default `none`, never looked up), `--post-tag` or `--no-post-tag` per changelog path, `--tag-prefix`, `--min-from`, `--no-crds`; optional `chart.path` and `chart.version` with `--chart-path` and `--chart-version` |
 | `tool.prufyxCommit` | the commit embedded in the binary at build time (the `-ldflags` line above); a binary built without it writes `0000...0000`, meaning unverified |
 
 What the result does and does not say:
@@ -120,6 +120,37 @@ What the result does and does not say:
   (the same limits as `seal`), or an `--out` that already exists. On a refusal
   nothing is written. A filled target is not supported here.
 - A snapshot with more than six release lines needs `--tags`.
+
+### Projects without CRDs
+
+A project that ships no CustomResourceDefinitions is declared with
+`--no-crds`. If its evidence is a Helm chart, you can point to it so the
+pipeline's chart resolver knows where to look:
+
+```
+prufyx-maintainer onboard-bundle build ... --no-crds \
+  --chart-path charts/<name> --chart-version <chart version>
+```
+
+- Both flags go together (a version without a path, or a path without a
+  version, is refused). Both are **declared by you**: nothing is derived or
+  guessed, and the version is not compared with anything.
+- Limits: path at most 253 characters, letters, digits and `. _ / + -`, a plain
+  repo-relative path (no absolute path, dot segment or glob); version at most
+  128 characters, starting with a letter or digit, then letters, digits and
+  `. _ + -`.
+- The path must be a file the snapshot already holds (a path you gave to
+  `project init --changelog-paths`; the snapshot keeps the first path found per
+  tag), or a directory that contains one, at a built tag. A path the snapshot
+  holds nothing under is refused: the chart is never accepted on its own. For a
+  chart whose changelog lives in the chart directory, list that changelog file
+  and declare the directory.
+- It is written to `project.json` as `chart: {path, version}`. The field is
+  optional; bundles without it stay valid. It is a hint only: it never sets a
+  verdict, coverage or a filled target, and it is not in the receipt.
+- Check the factory side before relying on it: the intake validator uses a
+  pinned copy of the bundle schema and refuses `chart` until that copy is
+  updated.
 
 In your pull request text, list the values you declared (the table row above)
 and every field of your `--target-input` and `--scan-path` notes.

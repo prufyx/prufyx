@@ -36,6 +36,8 @@ var (
 	buildTagRE    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/+-]{0,127}$`)
 	buildSHARE    = regexp.MustCompile(`^[0-9a-f]{64}$`)
 	versionRE     = regexp.MustCompile(`^\D*([0-9]{1,6})\.([0-9]{1,6})(?:\.([0-9]{1,6}))?`)
+	chartPathRE   = regexp.MustCompile(`^[A-Za-z0-9._/+-]{1,253}$`)
+	chartVerRE    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$`)
 	cncfValues    = []string{"graduated", "incubating", "sandbox", "none", "unknown"}
 )
 
@@ -71,6 +73,16 @@ optional (declared by you, never guessed):
   -tag-prefix P   tag prefix when it cannot be derived from the tags
   -min-from L     lowest supported release line, one of the built lines
   -no-crds        mark target-draft status no-crds (your declaration)
+  -chart-path P / -chart-version V
+                  declare the Helm chart that is your evidence (both or
+                  neither): a repo-relative path (at most 253 characters) and
+                  a version (at most 128). The path must be a file the
+                  snapshot holds (a path you gave to "project init
+                  --changelog-paths") or a directory that contains one, at a
+                  built tag. Written to project.json as chart.path and
+                  chart.version. It is a hint for the pipeline's chart
+                  resolver; it never sets a verdict or coverage and is never
+                  derived or checked against the chart.
   -checkout DIR   a local git clone (never fetched, working tree never read).
                   With -scan-path it records, per built tag, the sha256 of
                   blobs the SNAPSHOT already holds (changelog files, the
@@ -125,6 +137,8 @@ func runBuild(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&o.TagPrefix, "tag-prefix", "", "")
 	fs.StringVar(&o.MinFrom, "min-from", "", "")
 	fs.BoolVar(&o.NoCRDs, "no-crds", false, "")
+	fs.StringVar(&o.ChartPath, "chart-path", "", "")
+	fs.StringVar(&o.ChartVersion, "chart-version", "", "")
 	fs.StringVar(&o.Checkout, "checkout", "", "")
 	fs.StringVar(&o.TargetInput, "target-input", "", "")
 	var scanPaths multiFlag
@@ -186,20 +200,22 @@ func runBuild(args []string, stdout, stderr io.Writer) int {
 // BuildOptions are the inputs of Build. Every declared value comes from a
 // flag; nothing is guessed from the snapshot.
 type BuildOptions struct {
-	SnapshotDir string
-	Slug        string
-	SPDX        string
-	Out         string
-	CNCF        string
-	Tags        []string
-	TagPrefix   string
-	MinFrom     string
-	NoCRDs      bool
-	Checkout    string          // local clone; read only for blobs the snapshot holds
-	ScanPaths   []string        // PATH:CLASS[:NOTE], needs Checkout
-	TargetInput string          // maintainer hint file; shapes the skeleton only
-	PostTag     map[string]bool // changelog path -> postTag
-	ToolCommit  string          // build-embedded commit; anything but 40-hex is written as unverified
+	SnapshotDir  string
+	Slug         string
+	SPDX         string
+	Out          string
+	CNCF         string
+	Tags         []string
+	TagPrefix    string
+	MinFrom      string
+	NoCRDs       bool
+	ChartPath    string // declared chart hint, with ChartVersion; never derived
+	ChartVersion string
+	Checkout     string          // local clone; read only for blobs the snapshot holds
+	ScanPaths    []string        // PATH:CLASS[:NOTE], needs Checkout
+	TargetInput  string          // maintainer hint file; shapes the skeleton only
+	PostTag      map[string]bool // changelog path -> postTag
+	ToolCommit   string          // build-embedded commit; anything but 40-hex is written as unverified
 }
 
 // BuildResult carries the lines Build reports.
@@ -257,6 +273,15 @@ func Build(o BuildOptions) (BuildResult, error) {
 	}
 	if o.TagPrefix != "" && !buildPrefixRE.MatchString(o.TagPrefix) {
 		return res, refuse("--tag-prefix %q is not an allowed tag prefix", o.TagPrefix)
+	}
+	if (o.ChartPath == "") != (o.ChartVersion == "") {
+		return res, refuse("--chart-path and --chart-version go together: give both or neither")
+	}
+	if o.ChartPath != "" && (!chartPathRE.MatchString(o.ChartPath) || !safeRepoPath(o.ChartPath)) {
+		return res, refuse("--chart-path %q must be a plain repo-relative path of at most 253 characters (letters, digits, . _ / + -)", o.ChartPath)
+	}
+	if o.ChartVersion != "" && !chartVerRE.MatchString(o.ChartVersion) {
+		return res, refuse("--chart-version %q must be at most 128 characters (letters, digits, . _ + -, starting with a letter or digit)", o.ChartVersion)
 	}
 	if o.MinFrom != "" && !buildLineRE.MatchString(o.MinFrom) {
 		return res, refuse("--min-from %q must look like 1.2", o.MinFrom)
@@ -734,6 +759,10 @@ func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, string, 
 	if !o.NoCRDs && (ti == nil || len(ti.paths) == 0) {
 		return nil, notes, check, refuse("no CRD paths found: pass --no-crds if the project ships no CustomResourceDefinitions, or --target-input with its CRD paths")
 	}
+	chart, err := chartDecl(o, sv, kept)
+	if err != nil {
+		return nil, notes, check, err
+	}
 	docs := map[string]any{
 		"project.json": map[string]any{
 			"schema": "prufyx.io/onboard-bundle/v1", "kind": "project",
@@ -771,7 +800,36 @@ func buildDocs(o BuildOptions, sv *snapView) (map[string]any, []string, string, 
 			}
 		}
 	}
+	if chart != nil {
+		docs["project.json"].(map[string]any)["chart"] = chart
+	}
 	return docs, notes, check, nil
+}
+
+// chartDecl returns the declared chart hint (nil when not declared). The
+// path must be a blob path the verified snapshot holds at a built tag, or a
+// directory containing one; nothing is read from anywhere else and nothing
+// is derived. The result never carries a verdict.
+func chartDecl(o BuildOptions, sv *snapView, kept []snapTag) (map[string]any, error) {
+	if o.ChartPath == "" && o.ChartVersion == "" {
+		return nil, nil
+	}
+	if o.ChartPath == "" || o.ChartVersion == "" {
+		return nil, refuse("--chart-path and --chart-version go together: give both or neither")
+	}
+	commits := map[string]bool{}
+	for _, t := range kept {
+		commits[t.Commit] = true
+	}
+	for _, s := range sv.Sources {
+		if !commits[s.Commit] {
+			continue
+		}
+		if s.Path == o.ChartPath || strings.HasPrefix(s.Path, o.ChartPath+"/") {
+			return map[string]any{"path": o.ChartPath, "version": o.ChartVersion}, nil
+		}
+	}
+	return nil, refuse("--chart-path %s: the snapshot holds no file at or under this path at any built tag; add a chart file with \"project init --changelog-paths\" and sync again (the chart path is never accepted on its own)", o.ChartPath)
 }
 
 func lineList(ts []snapTag) []string {
