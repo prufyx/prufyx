@@ -10,6 +10,14 @@
       "boundaryStyles": ["main-unreleased-parenthesised"]
     },
     {
+      "component": "antrea",
+      "repo": "github.com/antrea-io/antrea",
+      "form": "changelog-per-line-file",
+      "path": "CHANGELOG/CHANGELOG-{line}.md",
+      "headingStyle": "version-dash-date",
+      "boundaryStyles": ["prerelease-linked-paren-date"]
+    },
+    {
       "component": "aws-ebs-csi-driver",
       "repo": "github.com/kubernetes-sigs/aws-ebs-csi-driver",
       "form": "post-tag"
