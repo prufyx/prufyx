@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -70,8 +71,34 @@ func TestPlanCommand(t *testing.T) {
 	if code, _, _ := runPlan(t, append([]string{path, "--to", "kubernetes=latest", "--to", "kubernetes=newest-covered"}, declared...)...); code != ExitUsage {
 		t.Fatalf("latest and newest-covered %d", code)
 	}
-	if code, _, _ := runPlan(t, append([]string{path, "--to", "cilium=newest-covered"}, declared...)...); code != ExitUsage {
+	if code, _, _ := runPlan(t, append([]string{path, "--to", "no-such-app=newest-covered"}, declared...)...); code != ExitUsage {
 		t.Fatalf("newest-covered without lines %d", code)
+	}
+	// An application resolves newest-covered only with a current reviewed
+	// path policy too. cert-manager has none in the embedded knowledge:
+	// refused, naming what is missing, no plan.
+	code, stdout, stderr = runPlan(t, path, "--from", "cert-manager=1.14.0", "--to", "cert-manager=newest-covered", "--now", supersedeids.ClockString(), "--format", "json")
+	if code != ExitUsage || stdout != "" || !strings.Contains(stderr, "no reviewed upgrade path policy for cert-manager: give an exact version with --to cert-manager=X.Y.Z") {
+		t.Fatalf("app newest-covered without policy %d\n%s\n%s", code, stdout, stderr)
+	}
+	// An explicit version without a policy stays: one hop, UNKNOWN, noted.
+	code, stdout, stderr = runPlan(t, path, "--from", "cert-manager=1.20.0", "--to", "cert-manager=1.21.3", "--now", supersedeids.ClockString(), "--format", "json")
+	var app upgradeplan.Plan
+	if err := json.Unmarshal([]byte(stdout), &app); err != nil || len(app.Stages) != 1 || app.Stages[0].Verdict != upgradeplan.VerdictUnknown ||
+		!slices.Contains(app.Stages[0].Notices, "no reviewed upgrade path policy for cert-manager: planned as one hop, UNKNOWN") {
+		t.Fatalf("explicit app version %d %v\n%s\n%s", code, err, stdout, stderr)
+	}
+	if _, human, _ := runPlan(t, path, "--from", "cert-manager=1.20.0", "--to", "cert-manager=1.21.3", "--now", supersedeids.ClockString()); !strings.Contains(human, "no reviewed upgrade path policy for cert-manager: planned as one hop, UNKNOWN") {
+		t.Fatalf("human output lacks the path policy note\n%s", human)
+	}
+	// A known catalog project with no line attestation reaches the not-found
+	// branch and keeps the usage error and its text.
+	if code, _, stderr := runPlan(t, path, "--to", "etcd=newest-covered"); code != ExitUsage || !strings.Contains(stderr, "no current reviewed release line of etcd") {
+		t.Fatalf("known app without attestation %d %s", code, stderr)
+	}
+	// An unknown application keeps the usage error.
+	if code, _, stderr := runPlan(t, path, "--to", "no-such-app=newest-covered"); code != ExitUsage || !strings.Contains(stderr, "no current reviewed release line") {
+		t.Fatalf("no attestation %d %s", code, stderr)
 	}
 	if code, _, _ := runPlan(t, path, "--to", "kubernetes=1.30.4", "--fail-on", "none"); code != ExitUsage {
 		t.Fatalf("fail-on %d", code)

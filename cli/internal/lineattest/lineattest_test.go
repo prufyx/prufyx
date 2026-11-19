@@ -331,3 +331,79 @@ func TestAttestationWithoutReleasesEncodesWithoutThem(t *testing.T) {
 		t.Fatalf("encoded %s", data)
 	}
 }
+
+func TestIndexNewestReleased(t *testing.T) {
+	crd := func(line string, to []string, mutate func(*LineAttestation)) LineAttestation {
+		a := reviewed(line)
+		a.Component, a.FactFamily = "pkg:github/x/app", FamilyCustomResourceVersions
+		a.Releases = &Releases{}
+		for _, v := range to {
+			a.Releases.To = append(a.Releases.To, Release{Version: v, Commit: strings.Repeat("c", 40)})
+		}
+		if mutate != nil {
+			mutate(&a)
+		}
+		return a
+	}
+	now := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	ix := NewIndex([]LineAttestation{
+		crd("1.9", []string{"1.9.0", "1.9.2"}, nil),
+		crd("1.10", []string{"1.10.0", "1.10.9", "1.10.10", "1.10.11-rc.1"}, nil),
+		crd("1.11", []string{"1.11.0"}, func(a *LineAttestation) { a.Evidence.ValidUntil = "2026-10-15T00:00:00Z" }),
+		crd("1.12", []string{"1.12.0"}, func(a *LineAttestation) { a.Completeness = "PARTIAL" }),
+		crd("1.13", nil, nil),
+		crd("1.14", []string{"1.15.0"}, nil),
+	})
+	line, version, ok := ix.NewestReleased("pkg:github/x/app", FamilyCustomResourceVersions, now)
+	if !ok || line != "1.10" || version != "1.10.10" {
+		t.Fatalf("%q %q %v", line, version, ok)
+	}
+	if _, _, ok := ix.NewestReleased("pkg:github/x/other", FamilyCustomResourceVersions, now); ok {
+		t.Fatal("another component")
+	}
+	if _, _, ok := ix.NewestReleased("pkg:github/x/app", FamilyKubernetesRemovedServedGVK, now); ok {
+		t.Fatal("another family")
+	}
+	if _, _, ok := ix.NewestReleased("pkg:github/x/app", FamilyCustomResourceVersions, time.Date(2027, 6, 1, 0, 0, 0, 0, time.UTC)); ok {
+		t.Fatal("stale attestations")
+	}
+}
+
+// A newer line that is stale, incomplete, not yet reviewed, or whose releases
+// are v-prefixed or pre-releases never wins: the newest complete and current
+// line with a plain X.Y.Z release is chosen, or nothing.
+func TestIndexNewestReleasedFallsBack(t *testing.T) {
+	const comp = "pkg:github/x/app"
+	mk := func(line string, to []string, mutate func(*LineAttestation)) LineAttestation {
+		a := reviewed(line)
+		a.Component, a.FactFamily = comp, FamilyCustomResourceVersions
+		a.Releases = &Releases{}
+		for _, v := range to {
+			a.Releases.To = append(a.Releases.To, Release{Version: v, Commit: strings.Repeat("c", 40)})
+		}
+		if mutate != nil {
+			mutate(&a)
+		}
+		return a
+	}
+	now := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	older := mk("1.5", []string{"1.5.0", "1.5.3"}, nil)
+	for name, newer := range map[string]LineAttestation{
+		"stale": mk("1.6", []string{"1.6.0"}, func(a *LineAttestation) { a.Evidence.ValidUntil = "2026-10-15T00:00:00Z" }),
+		"not reviewed": mk("1.6", []string{"1.6.0"}, func(a *LineAttestation) {
+			a.Evidence.ReviewedAt = "2026-11-15T00:00:00Z"
+			a.Evidence.ValidUntil = "2027-01-01T00:00:00Z"
+		}),
+		"partial":     mk("1.6", []string{"1.6.0"}, func(a *LineAttestation) { a.Completeness = "PARTIAL" }),
+		"v-prefixed":  mk("1.6", []string{"v1.6.0"}, nil),
+		"pre-release": mk("1.6", []string{"1.6.0-rc.1"}, nil),
+	} {
+		line, version, ok := NewIndex([]LineAttestation{older, newer}).NewestReleased(comp, FamilyCustomResourceVersions, now)
+		if !ok || line != "1.5" || version != "1.5.3" {
+			t.Fatalf("%s: %q %q %v", name, line, version, ok)
+		}
+		if _, _, ok := NewIndex([]LineAttestation{newer}).NewestReleased(comp, FamilyCustomResourceVersions, now); ok {
+			t.Fatalf("%s alone resolved", name)
+		}
+	}
+}

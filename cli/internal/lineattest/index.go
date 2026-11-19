@@ -3,6 +3,8 @@
 package lineattest
 
 import (
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
@@ -105,4 +107,49 @@ func copyOf(a LineAttestation) LineAttestation {
 		a.Evidence.Extractor = &x
 	}
 	return a
+}
+
+// NewestReleased is the newest minor line of the component whose attestation
+// in the family is current at now, is complete, and lists a release it
+// covers, with the newest attested patch release of that line.
+// Only attestations with the complete-rules statement, a current window and
+// release versions that are plain X.Y.Z of the attested line count; a line
+// that does not meet this is skipped, never repaired. ok is false when no
+// line qualifies. It is the newest line with a complete reviewed rule set,
+// not the newest release that exists.
+func (ix Index) NewestReleased(component, family string, now time.Time) (line, version string, ok bool) {
+	for key, a := range ix.byKey {
+		if key.Component != component || key.Family != family || a.Completeness != Completeness ||
+			a.Freshness(now) != FreshnessCurrent || a.Releases == nil || !ValidLine(key.Line) {
+			continue
+		}
+		if ok && !LineLess(line, key.Line) {
+			continue
+		}
+		best, found := newestPatch(a.Releases.To, key.Line)
+		if !found {
+			continue
+		}
+		line, version, ok = key.Line, best, true
+	}
+	return line, version, ok
+}
+
+// newestPatch returns the highest X.Y.Z release of the line in releases.
+func newestPatch(releases []Release, line string) (string, bool) {
+	best, bestPatch := "", -1
+	for _, r := range releases {
+		got, valid := LineOf(r.Version)
+		if !valid || got != line || strings.ContainsAny(r.Version, "-+") {
+			continue
+		}
+		patch, err := strconv.Atoi(r.Version[len(line)+1:])
+		if err != nil {
+			continue
+		}
+		if patch > bestPatch {
+			best, bestPatch = r.Version, patch
+		}
+	}
+	return best, bestPatch >= 0
 }

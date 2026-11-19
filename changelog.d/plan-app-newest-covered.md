@@ -1,0 +1,3 @@
+### Added
+
+- `prufyx plan --to <app>=newest-covered` resolves for an application only when the knowledge has both a complete, current reviewed line attestation and a current reviewed upgrade path policy for it. It then targets the newest line with a complete reviewed rule set, at that line's newest attested patch version, and never emits a PASS stage. Otherwise it exits 2 and names what is missing (for example "no reviewed upgrade path policy for cert-manager: give an exact version with --to cert-manager=X.Y.Z"). An explicit `--to <app>=X.Y.Z` without a path policy is still planned as one hop, now with a note saying so. Kubernetes behaviour is unchanged.
