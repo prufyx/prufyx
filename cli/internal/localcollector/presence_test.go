@@ -5,6 +5,8 @@ package localcollector
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -84,10 +86,78 @@ func TestRealAbsenceAndHealthyPodsStayQuiet(t *testing.T) {
 		"no matching image anywhere":  {"deployments.apps", deployment(map[string]any{"containers": other, "initContainers": other})},
 		"unrelated bare pod":          {"pods", map[string]any{"kind": "Pod", "metadata": map[string]any{}, "spec": map[string]any{"containers": other, "ephemeralContainers": other}}},
 		"same image in init and main": {"deployments.apps", deployment(map[string]any{"containers": ctr(presenceImage), "initContainers": ctr(presenceImage)})},
-		"controller-owned pod":        {"pods", map[string]any{"kind": "Pod", "metadata": owner("ReplicaSet", "apps/v1", true)["metadata"], "spec": map[string]any{"containers": ctr(presenceImage)}}},
 	} {
 		if got := collectOmissions(t, r, true); strings.Contains(got, OmissionComponentVersionUnbound) {
 			t.Fatalf("%s: unexpected %q", name, got)
 		}
+	}
+}
+
+func TestInjectedSidecarInOwnedPodIsNotAbsent(t *testing.T) {
+	other := ctr("registry.example/other/app:v1.0.0")
+	rs := map[string]any{"kind": "ReplicaSet", "metadata": map[string]any{"name": "rs1", "namespace": "ns"},
+		"spec": map[string]any{"template": map[string]any{"spec": map[string]any{"containers": other}}}}
+	podMeta := func() map[string]any {
+		return map[string]any{"name": "p", "namespace": "ns", "ownerReferences": []any{
+			map[string]any{"kind": "ReplicaSet", "apiVersion": "apps/v1", "name": "rs1", "controller": true}}}
+	}
+	run := func(containers []any) string {
+		pod := map[string]any{"kind": "Pod", "metadata": podMeta(), "spec": map[string]any{"containers": containers}}
+		return collectOmissions(t, multiRunner{"replicasets.apps": rs, "pods": pod}, true)
+	}
+	// Sidecar with a reviewed component image that the owner template lacks.
+	if got := run(append(append([]any{}, other...), ctr(presenceImage)...)); strings.Count(got, OmissionComponentVersionUnbound) != 1 {
+		t.Fatalf("injected sidecar: omissions=%q", got)
+	}
+	// Pod matching its owner template stays quiet.
+	if got := run(other); strings.Contains(got, OmissionComponentVersionUnbound) {
+		t.Fatalf("template-matching pod: unexpected %q", got)
+	}
+	// An owner that was not read cannot vouch for the Pod.
+	pod := map[string]any{"kind": "Pod", "metadata": podMeta(), "spec": map[string]any{"containers": ctr(presenceImage)}}
+	if got := collectOmissions(t, multiRunner{"pods": pod}, true); strings.Count(got, OmissionComponentVersionUnbound) != 1 {
+		t.Fatalf("unread owner: omissions=%q", got)
+	}
+}
+
+// multiRunner serves one raw item per resource.
+type multiRunner map[string]map[string]any
+
+func (r multiRunner) Run(_ context.Context, argv, _ []string, _ time.Duration) (CommandResult, error) {
+	joined := strings.Join(argv, " ")
+	for resource, item := range r {
+		if strings.Contains(joined, " "+resource+" ") {
+			raw, _ := json.Marshal(map[string]any{"items": []any{item}})
+			return CommandResult{Stdout: raw}, nil
+		}
+	}
+	return CommandResult{Stdout: fakeResponse(argv)}, nil
+}
+
+func TestLocalCollectionDocListsEveryWorkloadRead(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "docs", "local-collection.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var always string
+	for _, line := range strings.Split(string(raw), "\n") {
+		if strings.HasPrefix(line, "| Always |") {
+			always = strings.ToLower(line)
+		}
+	}
+	if always == "" {
+		t.Fatal("Always row missing")
+	}
+	for _, q := range baseQueries {
+		if !isWorkload(q.name) {
+			continue
+		}
+		resource := strings.SplitN(q.args[1], ".", 2)[0]
+		if !strings.Contains(always, resource) {
+			t.Fatalf("docs Always row does not list %s", resource)
+		}
+	}
+	if strings.Contains(string(raw), "adds the declared Pod read without") {
+		t.Fatal("stale statement that Pods are read only with --include-pod-status-images")
 	}
 }
