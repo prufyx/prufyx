@@ -32,6 +32,7 @@ func TestLocalCollectionDocListsChartIdentity(t *testing.T) {
 		"chart name", "chart version", "`source`", "`declared`", "`label`", "namespace and name", "`state`",
 		"253 bytes", "128 bytes", bundlechart.OmissionLabelMalformed, bundlechart.OmissionSourceUnread,
 		"`ambiguous`", "`not_declared`", bundlechart.NextActionDeclare,
+		"only for workloads carrying the chart label", "there is no `prufyx.yaml` path yet",
 		"release records", "Secret", "ConfigMap", "values", "rendered manifests", "adds no request",
 	} {
 		if !strings.Contains(collection, want) {
@@ -48,8 +49,11 @@ func TestLocalCollectionDocListsChartIdentity(t *testing.T) {
 			t.Errorf("chart identity section does not list the workload kind %s the label path reads", kind)
 		}
 	}
+	if !strings.Contains(nameOmission, "except the source workload kind, namespace and name kept by chart identity, only for workloads carrying the chart label") {
+		t.Error("omittedByPolicy name omission lacks the chart identity exception")
+	}
 	handling := readDoc(t, "data-handling.md")
-	for _, want := range []string{"chart identity", "--chart-declaration", bundlechart.ChartLabel, "Secrets", "ConfigMaps", "never read"} {
+	for _, want := range []string{"chart identity", "--chart-declaration", bundlechart.ChartLabel, "Secrets", "ConfigMaps", "never read", "no `prufyx.yaml` path yet", "chart identity exception"} {
 		if !strings.Contains(handling, want) {
 			t.Errorf("data-handling.md does not mention %q", want)
 		}

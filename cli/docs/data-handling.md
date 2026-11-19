@@ -178,7 +178,7 @@ remain local configuration boundaries. Additional environment forwarding is
 explicit; an ambient proxy is not silently bypassed.
 
 Raw objects are projected locally before output is retained. Private image paths,
-workload names, raw commands, environment values, credentials, Secrets and
+workload names (except the chart identity exception below), raw commands, environment values, credentials, Secrets and
 ConfigMap contents are omitted. Collection adds no write permissions and does
 not execute commands in Pods. Exact resources and disclosed retained fields are
 listed in [local collection](local-collection.md).
@@ -187,7 +187,8 @@ The one exception for labels is chart identity: the chart name and chart version
 from your own `--chart-declaration` file or from the `helm.sh/chart` label of
 workloads the collector already reads, kept with the kind, namespace and name of
 the object the label came from. The package manager's release records,
-Secrets, ConfigMaps and values are never read for it; see the chart identity
+Secrets, ConfigMaps and values are never read for it; For now the declaration path is the
+`--chart-declaration` collector flag only; there is no `prufyx.yaml` path yet. See the chart identity
 section of [local collection](local-collection.md).
 
 Context pseudonyms use a random per-run key that is discarded. Repeated contexts
