@@ -37,7 +37,7 @@ var readmeInventoryCounts = []string{
 }
 
 // READMECountsSchema is the schema of the document ReadmeCountsJSON writes.
-const READMECountsSchema = "prufyx.io/coverage-readme-counts/v2"
+const READMECountsSchema = "prufyx.io/coverage-readme-counts/v3"
 
 // ReadmeCountsJSON is the document the README block is rendered from: the
 // report, the support-inventory counts the block prints and the SHA-256 of the
@@ -144,6 +144,10 @@ func RenderREADMEBlock(r Report, inventoryJSON []byte, now time.Time) (string, e
 	}
 	w(".\n\n<details>\n<summary>Per project: A/B decided, k8s served-API, S, L listed not judged, G gap with reason</summary>\n\n")
 	w("%s\n</details>\n\n", renderFormsTable(forms))
+	w("%s\n\n%s\n", familyScopeText, renderFamilyRows(forms.Families))
+	if g := forms.Fleet; g.PermanentGapProjects > 0 {
+		w("Permanent gap, %s (%s): %d projects, %d upgrades in the fleet.\n\n", GapReasonNoSurface, GapReasonNoSurfaceText, g.PermanentGapProjects, g.PermanentGapPairs)
+	}
 	w("Kubernetes: %d valid rules, but %d fall in its window %s to %s; %d of %d upgrades in that window are gaps.\n\n", k.ValidRules, k.RulesInWindow, k.Window[0], k.Window[len(k.Window)-1], k.G, k.A+k.B+k.S+k.G)
 	if cl := changelogSentence(r.changelog); cl != "" {
 		w("%s\n", cl)

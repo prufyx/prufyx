@@ -28,6 +28,9 @@ const (
 	// form). A v1 file stays readable and has no forms; any other schema is
 	// refused.
 	CountsSchemaV2 = "prufyx.io/coverage-readme-counts/v2"
+	// CountsSchemaV3 adds, to the forms table, one row per evidence family and
+	// the permanent-gap counts. v1 and v2 files stay readable.
+	CountsSchemaV3 = "prufyx.io/coverage-readme-counts/v3"
 	// CountsPath is where a tree commits its counts file; the previous
 	// release is read from it with `git show <tag>:<path>`.
 	CountsPath = "cli/docs/generated/coverage-counts.json"
@@ -98,8 +101,8 @@ func LoadCounts(data, readme []byte) (*Counts, error) {
 	if err := json.Unmarshal(data, &probe); err != nil {
 		return nil, fmt.Errorf("counts file: %w", err)
 	}
-	if probe.Schema != CountsSchema && probe.Schema != CountsSchemaV2 {
-		return nil, fmt.Errorf("counts file: schema %q, want %q or %q", probe.Schema, CountsSchema, CountsSchemaV2)
+	if probe.Schema != CountsSchema && probe.Schema != CountsSchemaV2 && probe.Schema != CountsSchemaV3 {
+		return nil, fmt.Errorf("counts file: schema %q, want %q, %q or %q", probe.Schema, CountsSchema, CountsSchemaV2, CountsSchemaV3)
 	}
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
@@ -140,11 +143,15 @@ func LoadCounts(data, readme []byte) (*Counts, error) {
 	switch {
 	case probe.Schema == CountsSchema && c.Forms != nil:
 		return nil, errors.New("counts file: a v1 file may not carry forms")
-	case probe.Schema == CountsSchemaV2:
+	case probe.Schema == CountsSchemaV2 || probe.Schema == CountsSchemaV3:
 		if c.Forms == nil {
-			return nil, errors.New("counts file: a v2 file must carry forms")
+			return nil, errors.New("counts file: a " + probe.Schema[len(probe.Schema)-2:] + " file must carry forms")
 		}
-		want, err := coveragereport.FormsOf(c.Report)
+		formsOf := coveragereport.FormsOf
+		if probe.Schema == CountsSchemaV2 {
+			formsOf = coveragereport.FormsOfV2
+		}
+		want, err := formsOf(c.Report)
 		if err != nil {
 			return nil, fmt.Errorf("counts file: %w", err)
 		}

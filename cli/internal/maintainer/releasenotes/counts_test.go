@@ -242,7 +242,7 @@ func TestRenderBootstrapApproximationNote(t *testing.T) {
 // formsJSON is the forms table of the v1 fixture, as a generic JSON value.
 func formsJSON(t *testing.T) any {
 	t.Helper()
-	tab, err := coveragereport.FormsOf(fixtureCounts(t, "counts-cur.json").Report)
+	tab, err := coveragereport.FormsOfV2(fixtureCounts(t, "counts-cur.json").Report)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -300,7 +300,7 @@ func TestSummarySplitsServedAPIOnlyPairs(t *testing.T) {
 	cur.Report.Fleet.Pairs++
 	cur.Report.Fleet.A++
 	cur.Schema = CountsSchemaV2
-	forms, err := coveragereport.FormsOf(cur.Report)
+	forms, err := coveragereport.FormsOfV2(cur.Report)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -319,5 +319,65 @@ func TestSummarySplitsServedAPIOnlyPairs(t *testing.T) {
 	cur.Forms = nil
 	if _, err := Render(&Snapshot{}, &Snapshot{}, Options{Prev: prev, Cur: cur, Previous: PreviousPin{Tag: "v1", Commit: "aaa", CountsSha256: prev.Sha256}}); err == nil {
 		t.Error("a v2 counts file without forms was rendered")
+	}
+}
+
+// v3Counts is the fixture as a v3 file with its forms table, after edit.
+func v3Counts(t *testing.T, edit func(forms map[string]any)) []byte {
+	t.Helper()
+	tab, err := coveragereport.FormsOf(fixtureCounts(t, "counts-cur.json").Report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(tab)
+	var f map[string]any
+	if err := json.Unmarshal(b, &f); err != nil {
+		t.Fatal(err)
+	}
+	edit(f)
+	return mutate(t, func(m map[string]any) {
+		m["schema"] = CountsSchemaV3
+		m["forms"] = f
+	})
+}
+
+func TestLoadCountsV3Families(t *testing.T) {
+	c, err := LoadCounts(v3Counts(t, func(map[string]any) {}), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Forms.Families) == 0 {
+		t.Fatal("a v3 file has no family rows")
+	}
+	if _, err := LoadCounts(v3Counts(t, func(f map[string]any) { delete(f, "families") }), nil); err == nil {
+		t.Error("a v3 file without family rows loaded")
+	}
+	if _, err := LoadCounts(v3Counts(t, func(f map[string]any) {
+		f["families"].([]any)[0].(map[string]any)["fleet"].(map[string]any)["pairs"] = 99
+	}), nil); err == nil {
+		t.Error("a v3 file with tampered family rows loaded")
+	}
+	// A v2 file may not carry family rows; one without them still loads.
+	tab, _ := coveragereport.FormsOf(fixtureCounts(t, "counts-cur.json").Report)
+	b, _ := json.Marshal(tab)
+	var f map[string]any
+	_ = json.Unmarshal(b, &f)
+	if _, err := LoadCounts(mutate(t, func(m map[string]any) { m["schema"] = CountsSchemaV2; m["forms"] = f }), nil); err == nil {
+		t.Error("a v2 file with family rows loaded")
+	}
+}
+
+// The notes carry one row per family, none summed, for old and new files.
+func TestRenderFamilyRows(t *testing.T) {
+	prev := fixtureCounts(t, "counts-prev.json")
+	cur := fixtureCounts(t, "counts-cur.json")
+	out, err := Render(&Snapshot{}, &Snapshot{}, Options{Prev: prev, Cur: cur, Previous: PreviousPin{Tag: "v1", Commit: "aaa", CountsSha256: prev.Sha256}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range []string{"Decided by CRD versions (fleet; family rows are not summed)", "Decided by Chart install API surface (fleet; family rows are not summed) | 0 | 0 | 0 |"} {
+		if !strings.Contains(out, l) {
+			t.Errorf("missing row %q", l)
+		}
 	}
 }

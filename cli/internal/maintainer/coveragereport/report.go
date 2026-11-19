@@ -79,6 +79,10 @@ type Input struct {
 	// projects by. Nil means the table embedded in the running program; a
 	// caller that judges another tree passes the set of that tree's table.
 	Catalog *CatalogSet
+	// KubernetesSurface maps a project slug to its Kubernetes-surface
+	// attribute (only KubernetesSurfaceNone is valid). Nil or absent means
+	// unknown. Nothing in this package sets it; the pipeline does.
+	KubernetesSurface map[string]string
 }
 
 // Pair is one consecutive pair of lines and its status.
@@ -114,10 +118,14 @@ type Project struct {
 	Priority bool     `json:"priority"`
 	Window   []string `json:"window"`
 	Pairs    []Pair   `json:"pairs"`
-	A        int      `json:"a"`
-	B        int      `json:"b"`
-	S        int      `json:"s"`
-	G        int      `json:"g"`
+	// KubernetesSurface is "none" for a project with no Kubernetes surface (a
+	// permanent typed gap of the pair measure) and absent when unknown. It is
+	// optional; the pipeline sets it, nothing in this package guesses it.
+	KubernetesSurface string `json:"kubernetesSurface,omitempty"`
+	A                 int    `json:"a"`
+	B                 int    `json:"b"`
+	S                 int    `json:"s"`
+	G                 int    `json:"g"`
 	// DecidedChangelog counts pairs decided only by the changelog family.
 	DecidedChangelog int `json:"decidedChangelog,omitempty"`
 	// VC is (A+B)/pairs and VCA is A/pairs; both are 0 without pairs.
@@ -699,6 +707,7 @@ func Compute(in Input) (Report, error) {
 			lines = lines[len(lines)-window:]
 		}
 		row := Project{Project: slug, Priority: pl.Priority, Window: append([]string{}, lines...), Pairs: []Pair{}, Covered: covered[slug]}
+		row.KubernetesSurface = in.KubernetesSurface[slug]
 		community := in.Catalog.Community(slug)
 		if community {
 			row.Catalog = CatalogCommunity

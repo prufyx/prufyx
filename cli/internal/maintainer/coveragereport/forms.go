@@ -52,12 +52,23 @@ type FormsRow struct {
 	GapReason string `json:"gapReason,omitempty"`
 }
 
+// KubernetesSurfaceNone is the one value of Project.KubernetesSurface that
+// says the project has no Kubernetes surface (it is not installed through
+// Kubernetes objects and has no Kubernetes client). Any other non-empty value
+// is refused. The empty value is unknown and changes nothing.
+const KubernetesSurfaceNone = "none"
+
 // FormsGroup totals one group per form. There is no total over the groups.
 type FormsGroup struct {
 	Projects           int `json:"projects"`
 	Pairs              int `json:"pairs"`
 	ProjectsWithAnswer int `json:"projectsWithAnswer"`
 	Forms
+	// PermanentGapProjects and PermanentGapPairs count the projects with a
+	// typed permanent gap (no Kubernetes surface) and their pairs. They are
+	// part of G, never of any decided count.
+	PermanentGapProjects int `json:"permanentGapProjects,omitempty"`
+	PermanentGapPairs    int `json:"permanentGapPairs,omitempty"`
 }
 
 // FormsTable is the by-form view of a report: one row per project.
@@ -65,12 +76,21 @@ type FormsTable struct {
 	Rows      []FormsRow `json:"rows"`
 	Fleet     FormsGroup `json:"fleet"`
 	Community FormsGroup `json:"community"`
+	// Families is one row per evidence family, for decided pairs. The rows
+	// are never summed into one number: a pair decided by two families is in
+	// both rows and counted once in the forms above.
+	Families []FamilyRow `json:"families,omitempty"`
 }
 
 // Typed gap reasons of the forms table.
 const (
 	GapReasonNoRule   = "NO_RULE_OR_ATTESTATION"
 	GapReasonNotWhole = "NOT_DECIDED_FOR_THIS_PAIR"
+	// GapReasonNoSurface is the permanent typed gap of a project with no
+	// Kubernetes surface.
+	GapReasonNoSurface = "NO_KUBERNETES_SURFACE"
+	// GapReasonNoSurfaceText is the fixed text shown with that reason.
+	GapReasonNoSurfaceText = "not installed through Kubernetes objects"
 )
 
 // FormOf returns the form of one pair; an unknown status, or a changelog
@@ -107,6 +127,9 @@ func FormsOf(r Report) (FormsTable, error) {
 		if p.Project == "" || strings.ContainsAny(p.Project, "|\n\r") {
 			return FormsTable{}, fmt.Errorf("forms: unusable project name %q", p.Project)
 		}
+		if p.KubernetesSurface != "" && p.KubernetesSurface != KubernetesSurfaceNone {
+			return FormsTable{}, fmt.Errorf("forms: project %q: unknown kubernetesSurface %q", p.Project, p.KubernetesSurface)
+		}
 		row := FormsRow{Project: p.Project, Group: GroupFleet, Pairs: len(p.Pairs)}
 		if p.Catalog == CatalogCommunity {
 			row.Group = GroupCommunity
@@ -135,6 +158,17 @@ func FormsOf(r Report) (FormsTable, error) {
 				row.GapReason = GapReasonNoRule
 			}
 		}
+		noSurface := p.KubernetesSurface == KubernetesSurfaceNone
+		if noSurface {
+			// A permanent gap: such a project is never decided. A decided or
+			// exact-pair answer on it is a contradiction and fails closed.
+			if row.AB+row.K8s+row.S > 0 {
+				return FormsTable{}, fmt.Errorf("forms: project %q has no Kubernetes surface but a decided pair", p.Project)
+			}
+			if row.G > 0 {
+				row.GapReason = GapReasonNoSurface
+			}
+		}
 		g := &t.Fleet
 		if row.Group == GroupCommunity {
 			g = &t.Community
@@ -142,11 +176,16 @@ func FormsOf(r Report) (FormsTable, error) {
 		g.Projects++
 		g.Pairs += row.Pairs
 		g.Forms.add(row.Forms)
+		if row.GapReason == GapReasonNoSurface {
+			g.PermanentGapProjects++
+			g.PermanentGapPairs += row.G
+		}
 		if row.Forms.answered() {
 			g.ProjectsWithAnswer++
 		}
 		t.Rows = append(t.Rows, row)
 	}
+	t.Families = familyRowsOf(r)
 	return t, nil
 }
 
@@ -168,9 +207,25 @@ func renderFormsTable(t FormsTable) string {
 			reason := "-"
 			if r.GapReason != "" {
 				reason = r.GapReason
+				if r.GapReason == GapReasonNoSurface {
+					reason += " (" + GapReasonNoSurfaceText + ")"
+				}
 			}
 			fmt.Fprintf(&b, "| %s | %s | %d | %d | %d | %d | %d | %d | %s |\n", name, label, r.Pairs, r.AB, r.K8s, r.S, r.L, r.G, reason)
 		}
 	}
 	return b.String()
+}
+
+// FormsOfV2 is FormsOf as a v2 counts file carries it: without the family
+// rows and the permanent-gap counts, which came with v3.
+func FormsOfV2(r Report) (FormsTable, error) {
+	t, err := FormsOf(r)
+	if err != nil {
+		return t, err
+	}
+	t.Families = nil
+	t.Fleet.PermanentGapProjects, t.Fleet.PermanentGapPairs = 0, 0
+	t.Community.PermanentGapProjects, t.Community.PermanentGapPairs = 0, 0
+	return t, nil
 }

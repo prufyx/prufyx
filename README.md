@@ -445,6 +445,15 @@ Projects with an answer of any form (A/B, k8s served-API, S or L): 52 of 79 in t
 
 </details>
 
+Each row below counts the upgrades decided by one evidence family; a family with nothing decided says none yet. The rows are not added together: an upgrade decided by two families is in both rows and counted once in the forms above, and an upgrade of a project with no Kubernetes surface is a permanent gap, never decided.
+
+| Evidence family (decided upgrades) | Release-line fleet | Community group |
+| --- | --- | --- |
+| CRD versions | 89 upgrades in 23 projects | 42 upgrades in 9 projects |
+| Chart install API surface | none yet | none yet |
+| Chart declared Kubernetes range | none yet | none yet |
+| Helm values schema | none yet | none yet |
+
 Kubernetes: 63 valid rules, but 19 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
 
 Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. Some decided upgrades are decided only by line attestations that list no rule (`crd.custom_resource_versions`): for them an attestation can only give a family-scoped PASS (`scan` prints "PASS within <family> only"), never BLOCKED. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.

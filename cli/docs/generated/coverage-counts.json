@@ -1,5 +1,5 @@
 {
-  "schema": "prufyx.io/coverage-readme-counts/v2",
+  "schema": "prufyx.io/coverage-readme-counts/v3",
   "report": {
     "schema": "prufyx.io/coverage-report/v1",
     "now": "2026-11-18T14:41:02Z",
@@ -7005,7 +7005,57 @@
       "s": 0,
       "l": 0,
       "g": 46
-    }
+    },
+    "families": [
+      {
+        "family": "crd",
+        "label": "CRD versions",
+        "fleet": {
+          "projects": 23,
+          "pairs": 89
+        },
+        "community": {
+          "projects": 9,
+          "pairs": 42
+        }
+      },
+      {
+        "family": "chart_api_surface",
+        "label": "Chart install API surface",
+        "fleet": {
+          "projects": 0,
+          "pairs": 0
+        },
+        "community": {
+          "projects": 0,
+          "pairs": 0
+        }
+      },
+      {
+        "family": "chart_declared_kubernetes_range",
+        "label": "Chart declared Kubernetes range",
+        "fleet": {
+          "projects": 0,
+          "pairs": 0
+        },
+        "community": {
+          "projects": 0,
+          "pairs": 0
+        }
+      },
+      {
+        "family": "helm_values_schema",
+        "label": "Helm values schema",
+        "fleet": {
+          "projects": 0,
+          "pairs": 0
+        },
+        "community": {
+          "projects": 0,
+          "pairs": 0
+        }
+      }
+    ]
   },
-  "readmeBlockSha256": "30dbf28dfe00ee658497b017bcfcff572d34503b237eb82a6d666519a15f780d"
+  "readmeBlockSha256": "eef316dffcd6646f1e2674fb800207b49af2c0b52fed83eb25d79b0a4f10b05d"
 }
