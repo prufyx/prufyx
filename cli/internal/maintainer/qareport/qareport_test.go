@@ -324,3 +324,37 @@ func TestCommittedReportFieldsMatchPatterns(t *testing.T) {
 		}
 	}
 }
+
+func TestConverterFieldsKnownAndNeverOutput(t *testing.T) {
+	const hostPath = "convhost.example.net:/home/convuser/summary.md"
+	root := t.TempDir()
+	writeRun(t, root, "m3-x", m3(func(m map[string]any) {
+		m["convertedFrom"], m["summaryFile"] = hostPath, hostPath
+		first(m)["sourceCited"] = "https://convhost.example.net/home/convuser/doc"
+	}))
+	rep, err := Build(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	j, md, err := Render(rep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, doc := range [][]byte{j, md} {
+		for _, v := range []string{"convhost", "convuser", "summary.md", "sourceCited", "convertedFrom", "summaryFile"} {
+			if bytes.Contains(doc, []byte(v)) {
+				t.Errorf("%q reached the output", v)
+			}
+		}
+	}
+	// The type is still checked.
+	for name, mut := range map[string]func(map[string]any){
+		"convertedFrom not a string": func(m map[string]any) { m["convertedFrom"] = 5 },
+		"summaryFile not a string":   func(m map[string]any) { m["summaryFile"] = true },
+		"sourceCited not a string":   func(m map[string]any) { first(m)["sourceCited"] = true },
+	} {
+		if _, err := ParseRun("m3-x", m3(mut)); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}

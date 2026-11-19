@@ -256,6 +256,9 @@ type m3File struct {
 	PrufyxBinary       json.RawMessage `json:"prufyxBinarySha256"`
 	StartedAt          json.RawMessage `json:"startedAt"`
 	FinishedAt         json.RawMessage `json:"finishedAt"`
+	// Converter fields: known, type-checked, never output.
+	ConvertedFrom *string `json:"convertedFrom"`
+	SummaryFile   *string `json:"summaryFile"`
 }
 
 type m3Cluster struct {
@@ -282,6 +285,8 @@ type m3Check struct {
 	Project string `json:"project"`
 	Result  string `json:"result"`
 	To      string `json:"toVersion"`
+	// Converter field: known, type-checked, never output.
+	SourceCited *string `json:"sourceCited"`
 }
 
 type m2aFile struct {
