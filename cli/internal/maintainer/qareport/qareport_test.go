@@ -525,3 +525,40 @@ func TestOracleTypeEnum(t *testing.T) {
 		}
 	}
 }
+
+func TestListRefusalsCollectsAllNeverValues(t *testing.T) {
+	root := t.TempDir()
+	writeRun(t, root, "m3-a", m3(nil))
+	writeRun(t, root, "m3-bad", m3(func(m map[string]any) {
+		m["extraKey"] = "leakhost-7"
+		first(m)["oracle"].(map[string]any)["type"] = "leakhost-7 /srv/private/path"
+		first(m)["assertion"].(map[string]any)["command"] = "plan [leakhost-7]"
+	}))
+	writeRun(t, root, "m10-r01", []byte(summaryShape))
+	refs, err := ListRefusals(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var all strings.Builder
+	for _, r := range refs {
+		all.WriteString(r.Run + "|" + r.Message + "\n")
+		if r.Run == "m3-a" {
+			t.Errorf("clean run listed: %v", r)
+		}
+	}
+	s := all.String()
+	for _, w := range []string{`m3-bad|unknown field "extraKey"`, "m3-bad|check: unknown oracle type", "m3-bad|check: unknown command", "m10-r01|unknown input format"} {
+		if !strings.Contains(s, w) {
+			t.Errorf("missing %q in:\n%s", w, s)
+		}
+	}
+	for _, v := range []string{"leakhost", "/srv/private"} {
+		if strings.Contains(s, v) {
+			t.Errorf("value %q printed", v)
+		}
+	}
+	// Build still refuses the same input.
+	if _, err := Build(root); err == nil {
+		t.Error("Build accepted a refused set")
+	}
+}

@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"io"
 
 	"github.com/prufyx/prufyx/cli/internal/maintainer/qareport"
@@ -23,8 +24,20 @@ func runQAReport(args []string) error {
 	md := flags.String("md", "", "generated Markdown file (same directory as --out)")
 	staticTSV := flags.String("static-results", "", "served-API sweep results (TSV); needs --static-digests")
 	staticDig := flags.String("static-digests", "", "pinned swagger digests, one '<tag> <commit> <sha256>' per line; needs --static-results")
+	list := flags.Bool("list-refusals", false, "maintainer diagnostic: print every refusal of every run (fixed messages and key names only), write nothing")
 	check := flags.Bool("check", false, "write nothing; exit 1 when the files differ from the regeneration")
-	if err := flags.Parse(args); err != nil || flags.NArg() != 0 || *dir == "" || *out == "" || *md == "" || (*staticTSV == "") != (*staticDig == "") {
+	perr := flags.Parse(args)
+	if perr == nil && *list && flags.NArg() == 0 && *dir != "" && *out == "" && *md == "" && *staticTSV == "" && *staticDig == "" && !*check {
+		refs, lerr := qareport.ListRefusals(*dir)
+		if lerr != nil {
+			return &commandError{code: 2, message: "qa-report: " + lerr.Error(), err: lerr}
+		}
+		for _, r := range refs {
+			fmt.Printf("%s\t%s\t%d\n", r.Run, r.Message, r.Count)
+		}
+		return nil
+	}
+	if err := perr; err != nil || flags.NArg() != 0 || *dir == "" || *out == "" || *md == "" || (*staticTSV == "") != (*staticDig == "") {
 		return &commandError{code: 2, message: qaReportUsage, err: err}
 	}
 	rep, err := qareport.Build(*dir)
