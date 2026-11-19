@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/bundlechart"
 	"github.com/prufyx/prufyx/cli/internal/imageidentity"
 )
 
@@ -177,7 +178,7 @@ func observationMetadata(now time.Time, ctxHash, status string, omissionCount in
 			"pageProjectionDigest": digest([]byte(`{"kind":"prufyx.io/collector-behavior-contract","name":"crd-page-projector","version":"v2-go"}`)),
 			"finalMergeDigest":     digest([]byte(`{"kind":"prufyx.io/collector-behavior-contract","name":"crd-page-merge","version":"v2-go"}`)),
 		},
-		"imageSourcesDigest": imageidentity.Digest(), "imageSourcesSchema": imageidentity.Schema,
+		"chartIdentitySchema": bundlechart.Schema, "imageSourcesDigest": imageidentity.Digest(), "imageSourcesSchema": imageidentity.Schema,
 		"omissionCount":      omissionCount,
 		"dataClassification": "confidential local inventory", "authority": "local unsigned API observation",
 		"evaluationEligible": false, "notACompatibilitySnapshot": true,
@@ -187,12 +188,13 @@ func observationMetadata(now time.Time, ctxHash, status string, omissionCount in
 			"optional reviewed public component configuration predicates from workload arguments",
 			"CRD, aggregated API, admission policy/webhook, storage, CSI, and RuntimeClass signals",
 			"core and grouped API discovery versions",
+			"chart identity (chart name, chart version, source kind, and the source object kind, namespace and name) from the user's declaration or the chart label of already-read workloads",
 		},
 		"omittedByPolicy": []string{
 			"Secrets and Secret payloads", "ConfigMaps and ConfigMap payloads", "logs, events, metrics, and traces",
-			"raw Kubernetes manifests", "object, namespace, workload, Pod, and node names", "labels, annotations, environment values, and command arguments",
+			"raw Kubernetes manifests", "object, namespace, workload, Pod, and node names", "labels (except the single chart label), annotations, environment values, and command arguments",
 			"unrecognized or private workload and Pod image identities and image IDs", "credentials, endpoints, provider instance IDs, and business data",
-			"Helm release metadata, rendered values, and component configuration values",
+			"package-manager release records, rendered values, and component configuration values",
 		},
 		"disclosure": []string{
 			"workload projections exclude raw image references, image IDs, private registry paths, and workload identity; only exact registry-bound public component summaries are retained",

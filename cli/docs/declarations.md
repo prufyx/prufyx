@@ -87,6 +87,26 @@ the values files and `--helm-set` assignments you pass are every values source
 of the release. True when no other values file or `--set` is used at install time. Without it, no required values key is
 confirmed. See "Helm chart values" in [scan.md](scan.md).
 
+## Chart identity (collection)
+
+`prufyx-collector collect --chart-declaration FILE` declares the chart name and
+chart version of a chart-installed component, for the bundle field described in
+[local collection](local-collection.md#chart-identity). Declare it only if it is
+true. The file is JSON:
+
+```json
+{
+  "apiVersion": "prufyx.io/chart-declaration/v1alpha1",
+  "kind": "ChartDeclaration",
+  "charts": [{"name": "widget", "version": "1.4.2"}]
+}
+```
+
+Without a declaration and without a readable chart label the identity is
+`not_declared`, the result for anything that needs it is UNKNOWN, and the next
+action is to declare the chart name and version. A declaration that disagrees
+with a label is shown next to it and marked ambiguous, never resolved for you.
+
 ## Other routes
 
 Each `prufyx check cncf --project NAME` route reads one project input and has

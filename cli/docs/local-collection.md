@@ -47,7 +47,8 @@ earlier policy identity for historical observations.
 The collector stores exact registry-bound public component summaries for every
 workload projection. Unrecognized and private workload image references,
 commands, arguments, environment values, object names, namespaces, and raw API
-objects are not written, including to intermediate files. The legacy raw-image
+objects are not written, including to intermediate files, except the
+object kind, namespace and name kept by the chart identity field (below). The legacy raw-image
 diagnostic output is no longer produced. Current-bundle evaluation consumes the
 typed public component summaries.
 
@@ -62,7 +63,7 @@ The declared API read footprint is fixed. All collection uses GET or LIST:
 
 | Mode | Kubernetes API requests | Retained projection |
 | --- | --- | --- |
-| Always | `/version`, `/api`, `/apis`; Nodes; Deployments, DaemonSets, StatefulSets, ReplicaSets, Jobs, CronJobs, ReplicationControllers; paginated CustomResourceDefinitions; APIServices; mutating and validating webhook configurations; validating admission policies and bindings; StorageClasses; CSIDrivers; RuntimeClasses | Bounded version, architecture, public component/version, API capability, admission-rule, storage, CSI, and runtime-class fields described in `snapshot-metadata.json`; raw objects and names are discarded |
+| Always | `/version`, `/api`, `/apis`; Nodes; Deployments, DaemonSets, StatefulSets, ReplicaSets, Jobs, CronJobs, ReplicationControllers; paginated CustomResourceDefinitions; APIServices; mutating and validating webhook configurations; validating admission policies and bindings; StorageClasses; CSIDrivers; RuntimeClasses | Bounded version, architecture, public component/version, API capability, admission-rule, storage, CSI, and runtime-class fields described in `snapshot-metadata.json`; raw objects and names are discarded. Chart identity (below) is the one exception for names: it is read from the already-listed workloads and adds no request |
 | `--include-pod-status-images` | Pods across all namespaces | Typed public component/version summaries, a same-component image-ID binding boolean, scope class, and aggregate ready/restart counts; raw Pod/image/image-ID values are discarded |
 | `--include-component-configuration` | Workloads with registered public component identities; after an exact cert-manager workload match, ClusterRoles, Roles, RoleBindings, ClusterRoleBindings, Deployments, Services and Pods, ServiceMonitors, and PodMonitors | Typed public component/version and bounded command projections; cert-manager-specific CRD, admission, RBAC, health-count, monitor-presence, and install-mode predicates when its workload match gates the extra reads; names, subjects, labels, selectors, commands, and raw values are discarded |
 
@@ -113,6 +114,46 @@ These controls do not authenticate `kubectl`, an exec plugin, `PATH` contents,
 or files referenced by the kubeconfig. Review those local inputs and use a
 least-privilege read-only cluster identity before collection. The v3 component
 profile adds no Kubernetes API read beyond the opt-in request set above.
+
+## Chart identity
+
+The bundle field "chart identity" says which chart and chart version a
+component was installed from, so that a later rule can be keyed by the exact
+chart. Prufyx needs two strings per chart and nothing else.
+
+Sources, and only these:
+
+1. Your declaration, passed with `--chart-declaration FILE` (preferred,
+   explicit, offline). The file is JSON, at most 64 KiB, with
+   `apiVersion: prufyx.io/chart-declaration/v1alpha1`, `kind: ChartDeclaration`
+   and `charts: [{name, version}]`. Any other member, or an invalid name or
+   version, makes the collector refuse to start.
+2. The `helm.sh/chart` label (`<name>-<version>`) in `metadata.labels` of the
+   Deployments, DaemonSets, StatefulSets, ReplicaSets, Jobs, CronJobs and
+   ReplicationControllers the collector already lists. That single label key is
+   read; no other label, no annotation and no other field is used, and no
+   request is added.
+
+Never sources: the package manager's release records (they live in Secrets or
+ConfigMaps and hold rendered values, which can contain credentials), any
+Secret, any ConfigMap, release history, rendered manifests, values. The
+collector makes no Secret or ConfigMap request at all.
+
+Kept fields, written to `chart-identity.json` and the bundle: chart name, chart
+version, `source` (`declared` or `label`), and for a label the object kind,
+namespace and name it came from, so you can see why Prufyx believes it, plus a
+`state` (`resolved` or `ambiguous`). Names are limited to 253 bytes and
+versions to 128 bytes and are charset-checked; a label that does not parse
+uniquely is dropped and counted as `CHART_LABEL_MALFORMED`, never guessed.
+
+Conflicts: a declared version that differs from a label version of the same
+chart, two declared versions, or two label versions of one chart in one
+namespace keep every value, mark them `ambiguous` and make the whole set
+`ambiguous`; nothing is picked. A workload read that failed also makes the set
+`ambiguous` (`CHART_LABEL_SOURCE_UNREAD`). When no identity exists the status is
+`not_declared`. Both are UNKNOWN, and the next action is shown:
+"declare the chart name and version". The collector prints one status line per context that
+names no chart and no object. Nothing decides on this field yet.
 
 Manifest-based collection of custom-resource fields is separate from this
 cluster collection. The `prufyx-collector` makes no read for it and no

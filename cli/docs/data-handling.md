@@ -183,6 +183,13 @@ ConfigMap contents are omitted. Collection adds no write permissions and does
 not execute commands in Pods. Exact resources and disclosed retained fields are
 listed in [local collection](local-collection.md).
 
+The one exception for labels is chart identity: the chart name and chart version
+from your own `--chart-declaration` file or from the `helm.sh/chart` label of
+workloads the collector already reads, kept with the kind, namespace and name of
+the object the label came from. The package manager's release records,
+Secrets, ConfigMaps and values are never read for it; see the chart identity
+section of [local collection](local-collection.md).
+
 Context pseudonyms use a random per-run key that is discarded. Repeated contexts
 within that collection can match; a new collection gets new pseudonyms. These
 identifiers do not authenticate cluster identity. Replaying the same admitted
