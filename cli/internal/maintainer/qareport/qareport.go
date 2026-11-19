@@ -231,13 +231,10 @@ var commands = map[string]string{
 }
 
 // oracleTypes maps the closed set of harness oracle types to their fixed
-// public display labels. "in-place upgrade" is the legacy spelling of old runs.
+// public display labels; only what the harness writes is accepted.
 var oracleTypes = map[string]string{
 	"replay-on-target": "replay on the target cluster",
-	"in-place-upgrade": "in-place upgrade on the cluster",
 	"in-place upgrade": "in-place upgrade on the cluster",
-	"served-API list":  "served API list of the target version",
-	"install-on-from":  "install on the source version",
 }
 
 // reasonPrefixes map the start of a recorded verdict to a reason code. The
