@@ -34,7 +34,9 @@ package changelogentries
 
 import (
 	"bytes"
+	"crypto/sha256"
 	_ "embed"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -304,4 +306,42 @@ func noDuplicateKeys(data []byte) error {
 		return err
 	}
 	return walk()
+}
+
+// RowDigest is the sha256 (hex) of the canonical, resolved form of a row:
+// component, repo, form, path and the fixed patterns of its styles. The same
+// row gives the same digest whether it comes from a proposal or from the table.
+// Serialization: compact JSON (Go encoding/json, HTML escaping off, no trailing
+// newline) of the object {"component","repo","form","path","heading",
+// "boundary","maxBytes"} in that key order, boundary an array ([] when none),
+// heading and boundary the resolved regular expressions.
+func (t Target) RowDigest() string {
+	boundary := t.BoundaryPatterns
+	if boundary == nil {
+		boundary = []string{} // nil and empty are one row
+	}
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(struct {
+		Component string   `json:"component"`
+		Repo      string   `json:"repo"`
+		Form      string   `json:"form"`
+		Path      string   `json:"path"`
+		Heading   string   `json:"heading"`
+		Boundary  []string `json:"boundary"`
+		MaxBytes  int      `json:"maxBytes"`
+	}{t.Component, t.Repo.Key, t.Form, t.Path, t.HeadingPattern, boundary, t.MaxBytes})
+	sum := sha256.Sum256(bytes.TrimSuffix(buf.Bytes(), []byte("\n")))
+	return hex.EncodeToString(sum[:])
+}
+
+// RowDigest is the row digest of the proposed row, resolved through the same
+// strict loader as targets.json.
+func (p Proposal) RowDigest() (string, error) {
+	t, err := p.Row.target()
+	if err != nil {
+		return "", err
+	}
+	return t.RowDigest(), nil
 }

@@ -153,6 +153,49 @@ locate) and never a compatibility verdict about any release or upgrade. A
 version recorded under two tag names (`v1.2.3` and `1.2.3`) is one slot of the
 newest window, and the slot counts as located only when every tag of it is.
 
+## Receipt line
+
+`propose-rows` (when a row is printed) and `rows-check` (one per checked row,
+after the summary line) print one canonical receipt line per row:
+
+```
+receipt/v1 step=<propose|check> component=<slug> rowDigest=<hex64> tagsDigest=<hex64|unreadable> mirrorDigest=<hex|none> codeDigest=sha256:<hex64>
+```
+
+The field order is fixed and every field is required; a consumer must refuse
+any other order, a missing or repeated field, or an unknown field. The line
+holds a component slug and digests only, never changelog text or headings.
+
+- `rowDigest`: sha256 (hex) of the resolved row: compact JSON (no HTML
+  escaping, no trailing newline) of the object `{"component","repo","form",
+  "path","heading","boundary","maxBytes"}` in that key order, `heading` and
+  `boundary` being the resolved fixed regular expressions and `boundary` an
+  array (`[]` when none). A proposed row and the same row in `targets.json`
+  give the same value; a test pins a real value.
+- `tagsDigest`: sha256 of the sorted, newline-joined `repo@tag=commit` lines
+  (the peeled tag commit is bound, so a retag changes it) of the row's
+  repository. If the tag list cannot be read the command exits 2 and prints no
+  receipt; a consumer must still refuse `tagsDigest=unreadable`.
+- `mirrorDigest`: the full sha256 (64 hex) of the mirror index file the run
+  read, or the explicit `none` when the source is a fixture. It is never
+  omitted.
+- `codeDigest`: the extractor code digest of the reader that ran, in the
+  `sha256:<hex64>` form the other extractors use.
+
+A receipt is printed for failed rows too: it identifies the inputs of a run, it
+is not a pass attestation. The `rows-check` summary line and exit code stay the
+verdict.
+
+Strict consumer rule: parse with `ParseReceiptStrict(line, fixtureRun)` (or
+`ParseReceipt` then `Admissible`). It refuses any line that is not the exact
+shape above (order, fields, lower-case hex, no trailing characters), always
+refuses `tagsDigest=unreadable`, and refuses `mirrorDigest=none` unless the run
+is a declared fixture run. A production consumer (batcher, QA gate) must also
+compare the receipt against the mirror index re-read at that time.
+
+For one row the `propose` and `check` receipts are equal except for `step`.
+The `rows-check` summary line also prints `mirrorDigest=none` for a fixture.
+
 ## Proposing rows
 
 ```
