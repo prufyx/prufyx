@@ -133,10 +133,6 @@ func sarifCustomResourceResults(report Report, index map[string]int, results []s
 		default:
 			continue
 		}
-		if len(results) >= SARIFMaxResults {
-			dropped++
-			continue
-		}
 		result := sarifResult{
 			RuleID: id, RuleIndex: index[id], Level: level,
 			Message:    sarifText{cut(cr.APIVersion+" "+cr.Kind+" "+crObject(cr)+" "+text, sarifMessageMax)},

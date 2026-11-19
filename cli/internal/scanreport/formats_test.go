@@ -654,3 +654,87 @@ func TestFormatsDeterministic(t *testing.T) {
 }
 
 func readGolden(name string) ([]byte, error) { return os.ReadFile(filepath.Join("testdata", name)) }
+
+func sarifCapReport(notes int, errorLocs int) Report {
+	report := fullReport()
+	report.Gaps = nil
+	report.Findings = nil
+	report.CustomResources = nil
+	for i := 0; i < notes; i++ {
+		report.CustomResources = append(report.CustomResources, CustomResource{APIVersion: "x.io/v1", Kind: "K", Name: "n", File: "a.yaml", Document: i, Item: -1, Status: CRStatusNotEvaluated, Reason: "no-rule", Next: "next"})
+	}
+	if errorLocs > 0 {
+		f := Finding{RuleID: "r", Component: "kubernetes", Hop: HopRef{Index: 1, From: "1.24.0", To: "1.25"}, Title: "t", Match: "anchor", Basis: "reviewed"}
+		for i := 0; i < errorLocs; i++ {
+			f.Locations = append(f.Locations, Location{File: "f.yaml", Document: i, Item: -1, Kind: "K", Name: "n"})
+		}
+		report.Findings = []Finding{f}
+	}
+	return report
+}
+
+type sarifCapLog struct {
+	Runs []struct {
+		Results []struct {
+			Level   string                `json:"level"`
+			Message struct{ Text string } `json:"message"`
+		} `json:"results"`
+		Properties struct {
+			Omitted map[string]int `json:"omittedResults"`
+		} `json:"properties"`
+	} `json:"runs"`
+}
+
+// TestSARIFCapKeepsBlockedCustomResource: a blocked custom resource keeps its
+// error result when more than SARIFMaxResults notes compete for the room.
+func TestSARIFCapKeepsBlockedCustomResource(t *testing.T) {
+	report := sarifCapReport(SARIFMaxResults+10, 0)
+	report.CustomResources = append(report.CustomResources, CustomResource{APIVersion: "x.io/v1", Kind: "Blocked", Name: "b", File: "b.yaml", Document: 0, Item: -1, Status: CRStatusEvaluated, Verdict: CRVerdictBlocked, Next: "fix it"})
+	Finalize(&report)
+	raw, err := SARIF(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var log sarifCapLog
+	if err := json.Unmarshal(raw, &log); err != nil {
+		t.Fatal(err)
+	}
+	run := log.Runs[0]
+	errs := 0
+	for _, r := range run.Results {
+		if r.Level == "error" && strings.Contains(r.Message.Text, "Blocked") {
+			errs++
+		}
+	}
+	if len(run.Results) != SARIFMaxResults || errs != 1 || run.Properties.Omitted["note"] != 11 {
+		t.Fatalf("results %d, blocked errors %d, omitted %v", len(run.Results), errs, run.Properties.Omitted)
+	}
+}
+
+// TestSARIFCapErrorsOverLimit: errors over the limit keep the first N in
+// order and count what was omitted by level.
+func TestSARIFCapErrorsOverLimit(t *testing.T) {
+	report := sarifCapReport(3, SARIFMaxResults+7)
+	Finalize(&report)
+	raw, err := SARIF(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, _ := SARIF(report)
+	if string(raw) != string(again) {
+		t.Fatal("not deterministic")
+	}
+	var log sarifCapLog
+	if err := json.Unmarshal(raw, &log); err != nil {
+		t.Fatal(err)
+	}
+	run := log.Runs[0]
+	if len(run.Results) != SARIFMaxResults || run.Properties.Omitted["error"] != 7 || run.Properties.Omitted["note"] != 3 {
+		t.Fatalf("results %d, omitted %v", len(run.Results), run.Properties.Omitted)
+	}
+	for _, r := range run.Results {
+		if r.Level != "error" {
+			t.Fatalf("lower level kept over an error: %s", r.Level)
+		}
+	}
+}
