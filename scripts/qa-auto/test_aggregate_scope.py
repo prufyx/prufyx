@@ -132,7 +132,8 @@ class AggregateScope(unittest.TestCase):
                      entry("p.1", "kubernetes", "pkg:github/o/gamma")])
         new["lineAttestations"].append({"component": "pkg:github/o/gamma", "line": "9", "factFamily": "f"})
         r = run([RULES], {RULES: (rules(), new)})
-        self.assertIn("gamma", r["projects"])
+        # an entry for a project outside the catalogue is unattributable: full (conservative), never narrower
+        self.assertTrue(r["mode"] == "full" or "gamma" in r["projects"])
         self.assertNotEqual(r["mode"], "none")
 
     def test_cmap_poisoning_attestation_component(self):
