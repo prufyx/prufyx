@@ -372,8 +372,10 @@ func TestEvidenceReattestTrustRootMigrate(t *testing.T) {
 func TestEvidenceReattestPrepareMaxRules(t *testing.T) {
 	f := newAutomatedFixture(t)
 	fresh := func(name string) string { return filepath.Join(f.dir, name) }
+	// Pin the attestation instant so two runs cannot straddle a second boundary.
+	pinned := time.Now().UTC().Truncate(time.Second).Add(-time.Hour).Format(time.RFC3339)
 	run1 := func(out string, extra ...string) (string, error) {
-		args := f.prepareArgs(extra...)
+		args := f.prepareArgs(append([]string{"--attested-at", pinned}, extra...)...)
 		for i, a := range args {
 			if a == f.autoOut {
 				args[i] = out
