@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
@@ -304,7 +306,7 @@ func (r *kubernetesRun) composeJump(path *scanreport.Path) {
 		// A notice or lead of the whole upgrade belongs to no hop.
 		open = append(open, scanreport.ReasonRuleNotDecided)
 	}
-	var wholeBlocks []string
+	var wholeBlocks, wholeSkew []string
 	for _, gap := range r.report.Gaps {
 		if gap.Component == kubernetesSlug && (gap.Hop == nil || gap.Hop.WholeUpgrade) {
 			open = append(open, gap.Reason)
@@ -312,7 +314,11 @@ func (r *kubernetesRun) composeJump(path *scanreport.Path) {
 	}
 	for _, f := range r.report.Findings {
 		if f.Component == kubernetesSlug && f.Hop.WholeUpgrade {
-			wholeBlocks = append(wholeBlocks, f.RuleID)
+			if r.skewRule(f.RuleID) {
+				wholeSkew = append(wholeSkew, f.RuleID)
+			} else {
+				wholeBlocks = append(wholeBlocks, f.RuleID)
+			}
 		}
 	}
 	at := func(ref scanreport.HopRef, own scanreport.HopRef, also []scanreport.HopRef) bool {
@@ -331,14 +337,19 @@ func (r *kubernetesRun) composeJump(path *scanreport.Path) {
 		hop := path.Hops[i]
 		ref := scanreport.HopRef{Index: hop.Index, From: hop.From.String(), To: hop.To.String()}
 		jump := scanreport.JumpHop{Index: hop.Index, From: ref.From, To: ref.To, ObjectSetDigest: r.hopDigests[hop.Index], Attestation: hop.Attestation}
-		var blocks []string
+		var blocks, skew []string
 		for _, f := range r.report.Findings {
 			if f.Component == kubernetesSlug && at(ref, f.Hop, f.AlsoAt) {
-				blocks = append(blocks, f.RuleID)
+				if r.skewRule(f.RuleID) {
+					skew = append(skew, f.RuleID)
+				} else {
+					blocks = append(blocks, f.RuleID)
+				}
 			}
 		}
 		if i == len(path.Hops)-1 {
 			blocks = append(blocks, wholeBlocks...)
+			skew = append(skew, wholeSkew...)
 		}
 		var entries []string
 		noticedAll := len(r.hopNeutral[hop.Index]) > 0
@@ -351,6 +362,15 @@ func (r *kubernetesRun) composeJump(path *scanreport.Path) {
 		switch {
 		case (hop.Status == scanreport.HopBlocked && len(blocks) > 0) || (i == len(path.Hops)-1 && len(wholeBlocks) > 0):
 			jump.Status, jump.RuleIDs = scanreport.JumpHopBlocked, uniqueStrings(blocks)
+		case len(skew) > 0 && (hop.Status == scanreport.HopBlocked || (i == len(path.Hops)-1 && len(wholeSkew) > 0)):
+			// The hop enters a line the declared kubelet versions are too old
+			// for. The stepwise path rolls the nodes between its hops, so the
+			// hop is a step to take (ATTENTION with the minimum kubelet), not
+			// a block of the path; the direct upgrade keeps its finding.
+			jump.Status = scanreport.JumpHopAttention
+			for _, id := range uniqueStrings(skew) {
+				jump.Entries = append(jump.Entries, id+": "+kubeletRollAction(hop))
+			}
 		case noticedAll && hop.Status != scanreport.HopBlocked:
 			// A notice rule overlaps the hop and decides nothing: ATTENTION
 			// citing it, never a pass.
@@ -396,4 +416,61 @@ func (r *kubernetesRun) composeJump(path *scanreport.Path) {
 		jump.Scope = kubernetesJumpScope + fmt.Sprintf(kubeletSkewChecked, declared)
 	}
 	path.Jump = &jump
+}
+
+// skewRule reports whether the rule is a kubelet version-skew rule: one that
+// reads only the declared kubelet versions.
+func (r *kubernetesRun) skewRule(id string) bool {
+	rule, found := r.byID[id]
+	return found && declarationOnly(rule)
+}
+
+// minKubeletMinor is the lowest kubelet minor version the version-skew policy
+// allows against a control plane of minor line: three minors older (two for a
+// kubelet below 1.25).
+func minKubeletMinor(line uint64) uint64 {
+	if line >= 3 && line-3 >= 25 {
+		return line - 3
+	}
+	if line >= 2 {
+		return line - 2
+	}
+	return 0
+}
+
+// minKubelet is the minimum kubelet version for a control plane of the line
+// "1.N", or "" when the line is not a minor line.
+func minKubelet(line string) string {
+	major, minor, found := strings.Cut(line, ".")
+	if !found {
+		return ""
+	}
+	n, err := strconv.ParseUint(minor, 10, 64)
+	if err != nil {
+		return ""
+	}
+	return major + "." + strconv.FormatUint(minKubeletMinor(n), 10) + ".0"
+}
+
+// kubeletRollAction is the next action of a hop that the declared kubelets
+// are too old for.
+func kubeletRollAction(hop scanreport.Hop) string {
+	line, ok := endpointLine(upgradepath.Endpoint{Version: hop.To.Version, Line: hop.To.Line})
+	if minimum := minKubelet(line); ok && minimum != "" {
+		return "upgrade kubelets to >= " + minimum + " before this hop"
+	}
+	return "upgrade kubelets to a version the skew policy allows for the target of this hop before this hop"
+}
+
+// skewFindingText is the exact text of a kubelet-skew finding: the declared
+// kubelet versions, the control plane line and the minimum kubelet version.
+func skewFindingText(line, declaredMin, declaredMax string) (titleText, fix string) {
+	minimum := minKubelet(line)
+	declared := declaredMin
+	if declaredMax != "" && declaredMax != declaredMin {
+		declared += " to " + declaredMax
+	}
+	titleText = "Kubernetes " + line + " does not support the declared kubelet versions " + declared + ": every kubelet must be at least " + minimum + " and no newer than " + line + ", per the version-skew policy"
+	fix = "Upgrade every kubelet to " + minimum + " or newer (none newer than Kubernetes " + line + "), then declare the lowest and highest kubelet versions again and reassess. BLOCKED means unsupported by the version-skew policy, not a broken cluster."
+	return titleText, fix
 }

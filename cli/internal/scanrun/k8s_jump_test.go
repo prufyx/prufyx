@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
+	"github.com/prufyx/prufyx/cli/internal/upgradeplan"
 )
 
 func k8sJumpOf(t *testing.T, manifest string, lines []string, extra ...string) (Result, *scanreport.Jump) {
@@ -199,6 +200,72 @@ func TestKubernetesJumpDeterministic(t *testing.T) {
 			first = string(raw)
 		} else if string(raw) != first {
 			t.Fatalf("run %d differs:\n%s\n%s", i, first, raw)
+		}
+	}
+}
+
+// A hop that enters a line the declared kubelet versions are too old for is a
+// step to take (roll the nodes), not a block of the stepwise path: ATTENTION
+// with the exact minimum kubelet, never a pass; the direct finding stays
+// BLOCKED and the exit is unchanged.
+func TestKubernetesJumpKubeletSkew(t *testing.T) {
+	_, paths := files(t, map[string]string{"applyset.yaml": cronjobV1})
+	command := args(paths, "--from", "kubernetes=1.29.6", "--to", "kubernetes=1.33.1", "--kubelet-version-min", "1.29.0")
+	result := mustScan(t, newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"}), command...)
+	var path scanreport.Path
+	for _, p := range result.Report.Paths {
+		if p.Component == kubernetesSlug {
+			path = p
+		}
+	}
+	jump := path.Jump
+	if jump == nil || len(jump.Hops) != 4 || jump.Status == scanreport.JumpStepwisePass {
+		t.Fatalf("jump %+v", jump)
+	}
+	last := jump.Hops[3]
+	if last.To != "1.33.1" || last.Status != scanreport.JumpHopAttention || len(last.Entries) != 1 || !strings.Contains(last.Entries[0], "upgrade kubelets to >= 1.30.0 before this hop") {
+		t.Fatalf("last hop %+v", last)
+	}
+	for _, hop := range jump.Hops[:3] {
+		if hop.Status == scanreport.JumpHopAttention || hop.Status == scanreport.JumpHopBlocked {
+			t.Fatalf("hop within the skew window: %+v", hop)
+		}
+	}
+	// The finding of the direct upgrade stays BLOCKED, with exact versions.
+	var finding *scanreport.Finding
+	for i := range result.Report.Findings {
+		if strings.Contains(result.Report.Findings[i].RuleID, "kubelet-version-skew") {
+			finding = &result.Report.Findings[i]
+		}
+	}
+	if finding == nil || result.Exit != scanreport.ExitBlocked || scanreport.Exit(result.Report) != scanreport.ExitBlocked {
+		t.Fatalf("exit %d finding %+v", result.Exit, finding)
+	}
+	for _, want := range []string{"1.33", "1.29.0", "1.30.0"} {
+		if !strings.Contains(finding.Title+finding.Fix, want) {
+			t.Fatalf("text lacks %s: %q / %q", want, finding.Title, finding.Fix)
+		}
+	}
+	if len(finding.Title) > scanreport.MaxText || len(finding.Fix) > scanreport.MaxText || strings.Contains(finding.Fix, "more than three minor") {
+		t.Fatalf("text %q / %q", finding.Title, finding.Fix)
+	}
+	// The plan's hop table shows the step, the stage and the plan stay BLOCKED.
+	plan := upgradeplan.Build(result.Report, nil, upgradeplan.Capabilities{})
+	table := plan.Routes[0].HopTable
+	if len(table) != 4 || table[3].Status != "ATTENTION" || table[0].Status == "BLOCKED" || plan.Verdict != upgradeplan.VerdictBlocked {
+		t.Fatalf("plan %s table %+v", plan.Verdict, table)
+	}
+	// The exit does not read the jump.
+	result.Report.Paths[0].Jump = nil
+	if scanreport.Exit(result.Report) != scanreport.ExitBlocked {
+		t.Fatal("exit read the jump")
+	}
+}
+
+func TestMinKubelet(t *testing.T) {
+	for line, want := range map[string]string{"1.33": "1.30.0", "1.28": "1.25.0", "1.27": "1.25.0", "1.26": "1.24.0", "1.25": "1.23.0", "x": ""} {
+		if got := minKubelet(line); got != want {
+			t.Fatalf("%s: %q, want %q", line, got, want)
 		}
 	}
 }
