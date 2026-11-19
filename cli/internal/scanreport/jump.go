@@ -114,7 +114,7 @@ func ComposeJump(hops []JumpHop, digest string) (status string, decidedBy []int)
 	decidedBy = []int{}
 	chained := len(hops) > 0
 	for i, hop := range hops {
-		if hop.Index != i+1 || (i > 0 && hops[i-1].To != hop.From) {
+		if hop.Index != i+1 || (i > 0 && !sameEnd(hops[i-1].To, hop.From)) {
 			chained = false
 		}
 	}
@@ -214,6 +214,10 @@ func JumpLines(component, from, to string, j Jump) []string {
 	}
 	return out
 }
+
+// sameEnd reports whether two hop ends name the same release or line; the end
+// of one hop is the start of the next.
+func sameEnd(end, start string) bool { return end == start }
 
 func joinInts(values []int) string {
 	parts := make([]string, len(values))
