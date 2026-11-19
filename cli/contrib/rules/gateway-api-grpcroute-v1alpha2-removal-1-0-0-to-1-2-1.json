@@ -1,0 +1,58 @@
+[
+  {
+    "project": "gateway-api",
+    "description": "Gateway API 1.2.1 declares only version v1 in the standard-channel CustomResourceDefinition grpcroutes.gateway.networking.k8s.io; 1.0.0 shipped GRPCRoute (experimental channel only) with v1alpha2 served and stored. v1alpha2 was served: false in the standard channel at 1.1.0 and 1.1.1 and is absent from spec.versions from 1.2.0, so an update of that CRD from 1.0.0 is rejected while status.storedVersions lists v1alpha2, and manifests declared as gateway.networking.k8s.io/v1alpha2 GRPCRoute are not served. Storage migration state, stored objects, conversion and other CRD changes are not checked.",
+    "requiredFacts": [
+      {
+        "side": "proposed",
+        "id": "component.gateway_api.custom_resource_versions_set",
+        "component": "pkg:github/kubernetes-sigs/gateway-api",
+        "type": "set",
+        "enumTokens": null,
+        "description": "Custom-resource versions (group/version/Kind) of the Gateway API custom resources in the complete target apply set."
+      }
+    ],
+    "rule": {
+      "id": "gateway-api.crd-version-removal.grpcroutes-gateway-networking-k8s-io.1-0-0-to-1-2-1",
+      "operator": "forbid_set_member",
+      "subject": {
+        "component": "pkg:github/kubernetes-sigs/gateway-api",
+        "from": "1.0.0",
+        "to": "1.2.1"
+      },
+      "setCondition": {
+        "side": "proposed",
+        "component": "pkg:github/kubernetes-sigs/gateway-api",
+        "factId": "component.gateway_api.custom_resource_versions_set",
+        "members": [
+          "gateway.networking.k8s.io/v1alpha2/GRPCRoute"
+        ]
+      },
+      "evidence": {
+        "state": "active",
+        "reviewedAt": "2026-11-18T12:00:00Z",
+        "validUntil": "2027-02-16T12:00:00Z",
+        "sources": [
+          {
+            "id": "crd-grpcroutes-v1alpha2-served-v1-0-0-experimental",
+            "url": "https://github.com/kubernetes-sigs/gateway-api/blob/a0684982eddeb0360e215e0de322c3210ac49bb9/config/crd/experimental/gateway.networking.k8s.io_grpcroutes.yaml",
+            "revision": "a0684982eddeb0360e215e0de322c3210ac49bb9",
+            "contentDigest": "sha256:76157275d3123dbc86e0db5af7606eef0d143bf51e4ed7560014f72ca1279bb6",
+            "startLine": 20,
+            "endLine": 1720
+          },
+          {
+            "id": "crd-grpcroutes-v1alpha2-unserved-v1-2-1-standard",
+            "url": "https://github.com/kubernetes-sigs/gateway-api/blob/a8fe5c8732a37ef471d86afaf570ff8ad0ef0221/config/crd/standard/gateway.networking.k8s.io_grpcroutes.yaml",
+            "revision": "a8fe5c8732a37ef471d86afaf570ff8ad0ef0221",
+            "contentDigest": "sha256:8a705983343eabcb72c5bbfc2c090eed87b46763e2f6c67bd6b45552fcd5cc94",
+            "startLine": 20,
+            "endLine": 2003
+          }
+        ]
+      },
+      "reasonCode": "CRD_VERSION_NOT_SERVED",
+      "nextAction": "Convert GRPCRoute manifests to gateway.networking.k8s.io/v1 and migrate stored objects off v1alpha2 (remove v1alpha2 from status.storedVersions of CRD grpcroutes.gateway.networking.k8s.io) before upgrading to 1.2.1."
+    }
+  }
+]
