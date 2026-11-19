@@ -19,6 +19,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/currentbundle"
+	"github.com/prufyx/prufyx/cli/internal/knowledgeauto"
 	"github.com/prufyx/prufyx/cli/internal/knowledgepin"
 	"github.com/prufyx/prufyx/cli/internal/observation"
 	"github.com/prufyx/prufyx/cli/internal/projectcheck"
@@ -274,14 +275,12 @@ type versionData struct {
 // official knowledge profile, or "" when it is unpinned or malformed, which
 // makes `version` fail closed.
 func knowledgeRootDigest() string {
-	d := knowledgepin.Digest(officialKnowledgeProfile)
+	d := knowledgepin.Digest(knowledgeauto.Profile)
 	if d == "" || !knowledgepin.Valid(d) {
 		return ""
 	}
 	return d
 }
-
-const officialKnowledgeProfile = "cncf-projects"
 
 // versionLine words a build identity for a person. A development build says
 // that it is a source build and not a release, and that its identity is not
