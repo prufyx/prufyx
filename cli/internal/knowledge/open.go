@@ -5,6 +5,7 @@ package knowledge
 import (
 	"errors"
 	"fmt"
+	"github.com/prufyx/prufyx/cli/internal/knowledge/internal/seal"
 	"path"
 	"reflect"
 	"strings"
@@ -190,7 +191,11 @@ func openRevision(req SelectionRequest, profile profileSpec, evaluatedAt time.Ti
 	if err != nil || binding != selection.TrustStateDigest {
 		return VerifiedRevision{}, ErrIntegrity
 	}
-	admission, err := admit(append([]byte(nil), target...))
+	pinned, err := seal.Pinned(target, selection.BundleDigest)
+	if err != nil {
+		return VerifiedRevision{}, ErrIntegrity
+	}
+	admission, err := admit(pinned)
 	// A digest-bound target whose minClientVersion is above this build is not
 	// reported yet: the bundle is revalidated first, so only a store that
 	// still verifies reaches the fallback. An unknown schema does not: the
@@ -361,7 +366,12 @@ func inspectProfile(storeRoot string, profile profileSpec) (Status, error) {
 				}
 				admissionOK := true
 				if profile.admit != nil {
-					admitted, admissionErr := profile.admit(append([]byte(nil), target...))
+					pinned, pinErr := seal.Pinned(target, selection.BundleDigest)
+					var admitted Admission
+					admissionErr := pinErr
+					if pinErr == nil {
+						admitted, admissionErr = profile.admit(pinned)
+					}
 					admissionOK = admissionErr == nil && validateAdmissionForProfile(admitted, profile) == nil && admissionMatchesReceipt(admitted, receipt)
 				}
 				if admissionOK {

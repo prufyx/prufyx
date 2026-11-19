@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/prufyx/prufyx/cli/internal/knowledge/sealed"
 	"io"
 	"strconv"
 	"time"
@@ -99,8 +100,8 @@ type replaySeal struct{}
 
 // AdmitBundle is the semantic callback used by the knowledge store after TUF
 // target verification. The returned fields describe parsed data only.
-func AdmitBundle(target []byte) (knowledge.Admission, error) {
-	bundle, err := certmanagervalues.ParseExternalBundle(target)
+func AdmitBundle(verified sealed.Target) (knowledge.Admission, error) {
+	bundle, err := certmanagervalues.ParseExternalBundle(verified.Bytes())
 	if err != nil {
 		return knowledge.Admission{}, err
 	}

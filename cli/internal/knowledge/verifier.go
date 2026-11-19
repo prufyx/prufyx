@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/prufyx/prufyx/cli/internal/knowledge/internal/seal"
+	"github.com/prufyx/prufyx/cli/internal/knowledge/sealed"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -34,6 +36,7 @@ type trustMaterial struct {
 type verificationResult struct {
 	material   trustMaterial
 	target     []byte
+	sealed     sealed.Target
 	targetInfo *metadata.TargetFiles
 	verifiedAt time.Time
 	refreshErr error
@@ -147,20 +150,21 @@ func verifyPackageForProfileProjects(pkg importPackage, profile profileSpec, pri
 		result.refreshErr = fmt.Errorf("target hash policy: %w", ErrIntegrity)
 		return result, nil
 	}
-	_, target, err := u.DownloadTarget(info, filepath.Join(targetDir, "knowledge.json"), "https://offline.invalid/targets")
+	sealedTarget, err := seal.Download(u, info, filepath.Join(targetDir, "knowledge.json"), "https://offline.invalid/targets")
 	if err != nil {
 		result.refreshErr = err
 		return result, nil
 	}
 	if profile.split {
-		projects, err := verifySplitTargets(u, trusted.Targets[metadata.TARGETS], verifiedTarget{raw: target}, targetDir, only)
+		projects, err := verifySplitTargets(u, trusted.Targets[metadata.TARGETS], sealedTarget, targetDir, only)
 		if err != nil {
 			result.refreshErr = err
 			return result, nil
 		}
 		result.projects = projects
 	}
-	result.target = append([]byte(nil), target...)
+	result.target = sealedTarget.Bytes()
+	result.sealed = sealedTarget
 	result.targetInfo = info
 	return result, nil
 }

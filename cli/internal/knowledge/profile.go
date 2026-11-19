@@ -5,6 +5,7 @@ package knowledge
 import (
 	"errors"
 	"fmt"
+	"github.com/prufyx/prufyx/cli/internal/knowledge/sealed"
 	"os"
 
 	"github.com/prufyx/prufyx/cli/internal/cloudeventsstructuredjson"
@@ -198,7 +199,8 @@ func checkProfileMarker(store *storeFS, p profileSpec, allowInitialize bool) err
 	return nil
 }
 
-func admitSPIFFEX509SVID(target []byte) (Admission, error) {
+func admitSPIFFEX509SVID(verified sealed.Target) (Admission, error) {
+	target := verified.Bytes()
 	admission, err := spiffex509svid.AdmitProfile(target)
 	if err != nil {
 		return Admission{}, fmt.Errorf("SPIFFE X.509-SVID target admission: %w", ErrIntegrity)
@@ -206,7 +208,8 @@ func admitSPIFFEX509SVID(target []byte) (Admission, error) {
 	return Admission{Revision: admission.Revision, Purpose: admission.Purpose, EngineCapabilityDigest: admission.EngineCapabilityDigest, HasRule: admission.HasRule, RuleDigest: admission.RuleDigest, EvidenceExpiresAt: admission.EvidenceExpiresAt}, nil
 }
 
-func admitCloudEventsStructuredJSON(target []byte) (Admission, error) {
+func admitCloudEventsStructuredJSON(verified sealed.Target) (Admission, error) {
+	target := verified.Bytes()
 	admission, err := cloudeventsstructuredjson.AdmitProfile(target)
 	if err != nil {
 		return Admission{}, fmt.Errorf("CloudEvents structured JSON target admission: %w", ErrIntegrity)
@@ -214,7 +217,8 @@ func admitCloudEventsStructuredJSON(target []byte) (Admission, error) {
 	return Admission{Revision: admission.Revision, Purpose: admission.Purpose, EngineCapabilityDigest: admission.EngineCapabilityDigest, HasRule: admission.HasRule, RuleDigest: admission.RuleDigest, EvidenceExpiresAt: admission.EvidenceExpiresAt}, nil
 }
 
-func admitTiKVGCPV2WIFBackup(target []byte) (Admission, error) {
+func admitTiKVGCPV2WIFBackup(verified sealed.Target) (Admission, error) {
+	target := verified.Bytes()
 	admission, err := tikvgcpv2.AdmitProfile(target)
 	if err != nil {
 		return Admission{}, fmt.Errorf("TiKV GCP v2 WIF backup target admission: %w", ErrIntegrity)
@@ -222,7 +226,8 @@ func admitTiKVGCPV2WIFBackup(target []byte) (Admission, error) {
 	return Admission{Revision: admission.Revision, Purpose: admission.Purpose, EngineCapabilityDigest: admission.EngineCapabilityDigest, HasRule: admission.HasRule, RuleDigest: admission.RuleDigest, EvidenceExpiresAt: admission.EvidenceExpiresAt}, nil
 }
 
-func admitConstraints(target []byte) (Admission, error) {
+func admitConstraints(verified sealed.Target) (Admission, error) {
+	target := verified.Bytes()
 	bundle, err := cncfcheck.ParseExternalBundle(target)
 	if err != nil {
 		return Admission{}, fmt.Errorf("generic target parse: %w", ErrIntegrity)

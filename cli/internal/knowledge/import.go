@@ -302,7 +302,7 @@ func importWithProfile(req ImportRequest, profile profileSpec, admit AdmitFunc, 
 		}
 		req.ExpectedBundleDigest = expected
 	}
-	admission, err := admit(append([]byte(nil), verified.target...))
+	admission, err := admit(verified.sealed)
 	if err != nil {
 		return finish(rejected, fmt.Errorf("semantic admission: %w", err))
 	}
@@ -480,7 +480,7 @@ func validateStoredSelection(store *storeFS, selected selectionPointer, profile 
 	if err != nil || verified.refreshErr != nil || digestBytes(verified.target) != selected.BundleDigest || verified.material.stateDigest != selected.TrustStateDigest || profile.split && !sameProjects(projects, verified.projects) {
 		return ErrIntegrity
 	}
-	admission, err := admit(append([]byte(nil), target...))
+	admission, err := admit(verified.sealed)
 	if err != nil || validateAdmissionForProfile(admission, profile) != nil || !admissionMatchesReceipt(admission, receipt) || receipt.TargetPath != profile.targetPath {
 		return ErrIntegrity
 	}
@@ -583,7 +583,7 @@ func unsupportedBeforePersist(req ImportRequest, pkg importPackage, verified *ve
 			return nil
 		}
 	}
-	if _, err := admit(append([]byte(nil), verified.target...)); errors.Is(err, ErrUnsupportedKnowledge) {
+	if _, err := admit(verified.sealed); errors.Is(err, ErrUnsupportedKnowledge) {
 		return fmt.Errorf("semantic admission: %w", err)
 	}
 	return nil

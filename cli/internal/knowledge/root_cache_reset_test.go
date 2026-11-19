@@ -366,7 +366,7 @@ func cacheResetBundle(t *testing.T, now time.Time, revision string) []byte {
 	if err != nil {
 		t.Fatal(err)
 	}
-	admission, err := constraintsProfile().admit(raw)
+	admission, err := constraintsProfile().admit(sealedForTest(raw))
 	if err != nil || admission.Revision != revision {
 		t.Fatalf("bundle admission=%+v err=%v", admission, err)
 	}

@@ -96,7 +96,7 @@ func verifyForProfile(req VerifyRequest, profile profileSpec, admit AdmitFunc) (
 	if req.ExpectedBundleDigest != "" && req.ExpectedBundleDigest != targetDigest {
 		return PackageVerificationReceipt{}, fmt.Errorf("expected bundle digest: %w", ErrIntegrity)
 	}
-	admission, err := admit(append([]byte(nil), verified.target...))
+	admission, err := admit(verified.sealed)
 	if err != nil {
 		return PackageVerificationReceipt{}, fmt.Errorf("semantic admission: %w", err)
 	}
