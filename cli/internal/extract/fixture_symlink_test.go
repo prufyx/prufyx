@@ -117,10 +117,12 @@ func TestFixtureReaderSymlinkParityWithGit(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// The git dir lives outside the listed tree so it is not itself listed.
+	gitDir := t.TempDir()
 	gitRun := func(args ...string) string {
 		cmd := exec.Command("git", args...)
 		cmd.Dir = commitDir
-		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
+		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1", "GIT_DIR="+gitDir, "GIT_WORK_TREE="+commitDir)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("git %v: %v %s", args, err, out)
@@ -150,4 +152,44 @@ func TestFixtureReaderSymlinkParityWithGit(t *testing.T) {
 	}
 	check("", tree)
 	check("dir", gitRun("rev-parse", tree+":dir"))
+}
+
+// The refusal text names the link relative to the fixture root and its
+// target, never the absolute host path.
+func TestFixtureSymlinkErrorHasNoHostPath(t *testing.T) {
+	root, commitDir := fixtureCommitDir(t)
+	if err := os.Symlink("../../x", filepath.Join(commitDir, "dir", "ln")); err != nil {
+		t.Fatal(err)
+	}
+	_, err := FixtureReader{Root: root}.List(repoRef(t), testCommit, "")
+	if !errors.Is(err, ErrFixtureSymlink) {
+		t.Fatalf("want ErrFixtureSymlink, got %v", err)
+	}
+	if strings.Contains(err.Error(), root) || strings.Contains(err.Error(), commitDir) {
+		t.Fatalf("error leaks host path: %v", err)
+	}
+	if !strings.Contains(err.Error(), "dir/ln -> ../../x") {
+		t.Fatalf("error lacks relative link and target: %v", err)
+	}
+}
+
+// A regular file replaced by a link is refused with the typed error, and the
+// link's target is not served.
+func TestFixtureReadRefusesFileSwappedForLink(t *testing.T) {
+	root, commitDir := fixtureCommitDir(t)
+	fr := FixtureReader{Root: root}
+	repo := repoRef(t)
+	if _, err := fr.Read(repo, testCommit, "a.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(commitDir, "a.txt")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("dir/b.go", filepath.Join(commitDir, "a.txt")); err != nil {
+		t.Fatal(err)
+	}
+	data, err := fr.Read(repo, testCommit, "a.txt")
+	if !errors.Is(err, ErrFixtureSymlink) || data != nil {
+		t.Fatalf("want ErrFixtureSymlink and no data, got %q %v", data, err)
+	}
 }

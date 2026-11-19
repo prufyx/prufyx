@@ -9,11 +9,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 )
 
 // FixtureReader serves pinned bytes from a directory, for tests and for
@@ -77,17 +79,27 @@ func (f FixtureReader) Read(repo RepoRef, commit, p string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	st, err := os.Lstat(full)
+	// Open without following a final link (no Lstat-then-read gap), then
+	// require a regular file on the open descriptor.
+	fh, err := os.OpenFile(full, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 	if os.IsNotExist(err) {
 		return nil, fmt.Errorf("%w: %s", ErrNotFound, p)
 	}
+	if errors.Is(err, syscall.ELOOP) {
+		return nil, fmt.Errorf("%w: %s", ErrFixtureSymlink, p)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer fh.Close()
+	st, err := fh.Stat()
 	if err != nil {
 		return nil, err
 	}
 	if !st.Mode().IsRegular() {
 		return nil, fmt.Errorf("%s is not a regular file", p)
 	}
-	return os.ReadFile(full)
+	return io.ReadAll(fh)
 }
 
 // List implements PinnedReader.
@@ -163,7 +175,11 @@ func gitTree(root, dir string) ([]TreeEntry, string, error) {
 				return nil, "", err
 			}
 			if err := checkSymlinkTarget(root, dir, target); err != nil {
-				return nil, "", fmt.Errorf("%w: %s -> %s", ErrFixtureSymlink, full, target)
+				rel, rerr := filepath.Rel(root, full)
+				if rerr != nil {
+					rel = item.Name()
+				}
+				return nil, "", fmt.Errorf("%w: %s -> %s", ErrFixtureSymlink, filepath.ToSlash(rel), target)
 			}
 			entries = append(entries, TreeEntry{Mode: "120000", Type: "blob", SHA: gitObjectID("blob", []byte(target)), Path: item.Name()})
 		case item.IsDir():
