@@ -4652,7 +4652,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-18T09:16:00Z",
-          "validUntil": "2027-01-27T09:16:00Z",
+          "validUntil": "2026-12-22T09:16:00Z",
           "sources": [
             {
               "id": "envoy-origin-1-36-10-version",
@@ -6469,7 +6469,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-18T09:16:00Z",
-          "validUntil": "2027-01-27T09:16:00Z",
+          "validUntil": "2026-12-22T09:16:00Z",
           "sources": [
             {
               "id": "flux-target-crd-bundle",
@@ -14945,7 +14945,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-18T09:15:00Z",
-          "validUntil": "2027-01-25T09:15:00Z",
+          "validUntil": "2026-12-22T09:15:00Z",
           "sources": [
             {
               "id": "source-8bb4d023b6d8-222",
@@ -21397,7 +21397,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-18T08:59:00Z",
-          "validUntil": "2027-01-28T08:59:00Z",
+          "validUntil": "2026-12-22T08:59:00Z",
           "sources": [
             {
               "id": "source-d69d91aee2e3-27",
@@ -21429,7 +21429,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-18T09:15:00Z",
-          "validUntil": "2027-01-28T09:15:00Z",
+          "validUntil": "2026-12-22T09:15:00Z",
           "sources": [
             {
               "id": "source-d69d91aee2e3-6",
