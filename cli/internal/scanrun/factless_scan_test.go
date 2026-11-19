@@ -4,6 +4,7 @@ package scanrun
 
 import (
 	"encoding/json"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -177,6 +178,21 @@ func TestScanFactlessSkipBlocksDirectUpgrade(t *testing.T) {
 	}
 }
 
+var ruleDigestField = regexp.MustCompile(`"ruleDigest":"sha256:[0-9a-f]{64}"`)
+
+// maskRuleDigest replaces the digest of the synthetic rule with a fixed
+// placeholder. The rule's evidence window is derived from the shipped pack's
+// clock, so the digest over the rule moves when the pack is renewed; every
+// verdict, status and reason stays in the golden. Exactly one digest must be
+// present, so a report that lost it still fails.
+func maskRuleDigest(t testing.TB, raw []byte) []byte {
+	t.Helper()
+	if n := len(ruleDigestField.FindAll(raw, -1)); n != 1 {
+		t.Fatalf("report has %d ruleDigest fields, want 1", n)
+	}
+	return ruleDigestField.ReplaceAll(raw, []byte(`"ruleDigest":"sha256:RULE-DIGEST-MASKED"`))
+}
+
 // TestScanFactlessSkipGolden: the location-less BLOCKED finding in the human,
 // JSON and SARIF output. It changes the working directory (display paths),
 // so it does not run in parallel.
@@ -186,7 +202,7 @@ func TestScanFactlessSkipGolden(t *testing.T) {
 	inDir(t, dir, func() {
 		report := mustScan(t, knowledge, args([]string{"cm.yaml"}, "--from", "kubernetes=1.33.2", "--to", "kubernetes=1.37.1")...).Report
 		golden(t, "factless-skip-blocked.txt", scanreport.Human(report, scanreport.HumanOptions{}))
-		golden(t, "factless-skip-blocked.json", jsonOf(t, report))
+		golden(t, "factless-skip-blocked.json", maskRuleDigest(t, jsonOf(t, report)))
 		sarif, err := scanreport.SARIF(report)
 		if err != nil {
 			t.Fatal(err)

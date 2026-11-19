@@ -126,6 +126,28 @@ func TestProviderDistributionTokensFailClosed(t *testing.T) {
 	}
 }
 
+// maskProviderDates replaces the two standard-support end dates of the
+// synthetic record, which providerIndex derives from the shared test clock
+// (it follows the shipped pack's renewals), with fixed placeholders. Each date
+// must be present, so a report that lost one still fails.
+func maskProviderDates(t testing.TB, raw []byte) []byte {
+	t.Helper()
+	now, err := time.Parse(time.RFC3339, testNow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for date, mask := range map[string]string{
+		now.AddDate(0, 0, -200).Format("2006-01-02"): "ENDED-DATE-MASKED",
+		now.AddDate(0, 0, 400).Format("2006-01-02"):  "FUTURE-END-DATE-MASKED",
+	} {
+		if !strings.Contains(string(raw), date) {
+			t.Fatalf("report lacks the record date %s", date)
+		}
+		raw = []byte(strings.ReplaceAll(string(raw), date, mask))
+	}
+	return raw
+}
+
 func TestProviderSectionRendersAdvisory(t *testing.T) {
 	base := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
 	result := providerScan(t, withProviders{base, providerIndex(t)}, "--distribution", "eks")
@@ -138,7 +160,7 @@ func TestProviderSectionRendersAdvisory(t *testing.T) {
 	if md := string(scanreport.Markdown(result.Report, scanreport.MarkdownOptions{})); !strings.Contains(md, "PROVIDER FACTS") {
 		t.Error("markdown output lacks the provider section")
 	}
-	golden(t, "provider-eks.json", jsonOf(t, result.Report))
+	golden(t, "provider-eks.json", maskProviderDates(t, jsonOf(t, result.Report)))
 	// An upstream scan prints nothing of it.
 	if strings.Contains(string(scanreport.Human(providerScan(t, base, "--distribution", "official_upstream").Report, scanreport.HumanOptions{})), "PROVIDER FACTS") {
 		t.Error("upstream scan printed provider facts")
