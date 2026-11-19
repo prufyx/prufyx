@@ -35,7 +35,7 @@ func TestRowsCheckAbsentFloorReceiptUnchanged(t *testing.T) {
 	var out, errb bytes.Buffer
 	code := run([]string{"rows-check", "--fixture", fx}, floorTable(""), &out, &errb)
 	want := "PASS notes form=changelog-per-version-file tags=1 located=1 withheld=0 notFinal=0 newest=1/1 minLocatedNewest=8\n" +
-		"rows=1 failed=0 minLocatedNewest=rows tagsDigest=746c276701b23f42fca5ec4f3282fdad103a84f590af8a39c4928ab78a6941e4 mirrorDigest=none\n" +
+		"rows=1 failed=0 minLocatedNewest=rows tagsDigest=746c276701b23f42fca5ec4f3282fdad103a84f590af8a39c4928ab78a6941e4 mirrorDigest=none targets=embedded\n" +
 		"receipt/v1 step=check component=notes rowDigest=e0861bdeaa3b0c492047fc31e426ff0178f3b7cbfc6517faaa3a5ad4f89398f1 tagsDigest=746c276701b23f42fca5ec4f3282fdad103a84f590af8a39c4928ab78a6941e4 mirrorDigest=none codeDigest=sha256:\n"
 	// The code digest moves with every extractor change; the rest is pinned.
 	trim := func(s string) string {

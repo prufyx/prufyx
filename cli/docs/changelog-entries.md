@@ -154,8 +154,22 @@ and located with no residue and no withheld code. A row is reviewed input only; 
 ## Checking rows
 
 ```
-prufyx-maintainer changelog rows-check (--mirror-state DIR | --fixture DIR) [--component NAME]
+prufyx-maintainer changelog rows-check (--mirror-state DIR | --fixture DIR) [--component NAME] [--targets FILE]
 ```
+
+`--targets FILE` checks the rows of FILE instead of the compiled-in table, so a
+proposed row can be checked before it is merged. FILE is a `targets.json` and
+goes through the same strict loader as the embedded table: an unknown field,
+a duplicate component or repo, a free regex (only the closed style names are
+accepted), a non-`.md` path, a `..` path, unsorted rows, a wrong schema or
+trailing data is refused with exit 2, as are a missing, unreadable, non-regular
+or oversized (over 1 MiB) file and a repeated flag. The file supplies rows only:
+heading and boundary patterns, the reader and its code digest stay compiled in,
+so the receipts carry the digests of the rows actually checked and the same
+reader code digest as without the flag. The summary line ends with `targets=embedded`, or `targets=file:sha256:<hex>`
+of the file bytes. The receipt lines keep their format, so a `--targets`
+receipt means nothing about the merged table unless the consumer compares its
+`rowDigest` to the digest of the row as merged. Without the flag nothing changes.
 
 Read-only and deterministic. For every row (or the one named) and every final
 release tag the source records for its repository (release candidates and other

@@ -29,7 +29,7 @@ import (
 
 const usage = `usage:
   prufyx-maintainer changelog entries --component NAME --repo github.com/OWNER/NAME --path FILE --form FORM --tag TAG (--mirror-state DIR | --fixture DIR)
-  prufyx-maintainer changelog rows-check (--mirror-state DIR | --fixture DIR) [--component NAME] [--min-located-newest N] [--upstream-tags FILE]
+  prufyx-maintainer changelog rows-check (--mirror-state DIR | --fixture DIR) [--component NAME] [--min-located-newest N] [--upstream-tags FILE] [--targets FILE]
   prufyx-maintainer changelog propose-rows (--mirror-state DIR | --fixture DIR) --component NAME --repo github.com/OWNER/NAME [--tags TAG,TAG | --upstream-tags FILE]
 exit: 0 manifest printed (entry or typed reason), every row PASS or a row proposed, 1 a row FAIL or NO-ROW, 2 input rejected or read failed`
 
@@ -170,10 +170,10 @@ func proposeRows(args []string, stdout, stderr io.Writer) int {
 // rowsCheck runs every reviewed row (or one) over all final tags of its
 // repository and prints one line per row. Read-only; 0 only when no row failed.
 func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io.Writer) int {
-	var component, mirror, fixture, minArg, upstream string
+	var component, mirror, fixture, minArg, upstream, targetsArg string
 	f := flag.NewFlagSet("changelog rows-check", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
-	for name, v := range map[string]*string{"component": &component, "mirror-state": &mirror, "fixture": &fixture, "min-located-newest": &minArg, "upstream-tags": &upstream} {
+	for name, v := range map[string]*string{"component": &component, "mirror-state": &mirror, "fixture": &fixture, "min-located-newest": &minArg, "upstream-tags": &upstream, "targets": &targetsArg} {
 		f.Var(&once{v: v}, name, "")
 	}
 	if err := f.Parse(args); err != nil {
@@ -192,6 +192,16 @@ func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io
 			return 2
 		}
 		override = &n
+	}
+	targetsMark := "embedded"
+	if f2 := visited(f, "targets"); f2 {
+		rows, sum, err := loadTargetsFile(targetsArg)
+		if err != nil {
+			fmt.Fprintf(stderr, "changelog rows-check: %v\n", err)
+			return 2
+		}
+		table = rows
+		targetsMark = "file:sha256:" + sum
 	}
 	src, err := openSource(mirror, fixture)
 	if err != nil {
@@ -261,7 +271,7 @@ func rowsCheck(args []string, table []changelogentries.Target, stdout, stderr io
 		fmt.Fprintf(stderr, "changelog rows-check: %v\n", err)
 		return 2
 	}
-	fmt.Fprintf(&out, " mirrorDigest=%s\n", md)
+	fmt.Fprintf(&out, " mirrorDigest=%s targets=%s\n", md, targetsMark)
 	// One canonical receipt line per checked row, in table order.
 	rows := table
 	if component != "" {
@@ -329,6 +339,65 @@ func openUpstream(path string) (changelogentries.UpstreamTags, error) {
 		return nil, err
 	}
 	return list, nil
+}
+
+// maxTargetsFile bounds a --targets file (the embedded table is far smaller).
+const maxTargetsFile = 1 << 20
+
+// visited reports whether the named flag was given (an empty value counts).
+func visited(f *flag.FlagSet, name string) bool {
+	seen := false
+	f.Visit(func(x *flag.Flag) {
+		if x.Name == name {
+			seen = true
+		}
+	})
+	return seen
+}
+
+// loadTargetsFile reads a targets.json given on the command line and runs it
+// through the same strict loader as the embedded table. The file is opened
+// once, the handle must be a regular file, and at most maxTargetsFile bytes
+// are read; more is refused. It also returns the sha256 of the file bytes.
+// Check only, never attestation.
+func loadTargetsFile(path string) ([]changelogentries.Target, string, error) {
+	if path == "" {
+		return nil, "", errors.New("--targets needs a file")
+	}
+	// A FIFO or device is refused before it is opened (opening a FIFO with no
+	// writer would block); the opened handle is checked again below.
+	pre, err := os.Stat(path)
+	if err != nil {
+		return nil, "", fmt.Errorf("--targets: %v", err)
+	}
+	if !pre.Mode().IsRegular() {
+		return nil, "", errors.New("--targets: not a regular file")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, "", fmt.Errorf("--targets: %v", err)
+	}
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, "", fmt.Errorf("--targets: %v", err)
+	}
+	if !fi.Mode().IsRegular() || !os.SameFile(pre, fi) {
+		return nil, "", errors.New("--targets: not a regular file")
+	}
+	data, err := io.ReadAll(io.LimitReader(f, maxTargetsFile+1))
+	if err != nil {
+		return nil, "", fmt.Errorf("--targets: %v", err)
+	}
+	if len(data) > maxTargetsFile {
+		return nil, "", errors.New("--targets: file over the size bound")
+	}
+	rows, err := changelogentries.LoadTargets(data)
+	if err != nil {
+		return nil, "", err
+	}
+	sum := sha256.Sum256(data)
+	return rows, hex.EncodeToString(sum[:]), nil
 }
 
 // tagSetDigest is the sha256 of the sorted, newline-joined tag names of the
