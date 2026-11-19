@@ -575,6 +575,10 @@ func TestHarnessVerdictsAndRuleIDs(t *testing.T) {
 		{"not flagged (scan verdict PASS)", nil, "NOT_FLAGGED_SCAN_PASS"},
 		{"no finding for this app (scan verdict BLOCKED)", nil, "NO_FINDING_SCAN_BLOCKED"},
 		{"2 of the app's old documents flagged by scan findings", nil, "OLD_DOCUMENTS_FLAGGED"},
+		{"PARTIAL COMPONENT_NOT_COVERED", nil, "HOP_PARTIAL"},
+		{"PARTIAL ", nil, "HOP_PARTIAL"},
+		{"rc=None: ", nil, "NO_EXIT_CODE_RECORDED"},
+		{"n/a", nil, "NO_ORACLE_A_DATA"},
 		{"rc=0: cert-manager is catalogued but has no rules yet; request coverage: https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml", nil, "CATALOGUED_NO_RULES_YET"},
 		{"rc=0: embedded source-rule identities: 11", nil, "EMBEDDED_SOURCE_RULE_IDENTITIES"},
 		{"rc=2: prufyx: unknown project \"gateway-api\"; list projects with `prufyx catalog cncf`", nil, "CHECK_UNKNOWN_PROJECT"},
@@ -596,6 +600,9 @@ func TestHarnessVerdictsAndRuleIDs(t *testing.T) {
 		ids     []string
 	}{
 		{"not flagged (scan verdict MAYBE)", nil},
+		{"PARTIAL leakhost-7", nil},
+		{"rc=None: leakhost-7", nil},
+		{"n/a leakhost-7", nil},
 		{"rc=0: embedded source-rule identities: many", nil},
 		{"rc=2: prufyx: unknown project \"x y /home/z\"; list projects with `prufyx catalog cncf`", nil},
 		{"rc=0: x is catalogued but has no rules yet; request coverage: https://example.net/leak", nil},

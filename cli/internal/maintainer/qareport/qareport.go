@@ -285,6 +285,13 @@ var reasonPatterns = []struct {
 	{regexp.MustCompile(`^rc=0: embedded source-rule identities: [0-9]+$`), "EMBEDDED_SOURCE_RULE_IDENTITIES"},
 	{regexp.MustCompile("^rc=2: prufyx: unknown project \"[a-z0-9][a-z0-9.-]{0,62}\"; list projects with `prufyx catalog cncf`$"), "CHECK_UNKNOWN_PROJECT"},
 	{regexp.MustCompile(`^rc=2: prufyx: invalid native format check arguments; use --help$`), "CHECK_INVALID_ARGUMENTS"},
+	// Hop status followed by its reason codes (scan+plan rows), as the harness records them.
+	{regexp.MustCompile(`^PARTIAL( [A-Z][A-Z0-9_]*(,[A-Z][A-Z0-9_]*)*)? ?$`), "HOP_PARTIAL"},
+	{regexp.MustCompile(`^PASS( [A-Z][A-Z0-9_]*(,[A-Z][A-Z0-9_]*)*)? ?$`), "HOP_PASS"},
+	{regexp.MustCompile(`^UNKNOWN( [A-Z][A-Z0-9_]*(,[A-Z][A-Z0-9_]*)*)? ?$`), "HOP_UNKNOWN"},
+	// No exit code recorded for a check, or no oracle A data.
+	{regexp.MustCompile(`^rc=None: ?$`), "NO_EXIT_CODE_RECORDED"},
+	{regexp.MustCompile(`^n/a$`), "NO_ORACLE_A_DATA"},
 	{regexp.MustCompile(`^[0-9]+ of the app's old documents flagged by scan findings$`), "OLD_DOCUMENTS_FLAGGED"},
 	{regexp.MustCompile(`^project [a-z0-9.-]+ absent from the assess JSON`), "PROJECT_ABSENT_FROM_ASSESS"},
 	{regexp.MustCompile(`^component [a-z0-9.-]+ refused by the CLI`), "COMPONENT_REFUSED_BY_CLI"},
