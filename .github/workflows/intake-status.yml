@@ -1,0 +1,41 @@
+# Status replies for onboarding request issues, without an installed App.
+#
+# Runs only on a schedule or by hand, from the default branch. It never runs on an issue, a comment or a pull request event, so
+# nothing an issue says can start it. It reads the published status feed from one fixed https URL, checks it against a closed
+# schema, checks every id of an entry against the live issue (issue number, numeric issue id, numeric author id) and writes one
+# comment per issue (created once, then edited in place). It never reads the title or body of an issue into a shell, changes no
+# label and closes or locks nothing. The job token has issues write and contents read, nothing else; all logic is in
+# scripts/intake-status.py (standard library only, no third-party code). Both this file and the script are gate paths: a change
+# needs the owner's trust-path approval. The offline lint of this file is cli/internal/maintainer/intakestatusworkflow.
+name: Intake status
+
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: intake-status
+  cancel-in-progress: false
+
+jobs:
+  status:
+    name: Post intake status
+    if: github.repository == 'prufyx/prufyx'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Check out the default branch (script only)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Post the status comments
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -I scripts/intake-status.py

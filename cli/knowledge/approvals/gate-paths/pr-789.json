@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "absent",
+    "candidateDigest": "sha256:a6b69f0e31377e956708dc065fe509297bbbb2cfb0eab1bb1a2162262652bba6",
+    "candidateId": "pr-789",
+    "decidedAt": "2026-11-20T12:58:04Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "gate-paths",
+    "ruleId": "pr-789",
+    "scope": "gate-paths",
+    "subject": "gatePaths"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "t/qvFdFrOaA/5E1p+SFGQH2sfPsiFHzFXfBu/Ntbr+04KTBr67xK1++0rSkyJMpmqynajukudIzv2qAh+AZXDg=="
+}
