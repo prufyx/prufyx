@@ -71,6 +71,9 @@ type Target struct {
 	// anything else). It never affects what is located, only whether a row
 	// passes the check.
 	MinLocatedNewest int
+	// Floor is the row's older-line floor, a canonical major.minor, or empty
+	// for the newest 5 lines. See floor.go.
+	Floor string
 }
 
 // InnerPattern is an anchored pattern for a same-level inner heading.
@@ -150,6 +153,11 @@ func (t Target) compile() (compiled, error) {
 	}
 	if t.MinLocatedNewest != 0 && !minLocatedNewestValues[t.MinLocatedNewest] {
 		return c, fmt.Errorf("MinLocatedNewest %d is not one of 5, 6, 7, 8", t.MinLocatedNewest)
+	}
+	if t.Floor != "" {
+		if _, err := ParseFloor(t.Floor); err != nil {
+			return c, err
+		}
 	}
 	c.max = MaxFileBytes
 	if t.MaxBytes < 0 || t.MaxBytes > MaxFileBytes {

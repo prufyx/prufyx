@@ -22,6 +22,11 @@ package changelogentries
 //     headingStyle and boundaryStyles are present only for the form
 //     "changelog-file" (path, headingStyle and at least one boundary style required) and absent for every
 //     other form;
+//   - a read row may carry floor, the oldest release line it reads without a
+//     gap: canonical major.minor (see floor.go), strictly older than the
+//     oldest of the newest 5 lines; absent means the newest 5, and absence is
+//     the only way to say so. The loader checks the grammar; rows-check
+//     re-derives the value from an upstream tag list;
 //   - headingStyle and each boundary style are names from the closed tables
 //     headingStyles and boundaryStyles below. A name maps to a fixed regular
 //     expression compiled in code; the data never holds a regular expression.
@@ -149,6 +154,10 @@ type rowData struct {
 	// MinLocatedNewest is the per-row coverage bar, 5 to 8; absent means 8.
 	// A pointer, so an explicit 0 is refused and never read as absent.
 	MinLocatedNewest *int `json:"minLocatedNewest,omitempty"`
+	// Floor is the oldest release line (canonical major.minor) the row reads
+	// without a gap; absent means the newest 5 lines. A pointer, so an explicit
+	// empty string is refused and never read as absent.
+	Floor *string `json:"floor,omitempty"`
 }
 
 // Reviewed is the reviewed table of changelog targets, loaded from
@@ -215,8 +224,17 @@ func (r rowData) target() (Target, error) {
 		}
 		t.MinLocatedNewest = *r.MinLocatedNewest
 	}
+	if r.Floor != nil {
+		if _, err := ParseFloor(*r.Floor); err != nil {
+			return Target{}, err
+		}
+		t.Floor = *r.Floor
+	}
 	switch r.Form {
 	case FormGithubRelease, FormPostTag, FormDocsPage, FormMonorepo:
+		if r.Floor != nil {
+			return Target{}, fmt.Errorf("form %q is not read: floor must be absent", r.Form)
+		}
 		if r.Path != "" || r.HeadingStyle != "" || r.BoundaryStyles != nil || r.InnerHeadingStyles != nil || r.MinLocatedNewest != nil {
 			return Target{}, fmt.Errorf("form %q is not read: path, headingStyle, boundaryStyles, innerHeadingStyles and minLocatedNewest must be absent", r.Form)
 		}
