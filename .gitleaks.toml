@@ -1,0 +1,30 @@
+title = "prufyx gitleaks config"
+
+[extend]
+useDefault = true
+
+# Reviewed false positives in working-tree files. Each entry exempts one
+# secret-free literal in one file (path AND match); any other finding in the
+# same file, or the same literal elsewhere, is still reported.
+
+# Synthetic deterministic "derived-<16 hex>" equivalenceKey identifiers in the
+# minified test corpus fixture.
+[[allowlists]]
+description = "synthetic derived-hex ids in corpus fixture"
+condition = "AND"
+paths = ['''^testdata/synthetic-cluster-scenarios/v4/corpus-index\.json$''']
+regexes = ['''^derived-[0-9a-f]{16}$''']
+
+# Chunk-size flag next to an API group name in the collector.
+[[allowlists]]
+description = "chunk-size flag in collector"
+condition = "AND"
+paths = ['''^cli/internal/localcollector/collect\.go$''']
+regexes = ['''^--chunk-size=200$''']
+
+# Escaped schema key name in the helm.values oracle fixture.
+[[allowlists]]
+description = "schema key name in helm values oracle fixture"
+condition = "AND"
+paths = ['''^cli/internal/extract/helmvalues/testdata/oracle-fixture\.json$''']
+regexes = ['''^k\.\.weird\.\.bad_20key$''']
