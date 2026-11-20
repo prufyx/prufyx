@@ -36716,12 +36716,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubeswift",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1319d910ef5f9edf344011ad04fbc1d7dd91e6c5e2acf848bc79bfdecc599449"
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
         },
-        "derivedAt": "2026-10-30T09:21:02Z",
-        "reviewedAt": "2026-10-30T09:21:02Z",
-        "validUntil": "2027-01-28T09:21:02Z",
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
         "sources": [
           {
             "id": "crds-0-3-0",
@@ -36790,12 +36790,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubeswift",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1319d910ef5f9edf344011ad04fbc1d7dd91e6c5e2acf848bc79bfdecc599449"
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
         },
-        "derivedAt": "2026-10-30T09:21:02Z",
-        "reviewedAt": "2026-10-30T09:21:02Z",
-        "validUntil": "2027-01-28T09:21:02Z",
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
         "sources": [
           {
             "id": "crds-0-4-0",
@@ -36844,12 +36844,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubeswift",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1319d910ef5f9edf344011ad04fbc1d7dd91e6c5e2acf848bc79bfdecc599449"
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
         },
-        "derivedAt": "2026-10-30T09:21:02Z",
-        "reviewedAt": "2026-10-30T09:21:02Z",
-        "validUntil": "2027-01-28T09:21:02Z",
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
         "sources": [
           {
             "id": "crds-0-5-0",
@@ -36898,12 +36898,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubeswift",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1319d910ef5f9edf344011ad04fbc1d7dd91e6c5e2acf848bc79bfdecc599449"
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
         },
-        "derivedAt": "2026-10-30T09:21:02Z",
-        "reviewedAt": "2026-10-30T09:21:02Z",
-        "validUntil": "2027-01-28T09:21:02Z",
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
         "sources": [
           {
             "id": "crds-0-6-0",
@@ -36948,12 +36948,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubeswift",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1319d910ef5f9edf344011ad04fbc1d7dd91e6c5e2acf848bc79bfdecc599449"
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
         },
-        "derivedAt": "2026-10-30T09:21:02Z",
-        "reviewedAt": "2026-10-30T09:21:02Z",
-        "validUntil": "2027-01-28T09:21:02Z",
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
         "sources": [
           {
             "id": "crds-0-7-0",
@@ -36998,12 +36998,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubeswift",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1319d910ef5f9edf344011ad04fbc1d7dd91e6c5e2acf848bc79bfdecc599449"
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
         },
-        "derivedAt": "2026-10-30T09:21:02Z",
-        "reviewedAt": "2026-10-30T09:21:02Z",
-        "validUntil": "2027-01-28T09:21:02Z",
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
         "sources": [
           {
             "id": "crds-0-8-0",
@@ -37048,12 +37048,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubeswift",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1319d910ef5f9edf344011ad04fbc1d7dd91e6c5e2acf848bc79bfdecc599449"
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
         },
-        "derivedAt": "2026-10-30T09:21:02Z",
-        "reviewedAt": "2026-10-30T09:21:02Z",
-        "validUntil": "2027-01-28T09:21:02Z",
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
         "sources": [
           {
             "id": "crds-0-10-0",
@@ -37098,12 +37098,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubeswift",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1319d910ef5f9edf344011ad04fbc1d7dd91e6c5e2acf848bc79bfdecc599449"
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
         },
-        "derivedAt": "2026-10-30T09:21:02Z",
-        "reviewedAt": "2026-10-30T09:21:02Z",
-        "validUntil": "2027-01-28T09:21:02Z",
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
         "sources": [
           {
             "id": "crds-0-10-0",
@@ -37152,12 +37152,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubeswift",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1319d910ef5f9edf344011ad04fbc1d7dd91e6c5e2acf848bc79bfdecc599449"
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
         },
-        "derivedAt": "2026-10-30T09:21:02Z",
-        "reviewedAt": "2026-10-30T09:21:02Z",
-        "validUntil": "2027-01-28T09:21:02Z",
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
         "sources": [
           {
             "id": "crds-0-11-0",
@@ -37266,12 +37266,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubeswift",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1319d910ef5f9edf344011ad04fbc1d7dd91e6c5e2acf848bc79bfdecc599449"
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
         },
-        "derivedAt": "2026-10-30T09:21:02Z",
-        "reviewedAt": "2026-10-30T09:21:02Z",
-        "validUntil": "2027-01-28T09:21:02Z",
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
         "sources": [
           {
             "id": "crds-0-12-0",
@@ -37380,12 +37380,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubeswift",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1319d910ef5f9edf344011ad04fbc1d7dd91e6c5e2acf848bc79bfdecc599449"
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
         },
-        "derivedAt": "2026-10-30T09:21:02Z",
-        "reviewedAt": "2026-10-30T09:21:02Z",
-        "validUntil": "2027-01-28T09:21:02Z",
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
         "sources": [
           {
             "id": "crds-0-13-0",
@@ -37438,12 +37438,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubeswift",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1319d910ef5f9edf344011ad04fbc1d7dd91e6c5e2acf848bc79bfdecc599449"
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
         },
-        "derivedAt": "2026-10-30T09:21:02Z",
-        "reviewedAt": "2026-10-30T09:21:02Z",
-        "validUntil": "2027-01-28T09:21:02Z",
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
         "sources": [
           {
             "id": "crds-0-14-0",
@@ -37512,12 +37512,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubeswift",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1319d910ef5f9edf344011ad04fbc1d7dd91e6c5e2acf848bc79bfdecc599449"
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
         },
-        "derivedAt": "2026-10-30T09:21:02Z",
-        "reviewedAt": "2026-10-30T09:21:02Z",
-        "validUntil": "2027-01-28T09:21:02Z",
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
         "sources": [
           {
             "id": "crds-0-15-0",
@@ -37582,12 +37582,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubeswift",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1319d910ef5f9edf344011ad04fbc1d7dd91e6c5e2acf848bc79bfdecc599449"
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
         },
-        "derivedAt": "2026-10-30T09:21:02Z",
-        "reviewedAt": "2026-10-30T09:21:02Z",
-        "validUntil": "2027-01-28T09:21:02Z",
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
         "sources": [
           {
             "id": "crds-0-16-0",
@@ -37640,12 +37640,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubeswift",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1319d910ef5f9edf344011ad04fbc1d7dd91e6c5e2acf848bc79bfdecc599449"
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
         },
-        "derivedAt": "2026-10-30T09:21:02Z",
-        "reviewedAt": "2026-10-30T09:21:02Z",
-        "validUntil": "2027-01-28T09:21:02Z",
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
         "sources": [
           {
             "id": "crds-0-17-0",
@@ -37710,12 +37710,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubeswift",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1319d910ef5f9edf344011ad04fbc1d7dd91e6c5e2acf848bc79bfdecc599449"
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
         },
-        "derivedAt": "2026-10-30T09:21:02Z",
-        "reviewedAt": "2026-10-30T09:21:02Z",
-        "validUntil": "2027-01-28T09:21:02Z",
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
         "sources": [
           {
             "id": "crds-0-18-0",
@@ -37776,12 +37776,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubeswift",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1319d910ef5f9edf344011ad04fbc1d7dd91e6c5e2acf848bc79bfdecc599449"
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
         },
-        "derivedAt": "2026-10-30T09:21:02Z",
-        "reviewedAt": "2026-10-30T09:21:02Z",
-        "validUntil": "2027-01-28T09:21:02Z",
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
         "sources": [
           {
             "id": "crds-0-19-0",
@@ -37831,6 +37831,10 @@
           {
             "version": "0.21.2",
             "commit": "9658f61c7b239f22e86269f75f75bc3066c35a3b"
+          },
+          {
+            "version": "0.21.3",
+            "commit": "34bda995a6b1900f8c2954b6bfcddabfc9efba04"
           }
         ]
       },
@@ -37838,12 +37842,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.kubeswift",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1319d910ef5f9edf344011ad04fbc1d7dd91e6c5e2acf848bc79bfdecc599449"
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
         },
-        "derivedAt": "2026-10-30T09:21:02Z",
-        "reviewedAt": "2026-10-30T09:21:02Z",
-        "validUntil": "2027-01-28T09:21:02Z",
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
         "sources": [
           {
             "id": "crds-0-20-0",
@@ -37857,6 +37861,284 @@
             "id": "crds-0-21-0",
             "url": "https://github.com/kubeswift-io/kubeswift/blob/adea6bda3a39b8dc44d5aaab25743ab65907ef1b/config/crd/bases/fleet.kubeswift.io_clusters.yaml",
             "revision": "adea6bda3a39b8dc44d5aaab25743ab65907ef1b",
+            "contentDigest": "sha256:43c2cd53c5456d604fe92b5b96f277b3649f61f10131d1697b9ff01923aecf71",
+            "startLine": 1,
+            "endLine": 239
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubeswift-io/kubeswift",
+      "line": "0.22",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.21.0",
+            "commit": "adea6bda3a39b8dc44d5aaab25743ab65907ef1b"
+          },
+          {
+            "version": "0.21.1",
+            "commit": "9377ce5376dea86c5170c2f1faa22c1161d3bed3"
+          },
+          {
+            "version": "0.21.2",
+            "commit": "9658f61c7b239f22e86269f75f75bc3066c35a3b"
+          },
+          {
+            "version": "0.21.3",
+            "commit": "34bda995a6b1900f8c2954b6bfcddabfc9efba04"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.22.0",
+            "commit": "23368cc0c2e4f2414951c5fa0d530a23727e095a"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kubeswift",
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
+        },
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
+        "sources": [
+          {
+            "id": "crds-0-21-0",
+            "url": "https://github.com/kubeswift-io/kubeswift/blob/adea6bda3a39b8dc44d5aaab25743ab65907ef1b/config/crd/bases/fleet.kubeswift.io_clusters.yaml",
+            "revision": "adea6bda3a39b8dc44d5aaab25743ab65907ef1b",
+            "contentDigest": "sha256:43c2cd53c5456d604fe92b5b96f277b3649f61f10131d1697b9ff01923aecf71",
+            "startLine": 1,
+            "endLine": 239
+          },
+          {
+            "id": "crds-0-22-0",
+            "url": "https://github.com/kubeswift-io/kubeswift/blob/23368cc0c2e4f2414951c5fa0d530a23727e095a/config/crd/bases/fleet.kubeswift.io_clusters.yaml",
+            "revision": "23368cc0c2e4f2414951c5fa0d530a23727e095a",
+            "contentDigest": "sha256:43c2cd53c5456d604fe92b5b96f277b3649f61f10131d1697b9ff01923aecf71",
+            "startLine": 1,
+            "endLine": 239
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubeswift-io/kubeswift",
+      "line": "0.23",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.22.0",
+            "commit": "23368cc0c2e4f2414951c5fa0d530a23727e095a"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.23.0",
+            "commit": "c03486c6854c94bbe39be507715bace7f7226dcc"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kubeswift",
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
+        },
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
+        "sources": [
+          {
+            "id": "crds-0-22-0",
+            "url": "https://github.com/kubeswift-io/kubeswift/blob/23368cc0c2e4f2414951c5fa0d530a23727e095a/config/crd/bases/fleet.kubeswift.io_clusters.yaml",
+            "revision": "23368cc0c2e4f2414951c5fa0d530a23727e095a",
+            "contentDigest": "sha256:43c2cd53c5456d604fe92b5b96f277b3649f61f10131d1697b9ff01923aecf71",
+            "startLine": 1,
+            "endLine": 239
+          },
+          {
+            "id": "crds-0-23-0",
+            "url": "https://github.com/kubeswift-io/kubeswift/blob/c03486c6854c94bbe39be507715bace7f7226dcc/config/crd/bases/fleet.kubeswift.io_clusters.yaml",
+            "revision": "c03486c6854c94bbe39be507715bace7f7226dcc",
+            "contentDigest": "sha256:43c2cd53c5456d604fe92b5b96f277b3649f61f10131d1697b9ff01923aecf71",
+            "startLine": 1,
+            "endLine": 239
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubeswift-io/kubeswift",
+      "line": "0.24",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.23.0",
+            "commit": "c03486c6854c94bbe39be507715bace7f7226dcc"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.24.0",
+            "commit": "d7c576397bb7bdc2c0c689f9b052614d9e11b362"
+          },
+          {
+            "version": "0.24.1",
+            "commit": "35e4b42300cdf9029faf217100038710d1cdc2f1"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kubeswift",
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
+        },
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
+        "sources": [
+          {
+            "id": "crds-0-23-0",
+            "url": "https://github.com/kubeswift-io/kubeswift/blob/c03486c6854c94bbe39be507715bace7f7226dcc/config/crd/bases/fleet.kubeswift.io_clusters.yaml",
+            "revision": "c03486c6854c94bbe39be507715bace7f7226dcc",
+            "contentDigest": "sha256:43c2cd53c5456d604fe92b5b96f277b3649f61f10131d1697b9ff01923aecf71",
+            "startLine": 1,
+            "endLine": 239
+          },
+          {
+            "id": "crds-0-24-0",
+            "url": "https://github.com/kubeswift-io/kubeswift/blob/d7c576397bb7bdc2c0c689f9b052614d9e11b362/config/crd/bases/fleet.kubeswift.io_clusters.yaml",
+            "revision": "d7c576397bb7bdc2c0c689f9b052614d9e11b362",
+            "contentDigest": "sha256:43c2cd53c5456d604fe92b5b96f277b3649f61f10131d1697b9ff01923aecf71",
+            "startLine": 1,
+            "endLine": 239
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubeswift-io/kubeswift",
+      "line": "0.25",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.24.0",
+            "commit": "d7c576397bb7bdc2c0c689f9b052614d9e11b362"
+          },
+          {
+            "version": "0.24.1",
+            "commit": "35e4b42300cdf9029faf217100038710d1cdc2f1"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.25.0",
+            "commit": "932720e87261724807a60a6a02a86594248272ca"
+          },
+          {
+            "version": "0.25.1",
+            "commit": "db5fdc757cd2ed93401b30ceee80b1f90e68da85"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kubeswift",
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
+        },
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
+        "sources": [
+          {
+            "id": "crds-0-24-0",
+            "url": "https://github.com/kubeswift-io/kubeswift/blob/d7c576397bb7bdc2c0c689f9b052614d9e11b362/config/crd/bases/fleet.kubeswift.io_clusters.yaml",
+            "revision": "d7c576397bb7bdc2c0c689f9b052614d9e11b362",
+            "contentDigest": "sha256:43c2cd53c5456d604fe92b5b96f277b3649f61f10131d1697b9ff01923aecf71",
+            "startLine": 1,
+            "endLine": 239
+          },
+          {
+            "id": "crds-0-25-0",
+            "url": "https://github.com/kubeswift-io/kubeswift/blob/932720e87261724807a60a6a02a86594248272ca/config/crd/bases/fleet.kubeswift.io_clusters.yaml",
+            "revision": "932720e87261724807a60a6a02a86594248272ca",
+            "contentDigest": "sha256:43c2cd53c5456d604fe92b5b96f277b3649f61f10131d1697b9ff01923aecf71",
+            "startLine": 1,
+            "endLine": 239
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kubeswift-io/kubeswift",
+      "line": "0.26",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.25.0",
+            "commit": "932720e87261724807a60a6a02a86594248272ca"
+          },
+          {
+            "version": "0.25.1",
+            "commit": "db5fdc757cd2ed93401b30ceee80b1f90e68da85"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.26.0",
+            "commit": "9c1e6c80d455eb97e4c91bd205b58232dab03089"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kubeswift",
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
+        },
+        "derivedAt": "2026-11-20T20:14:28Z",
+        "reviewedAt": "2026-11-20T20:14:28Z",
+        "validUntil": "2027-01-14T20:14:28Z",
+        "sources": [
+          {
+            "id": "crds-0-25-0",
+            "url": "https://github.com/kubeswift-io/kubeswift/blob/932720e87261724807a60a6a02a86594248272ca/config/crd/bases/fleet.kubeswift.io_clusters.yaml",
+            "revision": "932720e87261724807a60a6a02a86594248272ca",
+            "contentDigest": "sha256:43c2cd53c5456d604fe92b5b96f277b3649f61f10131d1697b9ff01923aecf71",
+            "startLine": 1,
+            "endLine": 239
+          },
+          {
+            "id": "crds-0-26-0",
+            "url": "https://github.com/kubeswift-io/kubeswift/blob/9c1e6c80d455eb97e4c91bd205b58232dab03089/config/crd/bases/fleet.kubeswift.io_clusters.yaml",
+            "revision": "9c1e6c80d455eb97e4c91bd205b58232dab03089",
             "contentDigest": "sha256:43c2cd53c5456d604fe92b5b96f277b3649f61f10131d1697b9ff01923aecf71",
             "startLine": 1,
             "endLine": 239

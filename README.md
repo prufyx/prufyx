@@ -7,7 +7,7 @@ Prufyx checks a planned upgrade against upstream evidence and returns
 file, and line range it relies on, and says how it was established.
 
 <!-- basis-counts:begin -->
-Of the 304 active rules shipped today, 260 with basis `reviewed`, 44 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 232 release-line attestations and served-API lists are separate records: 232 with basis `mechanical`.
+Of the 304 active rules shipped today, 260 with basis `reviewed`, 44 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 237 release-line attestations and served-API lists are separate records: 237 with basis `mechanical`.
 <!-- basis-counts:end -->
 
 Each rule states which way it was established, and
@@ -324,7 +324,7 @@ community projects that hold CRD knowledge.
 ## Coverage
 
 <!-- coverage:begin -->
-Generated on 2026-11-20 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the date clock of the block is 2026-11-10 (the later of the snapshot's evaluation date and every capture date). The block is evaluated at 2026-11-20T09:42:39Z, the time of the newest line attestation or rule review, which is later than the date clock above.
+Generated on 2026-11-20 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the date clock of the block is 2026-11-10 (the later of the snapshot's evaluation date and every capture date). The block is evaluated at 2026-11-20T20:14:28Z, the time of the newest line attestation or rule review, which is later than the date clock above.
 
 | Executable rules | Count |
 | --- | --- |
