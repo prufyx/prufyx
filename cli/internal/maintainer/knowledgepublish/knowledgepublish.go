@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
@@ -382,6 +383,9 @@ var listedFloorCheck = cncfcheck.CheckListedFamilyFloor
 // test of another package can record what an older client does with a package
 // that lacks the floor; production code must not call it.
 func SetListedFloorCheckForTest(check func(index []byte, targets [][]byte) error) (restore func()) {
+	if !testing.Testing() {
+		panic("knowledgepublish: SetListedFloorCheckForTest called outside a test binary")
+	}
 	previous := listedFloorCheck
 	listedFloorCheck = check
 	return func() { listedFloorCheck = previous }
