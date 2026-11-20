@@ -641,19 +641,26 @@ jobs:
         env:
           CGO_ENABLED: "1"
           SHARD: ${{ matrix.shard }}
-          # Raced alone by race-knowledgegate-onboarding (49 minutes under -race).
-          SHARD_EXCLUDE: TestOnboardingRefusals
-        run: ../scripts/ci-test-shard.sh "${SHARD}" "${SHARDS}" ./internal/maintainer/knowledgegate/ -race -- -timeout 55m
+          # Raced alone by race-knowledgegate-onboarding (one job per name in its
+          # matrix; the two lists must stay equal, TestCIRaceKnowledgegateResult).
+          SHARD_EXCLUDE: TestOnboardingRefusals TestBotOnboardingLimits
+        # -v: the log shows every test's time (--- PASS: Name (Ns)) so a test
+        # that outgrows a shard is found without a failed run.
+        run: ../scripts/ci-test-shard.sh "${SHARD}" "${SHARDS}" ./internal/maintainer/knowledgegate/ -race -- -v -timeout 55m
 
   race-knowledgegate-onboarding:
-    # TestOnboardingRefusals alone ran 49 minutes under -race and timed a shard
-    # out, so it has its own job and is left out of the twelve shards
-    # (SHARD_EXCLUDE): every test is raced exactly once.
-    name: Race detector (knowledgegate TestOnboardingRefusals)
+    # Tests that take more than 25 minutes alone under -race (TestOnboardingRefusals
+    # 49, TestBotOnboardingLimits more than 36) each get a job here and are left
+    # out of the twelve shards (SHARD_EXCLUDE): every test is raced exactly once.
+    name: Race detector (knowledgegate ${{ matrix.test }})
     needs: race-plan
     if: needs.race-plan.outputs.knowledgegate == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 100
+    strategy:
+      fail-fast: false
+      matrix:
+        test: [TestOnboardingRefusals, TestBotOnboardingLimits]
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -670,11 +677,12 @@ jobs:
         working-directory: cli
         env:
           CGO_ENABLED: "1"
+          TEST_NAME: ${{ matrix.test }}
         # The test must run and pass: "no tests to run" is a failure here.
         run: |
           set -euo pipefail
-          go test -race -v -timeout 85m -run '^TestOnboardingRefusals$' ./internal/maintainer/knowledgegate/ | tee onboarding-race.log
-          grep -q '^--- PASS: TestOnboardingRefusals ' onboarding-race.log
+          go test -race -v -timeout 85m -run "^${TEST_NAME}\$" ./internal/maintainer/knowledgegate/ | tee onboarding-race.log
+          grep -q "^--- PASS: ${TEST_NAME} " onboarding-race.log
 
   race-knowledgegate-result:
     # Keeps the job name "Race detector (./internal/maintainer/knowledgegate/)" that
@@ -693,7 +701,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${RESULT}" != "success" ] || [ "${ONBOARDING}" != "success" ]; then
-            echo "knowledgegate race shards: ${RESULT}, TestOnboardingRefusals: ${ONBOARDING}" >&2
+            echo "knowledgegate race shards: ${RESULT}, isolated tests: ${ONBOARDING}" >&2
             exit 1
           fi
 
