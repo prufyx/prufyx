@@ -7,7 +7,7 @@ Prufyx checks a planned upgrade against upstream evidence and returns
 file, and line range it relies on, and says how it was established.
 
 <!-- basis-counts:begin -->
-Of the 304 active rules shipped today, 260 with basis `reviewed`, 44 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 220 release-line attestations and served-API lists are separate records: 220 with basis `mechanical`.
+Of the 304 active rules shipped today, 260 with basis `reviewed`, 44 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 232 release-line attestations and served-API lists are separate records: 232 with basis `mechanical`.
 <!-- basis-counts:end -->
 
 Each rule states which way it was established, and
@@ -313,7 +313,7 @@ upgrade surface they decide.
 Catalogued is not the same as decided.
 
 <!-- crd-catalogue:begin -->
-A project is catalogued when it has a reviewed custom-resource target (87 projects: 46 of the CNCF landscape catalog, 41 of the community catalog). It is decided only for the upgrades that a rule or line attestation covers for the whole release-line pair (A or B in the table below). Of the 41 community-catalog projects, 16 hold a published rule or current line attestation for the CRD version family and 25 hold none.
+A project is catalogued when it has a reviewed custom-resource target (87 projects: 46 of the CNCF landscape catalog, 41 of the community catalog). It is decided only for the upgrades that a rule or line attestation covers for the whole release-line pair (A or B in the table below). Of the 41 community-catalog projects, 17 hold a published rule or current line attestation for the CRD version family and 24 hold none.
 <!-- crd-catalogue:end -->
 
 In beta.0, a community-catalog project without data in the embedded knowledge
@@ -324,21 +324,21 @@ community projects that hold CRD knowledge.
 ## Coverage
 
 <!-- coverage:begin -->
-Generated on 2026-11-18 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the date clock of the block is 2026-11-10 (the later of the snapshot's evaluation date and every capture date). The block is evaluated at 2026-11-18T14:41:02Z, the time of the newest line attestation or rule review, which is later than the date clock above.
+Generated on 2026-11-20 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the date clock of the block is 2026-11-10 (the later of the snapshot's evaluation date and every capture date). The block is evaluated at 2026-11-20T09:42:39Z, the time of the newest line attestation or rule review, which is later than the date clock above.
 
 | Executable rules | Count |
 | --- | --- |
 | CNCF source rules, active | 253 across 54 projects (1 withdrawn, not used) |
 | Rules for further, non-CNCF projects | 51 across 10 projects |
 | Projects with at least one executable check (a rule, a named check or a profile; says nothing about which upgrades it decides) | 68 |
-| Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 52 of 79 |
+| Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 53 of 79 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
 | Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 87 |
-| Projects with a published CRD rule or line attestation | 40 |
+| Projects with a published CRD rule or line attestation | 42 |
 
 Version-coverage by form, over the last five minor upgrades of each of the 79 CNCF-catalog projects of the snapshot (395 upgrades between consecutive release lines). Each upgrade is counted once, under its strongest form, in this order: A/B decided, then k8s served-API, then S, then L, then G. Only A/B is called decided: a valid rule or attestation covers every version of both release lines. k8s served-API is an answer from the Kubernetes served-API family alone. S is a rule for one exact version pair only. L is listed, not judged: the change is listed, the answer is ATTENTION, never PASS. G is a gap, with its reason. There is no total over the forms.
 
-Projects with an answer of any form (A/B, k8s served-API, S or L): 52 of 79 in the fleet; 9 of 18 in the community group, which is marked in the table and outside the release-line fleet.
+Projects with an answer of any form (A/B, k8s served-API, S or L): 53 of 79 in the fleet; 10 of 18 in the community group, which is marked in the table and outside the release-line fleet.
 
 <details>
 <summary>Per project: A/B decided, k8s served-API, S, L listed not judged, G gap with reason</summary>
@@ -357,11 +357,11 @@ Projects with an answer of any form (A/B, k8s served-API, S or L): 52 of 79 in t
 | cluster-autoscaler | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
 | container-network-interface-cni | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
 | containerd | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
-| contour | release-line fleet | 5 | 4 | 0 | 0 | 0 | 1 | NOT_DECIDED_FOR_THIS_PAIR |
+| contour | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
 | coredns | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
 | cortex | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
 | cri-o | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
-| crossplane | release-line fleet | 5 | 1 | 0 | 0 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| crossplane | release-line fleet | 5 | 3 | 0 | 0 | 0 | 2 | NOT_DECIDED_FOR_THIS_PAIR |
 | cubefs | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
 | dapr | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
 | dex | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
@@ -402,7 +402,7 @@ Projects with an answer of any form (A/B, k8s served-API, S or L): 52 of 79 in t
 | kyverno | release-line fleet | 5 | 1 | 0 | 1 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
 | linkerd | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
 | loki | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
-| longhorn | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
+| longhorn | release-line fleet | 5 | 3 | 0 | 0 | 0 | 2 | NOT_DECIDED_FOR_THIS_PAIR |
 | metallb | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
 | metrics-server | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
 | nats | release-line fleet | 5 | 0 | 0 | 2 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
@@ -429,7 +429,7 @@ Projects with an answer of any form (A/B, k8s served-API, S or L): 52 of 79 in t
 | cluster-api (community) | community, outside the release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
 | eck-operator (community) | community, outside the release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
 | furiko (community) | community, outside the release-line fleet | 3 | 3 | 0 | 0 | 0 | 0 | - |
-| gateway-api (community) | community, outside the release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| gateway-api (community) | community, outside the release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
 | github-actions-runner-operator (community) | community, outside the release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
 | k8s-cleaner (community) | community, outside the release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
 | kong-ingress-controller (community) | community, outside the release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
