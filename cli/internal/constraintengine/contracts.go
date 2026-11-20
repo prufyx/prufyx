@@ -81,9 +81,13 @@ const (
 	// one fact per supported project, with headroom; a reviewed constant, never selected by rule data
 	maxCompiledRegistryFacts = 2048
 	maxRules                 = 512
-	maxSources               = 8
+	maxSources               = MaxSources
 	maxStringBytes           = 256
 )
+
+// MaxSources is the most sources one rule or record may cite. Extractors
+// that cite one source per release check it to withhold a pair on its own.
+const MaxSources = 8
 
 // MaxCompiledRegistryFacts is the cap on the number of facts a compiled
 // registry may define (see NewCompiledRegistry). It is exported so knowledge
