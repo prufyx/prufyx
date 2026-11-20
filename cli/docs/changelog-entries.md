@@ -204,11 +204,14 @@ newest window, and the slot counts as located only when every tag of it is.
 after the summary line) print one canonical receipt line per row:
 
 ```
-receipt/v1 step=<propose|check> component=<slug> rowDigest=<hex64> tagsDigest=<hex64|unreadable> mirrorDigest=<hex|none> codeDigest=sha256:<hex64>
+receipt/v1 step=<propose|check> component=<slug> rowDigest=<hex64> tagsDigest=<hex64|unreadable> mirrorDigest=<hex|none> codeDigest=sha256:<hex64> [hintDigest=<hex64>]
 ```
 
-The field order is fixed and every field is required; a consumer must refuse
-any other order, a missing or repeated field, or an unknown field. The line
+The field order is fixed and every field is required, except the one optional
+last field `hintDigest` (only on a `propose` line of a hinted run); a consumer
+must refuse any other order, a missing or repeated field, or an unknown field.
+A consumer that expects exactly the six fields refuses a hinted line (fail
+closed). The line
 holds a component slug and digests only, never changelog text or headings.
 
 - `rowDigest`: sha256 (hex) of the resolved row: compact JSON (no HTML
@@ -233,18 +236,18 @@ verdict.
 
 Strict consumer rule: parse with `ParseReceiptStrict(line, fixtureRun)` (or
 `ParseReceipt` then `Admissible`). It refuses any line that is not the exact
-shape above (order, fields, lower-case hex, no trailing characters), always
+shape above (with or without the optional last field; order, fields, lower-case hex, no trailing characters), always
 refuses `tagsDigest=unreadable`, and refuses `mirrorDigest=none` unless the run
 is a declared fixture run. A production consumer (batcher, QA gate) must also
 compare the receipt against the mirror index re-read at that time.
 
-For one row the `propose` and `check` receipts are equal except for `step`.
+For one row the `propose` and `check` receipts are equal except for `step` (and the optional `hintDigest` of a hinted `propose`).
 The `rows-check` summary line also prints `mirrorDigest=none` for a fixture.
 
 ## Proposing rows
 
 ```
-prufyx-maintainer changelog propose-rows (--mirror-state DIR | --fixture DIR) --component NAME --repo github.com/OWNER/NAME [--tags TAG,TAG]
+prufyx-maintainer changelog propose-rows (--mirror-state DIR | --fixture DIR) --component NAME --repo github.com/OWNER/NAME [--tags TAG,TAG | --upstream-tags FILE] [--hint-file FILE]
 ```
 
 Rows are not written by hand. The command tries a closed, ordered list of
@@ -272,6 +275,52 @@ The manifest is a derivation to be re-derived and checked, not a claim. A
 printed manifest, with or without an `entry`, is not a compatibility fact, an
 attestation or evidence of anything; only a gate that re-derives it from the
 pinned bytes and accepts it can use it.
+
+### Source hint (`--hint-file FILE`)
+
+A hint only narrows where `propose-rows` looks: the file and the heading style.
+It is one closed JSON object, at most 2048 bytes, exact lowercase keys only (a
+key such as `Path` is refused, not matched case-insensitively), no unknown or
+repeated field, nothing after it:
+
+```json
+{"source":"path","path":"docs/CHANGELOG.md","style":"version-v-prefixed"}
+```
+
+`source` is `path` (a file of the tree at the newest scored tag); `path` is a
+clean repository-relative path ending in exactly `.md` (lower case) (no `..`, no leading `/` or `.`, bytes in
+`[A-Za-z0-9._/-]`); `style` is one of the closed heading styles the candidate
+rows use (a boundary style or an unknown name is refused). With a hint only the
+candidates that read that file, in that heading style, are tried. Everything
+else runs unchanged: the newest-8 scan, the located counts, `PARTIAL_COVERAGE`
+and the other NO-ROW reasons, the pruning, the floor and the receipt. A row
+made with a hint is byte-identical to the row made without it whenever both
+find the same source; a hint that leads to a wrong file gives a NO-ROW from the
+same bar, never a row. A hint may also select a different valid candidate than
+the unhinted run would print: one that passes the same bar but may be a weaker
+source (for example 5 to 7 of the 8 versions with `minLocatedNewest`, where the
+unhinted winner locates all 8). The hinted candidate gets no leniency; the
+`hintDigest` in the receipt makes the hint visible to the reviewer. The hint
+only selects: the unhinted run is evaluated first, in full, and if it refuses
+(a read or loader error on any candidate) the hinted run refuses with the same
+error, so a hint never turns a refusal into a row. The style is a heading
+style, so a per-version-file candidate (no headings) can never be named by a
+hint (`HINT_PATH_NOT_CANDIDATE`), and the hinted file itself must supply a
+located entry at some scored tag (`HINT_PATH_NOT_LOCATED`), not only a sibling
+file of the same template. Candidate membership is checked before the hinted
+file is read. The hint file is opened without following a symlink and without
+blocking, and must be a regular file.
+
+Typed refusals (exit 2, nothing on standard output): `HINT_MALFORMED`,
+`HINT_SOURCE_UNSUPPORTED`, `HINT_PATH_INVALID`, `HINT_STYLE_UNKNOWN`,
+`HINT_PATH_MISSING` (no such file in the tree at the newest scored tag), `HINT_PATH_NOT_LOCATED` and
+`HINT_PATH_NOT_CANDIDATE` (a file the closed candidates never read). The hint
+file must be a regular file.
+
+A propose receipt of a hinted run ends with one more field,
+`hintDigest=<hex64>`, the sha256 of the hint file bytes. It is absent without
+a hint (the line is then unchanged), only a `propose` line carries it, and it
+is not part of the `propose`/`check` equality (a `check` line never has it).
 
 ## Older-line floor (optional row field)
 

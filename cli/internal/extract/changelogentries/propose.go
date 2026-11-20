@@ -203,6 +203,39 @@ func ProposeRowFloor(src interface {
 	extract.PinnedReader
 	extract.TagSource
 }, up UpstreamTags, component, repo string, only []string) (*Proposal, error) {
+	return ProposeRowHint(src, up, component, repo, only, nil)
+}
+
+// ProposeRowHint is ProposeRowFloor with an optional source hint. The hint
+// only SELECTS among the candidates the unhinted run evaluates: the unhinted
+// run is evaluated first, in full, and a hard refusal of it (a read or loader
+// error on any candidate, hinted or not) is returned as is, so a hint can never
+// turn a refusal into a row. The hinted run then narrows the closed candidate
+// places and heading styles tried; scoring, the newest-8 bar, pruning, the floor
+// and every other refusal run unchanged, and the hinted file must itself supply
+// a located hit. A nil hint is ProposeRowFloor.
+func ProposeRowHint(src interface {
+	extract.PinnedReader
+	extract.TagSource
+}, up UpstreamTags, component, repo string, only []string, hint *Hint) (*Proposal, error) {
+	if hint != nil {
+		if err := hint.validate(); err != nil {
+			return nil, err
+		}
+		if _, err := proposeCore(src, up, component, repo, only, nil); err != nil {
+			var nr *NoRow
+			if !errors.As(err, &nr) {
+				return nil, err // the unhinted run refuses: so does the hinted one, with the same error
+			}
+		}
+	}
+	return proposeCore(src, up, component, repo, only, hint)
+}
+
+func proposeCore(src interface {
+	extract.PinnedReader
+	extract.TagSource
+}, up UpstreamTags, component, repo string, only []string, hint *Hint) (*Proposal, error) {
 	if up != nil && len(only) > 0 {
 		return nil, errors.New("the upstream tag list cannot be combined with an explicit tag list")
 	}
@@ -246,6 +279,26 @@ func ProposeRowFloor(src interface {
 	}
 	if len(window) == 0 {
 		return nil, &NoRow{NoRowNoTags, "no final release tag is recorded for " + repo}
+	}
+	styles := headingOrder
+	var allow func(string) bool
+	if hint != nil {
+		// Only candidates that have headings take part: the hint names a
+		// heading style, which a per-version file does not have.
+		allow = func(p string) bool { return !perVersionPath(p) && hint.pathMatches(p, window) }
+		matched := false
+		for _, c := range candidatePaths {
+			if allow(c.Path) {
+				matched = true
+			}
+		}
+		if !matched {
+			return nil, &HintError{HintNoCandidate, hint.Path + " is not a place the closed candidates read with a heading style"}
+		}
+		if err := checkHintFile(src, rr, window[0], *hint); err != nil {
+			return nil, err
+		}
+		styles = []string{hint.Style}
 	}
 	eval := func(t Target) ([]Hit, int, error) {
 		hits := make([]Hit, 0, len(window))
@@ -322,6 +375,9 @@ func ProposeRowFloor(src interface {
 		return nil
 	}
 	for _, c := range candidatePaths {
+		if allow != nil && !allow(c.Path) {
+			continue
+		}
 		r := base
 		r.Form, r.Path = c.Form, c.Path
 		if c.Form == FormPerVersionFile {
@@ -330,7 +386,7 @@ func ProposeRowFloor(src interface {
 			}
 			continue
 		}
-		for _, h := range headingOrder {
+		for _, h := range styles {
 			r.HeadingStyle, r.BoundaryStyles, r.InnerHeadingStyles = h, append([]string(nil), boundaryOrder...), nil
 			if err := try(r); err != nil {
 				return nil, err
@@ -479,6 +535,21 @@ func ProposeRowFloor(src interface {
 	}
 	if _, err := parseTargets(doc); err != nil {
 		return nil, errors.New("proposed row is refused by the loader: " + err.Error())
+	}
+	if hint != nil {
+		// The hinted concrete file must itself have supplied a located hit.
+		ok := false
+		for _, h := range best.Hits {
+			if !h.Located {
+				continue
+			}
+			if v, fin := tagVersion(h.Tag); fin && expandPath(best.Row.Path, v) == hint.Path {
+				ok = true
+			}
+		}
+		if !ok {
+			return nil, &HintError{HintNotLocated, hint.Path + " located no entry at any scored tag"}
+		}
 	}
 	return best, nil
 }

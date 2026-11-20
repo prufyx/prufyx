@@ -24,13 +24,14 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/changelogentries"
+	"github.com/prufyx/prufyx/cli/internal/extract/safefs"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/factorymirror"
 )
 
 const usage = `usage:
   prufyx-maintainer changelog entries --component NAME --repo github.com/OWNER/NAME --path FILE --form FORM --tag TAG (--mirror-state DIR | --fixture DIR)
   prufyx-maintainer changelog rows-check (--mirror-state DIR | --fixture DIR) [--component NAME] [--min-located-newest N] [--upstream-tags FILE] [--targets FILE]
-  prufyx-maintainer changelog propose-rows (--mirror-state DIR | --fixture DIR) --component NAME --repo github.com/OWNER/NAME [--tags TAG,TAG | --upstream-tags FILE]
+  prufyx-maintainer changelog propose-rows (--mirror-state DIR | --fixture DIR) --component NAME --repo github.com/OWNER/NAME [--tags TAG,TAG | --upstream-tags FILE] [--hint-file FILE]
 exit: 0 manifest printed (entry or typed reason), every row PASS or a row proposed, 1 a row FAIL or NO-ROW, 2 input rejected or read failed`
 
 // Main runs a "changelog" subcommand (args exclude the word "changelog") with
@@ -101,10 +102,10 @@ func openSource(mirror, fixture string) (source, error) {
 // targets.json JSON with its per-tag hit table, or NO-ROW with a typed reason.
 // Read-only. 0 row printed, 1 NO-ROW, 2 input rejected.
 func proposeRows(args []string, stdout, stderr io.Writer) int {
-	var component, repo, tags, mirror, fixture, upstream string
+	var component, repo, tags, mirror, fixture, upstream, hintFile string
 	f := flag.NewFlagSet("changelog propose-rows", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
-	for name, v := range map[string]*string{"component": &component, "repo": &repo, "tags": &tags, "mirror-state": &mirror, "fixture": &fixture, "upstream-tags": &upstream} {
+	for name, v := range map[string]*string{"component": &component, "repo": &repo, "tags": &tags, "mirror-state": &mirror, "fixture": &fixture, "upstream-tags": &upstream, "hint-file": &hintFile} {
 		f.Var(&once{v: v}, name, "")
 	}
 	refuse := func(err error) int {
@@ -132,7 +133,16 @@ func proposeRows(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return refuse(err)
 	}
-	p, err := changelogentries.ProposeRowFloor(src, up, component, repo, only)
+	var hint *changelogentries.Hint
+	hintDigest := ""
+	if visited(f, "hint-file") {
+		h, d, err := readHintFile(hintFile)
+		if err != nil {
+			return refuse(err)
+		}
+		hint, hintDigest = &h, d
+	}
+	p, err := changelogentries.ProposeRowHint(src, up, component, repo, only, hint)
 	var nr *changelogentries.NoRow
 	if errors.As(err, &nr) {
 		fmt.Fprintln(stdout, nr.Error())
@@ -162,7 +172,7 @@ func proposeRows(args []string, stdout, stderr io.Writer) int {
 		return refuse(err)
 	}
 	rc := Receipt{Step: "propose", Component: component, RowDigest: rd,
-		TagsDigest: td, MirrorDigest: md, CodeDigest: code}
+		TagsDigest: td, MirrorDigest: md, CodeDigest: code, HintDigest: hintDigest}
 	fmt.Fprintf(stdout, "%s\n%s\n", out, rc.Line())
 	return 0
 }
@@ -544,4 +554,30 @@ func entries(args []string, table []changelogentries.Target) ([]byte, error) {
 		return nil, err
 	}
 	return m.Bytes()
+}
+
+// readHintFile reads and strictly decodes a hint file: a regular file of at
+// most MaxHintBytes. It returns the hint and the sha256 (hex) of the file bytes.
+func readHintFile(p string) (changelogentries.Hint, string, error) {
+	typed := func(d string) error {
+		return &changelogentries.HintError{Code: changelogentries.HintMalformed, Detail: d}
+	}
+	if p == "" {
+		return changelogentries.Hint{}, "", typed("--hint-file needs a path")
+	}
+	fh, err := safefs.OpenRegular(p)
+	if err != nil {
+		return changelogentries.Hint{}, "", typed("hint file is not a readable regular file")
+	}
+	defer fh.Close()
+	raw, err := io.ReadAll(io.LimitReader(fh, changelogentries.MaxHintBytes+1))
+	if err != nil {
+		return changelogentries.Hint{}, "", typed("hint file is not readable")
+	}
+	h, err := changelogentries.DecodeHint(raw)
+	if err != nil {
+		return changelogentries.Hint{}, "", err
+	}
+	sum := sha256.Sum256(raw)
+	return h, hex.EncodeToString(sum[:]), nil
 }
