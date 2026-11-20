@@ -271,8 +271,11 @@ func jsonStr(s string) string { b, _ := json.Marshal(s); return string(b) }
 // offline and needs the blob re-run (or a reviewer who re-ran it and updates
 // this list).
 var rowsRechecked = map[string]RecheckedRow{
-	"alertmanager": {RowDigest: "72ec19460e172522ea6203b6c0d2d67ce326131f1731bd0af83c4c865adaadda", FixtureDigest: "sha256:578e27e08e6116ea3272e05fbb1089a9876b39f772b35a32f2ba1b7eb5090e73"},
-	"prometheus":   {RowDigest: "d7d99823994415c019b8ade914dfea2b65d05e1edac8240eb76a826cce7b9ac7", FixtureDigest: "sha256:eff0f8dad6f786e841316143a70b0dc07f63e6b7d713ac094d6dd1ffc7851bba"},
+	"alertmanager":  {RowDigest: "72ec19460e172522ea6203b6c0d2d67ce326131f1731bd0af83c4c865adaadda", FixtureDigest: "sha256:578e27e08e6116ea3272e05fbb1089a9876b39f772b35a32f2ba1b7eb5090e73"},
+	"in-toto":       {RowDigest: "3975cd8372fd87afb1a0eec2f6b8364217335f8d39151dfc64010124ecdaa696", FixtureDigest: "sha256:08384b0f0817871555f54d9ea3b98542f0f736871a386152d65bf7203e12b912"},
+	"node-exporter": {RowDigest: "0fc37e02c44cc88e35f2d8f665134bd12c1dc10aecdf647e32e2d2ec94c83983", FixtureDigest: "sha256:0b514b5f044b56f8843c3eb82ede1f9a6ef027e6531b52b64395f3e43565cc6f"},
+	"prometheus":    {RowDigest: "d7d99823994415c019b8ade914dfea2b65d05e1edac8240eb76a826cce7b9ac7", FixtureDigest: "sha256:eff0f8dad6f786e841316143a70b0dc07f63e6b7d713ac094d6dd1ffc7851bba"},
+	"tuf":           {RowDigest: "49686de14fb4898efcce2a013f6223f842ede462fceca9af015581db7ab4aa61", FixtureDigest: "sha256:5128a3513578877660fb8d74d5ab842f033790dd77cfcfe09e14c3766956d8a5"},
 }
 
 // TestShippedRowFixtures recomputes every row's fixture check: one fixture per
