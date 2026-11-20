@@ -273,3 +273,35 @@ func TestJumpAcrossMajorBlockedByARuleOfTheMajorHop(t *testing.T) {
 		t.Fatalf("a decided hop is not uncovered: %+v", jump.Hops[2])
 	}
 }
+
+// A major crossing whose old side has no reviewed line after it, and whose
+// target is the first line of the new major (or a release of it), is still one
+// explicit major hop typed MAJOR_HOP_NOT_COVERED with its next action; never
+// a bare UNKNOWN, never a pass.
+func TestJumpAcrossMajorWithoutTailIsOneTypedMajorHop(t *testing.T) {
+	t.Parallel()
+	for name, c := range map[string]struct {
+		lines    []string
+		from, to string
+	}{
+		"to X.0 release":        {nil, "0.51.0", "1.0.0"},
+		"to X.0 reviewed old":   {[]string{"0.50", "0.51"}, "0.51.0", "1.0.0"},
+		"to X.0 no knowledge":   {[]string{"1.1"}, "0.51.0", "1.0.3"},
+		"last line before X.0":  {[]string{"0.50", "0.51"}, "0.51.1", "1.0.0"},
+		"near-last line, no 52": {[]string{"0.50"}, "0.50.1", "1.0.2"},
+	} {
+		result := majorScan(t, majorKnowledge(t, c.lines...), c.from, c.to)
+		path, jump := strimziJump(t, result.Report)
+		if jump == nil || len(path.Hops) != 1 || len(jump.Hops) != 1 {
+			t.Fatalf("%s: path %+v jump %+v", name, path.Hops, jump)
+		}
+		h := jump.Hops[0]
+		if h.Status != scanreport.JumpHopUndecided || !hasReason(h.Reasons, scanreport.ReasonMajorHopNotCovered) {
+			t.Fatalf("%s: hop %+v", name, h)
+		}
+		requireNeverBare(t, name, jump, 1)
+		if result.Report.Verdict != scanreport.VerdictUnknown || result.Exit != 11 || jump.Status == scanreport.JumpStepwisePass {
+			t.Fatalf("%s: verdict %s exit %d jump %s", name, result.Report.Verdict, result.Exit, jump.Status)
+		}
+	}
+}

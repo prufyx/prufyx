@@ -179,7 +179,7 @@ func (r *customResourceRun) majorPlan(family lineattest.Family, policy *upgradep
 		}
 		tail(major, 1)
 	}
-	if len(lines) > upgradepath.MaxHops || len(lines) < 2 || lines[len(lines)-1] != toLine {
+	if len(lines) > upgradepath.MaxHops || len(lines) < 1 || lines[len(lines)-1] != toLine {
 		return upgradepath.Plan{}, false
 	}
 	out := upgradepath.Plan{Component: r.component, Hops: make([]upgradepath.Hop, 0, len(lines))}
@@ -279,7 +279,7 @@ func (r *customResourceRun) commonRelease(family lineattest.Family, line, next s
 // else is UNDECIDED with a named gap. The jump never changes a finding, a
 // gap's meaning, the verdict or the exit code.
 func (r *customResourceRun) composeJump(path *scanreport.Path, plan upgradepath.Plan, decisions []hopDecision) {
-	if len(path.Hops) != len(decisions) || len(decisions) < 2 {
+	if len(path.Hops) != len(decisions) || len(decisions) < 1 {
 		return
 	}
 	digest := decisions[0].setDigest

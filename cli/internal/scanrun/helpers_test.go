@@ -562,3 +562,18 @@ func pick(value, fallback string) string {
 	}
 	return fallback
 }
+
+// answerGapReasons are the gap reasons without the two that name why one
+// hop of a major jump is undecided (no line review, or an overlapping
+// notice or lead that decides nothing): a neutral rule changes that name
+// only, never the exit, the verdict, a finding, a pass or any other gap.
+func answerGapReasons(report scanreport.Report) []string {
+	var out []string
+	for _, g := range gapReasons(report) {
+		if strings.HasPrefix(g, scanreport.ReasonLineNotAttested) || strings.HasPrefix(g, scanreport.ReasonRuleNotDecided) {
+			continue
+		}
+		out = append(out, g)
+	}
+	return out
+}
