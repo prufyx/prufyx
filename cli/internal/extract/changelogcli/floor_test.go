@@ -35,15 +35,23 @@ func TestRowsCheckAbsentFloorReceiptUnchanged(t *testing.T) {
 	var out, errb bytes.Buffer
 	code := run([]string{"rows-check", "--fixture", fx}, floorTable(""), &out, &errb)
 	want := "PASS notes form=changelog-per-version-file tags=1 located=1 withheld=0 notFinal=0 newest=1/1 minLocatedNewest=8\n" +
-		"rows=1 failed=0 minLocatedNewest=rows tagsDigest=c6d6fde738e84063b91a7f16478a766fe5a001b7b8182622700c832316aa83f0\n"
-	if code != 0 || out.String() != want {
+		"rows=1 failed=0 minLocatedNewest=rows tagsDigest=746c276701b23f42fca5ec4f3282fdad103a84f590af8a39c4928ab78a6941e4 mirrorDigest=none\n" +
+		"receipt/v1 step=check component=notes rowDigest=e0861bdeaa3b0c492047fc31e426ff0178f3b7cbfc6517faaa3a5ad4f89398f1 tagsDigest=746c276701b23f42fca5ec4f3282fdad103a84f590af8a39c4928ab78a6941e4 mirrorDigest=none codeDigest=sha256:\n"
+	// The code digest moves with every extractor change; the rest is pinned.
+	trim := func(s string) string {
+		if i := strings.Index(s, "codeDigest=sha256:"); i >= 0 {
+			return s[:i+len("codeDigest=sha256:")] + "\n"
+		}
+		return s
+	}
+	if code != 0 || trim(out.String()) != want {
 		t.Fatalf("%d\n%s", code, out.String())
 	}
 	// An upstream list given for a row without a floor changes nothing.
 	up := upFile(t, upRepo+"\t"+strings.Repeat("a", 40)+"\tv1.0.0\n")
 	out.Reset()
 	code = run([]string{"rows-check", "--fixture", fx, "--upstream-tags", up}, floorTable(""), &out, &errb)
-	if code != 0 || out.String() != want {
+	if code != 0 || trim(out.String()) != want {
 		t.Fatalf("%d\n%s", code, out.String())
 	}
 }
