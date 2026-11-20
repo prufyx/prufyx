@@ -8,8 +8,8 @@ on:
   merge_group:
     types: [checks_requested]
   schedule:
-    # Nightly full run, including the knowledgegate race package.
-    - cron: '17 2 * * *'
+    # Full run every 4 h (the merge queue reads the latest scheduled run via Nightly main), including the knowledgegate race package.
+    - cron: '17 */4 * * *'
   workflow_dispatch:
 
 permissions:
