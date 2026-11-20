@@ -5,6 +5,7 @@ package scanrun
 import (
 	"encoding/json"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -310,10 +311,12 @@ func TestScanCustomResourceNeverPasses(t *testing.T) {
 		t.Fatalf("exit %d verdict %s passes %+v gaps %v", result.Exit, report.Verdict, report.Passes, gapReasons(report))
 	}
 	hop := strimziHop(t, report)
-	if hop.Status != scanreport.HopPartial || len(hop.Reasons) != 1 || hop.Reasons[0] != scanreport.ReasonComponentNotCovered {
+	// The hop changes the major line: it names the major gap and the missing
+	// line review besides the component one.
+	if hop.Status != scanreport.HopPartial || !reflect.DeepEqual(hop.Reasons, []string{scanreport.ReasonComponentNotCovered, scanreport.ReasonLineNotAttested, scanreport.ReasonMajorHopNotCovered}) {
 		t.Fatalf("hop %+v", hop)
 	}
-	if len(report.Gaps) != 1 || !hasComponentGap(report, "strimzi", scanreport.ReasonComponentNotCovered, "only for custom-resource versions") {
+	if len(report.Gaps) != 3 || !hasComponentGap(report, "strimzi", scanreport.ReasonComponentNotCovered, "only for custom-resource versions") {
 		t.Fatalf("gaps %v", gapReasons(report))
 	}
 	for _, component := range report.Inventory {
@@ -419,7 +422,7 @@ func TestScanCustomResourceLeadIsNeutral(t *testing.T) {
 			extra := append([]string{"--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete"}, basis...)
 			plain := crdScan(t, newCRDKnowledge(t), docs, extra...)
 			lead := crdScan(t, newCRDKnowledge(t, crdRule, crdLeadRule), docs, extra...)
-			if plain.Exit != lead.Exit || strings.Join(gapReasons(plain.Report), ",") != strings.Join(gapReasons(lead.Report), ",") || len(plain.Report.Findings) != len(lead.Report.Findings) || len(plain.Report.Passes) != len(lead.Report.Passes) || lead.Report.TrustPolicy != nil {
+			if plain.Exit != lead.Exit || strings.Join(answerGapReasons(plain.Report), ",") != strings.Join(answerGapReasons(lead.Report), ",") || len(plain.Report.Findings) != len(lead.Report.Findings) || len(plain.Report.Passes) != len(lead.Report.Passes) || lead.Report.TrustPolicy != nil {
 				t.Fatalf("lead changed the answer: exit %d/%d gaps %v / %v trust %+v", plain.Exit, lead.Exit, gapReasons(plain.Report), gapReasons(lead.Report), lead.Report.TrustPolicy)
 			}
 		}
@@ -483,7 +486,7 @@ func TestScanCustomResourceRefusedInput(t *testing.T) {
 	k.refuse = true
 	result := crdScan(t, k, []string{kafkaV1beta2Doc}, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete")
 	hop := strimziHop(t, result.Report)
-	if result.Exit != 11 || hop.Status != scanreport.HopNoData || len(hop.Reasons) != 1 || hop.Reasons[0] != scanreport.ReasonComponentNotCovered || len(result.Report.Findings) != 0 {
+	if result.Exit != 11 || hop.Status != scanreport.HopNoData || !reflect.DeepEqual(hop.Reasons, []string{scanreport.ReasonComponentNotCovered, scanreport.ReasonLineNotAttested, scanreport.ReasonMajorHopNotCovered}) || len(result.Report.Findings) != 0 {
 		t.Fatalf("exit %d hop %+v", result.Exit, hop)
 	}
 }

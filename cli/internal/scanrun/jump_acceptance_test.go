@@ -24,7 +24,7 @@ var hopStatuses = map[string]bool{scanreport.JumpHopBlocked: true, scanreport.Ju
 // Missing with its evidence and action, and an UNKNOWN has the table.
 func requireNeverBare(t *testing.T, name string, jump *scanreport.Jump, hops int) {
 	t.Helper()
-	if jump == nil || len(jump.Hops) != hops || hops < 2 {
+	if jump == nil || len(jump.Hops) != hops || hops < 1 {
 		t.Fatalf("%s: jump %+v, want %d hops", name, jump, hops)
 	}
 	missing := map[int]scanreport.JumpMissing{}

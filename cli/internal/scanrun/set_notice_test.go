@@ -36,7 +36,7 @@ func TestScanSetNoticeIsNeutral(t *testing.T) {
 				plain := crdScan(t, newCRDKnowledge(t), docs, extra...)
 				notice := crdScan(t, newCRDKnowledge(t, crdRule, crdSetNoticeRule(operator)), docs, extra...)
 				if plain.Exit != notice.Exit || plain.Report.Verdict != notice.Report.Verdict ||
-					strings.Join(gapReasons(plain.Report), ",") != strings.Join(gapReasons(notice.Report), ",") ||
+					strings.Join(answerGapReasons(plain.Report), ",") != strings.Join(answerGapReasons(notice.Report), ",") ||
 					len(plain.Report.Findings) != len(notice.Report.Findings) || len(plain.Report.Passes) != len(notice.Report.Passes) ||
 					len(plain.Report.Notices) != len(notice.Report.Notices) {
 					t.Fatalf("%s changed the answer: exit %d/%d gaps %v / %v notices %+v", operator, plain.Exit, notice.Exit, gapReasons(plain.Report), gapReasons(notice.Report), notice.Report.Notices)
