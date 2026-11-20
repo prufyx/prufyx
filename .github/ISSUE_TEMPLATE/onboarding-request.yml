@@ -1,5 +1,5 @@
 name: Project onboarding request
-description: Invited maintainers only. Ask for a public project to be observed; fields map to "prufyx-maintainer project init".
+description: For maintainers. If your project is not in Prufyx yet, this is how you bring it in faster; fields map to "prufyx-maintainer project init".
 title: "[onboarding] "
 labels:
   - maintainer-intake
@@ -7,9 +7,11 @@ body:
   - type: markdown
     attributes:
       value: |
-        Only an invited maintainer of the project can submit it. How: [docs/maintainers.md](https://github.com/prufyx/prufyx/blob/main/docs/maintainers.md#intake-is-for-invited-maintainers-only) (Intake is for invited maintainers only). A bundle from an account without an invite is refused and is not imported. Filing this form does not by itself onboard a project.
+        If your project is not in Prufyx yet, this is how you bring it in faster. It is for a maintainer of the project. Submitting this form is a request, not a coverage claim: it does not add a rule, assert compatibility, or publish a project.
 
-        Fields map one-to-one to `prufyx-maintainer project init` (see [project onboarding](https://github.com/prufyx/prufyx/blob/main/cli/docs/project-onboarding.md)). A reviewer builds the request file, runs `project validate`, then `project sync`. This form does not add a rule, assert compatibility, or publish a project.
+        Maintainer status is checked from the project's own public maintainer files (CODEOWNERS, OWNERS approvers, MAINTAINERS), and otherwise by invitation. How: [docs/maintainers.md](https://github.com/prufyx/prufyx/blob/main/docs/maintainers.md#intake-is-for-invited-maintainers-only). A submission from an account that cannot be matched to the project is refused and is not imported. Status updates appear as comments on this issue.
+
+        Fields map one-to-one to `prufyx-maintainer project init` (see [project onboarding](https://github.com/prufyx/prufyx/blob/main/cli/docs/project-onboarding.md)). A reviewer builds the request file, runs `project validate`, then `project sync`.
 
         This issue is public. Do not include email addresses, customer data, cluster data, credentials, or private links.
   - type: input

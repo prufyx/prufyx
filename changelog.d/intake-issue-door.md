@@ -1,0 +1,2 @@
+### Changed
+- The onboarding request form and the maintainer guide now say that a maintainer of a project not yet in Prufyx can open the issue to bring it in sooner, that the issue is a request and not a coverage claim, how maintainer status is checked (public maintainer files, otherwise invitation) and that status updates appear as comments. The README states that the listed projects were added because they are part of CNCF and people use them, without maintainer endorsement.

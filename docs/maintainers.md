@@ -113,6 +113,13 @@ an issue or a comment.
 
 ## Intake is for invited maintainers only
 
+If your project is not in Prufyx yet, this is how you bring it in faster: a
+maintainer opens the onboarding request issue. The issue is a request, not a
+coverage claim. Maintainer status is checked from the project's own public
+maintainer files (CODEOWNERS, OWNERS approvers, MAINTAINERS) and otherwise by
+invitation. Status updates appear as comments on the issue. Projects we added
+ourselves were not reviewed or endorsed by their maintainers.
+
 Prufyx takes new projects only from people who maintain them. A bundle is
 imported into the build pipeline only when the account that opened the pull
 request holds an active invite for that exact repository. A bundle from an
