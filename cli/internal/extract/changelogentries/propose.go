@@ -70,13 +70,20 @@ var headingOrder = []string{
 	"version-dash-date", "version-slash-date",
 	"version-space-date", "version-v-slash-date", "version-linked-paren-date", "release-v-slash-date",
 	"version-v-paren-date", "version-dual-second", "version-dual-first",
+	"version-paren-date", "version-bracketed-long-date", "version-linked-spaced-date",
 }
 
 var boundaryOrder = []string{
 	"unreleased", "unreleased-bracketed", "prerelease-plain", "prerelease-v-prefixed",
 	"main-unreleased", "main-unreleased-parenthesised",
 	"master-unreleased", "line-heading-v", "prerelease-linked-paren-date",
+	"version-in-progress", "version-linked-loose-date",
 }
+
+// innerOrder is the order the closed inner heading styles are tried in; they
+// are tried together, only for a candidate that would not otherwise locate
+// every scored version, and dropped again when not needed.
+var innerOrder = []string{"note-first", "change-sections"}
 
 // Hit is one tag of a proposal's hit table.
 type Hit struct {
@@ -90,16 +97,25 @@ type Proposal struct {
 	Row     rowData
 	Hits    []Hit
 	Located int
+	// Versions is how many of the Window newest versions were located (all
+	// the tags of a version must be); Window how many were scored.
+	Versions int
+	Window   int
+	// pairMap says, tag by tag of the pair window, whether the row locates it.
+	pairMap string
+	pairN   int
 }
 
 // MarshalJSON renders {"row": ..., "located": n, "tags": n, "hits": [...]}.
 func (p Proposal) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		Row     rowData `json:"row"`
-		Located int     `json:"located"`
-		Tags    int     `json:"tags"`
-		Hits    []Hit   `json:"hits"`
-	}{p.Row, p.Located, len(p.Hits), p.Hits})
+		Row      rowData `json:"row"`
+		Located  int     `json:"located"`
+		Tags     int     `json:"tags"`
+		Versions int     `json:"versionsLocated"`
+		Window   int     `json:"versions"`
+		Hits     []Hit   `json:"hits"`
+	}{p.Row, p.Located, len(p.Hits), p.Versions, p.Window, p.Hits})
 }
 
 // NoRow is the typed refusal of a proposal.
@@ -226,6 +242,39 @@ func ProposeRow(src interface {
 		}
 		return hits, n, nil
 	}
+	// versions counts the versions of the window whose every tag is located.
+	// The pair window: every final tag of the newest 5 release lines
+	// (major.minor). Scoring stays on the newest 8; this window only breaks
+	// ties between equal scores and decides which styles may be pruned.
+	pairTags := pairWindowTags(finals, byName)
+	pairLocated := func(t Target) (string, int) {
+		var b strings.Builder
+		n := 0
+		for _, tag := range pairTags {
+			if _, err := Locate(src, t, tag); err == nil {
+				b.WriteByte('1')
+				n++
+			} else {
+				b.WriteByte('0')
+			}
+		}
+		return b.String(), n
+	}
+	windowVersions := map[string]bool{}
+	for _, tag := range window {
+		v, _ := tagVersion(tag.Name)
+		windowVersions[v] = true
+	}
+	versions := func(hits []Hit) int {
+		bad := map[string]bool{}
+		for _, h := range hits {
+			if !h.Located {
+				v, _ := tagVersion(h.Tag)
+				bad[v] = true
+			}
+		}
+		return len(windowVersions) - len(bad)
+	}
 	var best *Proposal
 	try := func(r rowData) error {
 		t, err := r.target()
@@ -236,8 +285,16 @@ func ProposeRow(src interface {
 		if err != nil {
 			return err
 		}
-		if n > 0 && (best == nil || n > best.Located) {
-			best = &Proposal{Row: r, Hits: hits, Located: n}
+		if n == 0 {
+			return nil
+		}
+		if best == nil || n > best.Located {
+			pm, pn := pairLocated(t)
+			best = &Proposal{Row: r, Hits: hits, Located: n, Versions: versions(hits), Window: len(windowVersions), pairMap: pm, pairN: pn}
+		} else if n == best.Located {
+			if pm, pn := pairLocated(t); pn > best.pairN {
+				best = &Proposal{Row: r, Hits: hits, Located: n, Versions: versions(hits), Window: len(windowVersions), pairMap: pm, pairN: pn}
+			}
 		}
 		return nil
 	}
@@ -251,9 +308,17 @@ func ProposeRow(src interface {
 			continue
 		}
 		for _, h := range headingOrder {
-			r.HeadingStyle, r.BoundaryStyles = h, append([]string(nil), boundaryOrder...)
+			r.HeadingStyle, r.BoundaryStyles, r.InnerHeadingStyles = h, append([]string(nil), boundaryOrder...), nil
 			if err := try(r); err != nil {
 				return nil, err
+			}
+			// Same-level inner headings are tried only when the candidate
+			// misses a version without them; it must then win on its own.
+			if best == nil || best.Versions < len(windowVersions) {
+				r.InnerHeadingStyles = append([]string(nil), innerOrder...)
+				if err := try(r); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
@@ -263,14 +328,10 @@ func ProposeRow(src interface {
 		}
 		return nil, &NoRow{NoRowNoCandidate, fmt.Sprintf("none of the closed candidates located an entry at any of %d tags", len(window))}
 	}
-	if best.Located < len(window) {
-		tab, _ := json.Marshal(best.Hits)
-		return nil, &NoRow{NoRowPartialCoverage, fmt.Sprintf("the best candidate (%s) locates %d of the %d scored tags; hits %s", best.Row.Path, best.Located, len(window), tab)}
-	}
-	// Drop every boundary style the result does not need, last first, so
-	// that a row which needs none keeps the first style of the order (the
-	// least surprising one) and not the last, which matches the rarest
-	// heading.
+	// Drop every boundary and inner style the result does not need, last
+	// first, so that a row which needs none keeps the first style of the order
+	// (the least surprising one) and not the last, which matches the rarest
+	// heading. A style stays when dropping it changes any hit.
 	for bi := len(boundaryOrder) - 1; bi >= 0; bi-- {
 		b := boundaryOrder[bi]
 		if best.Row.BoundaryStyles == nil {
@@ -296,7 +357,53 @@ func ProposeRow(src interface {
 			return nil, err
 		}
 		if n == best.Located && sameHits(hits, best.Hits) {
-			best = &Proposal{Row: cand, Hits: hits, Located: n}
+			// Never drop a style some tag of the pair window needs.
+			if pm, pn := pairLocated(t); pm == best.pairMap {
+				best = &Proposal{Row: cand, Hits: hits, Located: n, Versions: best.Versions, Window: best.Window, pairMap: pm, pairN: pn}
+			}
+		}
+	}
+	for ii := len(innerOrder) - 1; ii >= 0 && best.Row.InnerHeadingStyles != nil; ii-- {
+		var rest []string
+		for _, x := range best.Row.InnerHeadingStyles {
+			if x != innerOrder[ii] {
+				rest = append(rest, x)
+			}
+		}
+		if len(rest) == len(best.Row.InnerHeadingStyles) {
+			continue
+		}
+		cand := best.Row
+		cand.InnerHeadingStyles = rest
+		if len(rest) == 0 {
+			cand.InnerHeadingStyles = nil
+		}
+		t, err := cand.target()
+		if err != nil {
+			return nil, err
+		}
+		hits, n, err := eval(t)
+		if err != nil {
+			return nil, err
+		}
+		if n == best.Located && sameHits(hits, best.Hits) {
+			// Never drop a style some tag of the pair window needs.
+			if pm, pn := pairLocated(t); pm == best.pairMap {
+				best = &Proposal{Row: cand, Hits: hits, Located: n, Versions: best.Versions, Window: best.Window, pairMap: pm, pairN: pn}
+			}
+		}
+	}
+	// Coverage: every scored version, or, for a scan of the newest tags, at
+	// least five of them with the bar written into the row (reviewed data),
+	// so that a version the source never wrote an entry for does not hide a
+	// row that reads everything else. Pairs are never counted from the bar.
+	if best.Versions < best.Window {
+		if len(only) == 0 && best.Versions >= 5 && best.Versions <= 7 {
+			bar := best.Versions
+			best.Row.MinLocatedNewest = &bar
+		} else {
+			tab, _ := json.Marshal(best.Hits)
+			return nil, &NoRow{NoRowPartialCoverage, fmt.Sprintf("the best candidate (%s) locates %d of the %d scored versions (%d of %d tags); hits %s", best.Row.Path, best.Versions, best.Window, best.Located, len(window), tab)}
 		}
 	}
 	// The row must survive the strict loader exactly as it will be committed.
@@ -311,6 +418,37 @@ func ProposeRow(src interface {
 		return nil, errors.New("proposed row is refused by the loader: " + err.Error())
 	}
 	return best, nil
+}
+
+// pairWindowTags lists every final tag of the newest 5 release lines
+// (major.minor), newest line first, in a fixed order.
+func pairWindowTags(finals []string, byName map[string]extract.Tag) []extract.Tag {
+	lineOfTag := func(n string) string { v, _ := tagVersion(n); return lineOf(v) }
+	var lines []string
+	seen := map[string]bool{}
+	sorted := append([]string(nil), finals...)
+	sortNewestFirst(sorted)
+	for _, n := range sorted {
+		l := lineOfTag(n)
+		if !seen[l] {
+			seen[l] = true
+			lines = append(lines, l)
+		}
+	}
+	if len(lines) > 5 {
+		lines = lines[:5]
+	}
+	keep := map[string]bool{}
+	for _, l := range lines {
+		keep[l] = true
+	}
+	var out []extract.Tag
+	for _, n := range sorted {
+		if keep[lineOfTag(n)] {
+			out = append(out, byName[n])
+		}
+	}
+	return out
 }
 
 func sameHits(a, b []Hit) bool {

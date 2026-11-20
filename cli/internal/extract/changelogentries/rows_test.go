@@ -119,7 +119,7 @@ func TestEveryStyleCompiles(t *testing.T) {
 		if err != nil {
 			t.Fatalf("heading style %s: %v", name, err)
 		}
-		if n := re.SubexpNames(); len(n) < 2 || n[1] != "version" || (len(n) != 2 && !(len(n) == 4 && n[2] == "slug" && n[3] == "ref")) {
+		if n := re.SubexpNames(); len(n) < 2 || n[1] != "version" || (len(n) != 2 && !(len(n) == 4 && n[2] == "slug" && (n[3] == "ref" || n[3] == "line"))) {
 			t.Fatalf("heading style %s must have one capture named version", name)
 		}
 	}

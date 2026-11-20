@@ -142,3 +142,88 @@ func TestRowsCheckReceiptBindsTagSetAndMin(t *testing.T) {
 		}
 	}
 }
+
+func TestRowsCheckReceiptPrintsEachRowBar(t *testing.T) {
+	mk := func(min int) []changelogentries.Target {
+		return []changelogentries.Target{{
+			Component: "notes", Repo: extract.RepoRef{Key: "github.com/example/notes"},
+			Form: changelogentries.FormPerVersionFile, Path: "docs/v{version}.md", MinLocatedNewest: min,
+		}, {
+			Component: "other", Repo: extract.RepoRef{Key: "github.com/example/other"},
+			Form: changelogentries.FormPostTag,
+		}}
+	}
+	fx := rowsFixture(t, map[string]string{"docs/v1.0.0.md": "## Changes\n\n- a\n"})
+	// the skipped row still gets a receipt line, which binds its tag list
+	other := filepath.Join(fx, "github.com", "example", "other")
+	if err := os.MkdirAll(other, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(other, "tags.json"), []byte(`{}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run1 := func(tbl []changelogentries.Target, extra ...string) (int, string) {
+		var out, errb bytes.Buffer
+		code := run(append([]string{"rows-check", "--fixture", fx}, extra...), tbl, &out, &errb)
+		return code, out.String()
+	}
+	code, o := run1(mk(7))
+	if code != 0 || !strings.Contains(o, "PASS notes form=changelog-per-version-file tags=1 located=1 withheld=0 notFinal=0 newest=1/1 minLocatedNewest=7\n") ||
+		!strings.Contains(o, "minLocatedNewest=rows ") {
+		t.Fatalf("%d %s", code, o)
+	}
+	// the default is printed as 8, and a row that is not read prints no bar
+	_, o = run1(mk(0))
+	if !strings.Contains(o, "newest=1/1 minLocatedNewest=8\n") || strings.Contains(o, "SKIP other form=post-tag tags=0 located=0 withheld=0 notFinal=0 newest=0/0 minLocatedNewest") {
+		t.Fatalf("%s", o)
+	}
+	// an explicit override is printed on the row and in the summary
+	_, o = run1(mk(7), "--min-located-newest", "1")
+	if !strings.Contains(o, "newest=1/1 minLocatedNewest=1\n") || !strings.Contains(o, "minLocatedNewest=1 tagsDigest=") {
+		t.Fatalf("%s", o)
+	}
+}
+
+func TestRowsCheckPassNamesUnlocatedVersions(t *testing.T) {
+	files := map[string]string{}
+	tags := map[string]string{}
+	c := strings.Repeat("a", 40)
+	for i := 0; i < 8; i++ {
+		v := "1.0." + string(rune('0'+i))
+		tags["v"+v] = c
+		if i < 6 {
+			files["docs/v"+v+".md"] = "## Changes\n\n- a\n"
+		}
+	}
+	fx := rowsFixture(t, files)
+	raw := "{"
+	n := 0
+	for k, v := range tags {
+		if n > 0 {
+			raw += ","
+		}
+		raw += `"` + k + `":"` + v + `"`
+		n++
+	}
+	raw += "}"
+	if err := os.WriteFile(filepath.Join(fx, "github.com", "example", "notes", "tags.json"), []byte(raw), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tbl := []changelogentries.Target{{Component: "notes", Repo: extract.RepoRef{Key: "github.com/example/notes"},
+		Form: changelogentries.FormPerVersionFile, Path: "docs/v{version}.md", MinLocatedNewest: 5}}
+	var out, errb bytes.Buffer
+	code := run([]string{"rows-check", "--fixture", fx}, tbl, &out, &errb)
+	o := out.String()
+	if code != 0 || !strings.Contains(o, "PASS notes") || !strings.Contains(o, "newest=6/8") ||
+		!strings.Contains(o, "not located: v1.0.7, v1.0.6\n") {
+		t.Fatalf("%d %s", code, o)
+	}
+	// a row that locates everything names nothing
+	tbl[0].MinLocatedNewest = 0
+	files2 := rowsFixture(t, map[string]string{"docs/v1.0.0.md": "## Changes\n\n- a\n"})
+	out.Reset()
+	run([]string{"rows-check", "--fixture", files2}, tbl, &out, &errb)
+	if strings.Contains(out.String(), "not located") {
+		t.Fatalf("%s", out.String())
+	}
+}
