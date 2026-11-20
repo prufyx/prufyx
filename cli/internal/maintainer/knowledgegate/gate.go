@@ -63,6 +63,9 @@ type Options struct {
 	// Author is the change's author login; Sender the login of the
 	// account whose action triggered this run; BotLogin the automation's.
 	Author, Sender, BotLogin string
+	// CandidateID names the change an owner approval of a gate-path change
+	// is bound to ("pr-<number>"). Empty: a change of a gate path is refused.
+	CandidateID string
 	// Owner is the repository owner's login; empty means
 	// DefaultOwnerLogin. Only the owner's own change (author and sender)
 	// may supersede a reviewed rule.
@@ -639,6 +642,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	r.coverageFloorCheck(opts)
 	r.trustCheck(opts)
 	r.recordsTrustCheck(cls, opts)
+	r.gatePathCheck(opts, loadKeys)
 	r.modeCheck(opts)
 	r.baselineApprovalsUsed = r.baselinesCheck(opts, loadKeys, approvals)
 	r.recordCheck(cls, statements, opts)

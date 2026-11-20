@@ -35,7 +35,7 @@ const usage = `usage:
                                   [--max-withdraw-percent N] [--max-withdraw-project N]
                                   [--daily-loosening-count N] [--max-daily-loosening N]
   prufyx-maintainer gate verify   --base DIR --head DIR [--source github|fixture:DIR]
-                                  [--author LOGIN] [--sender LOGIN] [--owner-login LOGIN] [--bot-login LOGIN]
+                                  [--candidate-id pr-N] [--author LOGIN] [--sender LOGIN] [--owner-login LOGIN] [--bot-login LOGIN]
                                   [--head-sha SHA] [--commits FILE] [--max-loosening N]
                                   [--trust-root-digest sha256:...] [--approval-keys-digest sha256:...]
                                   [--rerun-worklist FILE]
@@ -268,7 +268,7 @@ func parseOnboardingAdmissionFlag(value, gitDir string) (bool, error) {
 func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout io.Writer) (int, error) {
 	var t treeFlags
 	var admission admissionFlags
-	var source, author, sender, owner, bot, headSHA, commits, digest, keysDigest, rerun, now, report, summary string
+	var candidateID, source, author, sender, owner, bot, headSHA, commits, digest, keysDigest, rerun, now, report, summary string
 	var onboardingAdmission, admissionEvent string
 	var max, concurrency int
 	var citeTimeout time.Duration
@@ -289,6 +289,7 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	f.StringVar(&alarmsMD, "alarms-markdown", "", "write the alarms as a Markdown list to this file")
 	f.StringVar(&source, "source", "", "upstream source for re-derivation: github or fixture:DIR")
 	f.StringVar(&author, "author", "", "the change's author login")
+	f.StringVar(&candidateID, "candidate-id", "", "the change's reference, pr-<number>, that an owner approval of a gate-path change is bound to")
 	f.StringVar(&sender, "sender", "", "the login of the account whose action triggered this run")
 	f.StringVar(&headSHA, "head-sha", "", "the head commit being checked")
 	f.StringVar(&commits, "commits", "", "the change's commit list (GitHub compare API JSON)")
@@ -330,7 +331,7 @@ func cmdVerify(args []string, layout Layout, getenv func(string) string, stdout 
 	if now == "" {
 		return 2, errors.New("--now is required: the gate does not default to the host clock")
 	}
-	opts := Options{Layout: layout, Base: base, Head: head, Author: author, Sender: sender, Owner: owner, BotLogin: bot, HeadSHA: headSHA, MaxLoosening: max, TrustRootDigest: digest, ApprovalKeysDigest: keysDigest, RederiveAll: all, Concurrency: concurrency, Shadow: shadow, BotSignerPaused: botPaused}
+	opts := Options{Layout: layout, Base: base, Head: head, CandidateID: candidateID, Author: author, Sender: sender, Owner: owner, BotLogin: bot, HeadSHA: headSHA, MaxLoosening: max, TrustRootDigest: digest, ApprovalKeysDigest: keysDigest, RederiveAll: all, Concurrency: concurrency, Shadow: shadow, BotSignerPaused: botPaused}
 	opts.AdmissionRESTBudget = restBudget
 	opts.AdmissionEvent = admissionEvent
 	if opts.OnboardingAdmissionInProcess, err = parseOnboardingAdmissionFlag(onboardingAdmission, admission.gitDir); err != nil {

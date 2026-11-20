@@ -229,6 +229,8 @@ type subjectFlags struct {
 	// baseRoot and headRoot are the base and head checkouts of a
 	// registryDigest subject (baseRoot is also verify's --base-root).
 	baseRoot, headRoot string
+	// candidateID is the pull request reference of a gatePaths subject.
+	candidateID string
 }
 
 func (s *subjectFlags) register(f *flag.FlagSet) {
@@ -281,6 +283,9 @@ func (s *subjectFlags) loadBaseline() (ApprovalSubject, ApprovalKeys, error) {
 func (s *subjectFlags) load(layout Layout) (ApprovalSubject, ApprovalKeys, error) {
 	if s.subject == ApprovalSubjectRepinBaseline {
 		return s.loadBaseline()
+	}
+	if s.subject == ApprovalSubjectGatePaths {
+		return s.loadGatePaths(layout)
 	}
 	if memberSubject(s.subject) {
 		return s.loadRegistry(layout)
@@ -490,6 +495,7 @@ func cmdApprovalSign(args []string, env approvalEnv, layout Layout, stdout io.Wr
 	if identity == "" || candidateID == "" || output == "" {
 		return 2, usageError{"--identity, --candidate-id and --output are required"}
 	}
+	s.candidateID = candidateID
 	if s.baseRoot != "" && !memberSubject(s.subject) {
 		return 2, usageError{"--base-root belongs to --subject registryDigest, servedAPIs or distributions when signing"}
 	}
@@ -558,6 +564,7 @@ func cmdApprovalVerify(args []string, env approvalEnv, layout Layout, stdout io.
 	f.SetOutput(io.Discard)
 	s.register(f)
 	f.StringVar(&s.baseRoot, "base-root", "", "lineAttestation, pathPolicy, repinBaseline, registryDigest, servedAPIs, distributions: the base checkout, whose approvals the gate checks for single use and forward-only decisions")
+	f.StringVar(&s.candidateID, "candidate-id", "", "gatePaths: the pull request reference, pr-<number>")
 	f.StringVar(&approval, "approval", "", "the approval file")
 	f.StringVar(&now, "now", "", "the clock, RFC 3339 UTC (default: now)")
 	if err := parseApprovalFlags(f, args); err != nil {
@@ -676,5 +683,5 @@ func cmdApprovalKeysDigest(args []string, stdout io.Writer) (int, error) {
 // members the gate introduces or changes as a whole: it is read from a base
 // and a head checkout, never from one record.
 func memberSubject(subject string) bool {
-	return subject == ApprovalSubjectRegistry || subject == ApprovalSubjectServed || subject == ApprovalSubjectDistributions
+	return subject == ApprovalSubjectRegistry || subject == ApprovalSubjectServed || subject == ApprovalSubjectDistributions || subject == ApprovalSubjectGatePaths
 }
