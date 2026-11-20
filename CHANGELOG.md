@@ -46,7 +46,7 @@ The figures for `v0.1.0-beta.0` in this section are approximate: that release ha
 
 #### Coverage since the previous release
 
-previous = tag `v0.1.0-beta.0`, commit 70f67cac4a3b, counts sha256 `db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3`; current counts sha256 `ce593349efe68f455c4185a62022f84cb4e01fa12a0d75aeda7d22e4ff83562f`.
+previous = tag `v0.1.0-beta.0`, commit 70f67cac4a3b, counts sha256 `db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3`; current counts sha256 `d28ce109e66171164cf1051b3d1cf02182a94a17bd500f30890e7dc7d84bdde5`.
 
 The counts carry the number of valid rules per project, not rule ids, so rules added are the per-project change of that number.
 

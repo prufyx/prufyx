@@ -35,16 +35,65 @@ var rowsBeforeData = []Target{
 		HeadingPattern:   `^(?P<version>[0-9]+\.[0-9]+\.[0-9]+) / [0-9]{4}-[0-9]{2}-[0-9]{2}$`,
 		BoundaryPatterns: []string{`^main / \(unreleased\)$`},
 	},
+	{
+		Component: "antrea", Repo: extract.RepoRef{Key: "github.com/antrea-io/antrea"},
+		Form: FormPerLineFile, Path: "CHANGELOG/CHANGELOG-{line}.md",
+		HeadingPattern:   `^(?P<version>[0-9]+\.[0-9]+\.[0-9]+) - [0-9]{4}-[0-9]{2}-[0-9]{2}$`,
+		BoundaryPatterns: []string{`^\[v[0-9]+\.[0-9]+\.[0-9]+-(?:rc|alpha|beta|ea)\.?[0-9]+\]\(https://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/tree/[A-Za-z0-9._-]+\) \([0-9]{4}-[0-9]{2}-[0-9]{2}\)$`},
+	},
+}
+
+// rowsAddedLater are the rows added after the first six. Append further new
+// rows here; dropping or editing any pinned row fails the test.
+var rowsAddedLater = []Target{
+	{Component: "coredns", Repo: extract.RepoRef{Key: "github.com/coredns/coredns"}, Form: FormPerVersionFile, Path: "notes/coredns-{version}.md"},
+	{
+		Component: "fluentd", Repo: extract.RepoRef{Key: "github.com/fluent/fluentd"},
+		Form: FormFile, Path: "CHANGELOG.md",
+		HeadingPattern:   headingStyles["release-v-slash-date"],
+		BoundaryPatterns: []string{boundaryStyles["line-heading-v"]},
+	},
+	{
+		Component: "in-toto", Repo: extract.RepoRef{Key: "github.com/in-toto/in-toto"},
+		Form: FormFile, Path: "CHANGELOG.md",
+		HeadingPattern:   headingStyles["version-v-prefixed"],
+		BoundaryPatterns: []string{boundaryStyles["main-unreleased-parenthesised"]},
+	},
+	{
+		Component: "node-exporter", Repo: extract.RepoRef{Key: "github.com/prometheus/node_exporter"},
+		Form: FormFile, Path: "CHANGELOG.md",
+		HeadingPattern:   headingStyles["version-slash-date"],
+		BoundaryPatterns: []string{boundaryStyles["main-unreleased-parenthesised"]},
+	},
+	{
+		Component: "openfga", Repo: extract.RepoRef{Key: "github.com/openfga/openfga"},
+		Form: FormFile, Path: "CHANGELOG.md",
+		HeadingPattern:   headingStyles["version-bracketed-date"],
+		BoundaryPatterns: []string{boundaryStyles["prerelease-linked-paren-date"]},
+	},
+	{
+		Component: "traefik", Repo: extract.RepoRef{Key: "github.com/traefik/traefik"},
+		Form: FormFile, Path: "CHANGELOG.md",
+		HeadingPattern:   headingStyles["version-linked-paren-date"],
+		BoundaryPatterns: []string{boundaryStyles["prerelease-linked-paren-date"]},
+	},
+	{
+		Component: "tuf", Repo: extract.RepoRef{Key: "github.com/theupdateframework/python-tuf"},
+		Form: FormFile, Path: "docs/CHANGELOG.md",
+		HeadingPattern:   headingStyles["version-v-prefixed"],
+		BoundaryPatterns: []string{boundaryStyles["main-unreleased-parenthesised"]},
+	},
 }
 
 func TestShippedTableLoads(t *testing.T) {
 	if err := LoadError(); err != nil {
 		t.Fatal(err)
 	}
-	if len(Reviewed) != len(rowsBeforeData) {
-		t.Fatalf("%d rows, want %d", len(Reviewed), len(rowsBeforeData))
+	pinned := append(append([]Target{}, rowsBeforeData...), rowsAddedLater...)
+	if len(Reviewed) != len(pinned) {
+		t.Fatalf("%d rows, want exactly %d pinned", len(Reviewed), len(pinned))
 	}
-	for _, want := range rowsBeforeData {
+	for _, want := range pinned {
 		got, err := Lookup(Reviewed, want.Component)
 		if err != nil {
 			t.Fatal(err)
@@ -81,17 +130,41 @@ func TestReviewedRows(t *testing.T) {
 				if _, err := row.compile(); err != nil {
 					t.Fatal(err)
 				}
-				file := "# Changelog\n\n## main / unreleased\n\n* [FEATURE] new\n\n" +
-					strings.ReplaceAll("## 1.2.3 / 2026-01-02\n\n* [BUGFIX] fix\n\n", "", "") +
-					"## 1.2.2 / 2025-12-01\n\n* [BUGFIX] older\n"
-				unrel := "main / unreleased"
+				heading := func(v, date string) string {
+					switch row.HeadingPattern {
+					case headingStyles["version-v-prefixed"]:
+						return "v" + v
+					case headingStyles["version-bracketed-date"]:
+						return "[" + v + "] - " + date
+					case headingStyles["version-slash-date"]:
+						return v + " / " + date
+					case headingStyles["release-v-slash-date"]:
+						return "Release v" + v + " - " + strings.ReplaceAll(date, "-", "/")
+					case headingStyles["version-linked-paren-date"]:
+						return "[v" + v + "](https://" + row.Repo.Key + "/tree/v" + v + ") (" + date + ")"
+					}
+					t.Fatalf("no sample heading for %q", row.HeadingPattern)
+					return ""
+				}
 				if len(row.BoundaryPatterns) == 0 {
 					t.Fatal("a file row has no boundary pattern")
 				}
-				if strings.Contains(row.BoundaryPatterns[0], `\(`) {
-					unrel = "main / (unreleased)"
+				var boundary string
+				switch row.BoundaryPatterns[0] {
+				case boundaryStyles["main-unreleased"]:
+					boundary = "main / unreleased"
+				case boundaryStyles["main-unreleased-parenthesised"]:
+					boundary = "main / (unreleased)"
+				case boundaryStyles["line-heading-v"]:
+					boundary = "v1.3"
+				case boundaryStyles["prerelease-linked-paren-date"]:
+					boundary = "[v1.3.0-rc1](https://" + row.Repo.Key + "/tree/v1.3.0-rc1) (2026-02-01)"
+				default:
+					t.Fatalf("no sample boundary for %q", row.BoundaryPatterns[0])
 				}
-				file = strings.Replace(file, "main / unreleased", unrel, 1)
+				file := "# Changelog\n\n## " + boundary + "\n\n* [FEATURE] new\n\n" +
+					"## " + heading("1.2.3", "2026-01-02") + "\n\n* [BUGFIX] fix\n\n" +
+					"## " + heading("1.2.2", "2025-12-01") + "\n\n* [BUGFIX] older\n"
 				r := &memReader{files: map[string][]byte{row.Repo.Key + "@" + testCommit + ":" + row.Path: []byte(file)}}
 				m, err := BuildManifest(r, row, extract.Tag{Name: "v1.2.3", Commit: testCommit}, zeroDigest)
 				if err != nil || m.Entry == nil || m.Withheld != nil {
@@ -102,6 +175,38 @@ func TestReviewedRows(t *testing.T) {
 				}
 				// A version the file does not hold is withheld, never read from a
 				// neighbour.
+				m, err = BuildManifest(r, row, extract.Tag{Name: "v1.2.4", Commit: testCommit}, zeroDigest)
+				if err != nil || m.Withheld == nil || m.Entry != nil {
+					t.Fatalf("a missing version must be withheld: %v %+v", err, m)
+				}
+			case FormPerVersionFile:
+				path := strings.Replace(row.Path, "{version}", "1.2.3", 1)
+				r := &memReader{files: map[string][]byte{row.Repo.Key + "@" + testCommit + ":" + path: []byte("# 1.2.3\n\n* fix\n")}}
+				m, err := BuildManifest(r, row, extract.Tag{Name: "v1.2.3", Commit: testCommit}, zeroDigest)
+				if err != nil || m.Entry == nil || m.Withheld != nil {
+					t.Fatalf("want an entry: %v %+v", err, m)
+				}
+				if len(m.Entry.Items) == 0 {
+					t.Fatalf("the located entry has no items: %+v", m.Entry)
+				}
+				// A version with no file is withheld, never read from a neighbour.
+				m, err = BuildManifest(r, row, extract.Tag{Name: "v1.2.4", Commit: testCommit}, zeroDigest)
+				if err != nil || m.Withheld == nil || m.Entry != nil {
+					t.Fatalf("a missing version must be withheld: %v %+v", err, m)
+				}
+			case FormPerLineFile:
+				if _, err := row.compile(); err != nil {
+					t.Fatal(err)
+				}
+				if row.Component != "antrea" {
+					t.Fatalf("per-line row %s has no sample", row.Component)
+				}
+				file := "# Changelog 1.2\n\n## 1.2.3 - 2026-01-02\n\n- fix\n\n## 1.2.2 - 2025-12-01\n\n- older\n"
+				r := &memReader{files: map[string][]byte{row.Repo.Key + "@" + testCommit + ":" + strings.ReplaceAll(row.Path, "{line}", "1.2"): []byte(file)}}
+				m, err := BuildManifest(r, row, extract.Tag{Name: "v1.2.3", Commit: testCommit}, zeroDigest)
+				if err != nil || m.Entry == nil || m.Withheld != nil || m.Entry.Version != "1.2.3" || m.Entry.Section.HeadingLine != 3 {
+					t.Fatalf("want an entry: %v %+v", err, m)
+				}
 				m, err = BuildManifest(r, row, extract.Tag{Name: "v1.2.4", Commit: testCommit}, zeroDigest)
 				if err != nil || m.Withheld == nil || m.Entry != nil {
 					t.Fatalf("a missing version must be withheld: %v %+v", err, m)
@@ -259,8 +364,16 @@ func jsonStr(s string) string { b, _ := json.Marshal(s); return string(b) }
 // offline and needs the blob re-run (or a reviewer who re-ran it and updates
 // this list).
 var rowsRechecked = map[string]RecheckedRow{
-	"alertmanager": {RowDigest: "72ec19460e172522ea6203b6c0d2d67ce326131f1731bd0af83c4c865adaadda", FixtureDigest: "sha256:578e27e08e6116ea3272e05fbb1089a9876b39f772b35a32f2ba1b7eb5090e73"},
-	"prometheus":   {RowDigest: "d7d99823994415c019b8ade914dfea2b65d05e1edac8240eb76a826cce7b9ac7", FixtureDigest: "sha256:eff0f8dad6f786e841316143a70b0dc07f63e6b7d713ac094d6dd1ffc7851bba"},
+	"alertmanager":  {RowDigest: "72ec19460e172522ea6203b6c0d2d67ce326131f1731bd0af83c4c865adaadda", FixtureDigest: "sha256:578e27e08e6116ea3272e05fbb1089a9876b39f772b35a32f2ba1b7eb5090e73"},
+	"antrea":        {RowDigest: "46d52d5369aba73022ac91104e6071c527fddeab346708de69f327e00c584d20", FixtureDigest: "sha256:655672ab5b9573957531b6057749b3d80dbe402c82b25828f2d41fd9832ecd9b"},
+	"coredns":       {RowDigest: "d54713ca9a1ea2a3a6911f7c8e9d6e1a9221a96fd176611c5288230495bcc1eb", FixtureDigest: "sha256:322c6b4f119b46c2ad740e7e57a48f56e8955d871b8d9d2b95fe4aaeff0bed05"},
+	"fluentd":       {RowDigest: "c04f56e65859dca17c627b3b0256da26474265b9f0297b5b6119449f5318d31f", FixtureDigest: "sha256:d48f51a269d8c407295d81380470be8487862dc58dfe1a4b74c6379bd16f7683"},
+	"in-toto":       {RowDigest: "3975cd8372fd87afb1a0eec2f6b8364217335f8d39151dfc64010124ecdaa696", FixtureDigest: "sha256:08384b0f0817871555f54d9ea3b98542f0f736871a386152d65bf7203e12b912"},
+	"node-exporter": {RowDigest: "0fc37e02c44cc88e35f2d8f665134bd12c1dc10aecdf647e32e2d2ec94c83983", FixtureDigest: "sha256:0b514b5f044b56f8843c3eb82ede1f9a6ef027e6531b52b64395f3e43565cc6f"},
+	"openfga":       {RowDigest: "8a448e38f6f8c0e976acb9077ccf0c80e00b383c1aa32efd81932ecf7302a0b6", FixtureDigest: "sha256:e193dd24074026a881dc9595b15e305d991b6db7ba34ccf0ebee9c62ab7650d6"},
+	"prometheus":    {RowDigest: "d7d99823994415c019b8ade914dfea2b65d05e1edac8240eb76a826cce7b9ac7", FixtureDigest: "sha256:eff0f8dad6f786e841316143a70b0dc07f63e6b7d713ac094d6dd1ffc7851bba"},
+	"traefik":       {RowDigest: "b228c9c1e0a454baaef4e5fd32a1b729c5324c9bafac5d39557af7a45f19cc71", FixtureDigest: "sha256:fb39b5f85cc3005573266bb27af0ea4c90be73a75f7c84547a2bd8377ccb916c"},
+	"tuf":           {RowDigest: "49686de14fb4898efcce2a013f6223f842ede462fceca9af015581db7ab4aa61", FixtureDigest: "sha256:5128a3513578877660fb8d74d5ab842f033790dd77cfcfe09e14c3766956d8a5"},
 }
 
 // TestShippedRowFixtures recomputes every row's fixture check: one fixture per

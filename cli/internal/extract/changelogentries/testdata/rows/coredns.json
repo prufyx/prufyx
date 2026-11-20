@@ -1,0 +1,286 @@
+{
+  "schema": "prufyx.io/changelog-row-fixture/v1",
+  "component": "coredns",
+  "rowDigest": "d54713ca9a1ea2a3a6911f7c8e9d6e1a9221a96fd176611c5288230495bcc1eb",
+  "form": "changelog-per-version-file",
+  "status": "PASS",
+  "window": 8,
+  "windowLocated": 8,
+  "located": 21,
+  "withheld": {},
+  "tags": [
+    {
+      "name": "v1.11.0",
+      "commit": "9f4aa9d2625bb8b8f13efa98d3ecf1928cd112b6",
+      "reads": [
+        {
+          "path": "notes/coredns-1.11.0.md",
+          "blobId": "0f08628e9f1d77d6572a7adbbf356de7bdc2265a",
+          "sha256": "sha256:a611b305afcabfc35a5173aece27b73bde76fa8c7a3966d75d49dc8736faecfb",
+          "size": 3512
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.11.1",
+      "commit": "ae2bbc29be1aaae0b3ded5d188968a6c97bb3144",
+      "reads": [
+        {
+          "path": "notes/coredns-1.11.1.md",
+          "blobId": "47fbb72608bb84094d149c629ec63df6ea698a30",
+          "sha256": "sha256:fba73a28c79584a1ee18ec2356a834d0bb7c13960d90e52a14ebb3581e4c54b0",
+          "size": 875
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.11.3",
+      "commit": "a7ed346585e30b99317d36e4d007b7b19a228ea5",
+      "reads": [
+        {
+          "path": "notes/coredns-1.11.3.md",
+          "blobId": "3ccf6c3e8ff10f1a52b34813f7bfe76067627871",
+          "sha256": "sha256:f6e86af85dcd1e6aec19e861ca5a72dc4f0206c90ca91ef9e09a2c7eac7e0bff",
+          "size": 2692
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.11.4",
+      "commit": "6e11ebddfc13bfca683fcbcae72cc4af6de47dd2",
+      "reads": [
+        {
+          "path": "notes/coredns-1.11.4.md",
+          "blobId": "c57038081a9eff7326535a0e673e00c27fab0f5d",
+          "sha256": "sha256:77302443f94a5338b181648dbc23e3102f6e63e649e3a9b5e3b89983bc002873",
+          "size": 2652
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.12.0",
+      "commit": "51e11f166ef6c247a78e9e15468647c593b79b9f",
+      "reads": [
+        {
+          "path": "notes/coredns-1.12.0.md",
+          "blobId": "4765cee4f256591c65f2a2d27e39cc9db28ebd9b",
+          "sha256": "sha256:fd8fd7e3786f7375045614ef658e9775c50de0c0532c8f8493d12beb5c954906",
+          "size": 437
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.12.1",
+      "commit": "707c7c10acd52cb94e959e76ae233d9b76af0854",
+      "reads": [
+        {
+          "path": "notes/coredns-1.12.1.md",
+          "blobId": "d73841c3ae506f405ade33351a501dad61e2724e",
+          "sha256": "sha256:5b8d4dd69d18772cecb89a93736f9340a918c1c203716119f542be05a3b81d35",
+          "size": 1113
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.12.2",
+      "commit": "0eb55420350647a788e96282d03978e8a782d478",
+      "reads": [
+        {
+          "path": "notes/coredns-1.12.2.md",
+          "blobId": "27cd726fd642872d91b0b00b9aa5bd7054aaee74",
+          "sha256": "sha256:80acef97b6535a26fb297caa38a06870b097c8bdfe232024fd883e356425726a",
+          "size": 2242
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.12.3",
+      "commit": "463fd1c1b390ef68f638e2f4e09837721b19efba",
+      "reads": [
+        {
+          "path": "notes/coredns-1.12.3.md",
+          "blobId": "35bacc8e794809862bed682b82d1afa48fea692d",
+          "sha256": "sha256:b8b65c0649b3f769d726a901b742b148779f44ee7aeeec90f186b66121521996",
+          "size": 2244
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.12.4",
+      "commit": "f32329577fd5e3fe19908f8a9ba5c76aafb45bf6",
+      "reads": [
+        {
+          "path": "notes/coredns-1.12.4.md",
+          "blobId": "70e08c7314835f631a0f33b21fc19f1b08217642",
+          "sha256": "sha256:969dac38707324d876631ce10961b428b56b1b5018c7311b6676c54f5c21dc88",
+          "size": 1674
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.13.0",
+      "commit": "51f94b0bb4c59996459b98d395fe9f090906abe8",
+      "reads": [
+        {
+          "path": "notes/coredns-1.13.0.md",
+          "blobId": "4b69c9dedc0bf78a130792e63665fbd297d37c91",
+          "sha256": "sha256:279333d2533a0b7c574469e8242d05fdb3e737c8d9aa4edf6b09ba491f6c663b",
+          "size": 1960
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.13.1",
+      "commit": "1db4568df6aaacda6ebbce87717156bd855f8103",
+      "reads": [
+        {
+          "path": "notes/coredns-1.13.1.md",
+          "blobId": "6e7407b85f8979aa5984a0e58af829fb0b156cd7",
+          "sha256": "sha256:3d45918258c7112be108e4f0eaebf1e00602cbb78c735ef3489ae895e6da32e4",
+          "size": 859
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.13.2",
+      "commit": "0233f3e7c600b730426628f2cf9c829d404a181f",
+      "reads": [
+        {
+          "path": "notes/coredns-1.13.2.md",
+          "blobId": "876dc0439df4fbb43ba381d6d2cb2d128ceeab0a",
+          "sha256": "sha256:157bfd3453f8567604113dc437722f0a6c74c2ef080666473b31d76a70ae84fe",
+          "size": 3566
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.14.0",
+      "commit": "1c964f2f68bd04a875a41479822ec3da1f1e76ef",
+      "reads": [
+        {
+          "path": "notes/coredns-1.14.0.md",
+          "blobId": "1c57317411689699ee6db8b29c85d6d1b83aed26",
+          "sha256": "sha256:c715c09839e7b22be792316fb1da4f15185fa22fe8ff2d3399bde89acd9ed97e",
+          "size": 1553
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.14.1",
+      "commit": "80527fd389841310a728cf862491129321c8a112",
+      "reads": [
+        {
+          "path": "notes/coredns-1.14.1.md",
+          "blobId": "437bf5f94979ae9cc2d2043eeb9d0e75b6dfac0c",
+          "sha256": "sha256:fc2b2233ee412449efc858754bdf221cb3ad2e15c978dfd25d395d1d4464b79e",
+          "size": 717
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.14.2",
+      "commit": "dd1df4f5db93767a44e37638df44969503b320d2",
+      "reads": [
+        {
+          "path": "notes/coredns-1.14.2.md",
+          "blobId": "486bdc9af8097908cb8fdab85b683448affb6643",
+          "sha256": "sha256:c482cf923f47fabf5b42ed38a6e6065a6d025beaafc0aa9578065b7c3b7670cf",
+          "size": 1934
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.14.3",
+      "commit": "17fceec6d93fd1dde5ba6888c363f131ff6d647f",
+      "reads": [
+        {
+          "path": "notes/coredns-1.14.3.md",
+          "blobId": "0799c7bd6bfcdcacaaf6f34ca778f3ad6b7b010e",
+          "sha256": "sha256:e982b7b8bbd47f36ef4ff604b6bf44a11637349fa8820635917bcb8c89e7d8b7",
+          "size": 5216
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.14.4",
+      "commit": "232d7cac38fbb8baeb900150d683e61da288ae75",
+      "reads": [
+        {
+          "path": "notes/coredns-1.14.4.md",
+          "blobId": "332896736bfda70a14ab7430c2fc9d44aefc77ea",
+          "sha256": "sha256:b182e9c2a2093a77f7885006f69bba03eb31bb5bcdfd0484904997d3f22a32cf",
+          "size": 3387
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.14.5",
+      "commit": "adba3b3703408ffe80bc03a7be0f6ea9c2372399",
+      "reads": [
+        {
+          "path": "notes/coredns-1.14.5.md",
+          "blobId": "cda94577dc403f7da19bbba1167088a57f26e5f6",
+          "sha256": "sha256:1e03b0a43014e57f1c6b3f25a8e620d661e448cc0477b9d0b035624e5c3cbd8b",
+          "size": 4481
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.14.6",
+      "commit": "424d125775cd70fa90dfc80bf0e52cc9a9aeb574",
+      "reads": [
+        {
+          "path": "notes/coredns-1.14.6.md",
+          "blobId": "589359a192e89bcff32fe22430d91a83b52ad48f",
+          "sha256": "sha256:df81ee50a8f455ea7254ba606896bd9fc2c2729cba6aaf2ce34506ccdd123ab9",
+          "size": 899
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.14.7",
+      "commit": "427fc80ed9ca47f354585eb30a3f1332950856c4",
+      "reads": [
+        {
+          "path": "notes/coredns-1.14.7.md",
+          "blobId": "754e8be5b97043c169f686dc9a0d3361e913fca6",
+          "sha256": "sha256:8d7048b491278c05dc6f5d2c6897c2f9f2f11d40e0a45ab648cbacbfa6319a20",
+          "size": 6606
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v1.15.0",
+      "commit": "a6fde3fe339c6ec848447e11cc9796be8c97b4e0",
+      "reads": [
+        {
+          "path": "notes/coredns-1.15.0.md",
+          "blobId": "062d67665299e0f94d4e76eba46f4482e5a39921",
+          "sha256": "sha256:6fa662bbcf027981e2dd288ba27335a751399c464c38d411403e147889ba1480",
+          "size": 9163
+        }
+      ],
+      "outcome": "located"
+    }
+  ]
+}
