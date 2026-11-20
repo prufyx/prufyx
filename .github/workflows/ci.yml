@@ -641,14 +641,47 @@ jobs:
         env:
           CGO_ENABLED: "1"
           SHARD: ${{ matrix.shard }}
+          # Raced alone by race-knowledgegate-onboarding (49 minutes under -race).
+          SHARD_EXCLUDE: TestOnboardingRefusals
         run: ../scripts/ci-test-shard.sh "${SHARD}" "${SHARDS}" ./internal/maintainer/knowledgegate/ -race -- -timeout 55m
+
+  race-knowledgegate-onboarding:
+    # TestOnboardingRefusals alone ran 49 minutes under -race and timed a shard
+    # out, so it has its own job and is left out of the twelve shards
+    # (SHARD_EXCLUDE): every test is raced exactly once.
+    name: Race detector (knowledgegate TestOnboardingRefusals)
+    needs: race-plan
+    if: needs.race-plan.outputs.knowledgegate == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Test with the race detector
+        working-directory: cli
+        env:
+          CGO_ENABLED: "1"
+        # The test must run and pass: "no tests to run" is a failure here.
+        run: |
+          set -euo pipefail
+          go test -race -v -timeout 85m -run '^TestOnboardingRefusals$' ./internal/maintainer/knowledgegate/ | tee onboarding-race.log
+          grep -q '^--- PASS: TestOnboardingRefusals ' onboarding-race.log
 
   race-knowledgegate-result:
     # Keeps the job name "Race detector (./internal/maintainer/knowledgegate/)" that
     # the nightly-fix check of nightly-main.yml matches by name: it is green only
     # when every shard is green, and a skipped or cancelled shard makes it red.
     name: Race detector (./internal/maintainer/knowledgegate/)
-    needs: [race-plan, race-knowledgegate]
+    needs: [race-plan, race-knowledgegate, race-knowledgegate-onboarding]
     if: always() && needs.race-plan.outputs.knowledgegate == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -656,10 +689,11 @@ jobs:
       - name: Require every shard
         env:
           RESULT: ${{ needs.race-knowledgegate.result }}
+          ONBOARDING: ${{ needs.race-knowledgegate-onboarding.result }}
         run: |
           set -euo pipefail
-          if [ "${RESULT}" != "success" ]; then
-            echo "knowledgegate race shards: ${RESULT}" >&2
+          if [ "${RESULT}" != "success" ] || [ "${ONBOARDING}" != "success" ]; then
+            echo "knowledgegate race shards: ${RESULT}, TestOnboardingRefusals: ${ONBOARDING}" >&2
             exit 1
           fi
 

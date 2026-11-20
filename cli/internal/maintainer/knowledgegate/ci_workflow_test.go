@@ -20,7 +20,7 @@ const ciFanInName = "Build, vet, test"
 
 // ciNonGateJobs run go test but are deliberately not part of the required
 // check (the race detector is advisory and sharded on its own).
-var ciNonGateJobs = map[string]bool{"race": true, "race-knowledgegate": true}
+var ciNonGateJobs = map[string]bool{"race": true, "race-knowledgegate": true, "race-knowledgegate-onboarding": true}
 
 type ciWorkflowFile struct {
 	Jobs map[string]ciWorkflowJob `yaml:"jobs"`

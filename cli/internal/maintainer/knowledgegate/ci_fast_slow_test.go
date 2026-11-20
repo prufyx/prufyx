@@ -363,6 +363,29 @@ func TestCIRaceKnowledgegateResult(t *testing.T) {
 			t.Errorf("result job lacks %q", want)
 		}
 	}
+	// TestOnboardingRefusals is raced alone and left out of the shards; the
+	// result job requires both.
+	one, ok := wf.Jobs["race-knowledgegate-onboarding"]
+	if !ok {
+		t.Fatal("job race-knowledgegate-onboarding is missing")
+	}
+	if one.Name != "Race detector (knowledgegate TestOnboardingRefusals)" {
+		t.Errorf("onboarding race job name %q unexpected", one.Name)
+	}
+	_, after, _ := strings.Cut(string(raw), "\n  race-knowledgegate-onboarding:\n")
+	oneText, _, _ := strings.Cut(after, "\n  race-knowledgegate-result:\n")
+	for _, want := range []string{"runs-on: " + ciHosted, "-race", "-timeout 85m", "TestOnboardingRefusals$", "timeout-minutes: 100", "--- PASS: TestOnboardingRefusals"} {
+		if !strings.Contains(oneText, want) {
+			t.Errorf("onboarding race job lacks %q", want)
+		}
+	}
+	if !strings.Contains(string(text), "race-knowledgegate-onboarding") {
+		t.Error("the result job does not require race-knowledgegate-onboarding")
+	}
+	shards, _ := yaml.Marshal(wf.Jobs["race-knowledgegate"])
+	if !strings.Contains(string(shards), "SHARD_EXCLUDE") || !strings.Contains(string(shards), "TestOnboardingRefusals") {
+		t.Error("the race shards do not exclude TestOnboardingRefusals")
+	}
 	s := string(raw)
 	for _, want := range []string{
 		`[ "${EVENT_NAME}" = "workflow_dispatch" ]`,
