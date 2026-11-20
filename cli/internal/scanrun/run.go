@@ -276,7 +276,7 @@ func Run(request Request, options Options) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	workspace, err := intake.Open(paths, intake.Options{Permissions: request.Permissions, Stdin: options.Stdin})
+	workspace, err := intake.Open(paths, intake.Options{Permissions: request.Permissions, Stdin: options.Stdin, Limits: inputLimits(request)})
 	if err != nil {
 		return Result{}, inputError(err, request)
 	}
@@ -870,4 +870,13 @@ func quoteAll(paths []string) []string {
 		out[i] = strconv.QuoteToASCII(path)
 	}
 	return out
+}
+
+// inputLimits maps --max-memory-profile to intake limits. The zero Limits
+// selects the built-in caps; the only other profile lowers them.
+func inputLimits(request Request) intake.Limits {
+	if request.MemoryProfile == "small" {
+		return intake.SmallLimits()
+	}
+	return intake.Limits{}
 }

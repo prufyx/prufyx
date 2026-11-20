@@ -716,7 +716,7 @@ const (
 	UsagePermissions             = "an input file's permissions are refused by --input-permissions %s; run chmod go-rwx on it, or use --input-permissions refuse-writable"
 	UsagePermissionsWrite        = "an input file is writable by other users; run chmod go-w on it"
 	UsageInputUnreadable         = "an input path cannot be read"
-	UsageInputLimit              = "the inputs exceed a size limit (8 MiB per file, 32 MiB in all, 2048 files, 8192 documents); split a large file into several files in a directory"
+	UsageInputLimit              = "the inputs exceed a size limit (8 MiB per file, 256 MiB in all, 16384 files, 65536 documents, 6000000 YAML nodes); split the input into several runs, for example one per namespace or per chart group, or a large file into several files in a directory"
 	UsageInputWindows            = "file and directory input is not supported on Windows; pipe the manifest on standard input (use -)"
 	UsageInputDecode             = "an input file is not valid YAML or JSON within the supported subset"
 	UsageInputRefused            = "an input file is refused: %s"
@@ -796,6 +796,9 @@ with where it is and how to fix it, and every area that was not checked.
   --redact                  print digests instead of file paths, names and namespaces
                             (plain digests: short names can be recovered by guessing)
   --input-permissions strict|refuse-writable   default refuse-writable
+  --max-memory-profile default|small   small lowers the input limits (32 MiB in all, 2048 files, 8192
+                            documents, 500000 nodes) so a machine with little memory refuses
+                            instead of running out of memory; it cannot raise them
   --require-basis LIST      evidence bases to evaluate (default reviewed,mechanical,empirical,consensus);
                             a rule left out that applies keeps the answer from passing
   --knowledge-db DIR        read the knowledge from this verified local knowledge database

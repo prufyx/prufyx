@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -795,5 +796,39 @@ func TestScanListsCustomResourcesNotEvaluated(t *testing.T) {
 		if strings.Contains(omission, "ConfigMap") || strings.Contains(omission, "CronJob") {
 			t.Fatalf("a Kubernetes kind is listed as not evaluated: %q", omission)
 		}
+	}
+}
+
+// --max-memory-profile can only lower the input limits: a value that would
+// raise them is refused, and small refuses an input the default admits.
+func TestScanMemoryProfileOnlyLowers(t *testing.T) {
+	for _, bad := range []string{"large", "big", "", "unlimited", "Default", "256"} {
+		if _, err := ParseArgs(append([]string{"-"}, args(nil, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--max-memory-profile", bad)...)); !isUsage(err) {
+			t.Fatalf("profile %q accepted: %v", bad, err)
+		}
+	}
+	request, err := ParseArgs(append([]string{"-"}, args(nil, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--max-memory-profile", "small")...))
+	if err != nil || request.MemoryProfile != "small" {
+		t.Fatalf("small: %q %v", request.MemoryProfile, err)
+	}
+	if _, err := ParseArgs(append([]string{"-"}, args(nil, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4", "--max-memory-profile", "small", "--max-memory-profile", "default")...)); !isUsage(err) {
+		t.Fatalf("repeated: %v", err)
+	}
+	knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"})
+	var b strings.Builder
+	for i := 0; i < 9000; i++ {
+		b.WriteString("---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: c" + strconv.Itoa(i) + "\n")
+	}
+	_, paths := files(t, map[string]string{"many.yaml": b.String()})
+	command := args(paths, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.30.4")
+	if _, err := scan(t, knowledge, command...); err != nil {
+		t.Fatalf("default refused 9000 documents: %v", err)
+	}
+	_, err = scan(t, knowledge, append(command, "--max-memory-profile", "small")...)
+	if !isUsage(err) || !strings.Contains(err.Error(), "documents") {
+		t.Fatalf("small admitted or wrong refusal: %v", err)
+	}
+	if _, err := scan(t, knowledge, append(command, "--max-memory-profile", "default")...); err != nil {
+		t.Fatalf("explicit default: %v", err)
 	}
 }

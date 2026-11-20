@@ -253,7 +253,7 @@ func TestOpenDenseFlowSequenceIsRefusedCheaply(t *testing.T) {
 	for _, size := range []int{2 << 20, 8 << 20} {
 		path := filepath.Join(root(t), "dense.yaml")
 		write(t, path, "["+strings.Repeat("1,", size/2-2)+"1]\n", 0o600)
-		limits := Limits{FileBytes: int64(size) + 16, TotalBytes: 64 << 20}
+		limits := Limits{FileBytes: int64(size) + 16, TotalBytes: 64 << 20, Nodes: 500000}
 		var before, after runtime.MemStats
 		runtime.GC()
 		runtime.ReadMemStats(&before)
@@ -476,8 +476,10 @@ func TestOpenRefusesFileOverDefaultCapWithWorkaround(t *testing.T) {
 // The raised byte cap must not loosen the node and document bounds: a small
 // but dense file and a file of many tiny documents are still refused.
 func TestOpenDefaultNodeAndDocumentCapsRefuseSmallDenseFiles(t *testing.T) {
-	dense := filepath.Join(root(t), "dense.yaml")
-	write(t, dense, strings.Repeat("---\n["+strings.Repeat("1,", 1499)+"1]\n", 400), 0o600) // ~1.2 MB, ~600k nodes
+	dense := root(t)
+	for _, name := range []string{"a", "b", "c"} {
+		write(t, filepath.Join(dense, name+".yaml"), strings.Repeat("---\n["+strings.Repeat("1,", 1499)+"1]\n", 2200), 0o600) // ~6.6 MB, ~3.3M nodes each
+	}
 	if _, err := Open([]string{dense}, Options{}); !errors.Is(err, ErrLimit) || !strings.Contains(err.Error(), "nodes") {
 		t.Fatalf("dense: %v", err)
 	}

@@ -20,16 +20,23 @@ by a flag. A refusal is a usage error (exit code unchanged) naming the limit.
 | Limit | Value |
 |---|---|
 | Size of one file (or standard input) | 8 MiB |
-| Size of all files together | 32 MiB |
-| Files | 2048 |
-| YAML documents | 8192 |
-| YAML nodes over all files | 500000 |
+| Size of all files together | 256 MiB |
+| Files | 16384 |
+| YAML documents | 65536 |
+| YAML nodes over all files | 6000000 |
 | Nesting depth | 64 |
 
 A whole rendered apply set in one file (for example `helm template ... >
 rendered.yaml` of a large monitoring stack, about 3.5 MB) is within the limits.
 If a file is over 8 MiB, split it into several files in a directory and pass
-the directory.
+the directory. If another limit is exceeded, run `scan` once per namespace or
+per group of charts; the refusal names the limit that was reached.
+
+The node limit is checked from the bytes before anything is decoded and bounds
+memory: measured about 100 bytes per node kept and at most about 275 bytes per
+node while one file is decoded, so the process stays under 2 GiB at the limit
+(a 267 MiB, 9000-document set took about 25 s and 620 MB). The limits cover a
+set of 100 or more rendered charts and a cluster export of about 30000 objects.
 
 ## Example
 
@@ -124,6 +131,7 @@ prufyx scan [PATH ...] [-] --to COMPONENT=VERSION [--from COMPONENT=VERSION ...]
 | `--verbose` | Shows the status of every hop and the pinned sources of each finding (human and Markdown output). |
 | `--redact` | Prints `sha256:` digests instead of file paths, object names and namespaces. Human and Markdown output show the first 12 hex characters; SARIF uses a name under `redacted/`. |
 | `--input-permissions` | `refuse-writable` (default) or `strict`. See below. |
+| `--max-memory-profile` | `default` or `small`. `small` lowers the input limits to 32 MiB in all, 2048 files, 8192 documents and 500000 YAML nodes (about 150 MB at the limit) so a machine with little memory refuses an input instead of being killed; it can never raise a limit. |
 | `--require-basis` | The evidence bases whose rules are evaluated, a comma-separated subset of `reviewed`, `mechanical`, `empirical`, `consensus`, `lead`. Default: `reviewed,mechanical,empirical,consensus`, the same as `prufyx check cncf`. A rule left out that applies to a hop keeps the hop undecided (`RULE_NOT_DECIDED`) and the report says how many were left out. |
 | `--knowledge-db` | Read the knowledge from this verified local knowledge database instead of the knowledge built into the binary. See "Knowledge database" below. |
 | `--now` | The evaluation instant, canonical UTC with whole seconds (`2026-10-04T00:00:00Z`). Default: the current time, truncated to the second. It is printed in every report; pass it to replay a scan exactly. Not accepted with `--knowledge-db`. |

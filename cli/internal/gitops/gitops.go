@@ -60,7 +60,7 @@ const (
 // workBudget bounds the walks of all environments together, so neither can
 // starve the other and a hostile repository cannot make the walks quadratic.
 // valuesNodeBudget bounds the YAML nodes decoded from inline value and patch
-// texts over one Analyze call; it equals the intake node budget.
+// texts over one Analyze call; it is fixed and independent of the intake budget.
 // resultBytes bounds the text a result holds over all environments:
 // identity fields, image references, gap details and the text of inline
 // values counted once per release that carries them.
@@ -68,7 +68,7 @@ var (
 	resultBytes      = 16 << 20
 	discoveryBudget  = 2000000
 	workBudget       = 2000000
-	valuesNodeBudget = intake.DefaultNodes
+	valuesNodeBudget = 500000
 )
 
 // Gap reasons. The vocabulary is closed.

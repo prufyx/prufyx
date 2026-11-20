@@ -33,10 +33,10 @@ const (
 // Default bounds. A zero Limits field selects the default.
 const (
 	DefaultFileBytes  int64 = 8 << 20
-	DefaultTotalBytes int64 = 32 << 20
-	DefaultFiles            = 2048
-	DefaultDocuments        = 8192
-	DefaultNodes            = 500000
+	DefaultTotalBytes int64 = 256 << 20
+	DefaultFiles            = 16384
+	DefaultDocuments        = 65536
+	DefaultNodes            = 6000000
 )
 
 // Limits bounds one Open call. The nesting depth limit is MaxManifestDepth.
@@ -46,6 +46,14 @@ type Limits struct {
 	Files      int
 	Documents  int // YAML documents and List items over all files
 	Nodes      int // YAML nodes over all files
+}
+
+// SmallLimits is the lower profile for a machine with little memory: it bounds
+// the worst case of one Open call to a few hundred MiB instead of about 2 GiB.
+// Every field is below the default, and no input or option raises a bound
+// above the defaults: a profile can only lower them.
+func SmallLimits() Limits {
+	return Limits{FileBytes: DefaultFileBytes, TotalBytes: 32 << 20, Files: 2048, Documents: 8192, Nodes: 500000}
 }
 
 func (l Limits) withDefaults() Limits {
@@ -454,11 +462,16 @@ func (o *opener) consume(key, display string, reader io.Reader, size int64, perm
 }
 
 func limitError(name string, bound int64) error {
-	if name == "bytes per file" {
+	switch name {
+	case "bytes per file":
 		return fmt.Errorf("%w: more than %d %s (%d MiB); split the input into several files in a directory and pass the directory",
 			ErrLimit, bound, name, bound>>20)
+	case "bytes total":
+		return fmt.Errorf("%w: more than %d %s (%d MiB); split the input into several runs, for example one per namespace or per chart group",
+			ErrLimit, bound, name, bound>>20)
 	}
-	return fmt.Errorf("%w: more than %d %s", ErrLimit, bound, name)
+	return fmt.Errorf("%w: more than %d %s; split the input into several runs, for example one per namespace or per chart group",
+		ErrLimit, bound, name)
 }
 
 func (o *opener) finish() Workspace {
