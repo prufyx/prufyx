@@ -55,7 +55,7 @@ Some upgrades cannot be planned, and are reported as a gap instead of hops:
 | Gap | When |
 | --- | --- |
 | `DOWNGRADE_NOT_REVIEWED` | the target is below the actual version |
-| `PATH_NOT_PLANNABLE` | either version is not `major.minor.patch`, both are equal, the policy is unknown or belongs to another component, a `sequential_minor` path crosses a major version (the last minor line of the old major is not known), or the path would need more than 64 hops |
+| `PATH_NOT_PLANNABLE` | either version is not `major.minor.patch`, both are equal, the policy is unknown or belongs to another component, a `sequential_minor` path crosses a major version (the plan itself does not know the last minor line of the old major; `scan` splits such a path from the lines the knowledge reviews, see the jump section of `scan.md`), or the path would need more than 64 hops |
 
 A patch upgrade within one line is always one hop.
 

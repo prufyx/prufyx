@@ -447,6 +447,9 @@ func Run(request Request, options Options) (Result, error) {
 		if slug != kubernetesSlug {
 			report.Gaps = append(report.Gaps, scanreport.NewGap(slug, nil, scanreport.GapComponentNotCovered, slug))
 			report.Inventory = append(report.Inventory, *component)
+			if path, ok := notCoveredPath(slug, component.Component, component.Current, component.Target); ok {
+				report.Paths = append(report.Paths, path)
+			}
 			continue
 		}
 		if gap, unavailable := storeGap(store, slug); unavailable {

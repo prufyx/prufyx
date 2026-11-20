@@ -38,12 +38,15 @@ func (r *customResourceRun) jumpPlan(plan upgradepath.Plan, policy *upgradepath.
 	if !ok || !family.Admits(r.component) {
 		return upgradepath.Plan{}, false
 	}
-	stepwise := plan
-	switch {
-	case policy == nil:
-		stepwise = upgradepath.PlanPath(r.component, from, to, &upgradepath.PathPolicy{Component: r.component, Policy: upgradepath.PolicySequentialMinor})
-	case policy.Policy != upgradepath.PolicySequentialMinor:
+	if policy != nil && policy.Policy != upgradepath.PolicySequentialMinor {
 		return upgradepath.Plan{}, false
+	}
+	if crossesMajor(from, to) {
+		return r.majorPlan(family, policy, from, to)
+	}
+	stepwise := plan
+	if policy == nil {
+		stepwise = upgradepath.PlanPath(r.component, from, to, &upgradepath.PathPolicy{Component: r.component, Policy: upgradepath.PolicySequentialMinor})
 	}
 	if stepwise.Gap != upgradepath.GapNone || len(stepwise.Hops) < 2 {
 		return upgradepath.Plan{}, false
@@ -65,6 +68,134 @@ func (r *customResourceRun) jumpPlan(plan upgradepath.Plan, policy *upgradepath.
 	}
 	out := stepwise
 	out.Hops = append([]upgradepath.Hop(nil), stepwise.Hops...)
+	for i := 0; i < len(out.Hops)-1; i++ {
+		release, found := r.commonRelease(family, lines[i], lines[i+1])
+		if !found {
+			continue
+		}
+		out.Hops[i].To = upgradepath.Endpoint{Version: release.Version}
+		out.Hops[i+1].From = upgradepath.Endpoint{Version: release.Version}
+	}
+	return out, true
+}
+
+// majorOf is the major number of a version or of a line "M.m".
+func majorOf(value string) (uint64, bool) {
+	line := value
+	if !lineattest.ValidLine(value) {
+		var ok bool
+		if line, ok = lineattest.LineOf(value); !ok {
+			return 0, false
+		}
+	}
+	major, _, ok := splitLine(line)
+	return major, ok
+}
+
+func splitLine(line string) (major, minor uint64, ok bool) {
+	parts := strings.Split(line, ".")
+	if len(parts) != 2 {
+		return 0, 0, false
+	}
+	major, err1 := strconv.ParseUint(parts[0], 10, 32)
+	minor, err2 := strconv.ParseUint(parts[1], 10, 32)
+	return major, minor, err1 == nil && err2 == nil
+}
+
+// crossesMajor reports whether both versions are valid and the target is on a
+// higher major line.
+func crossesMajor(from, to string) bool {
+	fm, ok1 := majorOf(from)
+	tm, ok2 := majorOf(to)
+	return ok1 && ok2 && tm > fm
+}
+
+// isMajorHop reports whether the hop changes the major line.
+func isMajorHop(hop scanreport.Hop) bool {
+	oldMajor, ok1 := majorOf(firstNonEmpty(hop.From.Version, hop.From.Line))
+	newMajor, ok2 := majorOf(firstNonEmpty(hop.To.Version, hop.To.Line))
+	return ok1 && ok2 && oldMajor != newMajor
+}
+
+func firstNonEmpty(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
+}
+
+// majorPlan is the path of an upgrade across one or more major lines, for a
+// component with ordinary minor lines: the minor lines of the old major that
+// the knowledge reviews (every line from the actual line up to the last
+// line it reviews, a line it does not review stays its own hop), then ONE hop that enters the first line of the
+// next major (X.0), then the minor lines of that major up to the target. A
+// major in between enters its own X.0 the same way and has the lines it
+// reviews. The hop that changes the major is its own hop, never merged into a
+// neighbour. The path never replaces a rule or a review: the hops are only
+// what the run evaluates.
+func (r *customResourceRun) majorPlan(family lineattest.Family, policy *upgradepath.PathPolicy, from, to string) (upgradepath.Plan, bool) {
+	if lineattest.CalverComponent(r.component) || lineattest.PublishedLineComponent(r.component) {
+		return upgradepath.Plan{}, false
+	}
+	// The same refusals as every plan: versions, pre-release, order.
+	if check := upgradepath.PlanPath(r.component, from, to, nil); check.Gap != upgradepath.GapNone {
+		return upgradepath.Plan{}, false
+	}
+	fromLine, _ := lineattest.LineOf(from)
+	toLine, _ := lineattest.LineOf(to)
+	fm, fmin, ok1 := splitLine(fromLine)
+	tm, tmin, ok2 := splitLine(toLine)
+	if !ok1 || !ok2 || tm <= fm {
+		return upgradepath.Plan{}, false
+	}
+	reviewed := func(line string) bool {
+		return len(r.knowledge.AttestationsFor(r.component, line, family.ID, r.now)) == 1
+	}
+	var lines []string
+	line := func(major, minor uint64) string {
+		return strconv.FormatUint(major, 10) + "." + strconv.FormatUint(minor, 10)
+	}
+	// An unreviewed line between reviewed ones stays its own hop (undecided);
+	// the tail ends at the last reviewed line within MaxHops lines.
+	tail := func(major, first uint64) {
+		last := uint64(0)
+		for minor := first; minor < first+upgradepath.MaxHops; minor++ {
+			if reviewed(line(major, minor)) {
+				last = minor
+			}
+		}
+		for minor := first; last >= first && minor <= last; minor++ {
+			lines = append(lines, line(major, minor))
+		}
+	}
+	tail(fm, fmin+1)
+	for major := fm + 1; major <= tm; major++ {
+		lines = append(lines, line(major, 0))
+		if major == tm {
+			for minor := uint64(1); minor <= tmin && len(lines) <= upgradepath.MaxHops; minor++ {
+				lines = append(lines, line(major, minor))
+			}
+			continue
+		}
+		tail(major, 1)
+	}
+	if len(lines) > upgradepath.MaxHops || len(lines) < 2 || lines[len(lines)-1] != toLine {
+		return upgradepath.Plan{}, false
+	}
+	out := upgradepath.Plan{Component: r.component, Hops: make([]upgradepath.Hop, 0, len(lines))}
+	if policy != nil {
+		out.Policy = policy.Policy
+	}
+	for i, entered := range lines {
+		hop := upgradepath.Hop{Index: i + 1, From: upgradepath.Endpoint{Version: from}, To: upgradepath.Endpoint{Line: entered}}
+		if i > 0 {
+			hop.From = upgradepath.Endpoint{Line: lines[i-1]}
+		}
+		if i == len(lines)-1 {
+			hop.To = upgradepath.Endpoint{Version: to}
+		}
+		out.Hops = append(out.Hops, hop)
+	}
 	for i := 0; i < len(out.Hops)-1; i++ {
 		release, found := r.commonRelease(family, lines[i], lines[i+1])
 		if !found {
@@ -159,6 +290,14 @@ func (r *customResourceRun) composeJump(path *scanreport.Path, plan upgradepath.
 		hop, decision := &path.Hops[i], decisions[i]
 		ref := scanreport.HopRef{Index: hop.Index, From: hop.From.String(), To: hop.To.String()}
 		jump := scanreport.JumpHop{Index: hop.Index, From: hop.From.String(), To: hop.To.String(), ObjectSetDigest: decision.setDigest, Attestation: hop.Attestation}
+		major := isMajorHop(*hop)
+		if major && len(decision.blocks) == 0 && !allNoticed(decision.neutral) {
+			// The change of major line is decided only by a rule scoped to
+			// that transition; the absence of one is never a pass.
+			fromLine, _ := endpointLine(upgradepath.Endpoint{Version: hop.From.Version, Line: hop.From.Line})
+			toLine, _ := endpointLine(upgradepath.Endpoint{Version: hop.To.Version, Line: hop.To.Line})
+			hop.Reasons = append(hop.Reasons, r.gap(&ref, scanreport.GapMajorHopNotCovered, fromLine, toLine))
+		}
 		switch {
 		case len(decision.blocks) > 0:
 			jump.Status, jump.RuleIDs = scanreport.JumpHopBlocked, decision.blocks
@@ -166,11 +305,7 @@ func (r *customResourceRun) composeJump(path *scanreport.Path, plan upgradepath.
 			// A notice or lead rule overlaps the hop. It decides nothing, so
 			// the hop is never a pass: ATTENTION citing the notice when the
 			// engine gave it one, UNDECIDED otherwise.
-			all := true
-			for _, n := range decision.neutral {
-				all = all && n.noticed
-			}
-			if all {
+			if allNoticed(decision.neutral) {
 				jump.Status = scanreport.JumpHopAttention
 				for _, n := range decision.neutral {
 					jump.Entries = append(jump.Entries, n.id+": "+n.text)
@@ -183,7 +318,7 @@ func (r *customResourceRun) composeJump(path *scanreport.Path, plan upgradepath.
 					hop.Reasons = append(hop.Reasons, r.gap(&ref, scanreport.GapRuleNotDecided, n.id, "NOTICE_OR_LEAD_RULE_OVERLAPS_HOP"))
 				}
 			}
-		case decision.family != nil && decision.family.Status == scanreport.FamilyPass && hop.From.Version != "" && hop.To.Version != "":
+		case decision.family != nil && !major && decision.family.Status == scanreport.FamilyPass && hop.From.Version != "" && hop.To.Version != "":
 			jump.Status = scanreport.JumpHopPass
 		default:
 			jump.Status = scanreport.JumpHopUndecided
@@ -222,6 +357,17 @@ func (r *customResourceRun) composeJump(path *scanreport.Path, plan upgradepath.
 	}
 	jump := scanreport.NewJump(hops, digest, releases, actions)
 	path.Jump = &jump
+}
+
+// allNoticed reports whether there is a neutral rule and every one of them
+// was given a notice by the engine.
+func allNoticed(neutral []neutralRule) bool {
+	for _, n := range neutral {
+		if !n.noticed {
+			return false
+		}
+	}
+	return len(neutral) > 0
 }
 
 // hopHasSpecificGap reports whether the hop already names a reason beyond
@@ -599,4 +745,65 @@ func skewComputed(line, target, declaredMin, declaredMax string) string {
 		declared += " to " + declaredMax
 	}
 	return "computed: declared kubelet " + declared + "; minimum for " + target + " is " + minKubelet(line)
+}
+
+// notCoveredPath lists the requested path of a component the scan does not
+// evaluate, so that the report never says "0 hops" for an upgrade that was
+// asked for. The hops are the consecutive minor lines between the two
+// versions when both are on one major line and their lines follow each other
+// in the component's own scheme, otherwise the one hop from -> to (no line
+// data exists for the component). Every hop is UNDECIDED with the reason
+// COMPONENT_NOT_COVERED and its next action; no rule or review is consulted,
+// so no hop can be blocked or pass and the path adds no verdict: the
+// component's own gap already holds.
+func notCoveredPath(slug, component, from, to string) (scanreport.Path, bool) {
+	if from == "" || to == "" {
+		return scanreport.Path{}, false
+	}
+	direct := upgradepath.PlanPath(component, from, to, nil)
+	if direct.Gap != upgradepath.GapNone || len(direct.Hops) != 1 {
+		return scanreport.Path{}, false
+	}
+	plan := direct
+	if !crossesMajor(from, to) {
+		if stepwise := upgradepath.PlanPath(component, from, to, &upgradepath.PathPolicy{Component: component, Policy: upgradepath.PolicySequentialMinor}); stepwise.Gap == upgradepath.GapNone && len(stepwise.Hops) > 1 && consecutiveLines(component, stepwise) {
+			plan = stepwise
+		}
+	}
+	path := scanreport.Path{Component: slug, From: from, To: to, Hops: []scanreport.Hop{}}
+	var hops []scanreport.JumpHop
+	actions := map[int]string{}
+	gap := scanreport.NewGap(slug, nil, scanreport.GapComponentNotCovered, slug)
+	for _, planned := range plan.Hops {
+		hop := scanreport.Hop{
+			Index:   planned.Index,
+			From:    scanreport.Endpoint{Version: planned.From.Version, Line: planned.From.Line},
+			To:      scanreport.Endpoint{Version: planned.To.Version, Line: planned.To.Line},
+			Status:  scanreport.HopNoData,
+			Reasons: []string{gap.Reason},
+		}
+		path.Hops = append(path.Hops, hop)
+		hops = append(hops, scanreport.JumpHop{Index: hop.Index, From: hop.From.String(), To: hop.To.String(), Status: scanreport.JumpHopUndecided, Reasons: []string{gap.Reason}})
+		actions[hop.Index] = gap.Action
+	}
+	jump := scanreport.NewJump(hops, "", nil, actions)
+	path.Jump = &jump
+	return path, true
+}
+
+// consecutiveLines reports whether every hop of the plan enters a line that
+// follows the line it leaves in the component's own scheme.
+func consecutiveLines(component string, plan upgradepath.Plan) bool {
+	previous, ok := endpointLine(plan.Hops[0].From)
+	if !ok {
+		return false
+	}
+	for _, hop := range plan.Hops {
+		line, ok := endpointLine(hop.To)
+		if !ok || !lineattest.LineHop(component, previous, line) {
+			return false
+		}
+		previous = line
+	}
+	return true
 }

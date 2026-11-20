@@ -26,6 +26,7 @@ const (
 	ReasonPathPolicyNotCurrent       = "PATH_POLICY_NOT_CURRENT"
 	ReasonPathNotPlannable           = "PATH_NOT_PLANNABLE"
 	ReasonComponentNotCovered        = "COMPONENT_NOT_COVERED"
+	ReasonMajorHopNotCovered         = "MAJOR_HOP_NOT_COVERED"
 	ReasonVersionNotDetected         = "VERSION_NOT_DETECTED"
 	ReasonVersionConflict            = "VERSION_CONFLICT"
 	ReasonDeclarationMissing         = "DECLARATION_MISSING"
@@ -131,6 +132,9 @@ const (
 	// GapChartValuesOnly: a declared chart hop, checked only against the
 	// rules about the chart's values and Kubernetes version.
 	GapChartValuesOnly GapKey = ReasonComponentNotCovered + "/chart-values-only"
+	// GapMajorHopNotCovered: the hop of a jump that changes the major line is
+	// decided by no rule scoped to that transition.
+	GapMajorHopNotCovered GapKey = ReasonMajorHopNotCovered
 	// GapHelmValuesNotComplete: the supplied values are not declared to be
 	// every values source of the release.
 	GapHelmValuesNotComplete GapKey = ReasonDeclarationMissing + "/helm-values-complete"
@@ -302,6 +306,8 @@ var gapMessages = map[GapKey]gapMessage{
 		"use knowledge whose reviews of line %[1]s and the next line read a common release, or scan each minor upgrade by hand", 1},
 	GapCustomResourceJumpOpen: {"the hop into %[1]s is not decided by its review (the set is incomplete or a listed rule did not decide)",
 		"see the other gaps of this hop, or check the CRDs of %[1]s by hand", 1},
+	GapMajorHopNotCovered: {"major upgrade: no reviewed rule for %[1]s -> %[2]s",
+		"read the upstream upgrade guide for the major change %[1]s -> %[2]s, or request coverage", 2},
 	GapChartValuesOnly: {"%[1]s chart %[2]s: only its values and Kubernetes-version rules are checked, not the rest of the upgrade",
 		"verify the rest of the chart's upgrade notes and the %[1]s release notes by hand", 2},
 	GapHelmValuesNotComplete: {"%[1]s chart %[2]s: the supplied values are not declared complete, so no required key is confirmed",
@@ -323,7 +329,7 @@ func GapReasons() []string {
 	return []string{
 		ReasonAlphaAPINotCovered, ReasonAPIVersionNotReviewed, ReasonAPIVersionNotServed, ReasonUnsupportedCombination, ReasonComponentNotCovered, ReasonDeclarationMismatch, ReasonDeclarationMissing,
 		ReasonDistributionNotCovered, ReasonDocumentsNotEvaluated, ReasonDocumentsTemplated, ReasonDowngradeNotReviewed,
-		ReasonEvidenceExpired, ReasonIntermediateLineNotCovered, ReasonLineNotAttested, ReasonNoReviewedPathPolicy,
+		ReasonEvidenceExpired, ReasonIntermediateLineNotCovered, ReasonLineNotAttested, ReasonMajorHopNotCovered, ReasonNoReviewedPathPolicy,
 		ReasonPathNotPlannable, ReasonPathPolicyNotCurrent, ReasonProjectNotInKnowledge, ReasonRuleNotDecided, ReasonVersionConflict, ReasonVersionNotDetected,
 	}
 }

@@ -410,9 +410,24 @@ An upgrade of a custom-resource project across more than one minor line (for
 example 1.14.5 to 1.16.0) is answered from the hops of the stepwise path, one
 hop per minor line, not as one direct hop that no rule covers. Scan does this
 when the component has no reviewed path policy, or the policy is
-`sequential_minor`. A policy that allows a direct hop, an upgrade across a
-major line, and an upgrade of one line or of adjacent lines are not
-decomposed.
+`sequential_minor`. A policy that allows a direct hop, a policy by major
+line, and an upgrade of one line or of adjacent lines are not decomposed.
+
+An upgrade across a major line is split into the minor hops of the old major
+(the lines the knowledge reviews, from the current line on), ONE hop that
+changes the major (for example 2.14 to 3.0), and the minor hops of the new
+major up to the target. The major hop is decided only by a reviewed rule scoped
+to that transition; otherwise it is `UNDECIDED` with `MAJOR_HOP_NOT_COVERED`
+and the next action. It is never a pass by the absence of rules, so a jump
+across a major is never `STEPWISE_PASS`. The first line of a major (X.0) has no
+review of its own, so the hops next to it keep a whole line end and are not
+decided.
+
+A project that scan does not evaluate at all (`COMPONENT_NOT_COVERED`) still
+lists the requested path: the minor lines between two versions of one major, or
+the one hop from the current to the target version. Every hop is `UNDECIDED`
+with that reason and its next action; no rule is consulted, so none can be
+blocked or pass, and the verdict and exit code are the ones without the list.
 
 Every intermediate end is the highest final release that the review of its
 line and the review of the next line both read, pinned to the same commit; it
@@ -483,6 +498,7 @@ Every gap has a reason, a detail and an action.
 | `NO_REVIEWED_PATH_POLICY` | No reviewed upgrade-path policy, and the upgrade skips release lines. | Upgrade one minor line at a time and scan each hop. |
 | `PATH_POLICY_NOT_CURRENT` | A path policy exists but its review is expired or withdrawn. | Use knowledge with a current policy; until then scan one line at a time. |
 | `PATH_NOT_PLANNABLE` | The versions cannot be planned (equal versions, too many hops, a major change). | Check the versions, or scan each step. |
+| `MAJOR_HOP_NOT_COVERED` | A jump crosses a major version. The change of major line is its own hop and no reviewed rule scoped to that transition decides it. It is never a pass by the absence of rules. | Read the project's upgrade guide for that major change, or request coverage. |
 | `DOWNGRADE_NOT_REVIEWED` | The target is older than the current version. | Prufyx checks upgrades only: see the project's docs on downgrades (the Kubernetes control plane has none), or swap `--from` and `--to`. |
 | `COMPONENT_NOT_COVERED` | A targeted project is not evaluated by `scan` yet, or (the 23 CNCF projects of the custom-resource table) only its custom-resource versions are, or it is a declared chart hop, where only the chart's values rules are. | Run `prufyx check cncf --project NAME`, or verify the rest of its upgrade notes by hand. |
 | `PROJECT_NOT_IN_KNOWLEDGE` | With `--knowledge-db`, the selected per-project index has no target for a targeted project, so nothing about it was checked. | Update the knowledge database to a revision that covers it, or check by hand. |
