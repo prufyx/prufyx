@@ -363,18 +363,19 @@ func TestCIRaceKnowledgegateResult(t *testing.T) {
 			t.Errorf("result job lacks %q", want)
 		}
 	}
-	// TestOnboardingRefusals is raced alone and left out of the shards; the
-	// result job requires both.
+	// The tests that outgrew a shard are raced alone (one matrix entry each) and
+	// left out of the shards; the result job requires the isolated job.
+	isolated := []string{"TestOnboardingRefusals", "TestBotOnboardingLimits"}
 	one, ok := wf.Jobs["race-knowledgegate-onboarding"]
 	if !ok {
 		t.Fatal("job race-knowledgegate-onboarding is missing")
 	}
-	if one.Name != "Race detector (knowledgegate TestOnboardingRefusals)" {
+	if one.Name != "Race detector (knowledgegate ${{ matrix.test }})" {
 		t.Errorf("onboarding race job name %q unexpected", one.Name)
 	}
 	_, after, _ := strings.Cut(string(raw), "\n  race-knowledgegate-onboarding:\n")
 	oneText, _, _ := strings.Cut(after, "\n  race-knowledgegate-result:\n")
-	for _, want := range []string{"runs-on: " + ciHosted, "-race", "-timeout 85m", "TestOnboardingRefusals$", "timeout-minutes: 100", "--- PASS: TestOnboardingRefusals"} {
+	for _, want := range []string{"runs-on: " + ciHosted, "-race", "-timeout 85m", "timeout-minutes: 100", "--- PASS: ${TEST_NAME} ", "matrix.test", "fail-fast: false"} {
 		if !strings.Contains(oneText, want) {
 			t.Errorf("onboarding race job lacks %q", want)
 		}
@@ -383,8 +384,26 @@ func TestCIRaceKnowledgegateResult(t *testing.T) {
 		t.Error("the result job does not require race-knowledgegate-onboarding")
 	}
 	shards, _ := yaml.Marshal(wf.Jobs["race-knowledgegate"])
-	if !strings.Contains(string(shards), "SHARD_EXCLUDE") || !strings.Contains(string(shards), "TestOnboardingRefusals") {
-		t.Error("the race shards do not exclude TestOnboardingRefusals")
+	if !strings.Contains(string(shards), "SHARD_EXCLUDE") {
+		t.Error("the race shards have no SHARD_EXCLUDE")
+	}
+	exclude := ""
+	for name, v := range wf.Jobs["race-knowledgegate"].Env {
+		if name == "SHARD_EXCLUDE" {
+			exclude = v
+		}
+	}
+	for _, st := range wf.Jobs["race-knowledgegate"].Steps {
+		if v, ok := st.Env["SHARD_EXCLUDE"]; ok {
+			exclude = v
+		}
+	}
+	if got := strings.Fields(exclude); strings.Join(got, " ") != strings.Join(isolated, " ") {
+		t.Errorf("SHARD_EXCLUDE %q differs from the isolated tests %v", exclude, isolated)
+	}
+	matrixList := "test: [" + strings.Join(isolated, ", ") + "]"
+	if !strings.Contains(oneText, matrixList) {
+		t.Errorf("the isolated job matrix is not %s", matrixList)
 	}
 	s := string(raw)
 	for _, want := range []string{
