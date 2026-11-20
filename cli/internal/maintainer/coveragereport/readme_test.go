@@ -67,25 +67,27 @@ func TestReadmePct(t *testing.T) {
 
 func TestReadmeCommunityLine(t *testing.T) {
 	t.Parallel()
-	r := Report{Fleet: Totals{Projects: 79, Pairs: 395}, CommunityCatalog: &Totals{Projects: 18, Pairs: 88, A: 40, B: 2}}
+	r := formsFixture()
 	out, err := readmeFixture(r)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"each of the 79 CNCF-catalog projects of the snapshot (97 projects have one; 395 upgrades",
-		"Community catalogue, measured separately and not part of the table above: 42 of 88 upgrades decided (A or B) over 18 projects.",
+		"each of the 2 CNCF-catalog projects of the snapshot (3 upgrades between consecutive release lines)",
+		"2 of 2 in the fleet; 1 of 1 in the community group, which is marked in the table and outside the release-line fleet.",
+		"| comm (community) | community, outside the release-line fleet |",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q", want)
 		}
 	}
 	r.CommunityCatalog = nil
+	r.Projects = r.Projects[:2]
 	out, err = readmeFixture(r)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(out, "Community catalogue") || !strings.Contains(out, "(79 projects have one;") {
-		t.Error("without a community catalog the line must be absent and the count equal the fleet")
+	if strings.Contains(out, "community group") || strings.Contains(out, "(community)") {
+		t.Error("without a community catalog no community group may appear")
 	}
 }

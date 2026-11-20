@@ -279,7 +279,9 @@ func TestCompleteUsesTheEntryCaptureDate(t *testing.T) {
 }
 
 func readmeFixture(r Report) (string, error) {
-	r.Projects = []Project{{Project: "kubernetes", Window: []string{"1.30", "1.31"}}}
+	if r.Projects == nil {
+		r.Projects = []Project{{Project: "kubernetes", Window: []string{"1.30", "1.31"}}}
+	}
 	inv := `{"counts":{"cncfSourceRules":1,"cncfRuleProjects":1,"cncfSourceRulesWithdrawn":0,"communityProjectSourceRules":1,"communityProjectRuleProjects":1,"executableProjects":1,"selectedSourceProjects":1,"selectedSourceOnlyProjects":0}}`
 	return RenderREADMEBlock(r, []byte(inv), baselineNow)
 }

@@ -43,7 +43,7 @@ attestation and the `SHA256SUMS` of a version must stay one-to-one.
    counts sha256; `--previous-counts-sha256` is the sha256 of
    `git show <prev>:cli/docs/generated/coverage-counts.json`, and the command
    fails when the bytes differ, when the file is missing, or when its schema is
-   not `prufyx.io/coverage-readme-counts/v1`. The one exception is
+   neither `prufyx.io/coverage-readme-counts/v2` nor the older `v1`, which stays readable. The one exception is
    `v0.1.0-beta.0`, which predates the counts file: its counts are the committed
    `cli/docs/generated/coverage-counts-v0.1.0-beta.0.json`, pinned by a sha256
    constant in the code (computed once from the beta.0 rules and packs with the

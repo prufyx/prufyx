@@ -37,7 +37,7 @@ var readmeInventoryCounts = []string{
 }
 
 // READMECountsSchema is the schema of the document ReadmeCountsJSON writes.
-const READMECountsSchema = "prufyx.io/coverage-readme-counts/v1"
+const READMECountsSchema = "prufyx.io/coverage-readme-counts/v2"
 
 // ReadmeCountsJSON is the document the README block is rendered from: the
 // report, the support-inventory counts the block prints and the SHA-256 of the
@@ -59,13 +59,18 @@ func ReadmeCountsJSON(r Report, inventoryJSON []byte, block string) ([]byte, err
 		}
 		counts[k] = v
 	}
+	forms, err := FormsOf(r)
+	if err != nil {
+		return nil, err
+	}
 	sum := sha256.Sum256([]byte(block))
 	out, err := json.MarshalIndent(struct {
 		Schema          string         `json:"schema"`
 		Report          Report         `json:"report"`
 		InventoryCounts map[string]int `json:"inventoryCounts"`
+		Forms           FormsTable     `json:"forms"`
 		BlockSHA256     string         `json:"readmeBlockSha256"`
-	}{READMECountsSchema, r, counts, hex.EncodeToString(sum[:])}, "", "  ")
+	}{READMECountsSchema, r, counts, forms, hex.EncodeToString(sum[:])}, "", "  ")
 	if err != nil {
 		return nil, err
 	}
@@ -76,8 +81,7 @@ func ReadmeCountsJSON(r Report, inventoryJSON []byte, block string) ([]byte, err
 // README row labels the baseline test reads back; the generator and the test
 // share them so they cannot drift.
 const (
-	readmeDecidedLabel = "Decided for the whole release-line pair (A attested, B bounded)"
-	readmeCRDLabel     = "Projects with a published CRD rule or line attestation"
+	readmeCRDLabel = "Projects with a published CRD rule or line attestation"
 )
 
 func readmePct(a, b int) string {
@@ -113,10 +117,6 @@ func RenderREADMEBlock(r Report, inventoryJSON []byte, now time.Time) (string, e
 		return "", fmt.Errorf("report: the kubernetes row or its window is missing")
 	}
 	f := r.Fleet
-	commProjects := 0
-	if r.CommunityCatalog != nil {
-		commProjects = r.CommunityCatalog.Projects
-	}
 	var b strings.Builder
 	w := func(format string, args ...any) { fmt.Fprintf(&b, format, args...) }
 	w("Generated on %s by `scripts/readme-coverage.sh` (do not edit this block by hand).", now.UTC().Format("2006-01-02"))
@@ -130,23 +130,25 @@ func RenderREADMEBlock(r Report, inventoryJSON []byte, now time.Time) (string, e
 	w("| Projects catalogued with retained public sources | %d (%d of them source-only, no check) |\n", c["selectedSourceProjects"], c["selectedSourceOnlyProjects"])
 	w("| Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | %d |\n", r.CRDVersionProjects)
 	w("| "+readmeCRDLabel+" | %d |\n\n", r.CRDPublishedProjects)
-	w("Version-coverage depth, measured over the last five minor upgrades of each of the %d CNCF-catalog projects of the snapshot (%d projects have one; %d upgrades between consecutive release lines):\n\n", f.Projects, f.Projects+commProjects, f.Pairs)
-	w("| Status | Upgrades | Share |\n| --- | --- | --- |\n")
-	w("| "+readmeDecidedLabel+" | %d | %s |\n", f.A+f.B, readmePct(f.A+f.B, f.Pairs))
-	w("| Rule for one exact version pair only (S) | %d | %s |\n", f.S, readmePct(f.S, f.Pairs))
-	w("| Gap, no valid rule (G) | %d | %s |\n\n", f.G, readmePct(f.G, f.Pairs))
-	if cc := r.CommunityCatalog; cc != nil {
-		w("Community catalogue, measured separately and not part of the table above: %d of %d upgrades decided (A or B) over %d projects.\n\n", cc.A+cc.B, cc.Pairs, cc.Projects)
-	}
-	w("Kubernetes: %d valid rules, but %d fall in its window %s to %s; %d of %d upgrades in that window are gaps.\n\n", k.ValidRules, k.RulesInWindow, k.Window[0], k.Window[len(k.Window)-1], k.G, k.A+k.B+k.S+k.G)
-	split, err := decidedSplitSentence(r.split, f.A+f.B)
+	forms, err := FormsOf(r)
 	if err != nil {
 		return "", err
 	}
+	if forms.Fleet.Pairs != f.Pairs {
+		return "", fmt.Errorf("report: the forms table has %d fleet pairs, the fleet totals %d", forms.Fleet.Pairs, f.Pairs)
+	}
+	w("Version-coverage by form, over the last five minor upgrades of each of the %d CNCF-catalog projects of the snapshot (%d upgrades between consecutive release lines). Each upgrade is counted once, under its strongest form, in this order: A/B decided, then k8s served-API, then S, then L, then G. Only A/B is called decided: a valid rule or attestation covers every version of both release lines. k8s served-API is an answer from the Kubernetes served-API family alone. S is a rule for one exact version pair only. L is listed, not judged: the change is listed, the answer is ATTENTION, never PASS. G is a gap, with its reason. There is no total over the forms.\n\n", f.Projects, f.Pairs)
+	w("Projects with an answer of any form (A/B, k8s served-API, S or L): %d of %d in the fleet", forms.Fleet.ProjectsWithAnswer, forms.Fleet.Projects)
+	if cc := r.CommunityCatalog; cc != nil {
+		w("; %d of %d in the community group, which is marked in the table and outside the release-line fleet", forms.Community.ProjectsWithAnswer, forms.Community.Projects)
+	}
+	w(".\n\n<details>\n<summary>Per project: A/B decided, k8s served-API, S, L listed not judged, G gap with reason</summary>\n\n")
+	w("%s\n</details>\n\n", renderFormsTable(forms))
+	w("Kubernetes: %d valid rules, but %d fall in its window %s to %s; %d of %d upgrades in that window are gaps.\n\n", k.ValidRules, k.RulesInWindow, k.Window[0], k.Window[len(k.Window)-1], k.G, k.A+k.B+k.S+k.G)
 	if cl := changelogSentence(r.changelog); cl != "" {
 		w("%s\n", cl)
 	}
-	w("Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. %s An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.\n", split)
+	w("Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS.%s An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.\n", noBlockSentence(r.split))
 	// Disclosure (only when additions exist, so a tree without them renders
 	// exactly as before): what the numbers leave out.
 	if r.Additions != nil {
@@ -160,25 +162,19 @@ func RenderREADMEBlock(r Report, inventoryJSON []byte, now time.Time) (string, e
 	return b.String(), nil
 }
 
-// decidedSplitSentence says, from the report, how many decided upgrades can
-// end in BLOCKED and how many cannot: an attestation that lists no rule can
-// produce only a family-scoped PASS ("PASS within <family> only" in the scan
-// output), never BLOCKED. total is the decided count the table prints; the
-// split must add up to it.
-func decidedSplitSentence(d decidedSplit, total int) (string, error) {
-	if d.total() != total {
-		return "", fmt.Errorf("report: the split of the %d decided upgrades does not add up (split total %d)", total, d.total())
-	}
+// noBlockSentence says, without a count, that some decided upgrades are
+// decided only by line attestations that list no rule: for them an attestation
+// can only give a family-scoped PASS (`scan` prints "PASS within <family>
+// only"), never BLOCKED. Empty when there are none.
+func noBlockSentence(d decidedSplit) string {
 	if len(d.noBlock) == 0 {
-		return fmt.Sprintf("All %d decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN.", total), nil
+		return ""
 	}
-	var parts []string
-	rest := 0
+	var fams []string
 	for _, f := range d.noBlock {
-		parts = append(parts, fmt.Sprintf("%d by `%s`", f.pairs, f.families))
-		rest += f.pairs
+		fams = append(fams, "`"+f.families+"`")
 	}
-	return fmt.Sprintf("Only %d of the %d decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN. The other %d are decided only by line attestations that list no rule (%s): for them an attestation can only give a family-scoped PASS (`scan` prints \"PASS within <family> only\"), never BLOCKED.", d.canBlock, total, rest, strings.Join(parts, ", ")), nil
+	return fmt.Sprintf(" Some decided upgrades are decided only by line attestations that list no rule (%s): for them an attestation can only give a family-scoped PASS (`scan` prints \"PASS within <family> only\"), never BLOCKED.", strings.Join(fams, ", "))
 }
 
 // SpliceBlock returns doc with the lines between the begin and end marker

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -23,6 +24,10 @@ import (
 const (
 	// CountsSchema is the schema string of the counts file.
 	CountsSchema = "prufyx.io/coverage-readme-counts/v1"
+	// CountsSchemaV2 adds the forms table (one row per project, a column per
+	// form). A v1 file stays readable and has no forms; any other schema is
+	// refused.
+	CountsSchemaV2 = "prufyx.io/coverage-readme-counts/v2"
 	// CountsPath is where a tree commits its counts file; the previous
 	// release is read from it with `git show <tag>:<path>`.
 	CountsPath = "cli/docs/generated/coverage-counts.json"
@@ -43,10 +48,11 @@ const (
 // Counts is the counts file: the coverage report plus the facts that tie it to
 // the README block it was generated with.
 type Counts struct {
-	Schema            string                `json:"schema"`
-	Report            coveragereport.Report `json:"report"`
-	InventoryCounts   map[string]int        `json:"inventoryCounts"`
-	ReadmeBlockSha256 string                `json:"readmeBlockSha256,omitempty"`
+	Schema            string                     `json:"schema"`
+	Report            coveragereport.Report      `json:"report"`
+	InventoryCounts   map[string]int             `json:"inventoryCounts"`
+	Forms             *coveragereport.FormsTable `json:"forms,omitempty"`
+	ReadmeBlockSha256 string                     `json:"readmeBlockSha256,omitempty"`
 
 	// Sha256 is the digest of the exact file bytes; it is not in the file.
 	Sha256 string `json:"-"`
@@ -92,8 +98,8 @@ func LoadCounts(data, readme []byte) (*Counts, error) {
 	if err := json.Unmarshal(data, &probe); err != nil {
 		return nil, fmt.Errorf("counts file: %w", err)
 	}
-	if probe.Schema != CountsSchema {
-		return nil, fmt.Errorf("counts file: schema %q, want %q", probe.Schema, CountsSchema)
+	if probe.Schema != CountsSchema && probe.Schema != CountsSchemaV2 {
+		return nil, fmt.Errorf("counts file: schema %q, want %q or %q", probe.Schema, CountsSchema, CountsSchemaV2)
 	}
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
@@ -129,6 +135,21 @@ func LoadCounts(data, readme []byte) (*Counts, error) {
 				return nil, fmt.Errorf("counts file: project %q has an empty or duplicate pair", p.Project)
 			}
 			pairs[pk] = true
+		}
+	}
+	switch {
+	case probe.Schema == CountsSchema && c.Forms != nil:
+		return nil, errors.New("counts file: a v1 file may not carry forms")
+	case probe.Schema == CountsSchemaV2:
+		if c.Forms == nil {
+			return nil, errors.New("counts file: a v2 file must carry forms")
+		}
+		want, err := coveragereport.FormsOf(c.Report)
+		if err != nil {
+			return nil, fmt.Errorf("counts file: %w", err)
+		}
+		if !reflect.DeepEqual(*c.Forms, want) {
+			return nil, errors.New("counts file: forms do not match the pairs of the report")
 		}
 	}
 	if c.ReadmeBlockSha256 != "" {

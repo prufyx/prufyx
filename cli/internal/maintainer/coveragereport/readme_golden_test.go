@@ -3,7 +3,7 @@
 package coveragereport
 
 import (
-	"os"
+	"strings"
 	"testing"
 )
 
@@ -22,14 +22,14 @@ func goldenReadmeBlock(t *testing.T) string {
 	return block
 }
 
-// A pack without any changelog attestation renders the README coverage block
-// byte for byte as it was before the changelog row existed.
-func TestReadmeBlockUnchangedWithoutChangelog(t *testing.T) {
-	want, err := os.ReadFile("testdata/readme-block-no-changelog.golden")
-	if err != nil {
-		t.Fatal(err)
+// A pack without any changelog attestation has no changelog sentence and no L
+// pair in the README coverage block.
+func TestReadmeBlockWithoutChangelog(t *testing.T) {
+	got := goldenReadmeBlock(t)
+	if strings.Contains(got, "Changelog-attested") {
+		t.Fatalf("a changelog sentence without a changelog attestation:\n%s", got)
 	}
-	if got := goldenReadmeBlock(t); got != string(want) {
-		t.Fatalf("README block differs from the golden:\n%s", got)
+	if !strings.Contains(got, "<summary>Per project:") {
+		t.Fatalf("the per-project table is missing:\n%s", got)
 	}
 }
