@@ -3,6 +3,7 @@
 package intake
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -207,5 +208,21 @@ func TestDecodeAcceptsExactlyMaxManifestDepth(t *testing.T) {
 	b.WriteString(strings.Repeat(" ", (MaxManifestDepth-1)*2) + "z: 1\n")
 	if _, err := Decode("max-depth.yaml", []byte(b.String())); err != nil {
 		t.Fatalf("a manifest exactly MaxManifestDepth deep was refused: %v", err)
+	}
+}
+
+func TestDecodeArrayItemBound(t *testing.T) {
+	at := "a: [" + strings.Repeat("1,", MaxArrayItems-1) + "1]"
+	if _, err := Decode("t.yaml", []byte(at)); err != nil {
+		t.Fatalf("array of exactly %d items refused: %v", MaxArrayItems, err)
+	}
+	over := "a: [" + strings.Repeat("1,", MaxArrayItems) + "1]"
+	if _, err := Decode("t.yaml", []byte(over)); err == nil {
+		t.Fatal("array over the bound accepted")
+	}
+	_, err := decodeDocuments([]byte(over), decodeOptions{})
+	var sr structuralRefusal
+	if !errors.Is(err, errStructure) || !errors.As(err, &sr) || sr.what != whatItems {
+		t.Fatalf("over-bound refusal changed: %v", err)
 	}
 }
