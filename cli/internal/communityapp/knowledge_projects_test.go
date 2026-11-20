@@ -18,7 +18,7 @@ import (
 
 func perProjectPackage(t *testing.T, repo *knowledgefixture.ProjectsRepository, version int64, revision string) []byte {
 	t.Helper()
-	index, projects, err := cncfcheck.BuildEmbeddedExternalTargets(revision, nil)
+	index, projects, err := buildEmbeddedForOldClient(revision)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,4 +109,17 @@ func TestKnowledgeUpdateSingleTargetProfileRejectsPerProjectPackageClearly(t *te
 	if err != nil || after.State != "READY" || after.SelectedRevision != before.SelectedRevision || after.SelectedBundleDigest != before.SelectedBundleDigest || after.TrustStateDigest != before.TrustStateDigest {
 		t.Fatalf("store changed: before=%+v after=%+v err=%v", before, after, err)
 	}
+}
+
+// oldClientFloor is below cncfcheck.ListedFamilyFloor: the oldest supported
+// client the publisher is pinned to while the listed family is not shipped.
+const oldClientFloor = "v0.1.0-beta.0"
+
+// buildEmbeddedForOldClient builds the per-project layout the way the
+// publisher does while the oldest supported client is below the listed-family
+// floor: the real exclusion runs, so the package names no listed-family
+// minClientVersion.
+func buildEmbeddedForOldClient(revision string) (cncfcheck.ExternalTarget, []cncfcheck.ExternalTarget, error) {
+	index, projects, _, err := cncfcheck.BuildEmbeddedExternalTargetsPinned(revision, nil, oldClientFloor)
+	return index, projects, err
 }

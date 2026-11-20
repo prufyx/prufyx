@@ -555,7 +555,7 @@ func TestMariaDBExternalMissingCanarySignedIndex(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer repo.Close()
-	_, projects, err := cncfcheck.BuildEmbeddedExternalTargets("7", nil)
+	_, projects, err := buildEmbeddedForOldClient("7")
 	if err != nil {
 		t.Fatal(err)
 	}
