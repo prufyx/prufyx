@@ -154,6 +154,14 @@ func TestRowsCheckReceiptPrintsEachRowBar(t *testing.T) {
 		}}
 	}
 	fx := rowsFixture(t, map[string]string{"docs/v1.0.0.md": "## Changes\n\n- a\n"})
+	// the skipped row still gets a receipt line, which binds its tag list
+	other := filepath.Join(fx, "github.com", "example", "other")
+	if err := os.MkdirAll(other, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(other, "tags.json"), []byte(`{}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	run1 := func(tbl []changelogentries.Target, extra ...string) (int, string) {
 		var out, errb bytes.Buffer
 		code := run(append([]string{"rows-check", "--fixture", fx}, extra...), tbl, &out, &errb)
