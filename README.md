@@ -447,6 +447,8 @@ Projects with an answer of any form (A/B, k8s served-API, S or L): 53 of 79 in t
 
 Kubernetes: 63 valid rules, but 19 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
 
+Changelog-listed (`changelog.listed_entries`): 0 upgrades where every final release of the line has a listed entry at its own release commit; listed, not judged; never a pass; not counted as decided; no scan reads it yet, 4 gap over 5 upgrades of its member projects (0 more decided by a source family or a rule, 1 by a rule for one exact version pair only). 6 projects have a changelog target; that is catalogue coverage, not the number of upgrades decided. Gap reasons: NO_ATTESTATION 4.
+
 Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. Some decided upgrades are decided only by line attestations that list no rule (`crd.custom_resource_versions`): for them an attestation can only give a family-scoped PASS (`scan` prints "PASS within <family> only"), never BLOCKED. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
 <!-- coverage:end -->
 
