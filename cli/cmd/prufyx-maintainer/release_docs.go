@@ -12,12 +12,15 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/releasedocs"
 )
 
-const releaseDocsUsage = "release-docs: usage: prufyx-maintainer release-docs check --root DIR --mode unreleased|release|cut [--tag TAG --previous TAG] [--site-counts FILE] [--deny-file FILE]"
+const releaseDocsUsage = "release-docs: usage: prufyx-maintainer release-docs regen --root DIR --mode unreleased | release-docs check --root DIR --mode unreleased|release|cut [--tag TAG --previous TAG] [--site-counts FILE] [--deny-file FILE]"
 
 // runReleaseDocs is the release-docs gate: it fails (exit code of the lowest
 // failed class, see releasedocs.Code*) unless the generated coverage text and
 // the prose around it are consistent. It writes nothing.
 func runReleaseDocs(args []string, stdout io.Writer) error {
+	if len(args) > 0 && args[0] == "regen" {
+		return runReleaseDocsRegen(args[1:], stdout)
+	}
 	if len(args) == 0 || args[0] != "check" {
 		return &commandError{code: 2, message: releaseDocsUsage}
 	}
@@ -51,5 +54,36 @@ func runReleaseDocs(args []string, stdout io.Writer) error {
 		return &commandError{code: code, message: strings.TrimRight(b.String(), "\n")}
 	}
 	fmt.Fprintln(stdout, "release-docs: ok ("+*mode+")")
+	return nil
+}
+
+// runReleaseDocsRegen is the inverse of check in unreleased mode: it writes
+// the generated files the check compares (see releasedocs.Regen). It reads
+// files and local git objects only and writes only the generated blocks and
+// the counts file.
+func runReleaseDocsRegen(args []string, stdout io.Writer) error {
+	flags := flag.NewFlagSet("release-docs regen", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	root := flags.String("root", "", "repository root (the top level of a git work tree with its tags)")
+	mode := flags.String("mode", "", "unreleased")
+	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {
+		return &commandError{code: 2, message: releaseDocsUsage, err: err}
+	}
+	res, err := releasedocs.Regen(releasedocs.RegenOptions{Root: *root, Mode: *mode})
+	var usage *releasedocs.UsageError
+	if errors.As(err, &usage) {
+		return &commandError{code: releasedocs.CodeUsage, message: "release-docs: " + usage.Msg + "\n" + releaseDocsUsage}
+	}
+	var refused *releasedocs.RegenError
+	if errors.As(err, &refused) {
+		return &commandError{code: refused.Code, message: fmt.Sprintf("release-docs: [%d] %s", refused.Code, refused.Msg), err: err}
+	}
+	if err != nil {
+		return &commandError{code: 2, message: "release-docs: " + err.Error(), err: err}
+	}
+	for _, p := range res.Changed {
+		fmt.Fprintf(stdout, "updated %s\n", p)
+	}
+	fmt.Fprintln(stdout, "release-docs: regenerated (unreleased)")
 	return nil
 }

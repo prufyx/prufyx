@@ -188,6 +188,41 @@ case-insensitive).
 The check proves that the tree is consistent with its generator; it does not
 prove the generator right.
 
+### Regenerating what the check compares
+
+`prufyx-maintainer release-docs regen --root <repo> --mode unreleased` is the
+inverse of `check --mode unreleased`: it writes every derived file the check
+compares, so a data change by a bot needs no hand commit.
+
+```sh
+cd cli
+go run ./cmd/prufyx-maintainer release-docs regen --root .. --mode unreleased
+```
+
+It writes, in this order: the README generated regions and the preview rule
+counts (the generators of `coverage readme` and `coverage preview`),
+`cli/docs/generated/coverage-counts.json` (the file `coverage readme --json-out`
+writes), and then, for every `cli/docs/release-notes-<tag>.md` whose tag has no
+git tag yet, the block between the markers of that notes file and of the
+`## [<version>]` CHANGELOG entry (the output of `release-notes --omit-merged-prs`,
+at level 3 and level 4, rendered by the same code the check uses). The previous
+tag is the one the existing notes block names. The commit label in the block
+header is kept when it still names a commit in the history of `HEAD`, otherwise
+it becomes the short `HEAD` commit, so a second run changes nothing.
+
+Nothing else is written: text outside the markers is byte-identical, notes of
+published tags are not touched, links and special files are refused. The root
+must be the top level of a git work tree that has the previous tag (typed error,
+exit 19, otherwise); there is no network access. If any step fails, every file
+already written is restored and the exit code is that of the failed class (the
+`check` codes above). Run `check` afterwards; on the same tree it passes.
+
+Not written by `regen`, because they are inputs of the blocks above and must
+already be current: `cli/docs/generated/community-support-inventory.*`
+(`support-inventory`), `docs-tables` output, the corpus attestation and every
+`rules.json`. An automated data change regenerates these first (the factory
+regeneration step does) and then runs `regen`.
+
 ## What CI does
 
 The workflow has the `release-docs-gate` job above, which every other job needs, and four more jobs. Third-party actions are pinned by commit SHA.
