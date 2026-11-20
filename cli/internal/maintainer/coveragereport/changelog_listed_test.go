@@ -159,8 +159,8 @@ func TestListedOnlyClassifyIsPlainL(t *testing.T) {
 	}
 }
 
-// Order A, B, S, L: an exact-pair rule keeps S; the listed record only adds
-// the mark, and the pair is counted as S, not as listed.
+// Order A, B, S, L: an exact-pair rule keeps S; the listed record adds no
+// mark, the pair is counted as S, not as listed, and the counts compute.
 func TestListedKeepsAnExactPairS(t *testing.T) {
 	rules := []string{relnotesSetRule("p.r", "1.8.0", "1.9.0", "")}
 	members := map[string]string{"prometheus": listedComp}
@@ -170,8 +170,14 @@ func TestListedKeepsAnExactPairS(t *testing.T) {
 		t.Fatalf("setup: %+v", without.Projects[0].Pairs[0])
 	}
 	p := with.Projects[0]
-	if p.Pairs[0].Status != StatusS || !p.Pairs[0].Changelog {
+	if p.Pairs[0].Status != StatusS || p.Pairs[0].Changelog {
 		t.Fatalf("pair %+v", p.Pairs[0])
+	}
+	if f, err := FormOf(p.Pairs[0]); err != nil || f != "s" {
+		t.Fatalf("form %q %v", f, err)
+	}
+	if _, err := FormsOf(with); err != nil {
+		t.Fatalf("the counts do not compute: %v", err)
 	}
 	if p.S != 1 || p.ListedChangelog != 0 || with.Fleet.S != without.Fleet.S || with.Fleet.G != without.Fleet.G || with.Fleet.ListedChangelog != 0 {
 		t.Fatalf("row %+v fleet %+v vs %+v", p, with.Fleet, without.Fleet)
