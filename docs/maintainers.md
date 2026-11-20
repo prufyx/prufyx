@@ -111,14 +111,17 @@ Never collected: secrets, credentials, cluster data or any customer data. The
 tools above read public repositories only; do not put such data in a bundle,
 an issue or a comment.
 
-## Intake is for invited maintainers only
+## Intake is for project maintainers
 
 If your project is not in Prufyx yet, this is how you bring it in faster: a
 maintainer opens the onboarding request issue. The issue is a request, not a
-coverage claim. Maintainer status is checked from the project's own public
-maintainer files (CODEOWNERS, OWNERS approvers, MAINTAINERS) and otherwise by
-invitation. Status updates appear as comments on the issue. Projects we added
-ourselves were not reviewed or endorsed by their maintainers.
+coverage claim. Once the automatic check is enabled, a login listed in the
+project's root CODEOWNERS ('*' entry), OWNERS approvers or MAINTAINERS file
+shows the entry was kept in the project's own files; that is not proof that
+the person maintains the project, and otherwise we ask for an invitation.
+Status updates will then appear as comments on the issue. Until the automatic
+check is live, the Prufyx maintainers check and reply on the issue by hand.
+Projects we added ourselves were not reviewed or endorsed by their maintainers.
 
 Prufyx takes new projects only from people who maintain them. A bundle is
 imported into the build pipeline only when the account that opened the pull

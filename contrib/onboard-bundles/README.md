@@ -114,7 +114,7 @@ maintainers compare it with the upstream file in review.
 Implemented today: steps 1-5 (the files in step 1 are still prepared by you), the maintainers' manual review, and the
 automatic import of merged bundles. Who may submit, how to get an invite and
 the exact merge path are described only in
-[Intake is for invited maintainers only](../../docs/maintainers.md#intake-is-for-invited-maintainers-only);
+[Intake is for project maintainers](../../docs/maintainers.md#intake-is-for-project-maintainers);
 that page is the single source. In short: a submission from an account without
 an invite is refused and not imported. After a Prufyx maintainer merges the
 bundle pull request, the import runs by itself; this does not mean that

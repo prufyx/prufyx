@@ -457,9 +457,10 @@ stale). The method and the full per-project table are in the
 [coverage report guide](cli/docs/coverage-report.md).
 
 We added these projects because they are part of CNCF and people use them.
-Their maintainers did not review or endorse the result. If your project is not
+Projects listed here were added by the Prufyx team; a listing does not mean the
+project's maintainers reviewed or endorsed it. If your project is not
 in Prufyx yet, a maintainer can bring it in faster with the
-[onboarding request issue](docs/maintainers.md#intake-is-for-invited-maintainers-only).
+[onboarding request issue](docs/maintainers.md#intake-is-for-project-maintainers).
 
 In plain terms: the rules are exact transitions, mostly for older
 releases. Only a minority of upgrades between two release lines are decided as a

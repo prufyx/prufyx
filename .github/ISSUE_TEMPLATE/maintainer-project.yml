@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Use this form if you maintain the project and want an invite. Only invited maintainers can then submit a bundle (see [docs/maintainers.md](https://github.com/prufyx/prufyx/blob/main/docs/maintainers.md#intake-is-for-invited-maintainers-only)). This form is not accepted by the intake adapter: it is a public request and hint for reviewers and does not start onboarding, validation or sync. The documented observation request is the onboarding request form.
+        Use this form if you maintain the project and want an invite. Only invited maintainers can then submit a bundle (see [docs/maintainers.md](https://github.com/prufyx/prufyx/blob/main/docs/maintainers.md#intake-is-for-project-maintainers)). This form is not accepted by the intake adapter: it is a public request and hint for reviewers and does not start onboarding, validation or sync. The documented observation request is the onboarding request form.
 
         Three fields and the consent checkbox at the end are required; answer the rest as far as you know.
 

@@ -9,7 +9,7 @@ body:
       value: |
         If your project is not in Prufyx yet, this is how you bring it in faster. It is for a maintainer of the project. Submitting this form is a request, not a coverage claim: it does not add a rule, assert compatibility, or publish a project.
 
-        Maintainer status is checked from the project's own public maintainer files (CODEOWNERS, OWNERS approvers, MAINTAINERS), and otherwise by invitation. How: [docs/maintainers.md](https://github.com/prufyx/prufyx/blob/main/docs/maintainers.md#intake-is-for-invited-maintainers-only). A submission from an account that cannot be matched to the project is refused and is not imported. Status updates appear as comments on this issue.
+        Once the automatic check is enabled, maintainer status is checked from the project's own public files: a login listed in the root CODEOWNERS ('*' entry), the OWNERS approvers or the MAINTAINERS file shows the entry was kept in the project's own files. That is not proof that the person maintains the project; otherwise we ask for an invitation. Status updates will then appear as comments on this issue. Until the automatic check is live, the Prufyx maintainers check and reply on the issue by hand. How: [docs/maintainers.md](https://github.com/prufyx/prufyx/blob/main/docs/maintainers.md#intake-is-for-project-maintainers).
 
         Fields map one-to-one to `prufyx-maintainer project init` (see [project onboarding](https://github.com/prufyx/prufyx/blob/main/cli/docs/project-onboarding.md)). A reviewer builds the request file, runs `project validate`, then `project sync`.
 
