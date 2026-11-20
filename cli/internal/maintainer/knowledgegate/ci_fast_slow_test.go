@@ -32,8 +32,14 @@ const (
 
 // ciMovable are the only jobs allowed to read CI_RUNNER_LABELS.
 var ciMovable = map[string]bool{
-	"test-core": true, "test-knowledgegate": true, "test-synthetic-a": true, "test-synthetic-b": true,
-	"test-synthetic-knowledgegate": true, "race": true, "staticcheck": true, "govulncheck": true,
+	"test-core": true, "staticcheck": true, "govulncheck": true,
+}
+
+// ciHeavyJobs time out on shared spot cores: hosted runner only, whatever
+// CI_RUNNER_LABELS says.
+var ciHeavyJobs = []string{
+	"test-knowledgegate", "test-synthetic-a", "test-synthetic-b",
+	"test-synthetic-knowledgegate", "race",
 }
 
 // ciSlowJobs are the suites kept off the required pull request run.
@@ -71,6 +77,26 @@ func ciSplitProblems(raw []byte) []string {
 	for _, id := range ciSlowJobs {
 		slow[id] = true
 	}
+	for _, id := range ciHeavyJobs {
+		if j, ok := wf.Jobs[id]; !ok {
+			problems = append(problems, "heavy job "+id+" is missing")
+		} else if r, _ := j.RunsOn.(string); r != ciHosted {
+			problems = append(problems, "heavy job "+id+" must run on "+ciHosted+" only")
+		}
+	}
+	// Staticcheck installs under RUNNER_TEMP (read-only system dirs on
+	// ephemeral runners) and puts it on PATH from there.
+	if sc, ok := wf.Jobs["staticcheck"]; !ok {
+		problems = append(problems, "no staticcheck job")
+	} else {
+		var all string
+		for _, st := range sc.Steps {
+			all += st.Run + "\n"
+		}
+		if strings.Contains(all, "/usr/local/bin") || !strings.Contains(all, `"$RUNNER_TEMP/bin/staticcheck"`) || !strings.Contains(all, `echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"`) {
+			problems = append(problems, "staticcheck must install under RUNNER_TEMP/bin and add it to GITHUB_PATH")
+		}
+	}
 	var ids []string
 	for id := range wf.Jobs {
 		ids = append(ids, id)
@@ -95,7 +121,7 @@ func ciSplitProblems(raw []byte) []string {
 			}
 		default:
 			if runs != ciHosted {
-				problems = append(problems, "job "+id+" must stay on "+ciHosted+" (hosted); only the test shards, race, staticcheck and govulncheck may move")
+				problems = append(problems, "job "+id+" must stay on "+ciHosted+" (hosted); only test-core, staticcheck and govulncheck may move; heavy jobs stay hosted")
 			}
 		}
 		if id != ciWatchdog && (strings.Contains(runs, "self-hosted") || strings.Contains(string(text), "self-hosted")) {
@@ -197,6 +223,8 @@ func TestCIFastSlowSplit(t *testing.T) {
 	text := string(raw)
 	broken := map[string]string{
 		"guard dropped from a shard":   strings.Replace(text, ciRunsOn, "${{ fromJSON(vars.CI_RUNNER_LABELS || '\"ubuntu-24.04\"') }}", 1),
+		"race moved off hosted":        strings.Replace(text, "    name: Race detector (${{ matrix.package }})\n", "    name: Race detector (${{ matrix.package }})\n    runs-on: "+ciRunsOn+"\n", 1),
+		"staticcheck back in usr":      strings.Replace(text, `"$RUNNER_TEMP/bin/staticcheck"`, "/usr/local/bin/staticcheck", 1),
 		"self-hosted literal":          strings.Replace(text, ciRunsOn, "[self-hosted, pfspot]", 1),
 		"secret scan moved":            strings.Replace(text, "  gitleaks:\n    name: Secret scan (gitleaks)\n    runs-on: ubuntu-24.04", "  gitleaks:\n    name: Secret scan (gitleaks)\n    runs-on: "+ciRunsOn, 1),
 		"fan-in moved":                 strings.Replace(text, "    name: Build, vet, test\n    runs-on: ubuntu-24.04", "    name: Build, vet, test\n    runs-on: "+ciRunsOn, 1),
