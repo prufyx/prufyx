@@ -141,6 +141,7 @@ func Markdown(report Report, options MarkdownOptions) []byte {
 			line("| %s | %s | %s |", mdText(gapScope(gap)), mdText(gap.Detail), mdText(gap.Action))
 		}
 	}
+	writeCustomResourceTable(line, report.CustomResources)
 	if len(report.Notices) > 0 {
 		line("")
 		line("## "+labelNotices, len(report.Notices))

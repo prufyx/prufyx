@@ -225,6 +225,9 @@ type sarifRunProps struct {
 	PreRelease []string `json:"preRelease,omitempty"`
 	// KubeletVersions are the declared (never observed) kubelet versions.
 	KubeletVersions *KubeletVersions `json:"kubeletVersions,omitempty"`
+	// CustomResources lists every custom resource with its state (BLOCKED,
+	// NO_FINDING or NOT_EVALUATED, never a pass); absent when there are none.
+	CustomResources []sarifCustomResource `json:"customResources,omitempty"`
 }
 
 // preReleaseComponents lists, in inventory order, the components with a
@@ -259,6 +262,7 @@ func SARIF(report Report) ([]byte, error) {
 	rules, index := sarifRules(report)
 	results, dropped := sarifResults(report, index)
 	results, dropped = appendGapResults(report, index, results, dropped)
+	results, dropped = sarifCustomResourceResults(report, index, results, dropped)
 	notifications := sarifNotifications(report, index)
 	if dropped > 0 {
 		notifications = append(notifications, sarifNotification{
@@ -288,6 +292,7 @@ func SARIF(report Report) ([]byte, error) {
 			Omissions: omissions, TrustPolicy: report.TrustPolicy, KnowledgeStore: p.KnowledgeStore,
 			CommunityCatalog: communityCatalogComponents(report), HelmValues: p.HelmValues,
 			PreRelease: preReleaseComponents(report), KubeletVersions: p.KubeletVersions,
+			CustomResources: sarifCustomResourceList(report),
 		},
 	}}}
 	var out bytes.Buffer
@@ -336,6 +341,7 @@ func sarifRules(report Report) ([]sarifRule, map[string]int) {
 		add(sarifRule{ID: gapRuleID(g), ShortDescription: sarifText{Text(labelSarifGapRule, g.Reason)}, Help: sarifText{help},
 			DefaultConfiguration: sarifConfig{sarifWarning}, Properties: sarifRuleProps{Basis: "none", Kind: kindGap}})
 	}
+	sarifCustomResourceRules(report, add)
 	ids := make([]string, 0, len(byID))
 	for id := range byID {
 		ids = append(ids, id)
