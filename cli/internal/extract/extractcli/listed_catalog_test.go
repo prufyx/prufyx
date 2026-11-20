@@ -12,8 +12,8 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
 
-// The listed-entries extractors are exactly the reviewed rows: one per row,
-// none without a row, each attesting only its own row's component.
+// The listed-entries extractors are exactly the reviewed rows the family
+// admits: one per such row, none without a row, each attesting only its own row's component.
 func TestCatalogListedExtractorsAreTheReviewedRows(t *testing.T) {
 	if err := changelogentries.LoadError(); err != nil {
 		t.Fatal(err)
@@ -22,6 +22,17 @@ func TestCatalogListedExtractorsAreTheReviewedRows(t *testing.T) {
 	want := map[string]bool{}
 	for _, row := range changelogentries.Reviewed {
 		id := changelogattest.ListedIDPrefix + row.Component
+		// A row whose component the listed family does not admit (a CRD-family
+		// component such as antrea) is refused by NewListed and has no
+		// extractor; the catalog must not carry one for it.
+		if purl, ok := changelogentries.ComponentPURL(row); ok {
+			if f, _ := lineattest.LookupFamily(lineattest.FamilyChangelogListedEntries); !f.Admits(purl) {
+				if _, has := cat[id]; has {
+					t.Fatalf("extractor %s exists for a component the listed family does not admit", id)
+				}
+				continue
+			}
+		}
 		want[id] = true
 		spec, ok := cat[id]
 		if !ok {
