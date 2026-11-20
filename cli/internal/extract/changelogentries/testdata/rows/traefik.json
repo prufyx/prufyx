@@ -1,0 +1,884 @@
+{
+  "schema": "prufyx.io/changelog-row-fixture/v1",
+  "component": "traefik",
+  "rowDigest": "b228c9c1e0a454baaef4e5fd32a1b729c5324c9bafac5d39557af7a45f19cc71",
+  "form": "changelog-file",
+  "status": "PASS",
+  "window": 8,
+  "windowLocated": 8,
+  "located": 67,
+  "withheld": {},
+  "tags": [
+    {
+      "name": "v3.3.0",
+      "commit": "5b53bae42d2dab453b8f932db760b874f99ee984",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "9e0fbf03c2a1589bc439f8974f177a3e7adff78c",
+          "sha256": "sha256:413313f3fa0a2275f3593858b4e4dc87ca769129172230c347b2959bc635b68b",
+          "size": 875999
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.3.1",
+      "commit": "d4d61151e1476be37b02089b8e1b5d55546d2f19",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "d3dd22837eb7657569ea7e1bdc7a35ffd7f3c1d8",
+          "sha256": "sha256:a8be932f6d89016724e65e7733ccad6e91a8fb72f59f313b49c3c266a7342b6c",
+          "size": 876693
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.3.2",
+      "commit": "020ab5f34703ea523895ab004825dbfa6f7de060",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "35744ebe5136533ff21a277f77855d90439893f9",
+          "sha256": "sha256:cb276bc52cd66cf018e8aa2273cf6e4835d50d32fd49c1d7b4c2f57947d2c688",
+          "size": 878254
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.3.3",
+      "commit": "da2278b29a7dac7b7dac49a9a846af30a15c81a3",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "2ac4ebbaa4b604cbf8d778e11463ad0cd732677e",
+          "sha256": "sha256:af29e0f09fb5cef6823ed0245e1a75e78e05ef65e02397e3a2f9ccb3735d0d68",
+          "size": 880904
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.3.4",
+      "commit": "07e6491ace82b55be7f6881d11737821a41501d5",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "7aa3cf06ffb676a39ba5683dbe6395713464d8b0",
+          "sha256": "sha256:7427e251298cbdf15350b48594110e4ddc1affa0f9b3a754b88d6d9b86e4126a",
+          "size": 883961
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.3.5",
+      "commit": "bd4ff81818904709e5d6811617cea6b84003ae86",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "d5c4d8d0207b4d45e612d8edc74ef341b941a067",
+          "sha256": "sha256:3528b9b26243b3e22c4bb1f9304969c908590f2801d75d3187cef430e14a0a30",
+          "size": 887936
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.3.6",
+      "commit": "b05ec75f982006c9d59fc535c752d5907ec94826",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "63a512e1d30f1beeb0d6f2b861c46e04e22e7362",
+          "sha256": "sha256:df7384565a994dc1fd279a00f5a6957002a0177befdabee03ea5727d9abf40fd",
+          "size": 890944
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.3.7",
+      "commit": "74bc93308b47a1a03b7dbaedd5ec2c0965f46e80",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "a4cf54d11d3ac4ffb5b0eeca8c3d8551c3379399",
+          "sha256": "sha256:9214cf57d30369bd87520f70ab9ffbeeaa2bc0a41c4589306fbde47b52b9d757",
+          "size": 891316
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.4.0",
+      "commit": "ce42e8501eecd5ff25b333ce651bee731b3134b4",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "d3516b689c82e49d1649235871c73735c309de70",
+          "sha256": "sha256:dfa5ea1516c91cf558e3fac26006c451475549bf54dba15deef6f34ff1c3d954",
+          "size": 900568
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.4.1",
+      "commit": "8b495b45a547f86b6c27fe5db637515b8645a244",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "4ce5dde11837be6323f23830563a1b5b935cf57b",
+          "sha256": "sha256:716c6ea2a9ff24c709eb9b2cb23ac62015b398c3762a1f73437c3bdc4aa0d70d",
+          "size": 904097
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.4.2",
+      "commit": "a51918066548a919cf8d46c8c5193cd5ab52a999",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "d2a092061d2aa85df86d76ffc8ffc3b957ef534f",
+          "sha256": "sha256:3b5c9bbc363d0b38ee167215ff2ac44c2713197379bcafee25467d8588e8cc2b",
+          "size": 907057
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.4.3",
+      "commit": "b0e246cea9fc61cfc9f4b46bb9e86d1783b39808",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "1a0f3c7678a9709a491147a18cf71077087626d3",
+          "sha256": "sha256:81defa38516de882d7d94070232a2d28daf33150ee553ab0c9d73fd0e239aae1",
+          "size": 907365
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.4.4",
+      "commit": "95434e870bb642a22e007f0eb1db7de24af5f714",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "49a68fae11671ed2db4cf90b039c6ea60ced6efd",
+          "sha256": "sha256:39695f3ee4daadde8389d68a52b905ead5868065a0733d6089b932386f559b59",
+          "size": 909301
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.4.5",
+      "commit": "9bf14b67644cb1da14923bda0e3144a0355b4543",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "bd5768c6935c00c253613cdefbf675a141ce2152",
+          "sha256": "sha256:8b32356b6706c135987727187c9fe64b9ea23829b4dc0aa9119fbb5444551302",
+          "size": 910923
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.5.0",
+      "commit": "2cbd96e64c929bea8f933efa75080e9656314f34",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "62fd2eb96b3caa4d29b3411a4cba2738536da5ef",
+          "sha256": "sha256:81cba304b9bc3a70eb33e334d8cc20dcd8733e94f6ae73a8d7e873435a76ec95",
+          "size": 920252
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.5.1",
+      "commit": "30b0666219a8f1bd9f52a0766fa31ddfcc8ef7e6",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "4e6444bad7292ab75c82fa793c8e1f3a58667b56",
+          "sha256": "sha256:ba9e5cc9272e55436fe92cc3286329d26991da19e17cb56c20f1b33adb6c6672",
+          "size": 925087
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.5.2",
+      "commit": "0b240ca97aaf4a17c40898624aed48a86c88e393",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "1ca8266828aaee19c4bb20efa0c2aa1fbc34e875",
+          "sha256": "sha256:06427c4afe05f63616e0f44032983c4fc919013c6d7d8161e6522fe992f56e19",
+          "size": 927130
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.5.3",
+      "commit": "5ab001b55b867d0065ae05099490690a514f95d3",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "ed2c79f8fa73b68b2e8cf6320f27f986794f1514",
+          "sha256": "sha256:978ab99ca80b543bb3671e4f17a54694e7092ffc4cae5eba87de3f411c1b7cd0",
+          "size": 929163
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.5.4",
+      "commit": "06f401d4722c26471b3b5ae932559d1d94323b93",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "bf46d9ae73b71342c0e136bd550d88092ca9194d",
+          "sha256": "sha256:0bcc8ff05713394abbee9d3c8a4b59d9d7746733a38d030d469e76b5f40918d8",
+          "size": 936289
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.5.5",
+      "commit": "9a8cf6e5bd18bcddf28117a67b4911e92fa77321",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "7bbc491ceaa3187101dcf88057dbe37e52c4d687",
+          "sha256": "sha256:d9e6abc6151d658a32a9d5e80968bcab90e2a681be9214e7e1146e649f8a6172",
+          "size": 937313
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.5.6",
+      "commit": "bb10b9df91728ebb43b594b70bfd697263bf7166",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "4343f8351b9f41731f06359c60fcd2b183f8dc6f",
+          "sha256": "sha256:c9ab74e9f36004c082dd3938214f9d042cbe626e35faf2bd359a5f01cf3c0073",
+          "size": 937480
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.0",
+      "commit": "06db5168c0d936a0716cbede56bc2cd332be0d4f",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "1cae75d22ef081464234c24f1e91624d6e0ec320",
+          "sha256": "sha256:b54fb6bd970bb692cfadccbc46a2a1696f76dcca2e9018de648661bc6c010728",
+          "size": 948131
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.1",
+      "commit": "ade2306a605f0341207ea0972d237ce904cadfe2",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "32a36638e394fa6982954f2be8aae744c35eee66",
+          "sha256": "sha256:1db922e5e87603e66c4c7e152ac4ecc111ba9a785d4a582ba16525cfe4b426f5",
+          "size": 949773
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.10",
+      "commit": "043583490b0a92a97777713048f8bec1b3aff61c",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "5c59b6a802bb6b66fe7f793eed1d83361d60313e",
+          "sha256": "sha256:d2f752a630c61767fdb66ce0262cb1122f097c65722bc1693375fbda80337bdd",
+          "size": 975543
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.11",
+      "commit": "33219a0af86c41a8db81d37c444f65172bfb3e35",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "d1c54358c5b6418bf3037cc40eff7ae6ef1ecabe",
+          "sha256": "sha256:9a8cfa0ac90adc9142c44aac89ab3579c9abf99a6547723f9f9c418c60746fd2",
+          "size": 978186
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.12",
+      "commit": "b782bd32d444af99d76e5f87970b02a9aa80ba97",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "ee7d609efb1de54df569a56b5be6176511471714",
+          "sha256": "sha256:420283f4dddcb70544f6c07871b9da5068221984c4ef0713ab4831607eb11c62",
+          "size": 980739
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.13",
+      "commit": "94764103c4f44d26cb2aafd64ac6c5af7622d7af",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "45b2c2335cfa5686c943fbd6c3390fdd39d8fa84",
+          "sha256": "sha256:e6b7198f06fb20f8b2c88384d567f14ca8f5134abbcc3c5ef373baff2c220f81",
+          "size": 982011
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.14",
+      "commit": "a6664c95b589842489d37d73e7d01bf1c8881685",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "6f616b6a41d3cb0d55e72088dd7a16b787cf18d5",
+          "sha256": "sha256:08db32eb9b7049158120c5bddf21e1a76a85c32ded59b09e9acce3eaa2f74eb1",
+          "size": 985391
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.15",
+      "commit": "c5ce3f847abacc85905d60753abc0c8dcea0f577",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "db6bb718046ae814d458688e5d9879275e6eea5a",
+          "sha256": "sha256:aabf01ea1f9c3941289b42f5ce4e3a3bd45f0b004e073265057bcbdee48afb8a",
+          "size": 986848
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.16",
+      "commit": "801eb2f149fb0d50cfa706abb741a1c0ae4c7800",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "cd65085bf50f65827e063f09d4b0fa42b1775f82",
+          "sha256": "sha256:c4b29e5aa5809716f41a3b562626b2e53aa703ea27027991ee87bf198ae39253",
+          "size": 988293
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.17",
+      "commit": "32c086193777fe8297fcc0ccda2df396a4d477e7",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "ef88c081590979096ecef7ca6193a35c22130d79",
+          "sha256": "sha256:3d6d642b0ccb162f3e995153745d9676204cfd9ba6fbe4050e9dfeedfe7ae479",
+          "size": 989217
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.18",
+      "commit": "32da599169a0bde6ef0aab66d7989998d02d5636",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "c60be5711c18613e554b78734e08cb3e0c1f1108",
+          "sha256": "sha256:495c9bdda31c8d1ba0b2e36fe1098bc1b9932e96d3b22e3b86697d65a9a52696",
+          "size": 993165
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.19",
+      "commit": "281ce42477540b3777afd80c8d85dc17611388b4",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "c56bc2c3b33cffb82982f38dc823ac138e2ba997",
+          "sha256": "sha256:c0921b44b5aa548c1e48f4b2ad9840eacd195e3948c2a86fde1095cbe4bb2bb6",
+          "size": 993773
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.2",
+      "commit": "f6ea1f473a8468c119739cbda5c4fd3f1f886ec2",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "85f0c9b6263637317f63a163e17d4373959c4fce",
+          "sha256": "sha256:3e4a19e95fa915793e108eb41aa2dfb48a50b3c82ba0381f7f98dbfcddfde492",
+          "size": 950128
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.20",
+      "commit": "1137f1f8076b3bd7966464769e9a65a554e7e894",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "369b2989d1742331f1a6dad08f8ebd708ece4737",
+          "sha256": "sha256:3ff43cffe8d5be6290bc6fa9d9f4935bd09d3245a7afe77abac6777690138728",
+          "size": 995153
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.21",
+      "commit": "b46e795f41e9aa02b25f1ab4eef4907a766c15c1",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "a2fd39f25770ef6720f6d4e7ac423e5ed9edfa12",
+          "sha256": "sha256:0bab117dbe07f6f59765602a5770b622773adc594d355f16db2a55767d3a2584",
+          "size": 996323
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.22",
+      "commit": "e15c8f86ba7370d01f529682f3b28d2f1d2bb4b5",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "5bef8725ed28c6952a70524d0bd326a3a5674b8f",
+          "sha256": "sha256:d75b4ff4bcb846454e428cde744e5f00af5ad7f5e0be06011ebb7cae532ad95f",
+          "size": 1001009
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.23",
+      "commit": "84d4e8b139d1ac5e5b2d250fff95baed5ba0584f",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "fc626ca766eb5d92498e6f00c1ab85b62914fe56",
+          "sha256": "sha256:3b35aa3ed8c7e119a785c1c19497262bd6c075bcdf2f607605272d589dc2469b",
+          "size": 1003628
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.24",
+      "commit": "cc336581846996ffbd01b1290fd5b44787bad324",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "e2aee330eaadfd23dac282cdea3cb78f380b4a3c",
+          "sha256": "sha256:c554fdf5594df32b3caf22b76ca39456d7e4525b92cf069e0928b174af2ed989",
+          "size": 1006012
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.25",
+      "commit": "4b18b24b0b002dcc80e0640c6088a87d813de29a",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "33fc592a10046d1bacc20b5f5f0a5f104b0cee38",
+          "sha256": "sha256:07c39a437933f1cfbb37db19eafe8dfa0e5a59fb8bbe6b89cd2f2bad04e11f4d",
+          "size": 1007861
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.3",
+      "commit": "8a621274b81cd177ea5f6e07a5d5472af7d213b3",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "14239878047e9557d4a3af3cad33bc56a3181899",
+          "sha256": "sha256:61bf0b30c1f12ea029d206e473dc4ace4e493242bca3529ce606f63abd185d72",
+          "size": 954519
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.4",
+      "commit": "4e441f8b183f60a3f5d82efbca18a7407318aeda",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "ff42a63cb4341d610fb887aad275b070e9f7f137",
+          "sha256": "sha256:54a65404a353b891c675a8d37b248f2fb77c5935e6a9cb91ffb81c7adef841d3",
+          "size": 954814
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.5",
+      "commit": "e4f0c3051c91e23f2c7271da6070b33d7beb4496",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "7d8f14669f672a0db3d50021fb0e82abc138d4e5",
+          "sha256": "sha256:7e3566609ddc7b6b19c0e1fee4bf7d34f39504830df52e4c90fdcebadc243199",
+          "size": 957204
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.6",
+      "commit": "c2b21d3719808770b4c0c8212f65732c024adb5e",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "748b79909da4bd06b2f207b04e709dfde2226289",
+          "sha256": "sha256:881499a1a2a5968ddc5c5f078a67c8f17c1f9e0598484957a86c7cfc89d78801",
+          "size": 960219
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.7",
+      "commit": "17283643416ef8e830565ce40d3d3d7cc453e68e",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "135a288b8ca1d248c8e75c490f5b14422b26340e",
+          "sha256": "sha256:719e3029028384364dbd9cd5c9ab0ababf3fc96e7d40a1c5b42b0eab64209f87",
+          "size": 964155
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.8",
+      "commit": "2f215ab9a1068248669dacf77ec6901f21051c75",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "c0472ec1cc1b5aedb31a96b6761e2063666c1c0d",
+          "sha256": "sha256:4d9f0726870e01f9506222e1fda35cdc517efcd5ae9a9fc2e40599b67c3e6455",
+          "size": 970121
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.6.9",
+      "commit": "65f9d0663202b0ebf7941da0c4af0f1953525ce6",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "ccf3efd67efc828bc7cc6ed741a99624fa835b56",
+          "sha256": "sha256:925b4463a6bc5feef1d720817b922321f558d2ae47b195e3bd2f98dfde9f5ccd",
+          "size": 972640
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.0",
+      "commit": "04aa6bb4f9776f2ba87e5cd181d250e3610e6419",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "43e0cfaa250ca42317d55e32a7b65ea475f77c06",
+          "sha256": "sha256:9ca69107c97dec829296cafcb6feed09b2e18766d922522860f2e96713967fdd",
+          "size": 1076872
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.1",
+      "commit": "fa49e2bcad7ffd8a80accdf1fae1ae480913d93d",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "1262ea29175bab17e72be0ede0a9b4e3734f653d",
+          "sha256": "sha256:8c69379d263fdaaa1d29d9a2e453144eeef0d975210d37349a3c14c7d6303545",
+          "size": 1072227
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.10",
+      "commit": "2a2349356c01b1b1f7ecddb0c17b30c97f5241e7",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "abd1c7d82700b69bb8cd7e54a34d22b46f95fbc2",
+          "sha256": "sha256:e4419846177c25275b37a340cb0c45642e3f0d581444ffe38877546d79b297c9",
+          "size": 1108130
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.11",
+      "commit": "faa1eb590646aed94e561e24a59be0c47353ae95",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "88c52aab1046b81c48e732e0a293dd902079360c",
+          "sha256": "sha256:981b6ed23a4bdb17926b8c45ab19fefa99a7c6402afccf9fbf7d974512d2cb19",
+          "size": 1114175
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.12",
+      "commit": "e8f398ee30ca5643158ea9094b701b8eae9849e5",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "6027cf5afb748213118f380d25bac5fd148c28ef",
+          "sha256": "sha256:72ec94b80b82609954a1916b9f113eeefbeebc4bdb115110e850ad4f4404aaa6",
+          "size": 1117483
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.13",
+      "commit": "fc92cc118a0557a029c7019d5ee06665127b0f13",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "657c59875b5ebacd58c90f0ecabc7c9fbbf746a8",
+          "sha256": "sha256:0de6d8a7a68c18f781295895d278911f335f171070d504e9faf085544ad6e0f5",
+          "size": 1121835
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.14",
+      "commit": "3bd7aa32e1b6c41166575529a10fb2346d9eaa2e",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "977d64e215af54e61f6dab38152a215d7d09c0e5",
+          "sha256": "sha256:54d84fb1172db14498e4c9695bc2022d600410aed169cc794248b602ee2d1287",
+          "size": 1129151
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.15",
+      "commit": "351a5ab1e884a6be95d02997016cbb2751106bc0",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "64114474882b1f85b2579456fc3b3bc188eb9d47",
+          "sha256": "sha256:81d85dcd9e12ba137a9832bedf60db0f33afb3cddcafb5e4507dccc64aaa5733",
+          "size": 1132189
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.16",
+      "commit": "af6d927c51191ae1df104aaf907793386b816c28",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "8eb2855f9e4ff339b4f4e68e883b837a21a7d6be",
+          "sha256": "sha256:bb32b7e5f5e31f9c61e1150106dc7dd2dbf2b940f0074437653afb3f69e3375c",
+          "size": 1133362
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.17",
+      "commit": "04e8ccf84ada1dcb450cec06554fe27812903134",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "a621d773512b78c862087e1573d0eba71c9244d0",
+          "sha256": "sha256:34659c344e171bc200d42926720e3fac7bbc22a073896b07632de620c231ce1e",
+          "size": 1136542
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.18",
+      "commit": "89e11274ead687094b871f8a4a75e90603773ef5",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "c8a1ee06a87f3e9577ff8b12649768ba9ebd4b1f",
+          "sha256": "sha256:a6b3e070a77ec7dea79b9794f6f05d5a9c762bfb4edc4af3462cbc76b73b03ee",
+          "size": 1141237
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.19",
+      "commit": "7dafd6dba371bd1aee70c443c2975c229c969711",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "0a925571c424d4874e980af35c3b3045c321ce45",
+          "sha256": "sha256:72aaeae49abd1ef12a211e87e693b6db4ea3bf8d718b625b6f642db550523d41",
+          "size": 1142507
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.2",
+      "commit": "e38281d8adf6a091bd3d8e043e683864e6052c83",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "5e06d7f0f28e3533714b6ccf992c1efa732a597f",
+          "sha256": "sha256:9f7b422a94e2df70feb1fa8de0cc4ca44212f488d462945470087bb1015a7b71",
+          "size": 1079985
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.3",
+      "commit": "5ea71f1c3af049067a0b6d5afd97bad1cf1a0071",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "4b9bf937c482449f26893c1baf3db87ae830f6fa",
+          "sha256": "sha256:82ee14d299519310e74b2d4936228833df158626cddd1ba199253dd161d8cc90",
+          "size": 1080893
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.4",
+      "commit": "74b6408475ffbba8a8c02a0abd0ac7e608d72087",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "83301e2565b25c5baff9d917f0016587f604080f",
+          "sha256": "sha256:9b633d6ee60722787785dd4c17b0f6761fe56de71e4b1a8a01008e71d6bd1261",
+          "size": 1083142
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.5",
+      "commit": "26c96a3935cafb473f4a5bae1886560d9aa4e4f0",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "c57cd5eaba49e10f97da9940fd73a81b41254428",
+          "sha256": "sha256:447fd6aaa3de65286e2e62953531f4fe210d4b771445eaac77421e5ab260cf58",
+          "size": 1085319
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.6",
+      "commit": "1afefcd7149ff331fa73ef62fb3dd69e3ced37ba",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "3d10362b4ddd4c180fcbb328d86977ad875dd644",
+          "sha256": "sha256:67ff14866f37b5917124189624866038338d0fb184156d49cedb1c56b0716147",
+          "size": 1094711
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.7",
+      "commit": "b2c18b1e39fbe2099e4dce927e4e6e56674ede0f",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "c1f5c8816592fe60793b75f3614bc12493b9b5cf",
+          "sha256": "sha256:56482c0472f54bc2a898451f859002f357648546490ea6bbe1c3bfc0fdd6150f",
+          "size": 1099860
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.8",
+      "commit": "4a87f05acfa2beb0211cee6e2ad4d002289752b5",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "10b75e904cf0c2243e0f91f0037daa39b98dff55",
+          "sha256": "sha256:6dfd5e32c6ec23095d5e488999d65d172a4b090a438e996242089c1c54ef990d",
+          "size": 1101003
+        }
+      ],
+      "outcome": "located"
+    },
+    {
+      "name": "v3.7.9",
+      "commit": "d0bd2ec198533d760c1abfc74b98033d6d92d039",
+      "reads": [
+        {
+          "path": "CHANGELOG.md",
+          "blobId": "318370d41aff9d689b4d5c184f220eddb0387a5f",
+          "sha256": "sha256:dfbcaafbee30b0a301039179ab9653f0e00f0bd52e20a2bcaa1988cac6ae5e89",
+          "size": 1104842
+        }
+      ],
+      "outcome": "located"
+    }
+  ]
+}
