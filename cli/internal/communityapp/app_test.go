@@ -6,11 +6,14 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/knowledgepin"
 )
 
 func TestCertManagerRouteReturnsScopedExitAndSafeOutput(t *testing.T) {
@@ -159,6 +162,34 @@ func TestVersionUsesValidatedBuildIdentityEnvelope(t *testing.T) {
 	code := Run(context.Background(), floorNowArgs([]string{"version"}), &stdout, &stderr, "ignored")
 	if code != ExitOK || !strings.Contains(stdout.String(), `"schemaVersion":"prufyx.io/v1alpha1"`) || !strings.Contains(stdout.String(), `"reasonCode":"build_identity_reported"`) || !strings.Contains(stdout.String(), `"releaseState":"development"`) {
 		t.Fatalf("code=%d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+	}
+}
+
+func TestVersionReportsKnowledgeRootFromPin(t *testing.T) {
+	t.Parallel()
+	pin := knowledgepin.Digest("cncf-projects")
+	if !strings.HasPrefix(pin, "sha256:") {
+		t.Fatalf("test needs a pinned cncf-projects root, got %q", pin)
+	}
+	var stdout, stderr bytes.Buffer
+	if code := Run(context.Background(), floorNowArgs([]string{"version"}), &stdout, &stderr, "ignored"); code != ExitOK {
+		t.Fatalf("code=%d stderr=%s", code, stderr.String())
+	}
+	var out struct {
+		Data map[string]any `json:"data"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Data["knowledgeRootDigest"] != pin {
+		t.Fatalf("knowledgeRootDigest=%v want %s", out.Data["knowledgeRootDigest"], pin)
+	}
+	if out.Data["trustRootDigest"] != "unbound" && out.Data["trustRootDigest"] != "UNPINNED" {
+		t.Fatalf("trustRootDigest changed: %v", out.Data["trustRootDigest"])
+	}
+	stdout.Reset()
+	if code := Run(context.Background(), floorNowArgs([]string{"version", "--format", "human"}), &stdout, &stderr, "ignored"); code != ExitOK || !strings.Contains(stdout.String(), "knowledge root "+pin) {
+		t.Fatalf("human output %q", stdout.String())
 	}
 }
 
