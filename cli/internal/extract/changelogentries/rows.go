@@ -168,6 +168,13 @@ var Reviewed, loadErr = parseTargets(targetsJSON)
 // LoadError is the reason the embedded table was refused, or nil.
 func LoadError() error { return loadErr }
 
+// LoadTargets reads a targets document with exactly the strict loader the
+// embedded table goes through (unknown fields, duplicate keys or components,
+// repos used twice, free regexes, non-markdown paths and unsorted rows are all
+// refused). It returns no rows with an error, never part of a table. The data
+// supplies rows only (check only, never attestation): styles, patterns and reader code stay compiled in.
+func LoadTargets(data []byte) ([]Target, error) { return parseTargets(data) }
+
 // parseTargets reads and strictly validates a targets document. It returns no
 // rows with an error, never part of a table.
 func parseTargets(data []byte) ([]Target, error) {

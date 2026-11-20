@@ -106,7 +106,7 @@ func TestReceiptMissingMirrorIsExplicitNone(t *testing.T) {
 			t.Fatalf("no explicit none:\n%s", out)
 		}
 	}
-	if !strings.Contains(checkOut(t, fx), " mirrorDigest=none\n") {
+	if !strings.Contains(checkOut(t, fx), " mirrorDigest=none targets=embedded\n") {
 		t.Fatal("summary line omits mirrorDigest=none")
 	}
 }
