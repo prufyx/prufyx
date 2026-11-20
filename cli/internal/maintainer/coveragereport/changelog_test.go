@@ -101,14 +101,14 @@ func TestChangelogReportRowAndCRDUnchanged(t *testing.T) {
 	if got, want := statuses(with.Projects[0]), statuses(without.Projects[0]); got != want || got != "GG" {
 		t.Fatalf("statuses %q vs %q", got, want)
 	}
-	if with.changelog.targets != 1 || with.changelog.gap != 2 || with.changelog.decided != 0 || with.changelog.reasons[GapNoAttestation] != 2 {
+	if with.changelog.targets != 1 || with.changelog.gap != 2 || with.changelog.listed != 0 || with.changelog.reasons[GapNoAttestation] != 2 {
 		t.Fatalf("stats %+v", with.changelog)
 	}
 	if changelogSentence(without.changelog) != "" {
 		t.Fatal("a row without a changelog target")
 	}
 	s := changelogSentence(with.changelog)
-	for _, want := range []string{"`changelog.attested_entries`", "0 decided, 2 gap", "1 projects have a changelog target", "NO_ATTESTATION 2"} {
+	for _, want := range []string{"`changelog.listed_entries`", "every final release of the line has a listed entry at its own release commit", "listed, not judged", "never a pass", "not counted as decided", "no scan reads it yet", "2 gap", "1 projects have a changelog target", "NO_ATTESTATION 2"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("sentence lacks %q: %s", want, s)
 		}
@@ -130,7 +130,7 @@ func TestChangelogMixedMemberCompute(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := r.changelog
-	if c.decided != 0 || c.reasons[GapMixedMember] != 2 || c.targets != 0 || c.gap != 2 {
+	if c.listed != 0 || c.reasons[GapMixedMember] != 2 || c.targets != 0 || c.gap != 2 {
 		t.Fatalf("stats %+v", c)
 	}
 	if statuses(r.Projects[0]) != "GG" {
@@ -142,7 +142,7 @@ func TestChangelogSpotBucket(t *testing.T) {
 	c := changelogStats{targets: 1}
 	c.addPair(Pair{Status: StatusS}, "")
 	c.addPair(Pair{Status: StatusG}, GapNoAttestation)
-	if c.pairs != 2 || c.spot != 1 || c.gap != 1 || c.decided+c.bounded+c.spot+c.gap != c.pairs {
+	if c.pairs != 2 || c.spot != 1 || c.gap != 1 || c.listed+c.bounded+c.spot+c.gap != c.pairs {
 		t.Fatalf("%+v", c)
 	}
 }
@@ -162,7 +162,7 @@ func TestChangelogMixedMemberNeverDecided(t *testing.T) {
 		t.Fatalf("setup: %s", statuses(r.Projects[0]))
 	}
 	c := r.changelog
-	if c.decided != 0 || c.bounded != 0 || c.gap != 1 || c.pairs != 1 || c.reasons[GapMixedMember] != 1 {
+	if c.listed != 0 || c.bounded != 0 || c.gap != 1 || c.pairs != 1 || c.reasons[GapMixedMember] != 1 {
 		t.Fatalf("stats %+v", c)
 	}
 }
@@ -179,14 +179,14 @@ func TestChangelogOnlyClassSplit(t *testing.T) {
 	}
 	var c changelogStats
 	c.addPair(pair, changelogGapReason(comp, "1.8", "1.9", atts, baselineNow, map[string]*ruleRec{}, rels, nil))
-	if c.decided != 1 || c.gap != 0 || c.bounded != 0 || c.pairs != 1 {
+	if c.listed != 1 || c.gap != 0 || c.bounded != 0 || c.pairs != 1 {
 		t.Fatalf("stats %+v", c)
 	}
 	// Another attested family decides too: a source decision, not a changelog one.
 	if plain := (Pair{Status: StatusA, Families: []string{"other.family", FamilyChangelogAttested}}); true {
 		var d changelogStats
 		d.addPair(plain, "")
-		if d.decided != 0 || d.bounded != 1 {
+		if d.listed != 0 || d.bounded != 1 {
 			t.Fatalf("source pair counted as changelog: %+v", d)
 		}
 	}
@@ -200,13 +200,13 @@ func TestChangelogOnlyClassSplit(t *testing.T) {
 	}
 }
 
-func TestDecidedChangelogJSON(t *testing.T) {
+func TestListedChangelogJSON(t *testing.T) {
 	b, err := json.Marshal(Totals{})
-	if err != nil || strings.Contains(string(b), "decidedChangelog") {
+	if err != nil || strings.Contains(string(b), "listedChangelog") {
 		t.Fatalf("zero count not omitted: %s %v", b, err)
 	}
-	b, _ = json.Marshal(Totals{DecidedChangelog: 2})
-	if !strings.Contains(string(b), `"decidedChangelog":2`) {
+	b, _ = json.Marshal(Totals{ListedChangelog: 2})
+	if !strings.Contains(string(b), `"listedChangelog":2`) {
 		t.Fatalf("%s", b)
 	}
 }

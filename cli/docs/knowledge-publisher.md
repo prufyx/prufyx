@@ -687,6 +687,42 @@ refuses any pack whose `distributions` section is not empty, and the
 knowledge gate admits no provider fact while the oldest supported client pin is
 below that release (see [knowledge-gate.md](knowledge-gate.md#provider-facts)).
 
+**Listed changelog entries.** A `changelog.listed_entries` attestation (the
+family behind the L figures) is readable only from the first release that knows
+the family (`cncfcheck.ListedFamilyFloor`, a build-time constant that is above
+every release cut before it and above the oldest supported client pin). A client
+that does not know the family would fail the package as an integrity failure
+(exit `3`), so:
+
+- while the oldest supported client pin is below the floor, or unknown, the
+  publisher leaves every listed attestation out of the package before anything
+  is signed, through one function shared with `export-knowledge`
+  (`--oldest-client` on both), and writes the number left out to the publish
+  receipt (`listedAttestationsExcluded`). This does not stop a knowledge release:
+  the records stay in the repository knowledge. The count is an operator figure,
+  not a customer disclosure;
+- a package that carries the family names the floor as its `minClientVersion`,
+  so a client older than the floor exits `15` before it reads any project
+  target;
+- the publisher refuses a package that carries the family without that floor,
+  with a lower one, or while the pin is below it, and the oldest-client gate
+  never accepts exit `15` for a package that names a minimum client (its message names the minimum, "upgrade
+  prufyx to >= ..."): once the pin is at or above the floor the pinned client must exit `0`.
+
+The pinned-client behaviour is proved in CI, not by hand: the test job
+builds the client at the commit in `cli/knowledge/oldest-supported-client.txt`
+(`git archive` of that ref, `PRUFYX_PINNED_CLIENT_SRC`) and runs
+`TestOldestClientRefusesListedFamilyTooNew`, which needs that client to exit
+`15` ("upgrade prufyx to >= ...") on a package that carries the family, and `0`
+on a package it built itself. The floor is also checked against the real release
+tags of the checkout (`TestListedFamilyFloorAgainstTheRealTags`): a tag that
+predates the family must be below the floor, a tag that holds it at or above;
+on CI an unreadable tag list fails the job.
+
+L counts and the README coverage block are repository knowledge: they are
+computed from the repository, and a client receives the records only from the
+floor release on.
+
 Until the first beta tag exists, `ref` is a commit of `main`. After the
 `v0.1.0-beta.0` cut, a PR sets `ref` to that tag.
 

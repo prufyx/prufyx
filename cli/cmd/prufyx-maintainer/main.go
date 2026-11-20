@@ -486,10 +486,11 @@ func runExportKnowledge(args []string) error {
 	revision := flags.String("revision", "", "positive external semantic revision")
 	output := flags.String("output", "", "new per-project targets directory")
 	previous := flags.String("previous-index", "", "cncf-projects: previously published index; unchanged projects keep their revision")
+	oldest := flags.String("oldest-client", "", "version of the oldest supported client; below the listed-family floor, or empty, listed attestations are left out")
 	if err := flags.Parse(args); err != nil || flags.NArg() != 0 || *profile == "" || *revision == "" || *output == "" {
 		return &commandError{code: 2, message: "export-knowledge: command rejected"}
 	}
-	if err := knowledgeexport.Write(knowledgeexport.Options{Profile: *profile, Revision: *revision, Output: *output, PreviousIndex: *previous}); err != nil {
+	if err := knowledgeexport.Write(knowledgeexport.Options{Profile: *profile, Revision: *revision, Output: *output, PreviousIndex: *previous, OldestClient: *oldest}); err != nil {
 		return &commandError{code: 2, message: "export-knowledge: command rejected", err: err}
 	}
 	return nil

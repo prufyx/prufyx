@@ -467,6 +467,7 @@ func runKnowledgeRelease(args []string, stdout io.Writer) error {
 	flags.BoolVar(&o.CI, "ci", false, "CI mode: enforce the unattended release guards (never implied by environment variables)")
 	flags.StringVar(&o.Profile, "profile", "", "cncf-projects (default); single-target publication is retired")
 	flags.StringVar(&o.PreviousIndex, "previous-index", "", "cncf-projects: absolute path of the committed previously published index")
+	flags.StringVar(&o.OldestClient, "oldest-client", "", "version of the oldest supported client (vMAJOR.MINOR.PATCH[-pre.N]); below the listed-family floor, or empty, listed attestations are left out of the package")
 	flags.BoolVar(&o.FirstRelease, "first-release", false, "cncf-projects: start a fresh index layout (no index published yet, or an engine capability change); instead of --previous-index; says nothing about a live package")
 	if err := flags.Parse(args); err != nil {
 		if err == flag.ErrHelp {
@@ -603,6 +604,7 @@ func runContentDigest(args []string, stdout io.Writer) error {
 	flags.StringVar(&o.Revision, "revision", "", "positive knowledge revision")
 	flags.StringVar(&o.Profile, "profile", "", "cncf-projects (default); single-target publication is retired")
 	flags.StringVar(&o.PreviousIndex, "previous-index", "", "cncf-projects: absolute path of the previously published index")
+	flags.StringVar(&o.OldestClient, "oldest-client", "", "version of the oldest supported client (vMAJOR.MINOR.PATCH[-pre.N]); below the listed-family floor, or empty, listed attestations are left out of the package")
 	flags.BoolVar(&o.FirstRelease, "first-release", false, "cncf-projects: start a fresh index layout")
 	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {
 		return knowledgePublishError()

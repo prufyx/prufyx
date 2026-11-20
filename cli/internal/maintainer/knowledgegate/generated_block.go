@@ -11,6 +11,7 @@ import (
 	"testing/fstest"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/extract/changelogentries"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/coveragereport"
 )
@@ -257,11 +258,15 @@ func coverageReportOf(t Tree, tablePath string) (coveragereport.Report, []byte, 
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, err
 	}
+	changelog, err := changelogProjectComponents(t)
+	if err != nil {
+		return coveragereport.Report{}, nil, time.Time{}, err
+	}
 	table, err := readTableTree(t, tablePath)
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, err
 	}
-	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: linesRaw, Additions: additionsRaw, Now: now, CRDVersionProjects: len(crd), CRDTargetComponents: crd, CommunityPack: community, V2: true, Catalog: coveragereport.NewCatalogSet(table.projects)})
+	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: linesRaw, Additions: additionsRaw, Now: now, CRDVersionProjects: len(crd), CRDTargetComponents: crd, ChangelogTargetComponents: changelog, CommunityPack: community, V2: true, Catalog: coveragereport.NewCatalogSet(table.projects)})
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, err
 	}
@@ -328,6 +333,28 @@ func crdProjectComponents(t Tree) (map[string]string, error) {
 		coveragereport.SetTargetComponent(out, tg.Project, tg.Component)
 	}
 	return out, nil
+}
+
+// changelogProjectComponents maps every project with a reviewed changelog row
+// of the tree (not of the binary: the rows a change adds count at once) to the
+// pack component derived from the row's repository. A table that cannot be
+// read or does not satisfy the schema is an error; there is no fallback. A
+// tree without the file has no rows.
+func changelogProjectComponents(t Tree) (map[string]string, error) {
+	raw, err := t.ReadOptional(changelogentries.TargetsPath, MaxFileBytes)
+	if err != nil {
+		return nil, fmt.Errorf("the changelog targets: %w", err)
+	}
+	if raw == nil {
+		// A tree without the table has no changelog row: no project is a
+		// member and nothing is listed. That only ever claims less.
+		return map[string]string{}, nil
+	}
+	rows, err := changelogentries.ParseTargets(raw)
+	if err != nil {
+		return nil, fmt.Errorf("the changelog targets do not load: %v", logSafe(err.Error()))
+	}
+	return changelogentries.ComponentsOf(rows), nil
 }
 
 // RegenerateBlocks rewrites the generated blocks of the tree rooted at root

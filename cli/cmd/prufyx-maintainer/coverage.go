@@ -194,7 +194,7 @@ func runCoverageReport(args []string, stdout io.Writer) error {
 			return &commandError{code: 2, message: "coverage report: declared file is unreadable", err: err}
 		}
 	}
-	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: lines, Additions: additions, Now: now, Window: window, All: all, Declared: declared, CRDVersionProjects: coveragereport.CRDProjectCount(), CRDTargetComponents: coveragereport.CRDProjectComponents(), CommunityPack: community})
+	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: lines, Additions: additions, Now: now, Window: window, All: all, Declared: declared, CRDVersionProjects: coveragereport.CRDProjectCount(), CRDTargetComponents: coveragereport.CRDProjectComponents(), ChangelogTargetComponents: coveragereport.ChangelogProjectComponents(), CommunityPack: community})
 	if err != nil {
 		return &commandError{code: 2, message: "coverage report: input rejected", err: err}
 	}

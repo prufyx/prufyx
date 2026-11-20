@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/extract/changelogentries"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 	"github.com/prufyx/prufyx/cli/internal/extract/helmvalues"
 	"github.com/prufyx/prufyx/cli/internal/extract/k8sservedapis"
@@ -155,6 +156,15 @@ func CRDProjectComponents() map[string]string {
 		SetTargetComponent(out, t.Project, t.Component)
 	}
 	return out
+}
+
+// ChangelogProjectComponents maps every project with a reviewed changelog row
+// (internal/extract/changelogentries, targets.json) to the pack component
+// derived from the row's repository. The map is the member table of the
+// changelog-listed family, derived from the reviewed rows, never listed by
+// hand; a project without a row is not in it.
+func ChangelogProjectComponents() map[string]string {
+	return changelogentries.ReviewedComponents()
 }
 
 // SetTargetComponent records the component of one target for its project.

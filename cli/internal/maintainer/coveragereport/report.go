@@ -89,7 +89,9 @@ type Pair struct {
 	// Families names the fact families of the attestations (A) or rules
 	// (B) that decide the pair.
 	Families []string `json:"families,omitempty"`
-	// Changelog marks a pair decided only by the changelog-attested family.
+	// Changelog marks a pair covered only by the changelog chain: its complete
+	// upstream change list is in the pack (L). It is not decided: the status
+	// stays G, never a pass; no scan reads it yet.
 	// Its Status is G: it is not counted in A, B or S.
 	Changelog bool `json:"changelog,omitempty"`
 	// Cells and Weight are metric v2 members of the last two pairs of a
@@ -118,8 +120,9 @@ type Project struct {
 	B        int      `json:"b"`
 	S        int      `json:"s"`
 	G        int      `json:"g"`
-	// DecidedChangelog counts pairs decided only by the changelog family.
-	DecidedChangelog int `json:"decidedChangelog,omitempty"`
+	// ListedChangelog counts pairs listed (L) by the changelog chain alone:
+	// their status stays G; they are not decided. Reported under its own key, never as decided.
+	ListedChangelog int `json:"listedChangelog,omitempty"`
 	// VC is (A+B)/pairs and VCA is A/pairs; both are 0 without pairs.
 	VC  float64 `json:"vc"`
 	VCA float64 `json:"vcA"`
@@ -145,8 +148,9 @@ type Totals struct {
 	B        int `json:"b"`
 	S        int `json:"s"`
 	G        int `json:"g"`
-	// DecidedChangelog counts pairs decided only by the changelog family.
-	DecidedChangelog int `json:"decidedChangelog,omitempty"`
+	// ListedChangelog counts pairs listed (L) by the changelog chain alone:
+	// their status stays G; they are not decided. Reported under its own key, never as decided.
+	ListedChangelog int `json:"listedChangelog,omitempty"`
 	// C1 counts covered projects among those with lines.
 	C1 int `json:"c1"`
 	// C3 counts projects with VC >= 0.6, C5 projects with VC_A = 1.
@@ -559,13 +563,22 @@ func Compute(in Input) (Report, error) {
 	crdAttComponent := map[string]bool{}
 	afterClock := map[string]bool{}
 	mixed := mixedComponents(in, atts)
+	changelogMember := map[string]bool{}
+	for _, c := range in.ChangelogTargetComponents {
+		if c != "" {
+			changelogMember[c] = true
+		}
+	}
 	for _, a := range atts {
 		project, ok := componentProject[a.Component]
 		if !ok {
 			continue
 		}
-		if a.FactFamily == FamilyChangelogAttested && mixed[a.Component] {
+		if isChangelogFamily(a.FactFamily) && mixed[a.Component] {
 			continue // refused: the component is also a CRD-family member
+		}
+		if a.FactFamily == FamilyChangelogListed && !changelogMember[a.Component] {
+			continue // refused: the component has no reviewed changelog row
 		}
 		if f := a.Freshness(now); f != lineattest.FreshnessCurrent {
 			if f == lineattest.FreshnessClockBeforeReview {
@@ -574,7 +587,10 @@ func Compute(in Input) (Report, error) {
 			continue
 		}
 		attsByProject[project] = append(attsByProject[project], a)
-		validAtt[project]++
+		if a.FactFamily != FamilyChangelogListed {
+			// A list is not coverage: it never makes a project covered.
+			validAtt[project]++
+		}
 		if until, err := constraintengine.ParseUTC(a.Evidence.ValidUntil); err == nil && until.Sub(now) <= ExpiryHorizon {
 			expiringAtt[project]++
 		}
@@ -760,7 +776,7 @@ func Compute(in Input) (Report, error) {
 			default:
 				row.G++
 				if pair.Changelog {
-					row.DecidedChangelog++
+					row.ListedChangelog++
 				}
 			}
 		}
@@ -792,7 +808,7 @@ func Compute(in Input) (Report, error) {
 			t.B += p.B
 			t.S += p.S
 			t.G += p.G
-			t.DecidedChangelog += p.DecidedChangelog
+			t.ListedChangelog += p.ListedChangelog
 			t.RulesInWindow += p.RulesInWindow
 			if p.Covered {
 				t.C1++
@@ -913,6 +929,22 @@ func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineatt
 	pair := Pair{From: fromLine, To: toLine, Status: StatusG}
 	if lineMapped(project) {
 		if fams, listed := attestedFamilies(fromLine, toLine, atts, byID, releases); len(fams) > 0 {
+			// The listed family is a list, not a claim: it is never a family
+			// of an A or B pair. A pair it alone covers is L; a pair another
+			// family or a rule decides keeps that decision.
+			hadListed := slices.Contains(fams, FamilyChangelogListed)
+			fams = slices.DeleteFunc(slices.Clone(fams), func(f string) bool { return f == FamilyChangelogListed })
+			if len(fams) == 0 && hadListed {
+				if bf, ok := boundedFamilies(fromLine, toLine, rules); ok {
+					pair.Status, pair.Families, pair.canBlock = StatusB, bf, true
+				} else {
+					pair.Changelog = true
+					if exactPairRule(project, fromLine, toLine, rules) {
+						pair.Status = StatusS // order A, B, S, L: the exact-pair rule keeps S
+					}
+				}
+				return pair
+			}
 			if len(fams) == 1 && fams[0] == FamilyChangelogAttested {
 				// Only the changelog family decides: a valid bounding rule makes it a
 				// source decision (B); without one it counts in the changelog row only.
@@ -920,6 +952,9 @@ func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineatt
 					pair.Status, pair.Families, pair.canBlock = StatusB, bf, true
 				} else {
 					pair.Changelog = true
+					if exactPairRule(project, fromLine, toLine, rules) {
+						pair.Status = StatusS
+					}
 				}
 				return pair
 			}
@@ -936,6 +971,14 @@ func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineatt
 			return pair
 		}
 	}
+	if exactPairRule(project, fromLine, toLine, rules) {
+		pair.Status = StatusS
+	}
+	return pair
+}
+
+// exactPairRule reports whether a valid rule names exactly this pair of lines.
+func exactPairRule(project, fromLine, toLine string, rules []*ruleRec) bool {
 	for _, r := range rules {
 		if !r.valid {
 			continue
@@ -943,11 +986,10 @@ func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineatt
 		rf, ok1 := versionLine(project, r.tr.From)
 		rt, ok2 := versionLine(project, r.tr.To)
 		if ok1 && ok2 && rf == fromLine && rt == toLine {
-			pair.Status = StatusS
-			return pair
+			return true
 		}
 	}
-	return pair
+	return false
 }
 
 // attestedFamilies returns the families with a current attestation for the
@@ -970,7 +1012,7 @@ func attestedFamilies(fromLine, toLine string, atts []lineattest.LineAttestation
 		if !ok {
 			continue
 		}
-		if (family.ReleaseScoped() || a.FactFamily == FamilyChangelogAttested) && !releasesMatch(a.Releases, releases[fromLine], releases[toLine]) {
+		if (family.ReleaseScoped() || isChangelogFamily(a.FactFamily)) && !releasesMatch(a.Releases, releases[fromLine], releases[toLine]) {
 			continue
 		}
 		wide := true

@@ -85,6 +85,12 @@ func (x *Extractor) Pairs(index extract.ReleaseIndex) []extract.VersionPair {
 	x.mu.Lock()
 	x.tags = append([]extract.Tag(nil), index.Tags...)
 	x.mu.Unlock()
+	return minorPairs(index)
+}
+
+// minorPairs is every two lines that follow each other as minor lines of one
+// major, each named by its first final release.
+func minorPairs(index extract.ReleaseIndex) []extract.VersionPair {
 	first := map[[2]int]rel{}
 	bad := map[[2]int]bool{}
 	seen := map[string]string{}

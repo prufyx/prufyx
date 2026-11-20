@@ -135,10 +135,10 @@ func TestProjectsReleaseRejections(t *testing.T) {
 // release is refused, the sentinel survives for the caller's message, and
 // nothing is written.
 func TestProjectsReleaseRefusesDistributionRecords(t *testing.T) {
-	original := buildFirst
-	defer func() { buildFirst = original }()
-	buildFirst = func(string, map[string]string) (cncfcheck.ExternalTarget, []cncfcheck.ExternalTarget, error) {
-		return cncfcheck.ExternalTarget{}, nil, errors.Join(cncfcheck.ErrIntegrity, cncfcheck.ErrDistributionsNotPublishable)
+	original := buildPinned
+	defer func() { buildPinned = original }()
+	buildPinned = func(string, []byte, string) (cncfcheck.ExternalTarget, []cncfcheck.ExternalTarget, int, error) {
+		return cncfcheck.ExternalTarget{}, nil, 0, errors.Join(cncfcheck.ErrIntegrity, cncfcheck.ErrDistributionsNotPublishable)
 	}
 	o := projectsFixture(t)
 	_, err := Run(o)

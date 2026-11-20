@@ -148,6 +148,33 @@ func parsePackRules(raw []json.RawMessage) ([]packRule, error) {
 	return out, nil
 }
 
+// finalTags reads the final release tags of an index: one tag per version,
+// sorted ascending. A version tagged at two commits is refused (TAG_MOVED).
+func finalTags(tags []extract.Tag) (map[string]rel, []rel, error) {
+	byVersion := map[string]rel{}
+	var all []rel
+	for _, tg := range tags {
+		x, ok := parseRel(tg)
+		if !ok {
+			continue
+		}
+		if prev, dup := byVersion[x.version]; dup {
+			if prev.tag.Commit != tg.Commit {
+				return nil, nil, failf(ce.TagMoved, "release %s is tagged at two commits", x.version)
+			}
+			if prev.tag.Name <= tg.Name {
+				continue
+			}
+		}
+		byVersion[x.version] = x
+	}
+	for _, x := range byVersion {
+		all = append(all, x)
+	}
+	sort.Slice(all, func(i, j int) bool { return less(all[i], all[j]) })
+	return byVersion, all, nil
+}
+
 // Attest derives the attestation candidate of one pair Lf -> Lt of the
 // config's component from the repository's final tags. The window is the
 // entries of Lf.1..Lf.n and Lt.0..Lt.m: the entry of Lf.0 describes the hop
@@ -167,27 +194,10 @@ func Attest(r extract.PinnedReader, cfg Config, tags []extract.Tag, pair extract
 	}
 
 	// Final tags, one commit per version.
-	byVersion := map[string]rel{}
-	var all []rel
-	for _, tg := range tags {
-		x, ok := parseRel(tg)
-		if !ok {
-			continue
-		}
-		if prev, dup := byVersion[x.version]; dup {
-			if prev.tag.Commit != tg.Commit {
-				return nil, failf(ce.TagMoved, "release %s is tagged at two commits", x.version)
-			}
-			if prev.tag.Name <= tg.Name {
-				continue
-			}
-		}
-		byVersion[x.version] = x
+	byVersion, all, err := finalTags(tags)
+	if err != nil {
+		return nil, err
 	}
-	for _, x := range byVersion {
-		all = append(all, x)
-	}
-	sort.Slice(all, func(i, j int) bool { return less(all[i], all[j]) })
 
 	from, okf := parseRel(extract.Tag{Name: pair.FromTag, Commit: pair.FromCommit})
 	to, okt := parseRel(extract.Tag{Name: pair.ToTag, Commit: pair.ToCommit})

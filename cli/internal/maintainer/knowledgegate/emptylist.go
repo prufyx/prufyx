@@ -278,6 +278,8 @@ func releasesComplete(c *Change, opts Options, tagCache map[string][]extract.Tag
 	}
 	f, _ := lineattest.LookupFamily(a.FactFamily)
 	switch {
+	case a.FactFamily == lineattest.FamilyChangelogListedEntries:
+		return listedReleasesComplete(*a, list)
 	case f.ReleaseScoped():
 		return crdReleasesComplete(c, list)
 	case a.FactFamily == lineattest.FamilyKubernetesRemovedServedGVK:
@@ -455,6 +457,39 @@ func crdReleasesMatch(target crdversions.Target, a *lineattest.LineAttestation, 
 		have []lineattest.Release
 	}{{"releases.from", previous, a.Releases.From}, {"releases.to", a.Line, a.Releases.To}} {
 		want, err := finalReleases(tags, target.TagPrefixes, target.ReleaseScheme, side.line)
+		if err != nil {
+			return emptyListErr(emptyListReleasesIncomplete, "line %s: %v", side.line, err)
+		}
+		if len(want) == 0 || len(want) > lineattest.MaxReleases {
+			return emptyListErr(emptyListReleasesIncomplete, "line %s has %d final releases in the tags, want 1-%d", side.line, len(want), lineattest.MaxReleases)
+		}
+		if !slices.Equal(want, side.have) {
+			return emptyListErr(emptyListReleasesIncomplete, "%s is not exactly the %d final releases of line %s the tags show", side.name, len(want), side.line)
+		}
+	}
+	return nil
+}
+
+// listedTagPrefixes are the spellings of a final tag the listed-entries
+// extractor reads: v1.2.3 and 1.2.3.
+var listedTagPrefixes = []string{"v", ""}
+
+// listedReleasesComplete is C1 for the listed-entries family: the releases the
+// record names on each side are exactly the final releases the repository's
+// tags show for the line and for the previous minor line, each at its commit.
+// A record that leaves out a patch release of the line, names one the tags do
+// not show, or names another commit is refused.
+func listedReleasesComplete(a lineattest.LineAttestation, tags []extract.Tag) error {
+	previous, ok := a.FromLine()
+	if !ok || a.Releases == nil {
+		return emptyListErr(emptyListReleasesIncomplete, "line %s has no previous minor line or the record names no releases", logSafe(a.Line))
+	}
+	for _, side := range []struct {
+		name string
+		line string
+		have []lineattest.Release
+	}{{"releases.from", previous, a.Releases.From}, {"releases.to", a.Line, a.Releases.To}} {
+		want, err := finalReleases(tags, listedTagPrefixes, "", side.line)
 		if err != nil {
 			return emptyListErr(emptyListReleasesIncomplete, "line %s: %v", side.line, err)
 		}

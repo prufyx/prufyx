@@ -56,6 +56,12 @@ func Compute(in Input) (Report, error) { return impl.Compute(in) }
 // attestations of a target component are not attributed to their project.
 func CRDProjectComponents() map[string]string { return impl.CRDProjectComponents() }
 
+// ChangelogProjectComponents maps every project with a reviewed changelog row
+// to the pack component derived from the row's repository, the member table of
+// the changelog-listed family. The maintainer command passes it as
+// Input.ChangelogTargetComponents.
+func ChangelogProjectComponents() map[string]string { return impl.ChangelogProjectComponents() }
+
 // CRDProjectCount is the number of projects in CRDProjectComponents. The
 // maintainer command passes it as Input.CRDVersionProjects.
 func CRDProjectCount() int { return impl.CRDProjectCount() }
@@ -69,5 +75,6 @@ func DefaultInput(pack, communityPack, lines []byte, now time.Time) Input {
 	return Input{
 		Pack: pack, CommunityPack: communityPack, Lines: lines, Now: now, All: true,
 		CRDVersionProjects: CRDProjectCount(), CRDTargetComponents: CRDProjectComponents(),
+		ChangelogTargetComponents: ChangelogProjectComponents(),
 	}
 }

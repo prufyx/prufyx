@@ -51,6 +51,35 @@ The manifest classifies nothing and gives no item a disposition.
 - `2`: the input was rejected or a read failed. Nothing is printed to standard
   output. A read failure is never turned into a reason.
 
+## Listed entries (line attestations)
+
+The family `changelog.listed_entries` lists the upstream change list of a
+release line in the knowledge pack. It is derived from the reviewed target
+table and from nothing else:
+
+- one extractor per row, `changelog.listed.<component>` (`extract list`); the
+  pack component is derived from the row's repository
+  (`pkg:github/<owner>/<repo>`, lower case); a repository that is not on
+  github.com has none and attests nothing;
+- for a pair `Lf -> Lt` of consecutive minor lines of one major, the record
+  exists only when EVERY final release of the line `Lt` (`x.y.0` and each patch
+  release) has its own entry, located in full by the reader at the tag's own
+  commit; one missing entry, a moved tag or an unreadable commit gives no
+  record, never a shorter one;
+- the record names the final releases of both lines (the previous line's
+  commits are pinned by a root listing; their entries are not read), lists no
+  rule (`ruleIds` is empty, and a record that lists one is invalid), and is
+  scoped to those releases: a release published later is not covered until the
+  record is renewed;
+- a row of a form the reader does not read (`github-release`, `post-tag`,
+  `docs-page`, `monorepo`) gives the reader's typed reason and no record;
+- a component of the custom-resource family is never a member.
+
+What the record means: the list is in the pack. It is not a verdict. The
+coverage report marks such a pair with `changelog: true` (status stays `G`),
+counts it in the changelog row only, and never in A, B or decided. The answer a
+user gets is a list to read, never a pass; no scan reads the family yet.
+
 ## Reviewed target table
 
 The reviewed targets are data: `internal/extract/changelogentries/targets.json`

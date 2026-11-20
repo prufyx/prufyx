@@ -18,6 +18,21 @@ import (
 // no attestation of it decides a pair.
 const FamilyChangelogAttested = "changelog.attested_entries"
 
+// FamilyChangelogListed is the id of the changelog-listed family: the complete
+// upstream change list of a release line, read in full at each tag's own
+// commit. It is a plain string for the same reason as FamilyChangelogAttested;
+// a test pins it equal to the registered family. A pair with only this family
+// is listed (L): a list to read, never a pass (no scan reads it yet), and it is never
+// counted as decided (A or B).
+const FamilyChangelogListed = "changelog.listed_entries"
+
+// isChangelogFamily reports a family of the changelog chain.
+// (A pair of the attested family, which judges items, is worded as listed in the
+// one report sentence too; no such record exists today.)
+func isChangelogFamily(id string) bool {
+	return id == FamilyChangelogAttested || id == FamilyChangelogListed
+}
+
 // Typed reasons a pair of a changelog-attested member project is a gap.
 const (
 	GapNoAttestation        = "NO_ATTESTATION"
@@ -33,7 +48,7 @@ const (
 // family, the pairs it decides and the typed reasons of the others.
 type changelogStats struct {
 	targets int // projects with a reviewed changelog target
-	decided int // pairs decided by the changelog family alone
+	listed  int // pairs listed (L) by the changelog chain alone: not decided, never A or B
 	bounded int // pairs of member projects decided by a source family or a rule (A or B)
 	spot    int // pairs of member projects with a rule for one exact version pair only (S)
 	gap     int
@@ -41,17 +56,17 @@ type changelogStats struct {
 	reasons map[string]int
 }
 
-func (c *changelogStats) active() bool { return c.targets > 0 || c.decided > 0 }
+func (c *changelogStats) active() bool { return c.targets > 0 || c.listed > 0 }
 
 func (c *changelogStats) addPair(p Pair, reason string) {
 	c.pairs++
 	switch {
-	case p.Changelog:
-		c.decided++
 	case p.Status == StatusA || p.Status == StatusB:
 		c.bounded++
 	case p.Status == StatusS:
 		c.spot++
+	case p.Changelog:
+		c.listed++
 	case p.Status == StatusG:
 		c.gap++
 		if c.reasons == nil {
@@ -83,7 +98,7 @@ func mixedComponents(in Input, atts []lineattest.LineAttestation) map[string]boo
 		}
 	}
 	for _, a := range atts {
-		if a.FactFamily == FamilyChangelogAttested && crd[a.Component] {
+		if isChangelogFamily(a.FactFamily) && crd[a.Component] {
 			out[a.Component] = true
 		}
 	}
@@ -106,7 +121,7 @@ func changelogGapReason(component, fromLine, toLine string, atts []lineattest.Li
 		}
 	}
 	for _, a := range atts {
-		if a.FactFamily != FamilyChangelogAttested || a.Component != component || a.Line != toLine || !a.HopFrom(fromLine) {
+		if !isChangelogFamily(a.FactFamily) || a.Component != component || a.Line != toLine || !a.HopFrom(fromLine) {
 			continue
 		}
 		if a.Freshness(now) != lineattest.FreshnessCurrent {
@@ -156,5 +171,5 @@ func changelogSentence(c changelogStats) string {
 	if len(reasons) > 0 {
 		hist = strings.Join(reasons, ", ")
 	}
-	return fmt.Sprintf("Changelog-attested (`%s`): %d decided, %d gap over %d upgrades of its member projects (%d more decided by a source family or a rule, %d by a rule for one exact version pair only). %d projects have a changelog target; that is catalogue coverage, not the number of upgrades decided. Gap reasons: %s.\n", FamilyChangelogAttested, c.decided, c.gap, c.pairs, c.bounded, c.spot, c.targets, hist)
+	return fmt.Sprintf("Changelog-listed (`%s`): %d upgrades where every final release of the line has a listed entry at its own release commit; listed, not judged; never a pass; not counted as decided; no scan reads it yet, %d gap over %d upgrades of its member projects (%d more decided by a source family or a rule, %d by a rule for one exact version pair only). %d projects have a changelog target; that is catalogue coverage, not the number of upgrades decided. Gap reasons: %s.\n", FamilyChangelogListed, c.listed, c.gap, c.pairs, c.bounded, c.spot, c.targets, hist)
 }
