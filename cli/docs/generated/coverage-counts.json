@@ -2,12 +2,12 @@
   "schema": "prufyx.io/coverage-readme-counts/v2",
   "report": {
     "schema": "prufyx.io/coverage-report/v1",
-    "now": "2026-11-18T14:41:02Z",
+    "now": "2026-11-20T09:42:39Z",
     "window": 6,
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
-      "digest": "sha256:e3bcbe3a8f6d4e687a14b7f3a4b59ee6fd0e8f66144bf8d23eec34cd189a3242"
+      "digest": "sha256:e657bdafc9d17918d624a81f120ed189f06440195e153feab814660f2f6710dd"
     },
     "lines": {
       "capturedOn": "2026-10-31",
@@ -19,59 +19,59 @@
       "entries": 9,
       "clockOn": "2026-11-10"
     },
-    "clockAttestedAt": "2026-11-18T14:41:02Z",
-    "packProjectsCovered": 72,
+    "clockAttestedAt": "2026-11-20T09:42:39Z",
+    "packProjectsCovered": 73,
     "crdVersionProjects": 87,
-    "crdPublishedProjects": 40,
+    "crdPublishedProjects": 42,
     "fleet": {
       "projects": 79,
       "pairs": 395,
-      "a": 91,
+      "a": 97,
       "b": 3,
       "s": 39,
-      "g": 262,
+      "g": 256,
       "c1": 63,
-      "c3": 18,
-      "c5": 13,
-      "vcPairs": 0.238,
-      "vcMean": 0.238,
+      "c3": 20,
+      "c5": 14,
+      "vcPairs": 0.2532,
+      "vcMean": 0.2532,
       "sPairs": 0.0987,
       "rulesInWindow": 155
     },
     "priorityProjects": {
       "projects": 30,
       "pairs": 150,
-      "a": 32,
+      "a": 37,
       "b": 2,
       "s": 22,
-      "g": 94,
+      "g": 89,
       "c1": 29,
-      "c3": 6,
+      "c3": 8,
       "c5": 5,
-      "vcPairs": 0.2267,
-      "vcMean": 0.2267,
+      "vcPairs": 0.26,
+      "vcMean": 0.26,
       "sPairs": 0.1467,
       "rulesInWindow": 112
     },
     "communityCatalog": {
       "projects": 18,
       "pairs": 88,
-      "a": 42,
+      "a": 47,
       "b": 0,
       "s": 0,
-      "g": 46,
-      "c1": 9,
-      "c3": 9,
-      "c5": 8,
-      "vcPairs": 0.4773,
-      "vcMean": 0.4889,
+      "g": 41,
+      "c1": 10,
+      "c3": 10,
+      "c5": 9,
+      "vcPairs": 0.5341,
+      "vcMean": 0.5444,
       "sPairs": 0,
       "rulesInWindow": 0
     },
     "families": [
       {
         "family": "crd.custom_resource_versions",
-        "a": 86,
+        "a": 92,
         "b": 3
       },
       {
@@ -1027,15 +1027,18 @@
           {
             "from": "1.32",
             "to": "1.33",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           }
         ],
-        "a": 4,
+        "a": 5,
         "b": 0,
         "s": 0,
-        "g": 1,
-        "vc": 0.8,
-        "vcA": 0.8,
+        "g": 0,
+        "vc": 1,
+        "vcA": 1,
         "covered": true,
         "validRules": 1,
         "rulesInWindow": 0,
@@ -1261,12 +1264,15 @@
           {
             "from": "2.2",
             "to": "2.3",
-            "status": "G",
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ],
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
               "crd.schema": "open",
-              "crd.versions": "open",
+              "crd.versions": "attested",
               "helm.values": "open",
               "k8s.api": "open",
               "k8s.min": "open"
@@ -1276,12 +1282,15 @@
           {
             "from": "2.3",
             "to": "2.4",
-            "status": "G",
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ],
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
               "crd.schema": "open",
-              "crd.versions": "open",
+              "crd.versions": "attested",
               "helm.values": "open",
               "k8s.api": "open",
               "k8s.min": "open"
@@ -1289,12 +1298,12 @@
             "weight": 3
           }
         ],
-        "a": 0,
+        "a": 2,
         "b": 1,
         "s": 0,
-        "g": 4,
-        "vc": 0.2,
-        "vcA": 0,
+        "g": 2,
+        "vc": 0.6,
+        "vcA": 0.4,
         "covered": true,
         "validRules": 3,
         "rulesInWindow": 3,
@@ -2298,36 +2307,51 @@
           {
             "from": "1.2",
             "to": "1.3",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           },
           {
             "from": "1.3",
             "to": "1.4",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           },
           {
             "from": "1.4",
             "to": "1.5",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           },
           {
             "from": "1.5",
             "to": "1.6",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           },
           {
             "from": "1.6",
             "to": "1.7",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           }
         ],
-        "a": 0,
+        "a": 5,
         "b": 0,
         "s": 0,
-        "g": 5,
-        "vc": 0,
-        "vcA": 0,
-        "covered": false,
+        "g": 0,
+        "vc": 1,
+        "vcA": 1,
+        "covered": true,
         "validRules": 0,
         "rulesInWindow": 0,
         "expiring14d": 0
@@ -4153,17 +4177,23 @@
           {
             "from": "1.10",
             "to": "1.11",
-            "status": "G"
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ]
           },
           {
             "from": "1.11",
             "to": "1.12",
-            "status": "G",
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ],
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
               "crd.schema": "open",
-              "crd.versions": "open",
+              "crd.versions": "attested",
               "helm.values": "open",
               "k8s.api": "open",
               "k8s.min": "open"
@@ -4173,12 +4203,15 @@
           {
             "from": "1.12",
             "to": "1.13",
-            "status": "G",
+            "status": "A",
+            "families": [
+              "crd.custom_resource_versions"
+            ],
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
               "crd.schema": "open",
-              "crd.versions": "open",
+              "crd.versions": "attested",
               "helm.values": "open",
               "k8s.api": "open",
               "k8s.min": "open"
@@ -4186,12 +4219,12 @@
             "weight": 3
           }
         ],
-        "a": 0,
+        "a": 3,
         "b": 0,
         "s": 0,
-        "g": 5,
-        "vc": 0,
-        "vcA": 0,
+        "g": 2,
+        "vc": 0.6,
+        "vcA": 0.6,
         "covered": true,
         "validRules": 1,
         "rulesInWindow": 0,
@@ -5859,23 +5892,23 @@
       "projectsExcluded": [],
       "pairs": 60,
       "cells": 420,
-      "attested": 11,
+      "attested": 15,
       "bounded": 0,
-      "open": 409,
-      "reachable": 11,
+      "open": 405,
+      "reachable": 15,
       "declaredOnly": 0,
       "pairsFullyAttested": 0,
       "exemptCells": 0,
-      "dpcDeclared": 0.0254,
-      "dpcReachable": 0.0254,
+      "dpcDeclared": 0.0349,
+      "dpcReachable": 0.0349,
       "families": [
         {
           "family": "crd.versions",
           "producer": "manifest",
           "cells": 60,
-          "attested": 9,
+          "attested": 13,
           "bounded": 0,
-          "reachable": 9
+          "reachable": 13
         },
         {
           "family": "crd.schema",
@@ -6104,12 +6137,11 @@
         "project": "contour",
         "group": "fleet",
         "pairs": 5,
-        "ab": 4,
+        "ab": 5,
         "k8s": 0,
         "s": 0,
         "l": 0,
-        "g": 1,
-        "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
+        "g": 0
       },
       {
         "project": "coredns",
@@ -6148,11 +6180,11 @@
         "project": "crossplane",
         "group": "fleet",
         "pairs": 5,
-        "ab": 1,
+        "ab": 3,
         "k8s": 0,
         "s": 0,
         "l": 0,
-        "g": 4,
+        "g": 2,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
       },
       {
@@ -6343,12 +6375,11 @@
         "project": "gateway-api",
         "group": "community",
         "pairs": 5,
-        "ab": 0,
+        "ab": 5,
         "k8s": 0,
         "s": 0,
         "l": 0,
-        "g": 5,
-        "gapReason": "NO_RULE_OR_ATTESTATION"
+        "g": 0
       },
       {
         "project": "github-actions-runner-operator",
@@ -6676,11 +6707,11 @@
         "project": "longhorn",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 3,
         "k8s": 0,
         "s": 0,
         "l": 0,
-        "g": 5,
+        "g": 2,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
       },
       {
@@ -6989,23 +7020,23 @@
     "fleet": {
       "projects": 79,
       "pairs": 395,
-      "projectsWithAnswer": 52,
-      "ab": 89,
+      "projectsWithAnswer": 53,
+      "ab": 95,
       "k8s": 5,
       "s": 39,
       "l": 0,
-      "g": 262
+      "g": 256
     },
     "community": {
       "projects": 18,
       "pairs": 88,
-      "projectsWithAnswer": 9,
-      "ab": 42,
+      "projectsWithAnswer": 10,
+      "ab": 47,
       "k8s": 0,
       "s": 0,
       "l": 0,
-      "g": 46
+      "g": 41
     }
   },
-  "readmeBlockSha256": "30dbf28dfe00ee658497b017bcfcff572d34503b237eb82a6d666519a15f780d"
+  "readmeBlockSha256": "5925c0022f69e95c058585b84487a50b4bf1b6dbf83d4f7b383009f702a1f485"
 }

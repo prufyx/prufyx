@@ -105,12 +105,12 @@ func TestScanCommunityComponentRefusedByADatabaseWithoutData(t *testing.T) {
 			fixture.importPack(nil, "5")
 			dir, paths := files(t, map[string]string{"gw.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: a}\n"})
 			_ = dir
-			request, err := ParseArgs(append(append([]string{}, paths...), "--to", "gateway-api=1.2.0", "--knowledge-db", fixture.store))
+			request, err := ParseArgs(append(append([]string{}, paths...), "--to", "cluster-api=1.2.0", "--knowledge-db", fixture.store))
 			if err != nil {
 				t.Fatal(err)
 			}
 			_, err = Run(request, Options{Build: &testBuild})
-			want := scanreport.Text(scanreport.UsageCommunityComponent, quote("gateway-api"))
+			want := scanreport.Text(scanreport.UsageCommunityComponent, quote("cluster-api"))
 			var u *UsageError
 			if !errors.As(err, &u) || u.Error() != want {
 				t.Fatalf("%v, want %q", err, want)
@@ -120,7 +120,7 @@ func TestScanCommunityComponentRefusedByADatabaseWithoutData(t *testing.T) {
 			if _, statErr := os.Stat(filepath.Join(fixture.store, "selection.json")); statErr != nil {
 				t.Fatal(statErr)
 			}
-			if _, err := cncfknowledge.OpenScan(fixture.store, []string{"gateway-api"}); err != nil {
+			if _, err := cncfknowledge.OpenScan(fixture.store, []string{"cluster-api"}); err != nil {
 				t.Fatalf("opening the database for a community project: %v", err)
 			}
 		})
