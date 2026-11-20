@@ -92,12 +92,17 @@ func (f Facts) validate() error {
 		return fmt.Errorf("%w: no pairs", ErrFacts)
 	}
 	for i, p := range f.Pairs {
+		var prevEnd Line
+		if i > 0 {
+			prevEnd = f.Pairs[i-1].To
+		}
+		start := p.From
 		switch {
 		case p.From[0] < 0 || p.From[1] < 0 || p.To[0] < 0 || p.To[1] < 0:
 			return fmt.Errorf("%w: pair %d has a negative line", ErrFacts, i)
 		case !less(p.From, p.To):
 			return fmt.Errorf("%w: pair %d: lines are not strictly ascending", ErrFacts, i)
-		case i > 0 && f.Pairs[i-1].To != p.From:
+		case i > 0 && prevEnd != start:
 			return fmt.Errorf("%w: pair %d does not continue pair %d (unsorted, duplicate or missing line)", ErrFacts, i, i-1)
 		case p.Attested && p.Stop != "":
 			return fmt.Errorf("%w: pair %d is both attested and stopped", ErrFacts, i)

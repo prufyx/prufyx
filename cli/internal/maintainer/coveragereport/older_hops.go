@@ -111,10 +111,15 @@ func ComputeOlderHops(in OlderHopsInput) (*OlderHops, error) {
 		}
 		seen[p.Project] = true
 		for i, h := range p.Hops {
+			prevEnd, start := "", h.From
+			if i > 0 {
+				prevEnd = p.Hops[i-1].To
+			}
+			continues := i > 0 && prevEnd == start
 			switch {
 			case !lineattest.ValidLine(h.From) || !lineattest.ValidLine(h.To) || !lineattest.LineLess(h.From, h.To):
 				return bad("%s: hop %d has invalid or unordered lines", p.Project, i)
-			case i > 0 && p.Hops[i-1].To != h.From:
+			case i > 0 && !continues:
 				return bad("%s: hop %d does not continue hop %d", p.Project, i, i-1)
 			case h.Attested && h.Stop != "":
 				return bad("%s: hop %d is both attested and stopped", p.Project, i)
