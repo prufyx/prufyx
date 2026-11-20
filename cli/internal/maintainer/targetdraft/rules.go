@@ -28,9 +28,14 @@ const (
 	ClassFixtureDir = "fixture-dir"
 )
 
-// Rules are the reviewed, pinned judgments the generator may apply. They are
-// input, never derived: an exclusion or an accepted install surface that no
-// rule names ends in a typed stop.
+// Rules are the pinned judgments the generator may apply. A rules file is
+// input: an exclusion or an accepted install surface that no rule names ends
+// in a typed stop. The one exception is derive mode (derive.go): there the
+// rules are the OUTPUT of a fixed derivation from tree facts, the generator
+// takes no rules file, and a committed rules.json of such a recipe is accepted
+// only when verify-pr (built from the base branch) derives the same bytes from
+// the facts bundle again. A hand-edited derived file, or a derived-looking file
+// next to a recipe that does not say deriveRules, is rejected.
 type Rules struct {
 	Schema string `json:"schema"`
 	// Upstream is the provenance of a community-catalog project.
