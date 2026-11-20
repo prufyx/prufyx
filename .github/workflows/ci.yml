@@ -30,9 +30,10 @@ concurrency:
 # job must succeed; a skipped job fails the fan-in.
 #
 # Where jobs run: CI_RUNNER_LABELS is a JSON runs-on value (for example
-# ["self-hosted","pfspot"]); unset it is ubuntu-24.04. Only the test shards,
-# race, staticcheck and govulncheck read it, and a pull request from a fork
-# always gets the hosted runner. Secret scan, race-plan, the fan-in and
+# ["self-hosted","pfspot"]); unset it is ubuntu-24.04. Only test-core,
+# staticcheck and govulncheck read it, and a pull request from a fork
+# always gets the hosted runner. The heavy jobs (race, the knowledgegate and
+# synthetic-knowledge tests), secret scan, race-plan, the fan-in and
 # lint-build stay on the hosted runner. Clearing the variable is the rollback.
 # Offline runner: the runner-watchdog job (set variable only) cancels the run
 # when a self-hosted job stays queued past CI_RUNNER_QUEUE_MINUTES (default 30).
@@ -278,7 +279,7 @@ jobs:
     # by scripts/ci-test-shard.sh (every test is in exactly one shard;
     # TestCIShardsAreComplete keeps the matrix and SHARDS in step).
     name: Test (knowledgegate ${{ matrix.shard }}/4)
-    runs-on: ${{ (github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON(vars.CI_RUNNER_LABELS || '"ubuntu-24.04"') || 'ubuntu-24.04' }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:
       SHARDS: "4"
@@ -320,7 +321,7 @@ jobs:
   # (TestCISyntheticPackagesAreCovered fails when a package is missing).
   test-synthetic-a:
     name: Test (synthetic knowledge, cncfcheck and community)
-    runs-on: ${{ (github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON(vars.CI_RUNNER_LABELS || '"ubuntu-24.04"') || 'ubuntu-24.04' }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 75
     if: github.event_name != 'pull_request' || vars.CI_FAST_PR != 'true'
     steps:
@@ -344,7 +345,7 @@ jobs:
 
   test-synthetic-b:
     name: Test (synthetic knowledge, extract, scan and release)
-    runs-on: ${{ (github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON(vars.CI_RUNNER_LABELS || '"ubuntu-24.04"') || 'ubuntu-24.04' }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 75
     if: github.event_name != 'pull_request' || vars.CI_FAST_PR != 'true'
     steps:
@@ -366,7 +367,7 @@ jobs:
 
   test-synthetic-knowledgegate:
     name: Test (synthetic knowledge, knowledgegate ${{ matrix.shard }}/3)
-    runs-on: ${{ (github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON(vars.CI_RUNNER_LABELS || '"ubuntu-24.04"') || 'ubuntu-24.04' }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 75
     if: github.event_name != 'pull_request' || vars.CI_FAST_PR != 'true'
     env:
@@ -567,7 +568,7 @@ jobs:
     name: Race detector (${{ matrix.package }})
     needs: race-plan
     if: needs.race-plan.outputs.matrix != '[]'
-    runs-on: ${{ (github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON(vars.CI_RUNNER_LABELS || '"ubuntu-24.04"') || 'ubuntu-24.04' }}
+    runs-on: ubuntu-24.04
     timeout-minutes: ${{ matrix.timeout_minutes }}
     strategy:
       fail-fast: false
@@ -625,9 +626,11 @@ jobs:
           curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 15 --connect-timeout 20 --max-time 180 -o staticcheck_linux_amd64.tar.gz "https://github.com/dominikh/go-tools/releases/download/${STATICCHECK_VERSION}/staticcheck_linux_amd64.tar.gz"
           echo "${STATICCHECK_SHA256}  staticcheck_linux_amd64.tar.gz" | sha256sum -c -
           tar -xzf staticcheck_linux_amd64.tar.gz staticcheck/staticcheck
-          install -m 0755 staticcheck/staticcheck /usr/local/bin/staticcheck
+          mkdir -p "$RUNNER_TEMP/bin"
+          install -m 0755 staticcheck/staticcheck "$RUNNER_TEMP/bin/staticcheck"
           rm -rf staticcheck staticcheck_linux_amd64.tar.gz
-          staticcheck -version
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/bin/staticcheck" -version
 
       - name: Staticcheck (SA checks, default and parityreview tags)
         working-directory: cli
