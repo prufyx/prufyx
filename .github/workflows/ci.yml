@@ -559,7 +559,7 @@ jobs:
             fi
           done | jq -cs '.')
           # knowledgegate is too slow under -race for every commit (one process needed
-          # more than 85 minutes), so its six race shards (job race-knowledgegate) run
+          # more than 85 minutes), so its twelve race shards (job race-knowledgegate) run
           # in the nightly, in manual runs, and in a change to this workflow or to the
           # shard script, which proves the shards still finish.
           knowledgegate=false
@@ -613,17 +613,17 @@ jobs:
     # is in exactly one shard; TestCIShardsAreComplete keeps the matrix and SHARDS
     # in step). Advisory like race; race-knowledgegate-result reports it under the
     # job name the nightly always used.
-    name: Race detector shard ${{ matrix.shard }}/6
+    name: Race detector shard ${{ matrix.shard }}/12
     needs: race-plan
     if: needs.race-plan.outputs.knowledgegate == 'true'
     runs-on: ${{ (github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON(vars.CI_RUNNER_LABELS || '"ubuntu-24.04"') || 'ubuntu-24.04' }}
-    timeout-minutes: 60
+    timeout-minutes: 70
     env:
-      SHARDS: "6"
+      SHARDS: "12"
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -641,7 +641,7 @@ jobs:
         env:
           CGO_ENABLED: "1"
           SHARD: ${{ matrix.shard }}
-        run: ../scripts/ci-test-shard.sh "${SHARD}" "${SHARDS}" ./internal/maintainer/knowledgegate/ -race -- -timeout 40m
+        run: ../scripts/ci-test-shard.sh "${SHARD}" "${SHARDS}" ./internal/maintainer/knowledgegate/ -race -- -timeout 55m
 
   race-knowledgegate-result:
     # Keeps the job name "Race detector (./internal/maintainer/knowledgegate/)" that
