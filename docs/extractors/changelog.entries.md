@@ -60,7 +60,9 @@ A pair that cannot be decided carries one of: `NO_CHANGELOG_TARGET`,
 `SOURCE_NOT_PINNED_GIT`, `SHAPE_NOT_PER_TAG`, `PATH_MISSING_AT_TAG`,
 `ENTRY_MISSING`, `ENTRY_DUPLICATE`, `ENTRY_NOT_FINAL`, `ENTRY_NOT_AT_TAG`,
 `ENTRY_EMPTY`, `ENTRY_REFERS_ELSEWHERE`, `ENTRY_BOUNDARY_UNPROVEN`,
-`ENTRY_OVER_BOUND`, `ENTRY_PARSE_RESIDUE`, `MONOREPO_ENTRY_AMBIGUOUS`. The list
+`ENTRY_OVER_BOUND`, `ENTRY_PARSE_RESIDUE`, `MONOREPO_ENTRY_AMBIGUOUS`,
+`LINE_TOO_MANY_FINALS` (a line whose release window needs more sources than one
+record may cite is withheld, never truncated). The list
 is closed (`Codes`); codes for later stages are reserved.
 
 Release bodies (`SOURCE_NOT_PINNED_GIT`), entries that land after the tag
