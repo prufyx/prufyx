@@ -401,9 +401,6 @@ func (opts decodeOptions) yamlValue(node *yaml.Node, depth int, budget *int, ctx
 		if len(node.Content) > MaxArrayItems {
 			return nil, structural(node.Line, whatItems)
 		}
-		if len(node.Content) > MaxArrayItems {
-			return nil, errStructure
-		}
 		items := make([]any, 0, len(node.Content))
 		for _, child := range node.Content {
 			value, err := opts.yamlValue(child, depth+1, budget, elementContext(ctx))
