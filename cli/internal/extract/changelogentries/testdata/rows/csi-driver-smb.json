@@ -1,0 +1,12 @@
+{
+  "schema": "prufyx.io/changelog-row-fixture/v1",
+  "component": "csi-driver-smb",
+  "rowDigest": "b75144c02e53f4cd9934d46c3cbaf818d74a7c39e086f7e54f31f5283bfe9fd7",
+  "form": "github-release",
+  "status": "SKIP",
+  "window": 0,
+  "windowLocated": 0,
+  "located": 0,
+  "withheld": {},
+  "tags": []
+}

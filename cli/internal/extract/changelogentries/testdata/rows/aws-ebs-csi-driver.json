@@ -1,0 +1,12 @@
+{
+  "schema": "prufyx.io/changelog-row-fixture/v1",
+  "component": "aws-ebs-csi-driver",
+  "rowDigest": "782882dd113c1d4fa961d6b84f56c58655452efcd8f2228eacf0521bdb6d045c",
+  "form": "post-tag",
+  "status": "SKIP",
+  "window": 0,
+  "windowLocated": 0,
+  "located": 0,
+  "withheld": {},
+  "tags": []
+}

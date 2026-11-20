@@ -1,0 +1,12 @@
+{
+  "schema": "prufyx.io/changelog-row-fixture/v1",
+  "component": "vault",
+  "rowDigest": "9d0aa0aab11ea62e42438db3ea03d9575405594c03b06080966222dc7e946ac0",
+  "form": "post-tag",
+  "status": "SKIP",
+  "window": 0,
+  "windowLocated": 0,
+  "located": 0,
+  "withheld": {},
+  "tags": []
+}

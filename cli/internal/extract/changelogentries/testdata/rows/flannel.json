@@ -1,0 +1,12 @@
+{
+  "schema": "prufyx.io/changelog-row-fixture/v1",
+  "component": "flannel",
+  "rowDigest": "ce1b3a82dc0cd9f6c9770a5f43539eb9b697e1ee11a1566d70af850fbf99b3b2",
+  "form": "github-release",
+  "status": "SKIP",
+  "window": 0,
+  "windowLocated": 0,
+  "located": 0,
+  "withheld": {},
+  "tags": []
+}
