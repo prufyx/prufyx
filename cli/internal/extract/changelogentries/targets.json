@@ -49,14 +49,6 @@
       "boundaryStyles": ["main-unreleased"]
     },
     {
-      "component": "spire",
-      "repo": "github.com/spiffe/spire",
-      "form": "changelog-file",
-      "path": "CHANGELOG.md",
-      "headingStyle": "version-bracketed-date",
-      "boundaryStyles": ["main-unreleased-parenthesised"]
-    },
-    {
       "component": "tuf",
       "repo": "github.com/theupdateframework/python-tuf",
       "form": "changelog-file",
