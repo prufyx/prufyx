@@ -21,6 +21,11 @@ const (
 	ListedVersion = "1.0.0"
 )
 
+// maxListedSources is the most sources one record may cite (one per final
+// release of the to-line). It mirrors the constraint engine's evidence limit;
+// a line over it is withheld on its own, never allowed to abort the run.
+const maxListedSources = 8
+
 // ListedProof is the account of one listed-entries derivation.
 type ListedProof struct {
 	Component string      `json:"component"`
@@ -87,6 +92,9 @@ func AttestListed(r extract.PinnedReader, t ce.Target, tags []extract.Tag, pair 
 	}
 	if len(lf) == 0 || len(lt) == 0 || len(lf) > lineattest.MaxReleases || len(lt) > lineattest.MaxReleases {
 		return nil, failf(ce.NotPreviousMinor, "a line has no final release or more than %d", lineattest.MaxReleases)
+	}
+	if len(lt) > maxListedSources {
+		return nil, failf(ce.LineTooManyFinals, "line %s has %d final releases; a record cites at most %d sources", line, len(lt), maxListedSources)
 	}
 	if lt[0].pat != 0 {
 		return nil, failf(ce.EntryMissing, "line %s has no final tag for %d.%d.0", line, to.maj, to.min)
