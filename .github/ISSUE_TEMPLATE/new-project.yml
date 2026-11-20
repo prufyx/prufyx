@@ -9,7 +9,7 @@ body:
       value: |
         Use public, immutable upstream references only. Do not include customer configuration, cluster data, credentials, Secrets, logs, source archives, or private excerpts.
 
-        Anyone can ask here. This does not onboard a project: onboarding is done by an invited maintainer of that project ([docs/maintainers.md](https://github.com/prufyx/prufyx/blob/main/docs/maintainers.md#intake-is-for-invited-maintainers-only), Intake is for invited maintainers only).
+        Anyone can ask here. This does not onboard a project: onboarding is done by an invited maintainer of that project ([docs/maintainers.md](https://github.com/prufyx/prufyx/blob/main/docs/maintainers.md#intake-is-for-project-maintainers), Intake is for project maintainers).
 
         This form starts a review conversation. It does not add a project, rule, or executable check.
   - type: dropdown
