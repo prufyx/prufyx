@@ -69,7 +69,7 @@ func (r runtime) plan(args []string, stdin io.Reader) int {
 		plan := upgradeplan.Build(scanreport.Report{}, latest, upgradeplan.Capabilities{})
 		return r.writePlan(plan, request.Format)
 	}
-	result, err := scanrun.Run(request, scanrun.Options{Stdin: stdin, AutoLocalDB: true, PinnedRoot: pinnedRootDigest})
+	result, err := scanrun.Run(request, scanrun.Options{Stdin: stdin, AutoLocalDB: true, SkipUnknown: true, PinnedRoot: pinnedRootDigest})
 	if err != nil {
 		return r.scanError(err)
 	}
@@ -83,7 +83,11 @@ func (r runtime) plan(args []string, stdin io.Reader) int {
 	if result.PinnedNowWarning != "" {
 		fmt.Fprintln(r.stderr, "prufyx: "+result.PinnedNowWarning)
 	}
-	plan := upgradeplan.Build(result.Report, latest, upgradeplan.Capabilities{})
+	unknown := make([]upgradeplan.UnknownComponent, 0, len(result.Unknown))
+	for _, u := range result.Unknown {
+		unknown = append(unknown, upgradeplan.UnknownComponent{Component: u.Component, Reason: u.Reason, Detail: u.Detail})
+	}
+	plan := upgradeplan.BuildWithUnknown(result.Report, latest, unknown, upgradeplan.Capabilities{})
 	return r.writePlan(plan, request.Format)
 }
 

@@ -60,7 +60,8 @@ Kubernetes). `BLOCKED` is fully decided: a blocker is a blocker.
 
 Reason codes: `ORDER_INFERRED`, `HOP_ACTIONS_NOT_CHECKED`,
 `NODE_ROLLS_NOT_PLANNED`, `HOP_NOT_COVERED`, `BLOCKED_BY_EARLIER_FINDING`,
-`COMPONENT_GAP`, `LATEST_NOT_RESOLVED`, `PATH_NOT_PLANNED`.
+`COMPONENT_GAP`, `LATEST_NOT_RESOLVED`, `PATH_NOT_PLANNED`,
+`COMPONENT_NOT_IN_CATALOG`, `COMPONENT_NOT_COVERED`.
 
 ## Example: a long route (1.29 to 1.36)
 
@@ -143,6 +144,11 @@ cannot be combined with an explicit `--to` for the same component.
 `--to C=latest` is not resolved yet: no signed release-line snapshot ships, so
 Prufyx cannot know the newest release. The component is reported as
 `LATEST_NOT_RESOLVED` and is not planned. Give an explicit version.
+
+A component the catalog does not name (`COMPONENT_NOT_IN_CATALOG`) or that scan
+has no knowledge for yet (`COMPONENT_NOT_COVERED`) does not stop the plan: the
+other components are planned, the unknown one is a plan gap with its reason and
+next action, and the verdict is at most UNKNOWN. Malformed input still exits 2.
 
 ## Output and exit codes
 

@@ -1,0 +1,2 @@
+### Fixed
+- `prufyx plan` no longer exits 2 with no output when one component is not in the catalog or has no scan knowledge yet. The known components are planned as before; the unknown one is listed as a plan gap with a typed reason (`COMPONENT_NOT_IN_CATALOG` or `COMPONENT_NOT_COVERED`) and the next action, and the plan verdict is at most UNKNOWN (exit 11, or 10 if another stage is blocked). Malformed versions and a missing target still exit 2.
