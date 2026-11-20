@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgepublish"
 )
 
 // pinnedClientSourceEnv names a directory that holds the source tree of the
@@ -161,9 +162,12 @@ func TestOldestClientRefusesListedFamilyTooNew(t *testing.T) {
 	bare.OldestClient = cncfcheck.ListedFamilyFloor
 	// Lifted for this one build only, to record what the pinned client does.
 	bare.listedCheck = func([]byte, [][]byte, string) error { return nil }
+	restoreFloor := knowledgepublish.SetListedFloorCheckForTest(func([]byte, [][]byte) error { return nil })
 	bare.Root, bare.RootDigest, bare.TargetsKey, bare.SnapshotKey, bare.TimestampKey, bare.PassphraseFile = o.Root, o.RootDigest, o.TargetsKey, o.SnapshotKey, o.TimestampKey, o.PassphraseFile
-	if _, err := Run(bare); err != nil {
-		t.Fatalf("build of the package without the floor: %v", err)
+	_, buildErr := Run(bare)
+	restoreFloor()
+	if buildErr != nil {
+		t.Fatalf("build of the package without the floor: %v", buildErr)
 	}
 	got = runVerify(t, pinned, filepath.Join(bare.OutputDir, "cncf-projects-"+bare.Revision+".tar"), bare, bare.Revision)
 	t.Logf("pinned %s, family package WITHOUT the floor: exit %d stderr=%q", pinVersion, got.code, strings.TrimSpace(got.stderr))

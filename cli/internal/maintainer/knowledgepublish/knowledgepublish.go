@@ -372,6 +372,21 @@ func profileFor(projects []Target) string {
 	return "cncf-projects"
 }
 
+// listedFloorCheck is the listed-family floor check of the shared admission.
+// Only SetListedFloorCheckForTest replaces it; nothing in a command or a
+// release path calls that.
+var listedFloorCheck = cncfcheck.CheckListedFamilyFloor
+
+// SetListedFloorCheckForTest replaces the listed-family floor check of the
+// admission and returns the function that restores it. It exists only so a
+// test of another package can record what an older client does with a package
+// that lacks the floor; production code must not call it.
+func SetListedFloorCheckForTest(check func(index []byte, targets [][]byte) error) (restore func()) {
+	previous := listedFloorCheck
+	listedFloorCheck = check
+	return func() { listedFloorCheck = previous }
+}
+
 // admitTargetSet admits only the per-project layout: the index and exactly
 // the project targets it lists, each admitted
 // against its index entry. Anything missing, extra or mismatched is refused.
@@ -405,7 +420,7 @@ func admitTargetSet(target []byte, projects []Target) (targetSet, error) {
 	for _, project := range projects {
 		raws = append(raws, project.Raw)
 	}
-	if err := cncfcheck.CheckListedFamilyFloor(target, raws); err != nil {
+	if err := listedFloorCheck(target, raws); err != nil {
 		return targetSet{}, fmt.Errorf("listed family: %v: %w", err, ErrRejected)
 	}
 	files := []Target{{Path: cncfcheck.ExternalIndexTargetPath, Raw: target}}
