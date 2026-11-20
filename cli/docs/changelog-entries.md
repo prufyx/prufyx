@@ -204,11 +204,14 @@ newest window, and the slot counts as located only when every tag of it is.
 after the summary line) print one canonical receipt line per row:
 
 ```
-receipt/v1 step=<propose|check> component=<slug> rowDigest=<hex64> tagsDigest=<hex64|unreadable> mirrorDigest=<hex|none> codeDigest=sha256:<hex64>
+receipt/v1 step=<propose|check> component=<slug> rowDigest=<hex64> tagsDigest=<hex64|unreadable> mirrorDigest=<hex|none> codeDigest=sha256:<hex64> [hintDigest=<hex64>]
 ```
 
-The field order is fixed and every field is required; a consumer must refuse
-any other order, a missing or repeated field, or an unknown field. The line
+The field order is fixed and every field is required, except the one optional
+last field `hintDigest` (only on a `propose` line of a hinted run); a consumer
+must refuse any other order, a missing or repeated field, or an unknown field.
+A consumer that expects exactly the six fields refuses a hinted line (fail
+closed). The line
 holds a component slug and digests only, never changelog text or headings.
 
 - `rowDigest`: sha256 (hex) of the resolved row: compact JSON (no HTML
@@ -233,7 +236,7 @@ verdict.
 
 Strict consumer rule: parse with `ParseReceiptStrict(line, fixtureRun)` (or
 `ParseReceipt` then `Admissible`). It refuses any line that is not the exact
-shape above (order, fields, lower-case hex, no trailing characters), always
+shape above (with or without the optional last field; order, fields, lower-case hex, no trailing characters), always
 refuses `tagsDigest=unreadable`, and refuses `mirrorDigest=none` unless the run
 is a declared fixture run. A production consumer (batcher, QA gate) must also
 compare the receipt against the mirror index re-read at that time.
@@ -276,15 +279,16 @@ pinned bytes and accepts it can use it.
 ### Source hint (`--hint-file FILE`)
 
 A hint only narrows where `propose-rows` looks: the file and the heading style.
-It is one closed JSON object, at most 2048 bytes, no unknown or repeated field,
-nothing after it:
+It is one closed JSON object, at most 2048 bytes, exact lowercase keys only (a
+key such as `Path` is refused, not matched case-insensitively), no unknown or
+repeated field, nothing after it:
 
 ```json
 {"source":"path","path":"docs/CHANGELOG.md","style":"version-v-prefixed"}
 ```
 
 `source` is `path` (a file of the tree at the newest scored tag); `path` is a
-clean repository-relative `.md` path (no `..`, no leading `/` or `.`, bytes in
+clean repository-relative path ending in exactly `.md` (lower case) (no `..`, no leading `/` or `.`, bytes in
 `[A-Za-z0-9._/-]`); `style` is one of the closed heading styles the candidate
 rows use (a boundary style or an unknown name is refused). With a hint only the
 candidates that read that file, in that heading style, are tried. Everything
@@ -292,7 +296,13 @@ else runs unchanged: the newest-8 scan, the located counts, `PARTIAL_COVERAGE`
 and the other NO-ROW reasons, the pruning, the floor and the receipt. A row
 made with a hint is byte-identical to the row made without it whenever both
 find the same source; a hint that leads to a wrong file gives a NO-ROW from the
-same bar, never a row.
+same bar, never a row. A hint may also select a different valid candidate than
+the unhinted run would print: one that passes the same bar but may be a weaker
+source (for example 5 to 7 of the 8 versions with `minLocatedNewest`, where the
+unhinted winner locates all 8). The hinted candidate gets no leniency; the
+`hintDigest` in the receipt makes the hint visible to the reviewer. The style
+applies to file and per-line candidates only; a per-version-file candidate has
+no headings and ignores it.
 
 Typed refusals (exit 2, nothing on standard output): `HINT_MALFORMED`,
 `HINT_SOURCE_UNSUPPORTED`, `HINT_PATH_INVALID`, `HINT_STYLE_UNKNOWN`,

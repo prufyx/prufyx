@@ -129,3 +129,81 @@ func TestHintNarrowsToTemplatePath(t *testing.T) {
 		t.Fatalf("%s\n%s", a, b)
 	}
 }
+
+func TestHintKeysAreExactLowercase(t *testing.T) {
+	for name, raw := range map[string]string{
+		"Path":         `{"source":"path","Path":"CHANGELOG.md","style":"version-plain"}`,
+		"PATH":         `{"source":"path","PATH":"CHANGELOG.md","style":"version-plain"}`,
+		"Source":       `{"Source":"path","path":"CHANGELOG.md","style":"version-plain"}`,
+		"Style":        `{"source":"path","path":"CHANGELOG.md","Style":"version-plain"}`,
+		"case repeat":  `{"source":"path","path":"a.md","Path":"b.md","style":"version-plain"}`,
+		"case repeat2": `{"source":"path","PATH":"a.md","path":"b.md","style":"version-plain"}`,
+	} {
+		_, err := DecodeHint([]byte(raw))
+		if err == nil {
+			t.Fatalf("%s: accepted", name)
+		}
+		hintCode(t, err, HintMalformed)
+	}
+}
+
+func TestHintSuffixIsCaseExact(t *testing.T) {
+	_, err := DecodeHint([]byte(`{"source":"path","path":"CHANGELOG.MD","style":"version-plain"}`))
+	hintCode(t, err, HintPathInvalid)
+}
+
+// A hint may pick a different valid candidate than the unhinted run, but the
+// bar applies to it in full: a weaker source passes only with the bar written
+// into the row, and a source below the bar is no row.
+func TestHintedCandidateStillFacesTheBar(t *testing.T) {
+	tags := map[string]byte{}
+	var all, newest6, newest4 strings.Builder
+	for i := 7; i >= 0; i-- {
+		v := "1." + string(rune('0'+i)) + ".0"
+		tags["v"+v] = 'a'
+		h := "# v" + v + "\n\n- c\n\n"
+		all.WriteString(h)
+		if i >= 2 {
+			newest6.WriteString(h)
+		}
+		if i >= 4 {
+			newest4.WriteString(h)
+		}
+	}
+	src := rcFixture(t, tags, map[string]string{"a|docs/CHANGELOG.md": all.String(), "a|CHANGELOG.md": newest6.String()})
+	plain, err := ProposeRow(src, "notes", rcRepo, nil)
+	if err != nil || plain.Row.Path != "docs/CHANGELOG.md" || plain.Row.MinLocatedNewest != nil {
+		t.Fatalf("%v %+v", err, plain)
+	}
+	weak, err := ProposeRowHint(src, nil, "notes", rcRepo, nil, &Hint{Source: "path", Path: "CHANGELOG.md", Style: "version-v-prefixed"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if weak.Row.Path != "CHANGELOG.md" || weak.Row.MinLocatedNewest == nil || *weak.Row.MinLocatedNewest != 6 {
+		t.Fatalf("the weaker hinted candidate must carry its bar: %+v", weak.Row)
+	}
+	src = rcFixture(t, tags, map[string]string{"a|docs/CHANGELOG.md": all.String(), "a|CHANGELOG.md": newest4.String()})
+	p, err := ProposeRowHint(src, nil, "notes", rcRepo, nil, &Hint{Source: "path", Path: "CHANGELOG.md", Style: "version-v-prefixed"})
+	if p != nil {
+		t.Fatalf("a row below the bar: %+v", p)
+	}
+	wantNoRow(t, err, NoRowPartialCoverage)
+}
+
+func TestHintStyleIgnoredForPerVersionCandidate(t *testing.T) {
+	src := rcFixture(t, threeTags, map[string]string{
+		"a|docs/releases/v1.0.0.md": pvBody, "a|docs/releases/v1.0.1.md": pvBody, "a|docs/releases/v1.1.0.md": pvBody,
+	})
+	var out [2]string
+	for i, st := range []string{"version-plain", "version-bracketed"} {
+		p, err := ProposeRowHint(src, nil, "notes", rcRepo, nil, &Hint{Source: "path", Path: "docs/releases/v1.0.1.md", Style: st})
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, _ := json.Marshal(p)
+		out[i] = string(b)
+	}
+	if out[0] != out[1] || strings.Contains(out[0], "version-plain") {
+		t.Fatalf("%s\n%s", out[0], out[1])
+	}
+}

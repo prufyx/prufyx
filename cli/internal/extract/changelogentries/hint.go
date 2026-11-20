@@ -82,6 +82,12 @@ func hintUniqueKeys(raw []byte) error {
 		if err != nil || !ok {
 			return errors.New("not a JSON object")
 		}
+		// Exact lowercase names only: encoding/json matches field names
+		// case-insensitively, so Path or PATH would otherwise be a silent
+		// second spelling of path.
+		if ks != "source" && ks != "path" && ks != "style" {
+			return errors.New("unknown or mis-cased key " + ks)
+		}
 		if seen[ks] {
 			return errors.New("repeated key " + ks)
 		}
@@ -107,7 +113,7 @@ func (h Hint) validate() error {
 		return &HintError{HintPathInvalid, "path empty or too long"}
 	case !hintPathRE.MatchString(p), path.Clean(p) != p, strings.Contains(p, ".."):
 		return &HintError{HintPathInvalid, "path is not a clean repository-relative path"}
-	case !strings.HasSuffix(strings.ToLower(p), ".md"):
+	case !strings.HasSuffix(p, ".md"):
 		return &HintError{HintPathInvalid, "path is not a markdown file"}
 	}
 	return nil

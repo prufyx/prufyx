@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -121,5 +122,37 @@ func TestReceiptHintDigestNegative(t *testing.T) {
 		if _, err := ParseReceipt(l); err == nil {
 			t.Fatalf("%s accepted", name)
 		}
+	}
+}
+
+// The output of an unhinted propose-rows is the output of the build before
+// --hint-file existed, byte for byte (golden captured from that build; the code
+// digest is the digest of the changed source and is normalised).
+const goldenUnhinted = `{
+  "row": {
+    "component": "notes",
+    "repo": "github.com/example/notes",
+    "form": "changelog-per-version-file",
+    "path": "docs/releases/v{version}.md"
+  },
+  "located": 1,
+  "tags": 1,
+  "versionsLocated": 1,
+  "versions": 1,
+  "hits": [
+    {
+      "tag": "v1.0.0",
+      "located": true
+    }
+  ]
+}
+receipt/v1 step=propose component=notes rowDigest=0f53cbb32ee9bdca53384d43b08d0d8c6f8ddd6a6792febe1f3974058931c57c tagsDigest=746c276701b23f42fca5ec4f3282fdad103a84f590af8a39c4928ab78a6941e4 mirrorDigest=none codeDigest=<code>
+`
+
+func TestUnhintedOutputIsGolden(t *testing.T) {
+	fx := rowsFixture(t, map[string]string{"docs/releases/v1.0.0.md": "## Changes\n\n- fix a\n"})
+	got := regexp.MustCompile(`codeDigest=sha256:[0-9a-f]{64}`).ReplaceAllString(proposeOut(t, fx), "codeDigest=<code>")
+	if got != goldenUnhinted {
+		t.Fatalf("unhinted output changed:\n%s", got)
 	}
 }
