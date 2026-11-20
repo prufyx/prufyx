@@ -71,7 +71,8 @@ func TestPlanCommand(t *testing.T) {
 	if code, _, _ := runPlan(t, append([]string{path, "--to", "kubernetes=latest", "--to", "kubernetes=newest-covered"}, declared...)...); code != ExitUsage {
 		t.Fatalf("latest and newest-covered %d", code)
 	}
-	if code, _, _ := runPlan(t, append([]string{path, "--to", "no-such-app=newest-covered"}, declared...)...); code != ExitUsage {
+	// A component the catalog does not name is a plan gap, not a refusal: UNKNOWN.
+	if code, _, _ := runPlan(t, append([]string{path, "--to", "no-such-app=newest-covered"}, declared...)...); code != ExitUnknown {
 		t.Fatalf("newest-covered without lines %d", code)
 	}
 	// An application resolves newest-covered only with a current reviewed
@@ -96,9 +97,10 @@ func TestPlanCommand(t *testing.T) {
 	if code, _, stderr := runPlan(t, path, "--to", "etcd=newest-covered"); code != ExitUsage || !strings.Contains(stderr, "no current reviewed release line of etcd") {
 		t.Fatalf("known app without attestation %d %s", code, stderr)
 	}
-	// An unknown application keeps the usage error.
-	if code, _, stderr := runPlan(t, path, "--to", "no-such-app=newest-covered"); code != ExitUsage || !strings.Contains(stderr, "no current reviewed release line") {
-		t.Fatalf("no attestation %d %s", code, stderr)
+	// An application the catalog does not know is reported UNKNOWN (see
+	// TestPlanUnknownComponentNewestCovered), no longer a usage error.
+	if code, stdout, stderr := runPlan(t, path, "--to", "no-such-app=newest-covered"); code != ExitUnknown || !strings.Contains(stdout, "COMPONENT_NOT_IN_CATALOG") {
+		t.Fatalf("no attestation %d %s\n%s", code, stdout, stderr)
 	}
 	if code, _, _ := runPlan(t, path, "--to", "kubernetes=1.30.4", "--fail-on", "none"); code != ExitUsage {
 		t.Fatalf("fail-on %d", code)
