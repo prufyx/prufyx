@@ -25,12 +25,19 @@ type Receipt struct {
 	TagsDigest   string
 	MirrorDigest string
 	CodeDigest   string
+	// HintDigest is the sha256 (hex) of the hint file a propose run was given.
+	// Empty for a run without a hint; then the line has no hintDigest field.
+	HintDigest string
 }
 
 // Line renders the canonical receipt line without a newline.
 func (r Receipt) Line() string {
-	return fmt.Sprintf("%s step=%s component=%s rowDigest=%s tagsDigest=%s mirrorDigest=%s codeDigest=%s",
+	l := fmt.Sprintf("%s step=%s component=%s rowDigest=%s tagsDigest=%s mirrorDigest=%s codeDigest=%s",
 		ReceiptTag, r.Step, r.Component, r.RowDigest, r.TagsDigest, r.MirrorDigest, r.CodeDigest)
+	if r.HintDigest != "" {
+		l += " hintDigest=" + r.HintDigest
+	}
+	return l
 }
 
 var (
@@ -46,9 +53,10 @@ var (
 // outside its closed shape.
 func ParseReceipt(line string) (Receipt, error) {
 	parts := strings.Split(line, " ")
-	if len(parts) != len(fields)+1 || parts[0] != ReceiptTag {
+	if (len(parts) != len(fields)+1 && len(parts) != len(fields)+2) || parts[0] != ReceiptTag {
 		return Receipt{}, errors.New("receipt: not a canonical receipt/v1 line")
 	}
+	hinted := len(parts) == len(fields)+2
 	v := make([]string, len(fields))
 	for i, f := range fields {
 		k, val, ok := strings.Cut(parts[i+1], "=")
@@ -58,7 +66,16 @@ func ParseReceipt(line string) (Receipt, error) {
 		v[i] = val
 	}
 	r := Receipt{Step: v[0], Component: v[1], RowDigest: v[2], TagsDigest: v[3], MirrorDigest: v[4], CodeDigest: v[5]}
+	if hinted {
+		k, val, ok := strings.Cut(parts[len(fields)+1], "=")
+		if !ok || k != "hintDigest" || !hex64RE.MatchString(val) {
+			return Receipt{}, errors.New("receipt: the optional last field must be hintDigest=<sha256 hex>")
+		}
+		r.HintDigest = val
+	}
 	switch {
+	case hinted && r.Step != "propose":
+		return Receipt{}, errors.New("receipt: only a propose receipt carries hintDigest")
 	case r.Step != "propose" && r.Step != "check":
 		return Receipt{}, errors.New("receipt: step must be propose or check")
 	case len(r.Component) > 63 || !slugRE.MatchString(r.Component):

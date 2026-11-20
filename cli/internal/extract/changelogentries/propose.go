@@ -203,6 +203,18 @@ func ProposeRowFloor(src interface {
 	extract.PinnedReader
 	extract.TagSource
 }, up UpstreamTags, component, repo string, only []string) (*Proposal, error) {
+	return ProposeRowHint(src, up, component, repo, only, nil)
+}
+
+// ProposeRowHint is ProposeRowFloor with an optional source hint. The hint
+// only narrows the closed candidate places and heading styles tried; the
+// scoring, the newest-8 bar, the pruning, the floor and every refusal run
+// unchanged, so a row made with a hint is the row made without it whenever
+// both find the same source. A nil hint is ProposeRowFloor.
+func ProposeRowHint(src interface {
+	extract.PinnedReader
+	extract.TagSource
+}, up UpstreamTags, component, repo string, only []string, hint *Hint) (*Proposal, error) {
 	if up != nil && len(only) > 0 {
 		return nil, errors.New("the upstream tag list cannot be combined with an explicit tag list")
 	}
@@ -246,6 +258,27 @@ func ProposeRowFloor(src interface {
 	}
 	if len(window) == 0 {
 		return nil, &NoRow{NoRowNoTags, "no final release tag is recorded for " + repo}
+	}
+	styles := headingOrder
+	var allow func(string) bool
+	if hint != nil {
+		if err := hint.validate(); err != nil {
+			return nil, err
+		}
+		if err := checkHintFile(src, rr, window[0], *hint); err != nil {
+			return nil, err
+		}
+		styles = []string{hint.Style}
+		matched := false
+		for _, c := range candidatePaths {
+			if hint.pathMatches(c.Path, window) {
+				matched = true
+			}
+		}
+		if !matched {
+			return nil, &HintError{HintNoCandidate, hint.Path + " is not a place the closed candidates read"}
+		}
+		allow = func(p string) bool { return hint.pathMatches(p, window) }
 	}
 	eval := func(t Target) ([]Hit, int, error) {
 		hits := make([]Hit, 0, len(window))
@@ -322,6 +355,9 @@ func ProposeRowFloor(src interface {
 		return nil
 	}
 	for _, c := range candidatePaths {
+		if allow != nil && !allow(c.Path) {
+			continue
+		}
 		r := base
 		r.Form, r.Path = c.Form, c.Path
 		if c.Form == FormPerVersionFile {
@@ -330,7 +366,7 @@ func ProposeRowFloor(src interface {
 			}
 			continue
 		}
-		for _, h := range headingOrder {
+		for _, h := range styles {
 			r.HeadingStyle, r.BoundaryStyles, r.InnerHeadingStyles = h, append([]string(nil), boundaryOrder...), nil
 			if err := try(r); err != nil {
 				return nil, err
