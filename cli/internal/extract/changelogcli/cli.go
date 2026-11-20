@@ -24,6 +24,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/changelogentries"
+	"github.com/prufyx/prufyx/cli/internal/extract/safefs"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/factorymirror"
 )
 
@@ -564,13 +565,9 @@ func readHintFile(p string) (changelogentries.Hint, string, error) {
 	if p == "" {
 		return changelogentries.Hint{}, "", typed("--hint-file needs a path")
 	}
-	fi, err := os.Lstat(p)
-	if err != nil || !fi.Mode().IsRegular() {
-		return changelogentries.Hint{}, "", typed("hint file is not a readable regular file")
-	}
-	fh, err := os.Open(p)
+	fh, err := safefs.OpenRegular(p)
 	if err != nil {
-		return changelogentries.Hint{}, "", typed("hint file is not readable")
+		return changelogentries.Hint{}, "", typed("hint file is not a readable regular file")
 	}
 	defer fh.Close()
 	raw, err := io.ReadAll(io.LimitReader(fh, changelogentries.MaxHintBytes+1))

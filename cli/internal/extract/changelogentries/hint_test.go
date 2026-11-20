@@ -7,6 +7,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/extract"
 )
 
 func hintCode(t *testing.T, err error, code string) {
@@ -97,7 +99,7 @@ func TestHintToWrongFileYieldsNoRowFromTheBar(t *testing.T) {
 
 func TestHintMissingOrUnreadFile(t *testing.T) {
 	src := rcFixture(t, threeTags, hintFixtureTree(t))
-	_, err := ProposeRowHint(src, nil, "notes", rcRepo, nil, &Hint{Source: "path", Path: "docs/NOPE.md", Style: "version-plain"})
+	_, err := ProposeRowHint(src, nil, "notes", rcRepo, nil, &Hint{Source: "path", Path: "HISTORY.md", Style: "version-v-prefixed"})
 	hintCode(t, err, HintPathMissing)
 	// A file that exists but is no place the closed candidates read.
 	tree := hintFixtureTree(t)
@@ -108,26 +110,6 @@ func TestHintMissingOrUnreadFile(t *testing.T) {
 	// An invalid hint object is refused before anything is read.
 	_, err = ProposeRowHint(src, nil, "notes", rcRepo, nil, &Hint{Source: "path", Path: "../x.md", Style: "version-plain"})
 	hintCode(t, err, HintPathInvalid)
-}
-
-func TestHintNarrowsToTemplatePath(t *testing.T) {
-	src := rcFixture(t, threeTags, map[string]string{
-		"a|docs/releases/v1.0.0.md": pvBody, "a|docs/releases/v1.0.1.md": pvBody, "a|docs/releases/v1.1.0.md": pvBody,
-	})
-	plain, err := ProposeRow(src, "notes", rcRepo, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	h := Hint{Source: "path", Path: "docs/releases/v1.1.0.md", Style: "version-plain"}
-	hinted, err := ProposeRowHint(src, nil, "notes", rcRepo, nil, &h)
-	if err != nil {
-		t.Fatal(err)
-	}
-	a, _ := json.Marshal(plain)
-	b, _ := json.Marshal(hinted)
-	if string(a) != string(b) {
-		t.Fatalf("%s\n%s", a, b)
-	}
 }
 
 func TestHintKeysAreExactLowercase(t *testing.T) {
@@ -190,20 +172,105 @@ func TestHintedCandidateStillFacesTheBar(t *testing.T) {
 	wantNoRow(t, err, NoRowPartialCoverage)
 }
 
-func TestHintStyleIgnoredForPerVersionCandidate(t *testing.T) {
+// failReader makes one path a hard read failure (not a missing file).
+type failReader struct {
+	extract.FixtureReader
+	path string
+}
+
+func (f failReader) Read(repo extract.RepoRef, commit, p string) ([]byte, error) {
+	if p == f.path {
+		return nil, errors.New("simulated read failure")
+	}
+	return f.FixtureReader.Read(repo, commit, p)
+}
+
+// A hard refusal on a candidate the hint excludes still refuses the hinted run.
+func TestHintCannotTurnARefusalIntoARow(t *testing.T) {
+	fr := failReader{rcFixture(t, threeTags, hintFixtureTree(t)), "HISTORY.md"}
+	if _, err := ProposeRow(fr, "notes", rcRepo, nil); err == nil {
+		t.Fatal("the unhinted run must refuse on the failing candidate")
+	} else if _, ok := err.(*NoRow); ok {
+		t.Fatalf("not a hard refusal: %v", err)
+	}
+	h := Hint{Source: "path", Path: "docs/CHANGELOG.md", Style: "version-v-prefixed"}
+	p, err := ProposeRowHint(fr, nil, "notes", rcRepo, nil, &h)
+	if p != nil || err == nil || !strings.Contains(err.Error(), "simulated read failure") {
+		t.Fatalf("hinted run must refuse with the unhinted error: %v %+v", err, p)
+	}
+}
+
+func lineTree(t *testing.T, line12 string) (map[string]byte, map[string]string) {
+	t.Helper()
+	tags := map[string]byte{}
+	var l10, l11 strings.Builder
+	for _, v := range []string{"1.0.2", "1.0.1", "1.0.0"} {
+		tags["v"+v] = 'a'
+		l10.WriteString("# v" + v + "\n\n- c\n\n")
+	}
+	for _, v := range []string{"1.1.2", "1.1.1", "1.1.0"} {
+		tags["v"+v] = 'a'
+		l11.WriteString("# v" + v + "\n\n- c\n\n")
+	}
+	tags["v1.2.0"], tags["v1.2.1"] = 'a', 'a'
+	return tags, map[string]string{
+		"a|CHANGELOG/CHANGELOG-1.0.md": l10.String(), "a|CHANGELOG/CHANGELOG-1.1.md": l11.String(),
+		"a|CHANGELOG/CHANGELOG-1.2.md": line12,
+	}
+}
+
+func TestHintPerLineTemplate(t *testing.T) {
+	tags, files := lineTree(t, "# v1.2.1\n\n- c\n\n# v1.2.0\n\n- c\n")
+	src := rcFixture(t, tags, files)
+	plain, err := ProposeRow(src, "notes", rcRepo, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hinted, err := ProposeRowHint(src, nil, "notes", rcRepo, nil, &Hint{Source: "path", Path: "CHANGELOG/CHANGELOG-1.1.md", Style: "version-v-prefixed"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, _ := json.Marshal(plain)
+	b, _ := json.Marshal(hinted)
+	if string(a) != string(b) {
+		t.Fatalf("%s\n%s", a, b)
+	}
+}
+
+// Sibling files meet the bar; the hinted file supplies no located entry.
+func TestHintedFileMustLocateItself(t *testing.T) {
+	tags, files := lineTree(t, "# nothing\n\n- x\n")
+	src := rcFixture(t, tags, files)
+	plain, err := ProposeRow(src, "notes", rcRepo, nil)
+	if err != nil || plain.Row.MinLocatedNewest == nil {
+		t.Fatalf("fixture: siblings must pass the bar alone: %v %+v", err, plain)
+	}
+	p, err := ProposeRowHint(src, nil, "notes", rcRepo, nil, &Hint{Source: "path", Path: "CHANGELOG/CHANGELOG-1.2.md", Style: "version-v-prefixed"})
+	if p != nil {
+		t.Fatalf("a row from a non-locating hinted file: %+v", p)
+	}
+	hintCode(t, err, HintNotLocated)
+}
+
+// A per-version file has no headings, so a style-constrained hint cannot name one.
+func TestHintCannotNamePerVersionFile(t *testing.T) {
 	src := rcFixture(t, threeTags, map[string]string{
 		"a|docs/releases/v1.0.0.md": pvBody, "a|docs/releases/v1.0.1.md": pvBody, "a|docs/releases/v1.1.0.md": pvBody,
 	})
-	var out [2]string
-	for i, st := range []string{"version-plain", "version-bracketed"} {
-		p, err := ProposeRowHint(src, nil, "notes", rcRepo, nil, &Hint{Source: "path", Path: "docs/releases/v1.0.1.md", Style: st})
-		if err != nil {
-			t.Fatal(err)
-		}
-		b, _ := json.Marshal(p)
-		out[i] = string(b)
-	}
-	if out[0] != out[1] || strings.Contains(out[0], "version-plain") {
-		t.Fatalf("%s\n%s", out[0], out[1])
+	_, err := ProposeRowHint(src, nil, "notes", rcRepo, nil, &Hint{Source: "path", Path: "docs/releases/v1.0.1.md", Style: "version-plain"})
+	hintCode(t, err, HintNoCandidate)
+}
+
+// Membership is checked before the hinted file is read.
+func TestHintMembershipBeforeRead(t *testing.T) {
+	fr := failReader{rcFixture(t, threeTags, hintFixtureTree(t)), "elsewhere/NOTES.md"}
+	_, err := ProposeRowHint(fr, nil, "notes", rcRepo, nil, &Hint{Source: "path", Path: "elsewhere/NOTES.md", Style: "version-plain"})
+	hintCode(t, err, HintNoCandidate)
+}
+
+func TestHintErrorsDoNotEchoKeys(t *testing.T) {
+	_, err := DecodeHint([]byte(`{"source":"path","path":"a.md","style":"version-plain","evil\nkey":1}`))
+	if err == nil || strings.Contains(err.Error(), "evil") {
+		t.Fatalf("%v", err)
 	}
 }

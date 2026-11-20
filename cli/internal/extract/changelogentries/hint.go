@@ -24,6 +24,7 @@ const (
 	HintStyleUnknown    = "HINT_STYLE_UNKNOWN"      // the style is not in the closed set of heading styles
 	HintPathMissing     = "HINT_PATH_MISSING"       // no such file in the tree at the newest scored tag
 	HintNoCandidate     = "HINT_PATH_NOT_CANDIDATE" // the file is not a place the closed candidates read
+	HintNotLocated      = "HINT_PATH_NOT_LOCATED"   // the file supplied no located entry at any scored tag
 )
 
 // HintError is the typed refusal of a hint.
@@ -86,10 +87,10 @@ func hintUniqueKeys(raw []byte) error {
 		// case-insensitively, so Path or PATH would otherwise be a silent
 		// second spelling of path.
 		if ks != "source" && ks != "path" && ks != "style" {
-			return errors.New("unknown or mis-cased key " + ks)
+			return errors.New("unknown or mis-cased key")
 		}
 		if seen[ks] {
-			return errors.New("repeated key " + ks)
+			return errors.New("repeated key")
 		}
 		seen[ks] = true
 		var v json.RawMessage
@@ -128,6 +129,18 @@ func inList(l []string, s string) bool {
 	return false
 }
 
+// expandPath resolves a candidate path (a file or a template) for one final
+// version.
+func expandPath(cand, v string) string {
+	line := v
+	if i := strings.LastIndex(v, "."); i > 0 {
+		line = v[:i]
+	}
+	return strings.NewReplacer(placeholderVersion, v, placeholderLine, line).Replace(cand)
+}
+
+func perVersionPath(p string) bool { return strings.Contains(p, placeholderVersion) }
+
 // pathMatches reports whether candidate path (a template or a file) names the
 // hinted file for some scored tag.
 func (h Hint) pathMatches(cand string, window []extract.Tag) bool {
@@ -135,16 +148,7 @@ func (h Hint) pathMatches(cand string, window []extract.Tag) bool {
 		return true
 	}
 	for _, tag := range window {
-		v, ok := tagVersion(tag.Name)
-		if !ok {
-			continue
-		}
-		line := v
-		if i := strings.LastIndex(v, "."); i > 0 {
-			line = v[:i]
-		}
-		r := strings.NewReplacer(placeholderVersion, v, placeholderLine, line)
-		if r.Replace(cand) == h.Path {
+		if v, ok := tagVersion(tag.Name); ok && expandPath(cand, v) == h.Path {
 			return true
 		}
 	}

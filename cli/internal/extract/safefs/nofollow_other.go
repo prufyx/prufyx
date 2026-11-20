@@ -5,3 +5,5 @@
 package safefs
 
 const noFollow = 0
+
+const nonBlock = 0

@@ -300,13 +300,20 @@ same bar, never a row. A hint may also select a different valid candidate than
 the unhinted run would print: one that passes the same bar but may be a weaker
 source (for example 5 to 7 of the 8 versions with `minLocatedNewest`, where the
 unhinted winner locates all 8). The hinted candidate gets no leniency; the
-`hintDigest` in the receipt makes the hint visible to the reviewer. The style
-applies to file and per-line candidates only; a per-version-file candidate has
-no headings and ignores it.
+`hintDigest` in the receipt makes the hint visible to the reviewer. The hint
+only selects: the unhinted run is evaluated first, in full, and if it refuses
+(a read or loader error on any candidate) the hinted run refuses with the same
+error, so a hint never turns a refusal into a row. The style is a heading
+style, so a per-version-file candidate (no headings) can never be named by a
+hint (`HINT_PATH_NOT_CANDIDATE`), and the hinted file itself must supply a
+located entry at some scored tag (`HINT_PATH_NOT_LOCATED`), not only a sibling
+file of the same template. Candidate membership is checked before the hinted
+file is read. The hint file is opened without following a symlink and without
+blocking, and must be a regular file.
 
 Typed refusals (exit 2, nothing on standard output): `HINT_MALFORMED`,
 `HINT_SOURCE_UNSUPPORTED`, `HINT_PATH_INVALID`, `HINT_STYLE_UNKNOWN`,
-`HINT_PATH_MISSING` (no such file in the tree at the newest scored tag) and
+`HINT_PATH_MISSING` (no such file in the tree at the newest scored tag), `HINT_PATH_NOT_LOCATED` and
 `HINT_PATH_NOT_CANDIDATE` (a file the closed candidates never read). The hint
 file must be a regular file.
 

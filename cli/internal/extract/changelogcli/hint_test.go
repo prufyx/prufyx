@@ -11,6 +11,9 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/extract/changelogentries"
 )
 
 func hintArgs(fx, hintPath string) []string {
@@ -96,6 +99,27 @@ func TestProposeMisleadingHintGivesNoRow(t *testing.T) {
 	body := `{"source":"path","path":"CHANGELOG.md","style":"version-v-prefixed"}`
 	if code := run(hintArgs(fx, writeHint(t, body)), nil, &o, &e); code != 1 || !strings.HasPrefix(o.String(), "NO-ROW ") || len(receiptLines(o.String())) != 0 {
 		t.Fatalf("%d out=%q err=%q", code, o.String(), e.String())
+	}
+}
+
+// A hinted propose receipt is no input of rows-check: a failing row stays FAIL.
+func TestHintedReceiptCannotPassAFailingCheck(t *testing.T) {
+	fx := hintFixture(t)
+	var po, e bytes.Buffer
+	if code := run(hintArgs(fx, writeHint(t, goodHint)), nil, &po, &e); code != 0 {
+		t.Fatalf("%d %s", code, e.String())
+	}
+	prop := receiptLines(po.String())[0]
+	tbl := []changelogentries.Target{{Component: "notes", Repo: extract.RepoRef{Key: "github.com/example/notes"},
+		Form: changelogentries.FormPerVersionFile, Path: "nowhere/v{version}.md"}}
+	var co bytes.Buffer
+	if code := run([]string{"rows-check", "--fixture", fx}, tbl, &co, &e); code != 1 || !strings.Contains(co.String(), "FAIL notes") {
+		t.Fatalf("%d %s", code, co.String())
+	}
+	cr, err := ParseReceipt(receiptLines(co.String())[0])
+	pr, err2 := ParseReceipt(prop)
+	if err != nil || err2 != nil || cr.HintDigest != "" || cr.RowDigest == pr.RowDigest {
+		t.Fatalf("%v %v %+v %+v", err, err2, cr, pr)
 	}
 }
 
