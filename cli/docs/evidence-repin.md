@@ -122,8 +122,43 @@ class:
 | `PENDING` | Not resolved this run (rate limit, transport error, unresolved baseline); retried on the next run. |
 
 Only `NO_NEW_RELEASE`, `FILE_IDENTICAL` and `SPAN_IDENTICAL` can make a rule
-eligible for batch renewal (see [evidence-reattestation.md](evidence-reattestation.md)).
-The other classes need a human reviewer.
+eligible for batch renewal in either mode, and a `SPAN_MOVED` citation that
+carries a `movedTo` record (below) can make it eligible in a human statement
+(see [evidence-reattestation.md](evidence-reattestation.md)). The other classes,
+and a `SPAN_MOVED` citation without `movedTo`, need a human reviewer.
+
+### `SPAN_MOVED` and `movedTo`
+
+A `SPAN_MOVED` citation records where the bytes went, `movedTo`
+(`commit`, `path`, `startLine`, `endLine`, `contentDigest`), only when every
+guard below holds. A failed guard leaves the class `SPAN_MOVED` with no
+`movedTo`, and the rule stays for a human:
+
+- **Unique.** The cited bytes occur exactly once in the new file, counted
+  both at line boundaries (every start line, overlapping windows included, so
+  a periodic span counts as often as it can start) and as bytes anywhere in
+  the file. The comparison is byte-exact: carriage returns and trailing
+  whitespace are never normalised.
+- **Large enough.** At least two non-blank lines and at least 40 bytes.
+- **Same surroundings.** The three non-blank lines before and after the span
+  are byte-identical to the old file's, or the span is at the start or end of
+  the file in both.
+- **Near.** The first line moved by at most 200 lines.
+- **Order kept.** The order of the rule's other cited spans of the same file
+  is the same as before.
+- **Not into a comment or string.** The span and its surroundings carry the
+  same comment markers as before, and the text before the span leaves the same
+  block comments, triple-quoted strings, backtick strings and fences open as
+  the text before the old place did.
+- **The line head, same path.** The comparison commit is the newest release of
+  the pinned tag's own release line (`release_line` or `tag_line`, with later
+  releases on the line, fresh, resolved from Releases or git tags), never the
+  latest-release or an owner-chosen baseline, and the path is the cited path.
+
+`contentDigest` is the whole-file digest of the new file, like a source's
+`contentDigest`, recomputed from the fetched bytes. `--moved-blobs-dir DIR`
+(a new directory) writes the old and new file of every recorded move, one file
+per hex digest, for `evidence reattest prepare|verify --moved-blobs-dir`.
 
 Repin also classifies the citations of a pack's line attestations and
 upgrade-path policies. Their `ruleId` is the record ID (`line-attestation.…`

@@ -133,6 +133,14 @@ func verifyStatement(layout Layout, spec PackSpec, base, head Tree, basePack, he
 		}
 		records[id] = raw
 	}
+	blobFiles, err := head.Dir(dir+movedBlobsDir, evidencereattest.MaxMovedBlobBytes, evidencereattest.MaxMovedBlobs)
+	if err != nil {
+		return fail("moved blobs: %v", err)
+	}
+	movedBlobs, err := evidencereattest.MovedBlobsFromFiles(blobFiles)
+	if err != nil {
+		return fail("moved blobs: %v", err)
+	}
 	var baselines []byte
 	if layout.BaselinesPath != "" {
 		if baselines, err = base.ReadOptional(layout.BaselinesPath, maxBaselineFileBytes); err != nil {
@@ -150,7 +158,7 @@ func verifyStatement(layout Layout, spec PackSpec, base, head Tree, basePack, he
 		StatementRaw: stmt.Statement, PriorPackRaw: basePack.Raw, NextPackRaw: headPack.Raw,
 		WorklistRaw: worklist, Chain: headCh, BaseChain: baseCh,
 		PackName: spec.Name, PackPath: spec.Path, EngineCapabilityDigest: capability,
-		AttestedAtNow: now, ReviewRecords: records, IndependentWorklistRaw: opts.RerunWorklist, BaselinesRaw: baselines,
+		AttestedAtNow: now, ReviewRecords: records, IndependentWorklistRaw: opts.RerunWorklist, BaselinesRaw: baselines, MovedBlobs: movedBlobs,
 	})
 	if err != nil {
 		return fail("statement %s: %v", stmt.Name, err)

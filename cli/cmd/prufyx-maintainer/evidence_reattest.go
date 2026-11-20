@@ -252,7 +252,7 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("evidence reattest prepare", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	var nowFlag string
-	var worklistPath, packName, rulesPath, rulesWorklistPath, nextRevision, reviewRecordDir, outputDir, attestedAtFlag, statementChainDir, trustRootPath, trustRootDigest, baselinesPath string
+	var worklistPath, packName, rulesPath, rulesWorklistPath, nextRevision, reviewRecordDir, outputDir, attestedAtFlag, statementChainDir, trustRootPath, trustRootDigest, baselinesPath, movedBlobsDir string
 	wave := flags.Int("wave", 0, "1..7 stagger slot this batch renews into (human mode only)")
 	maxRules := flags.Int("max-rules", 0, "automated mode only: renew at most N rules (1..500) in this statement, soonest-expiring first then by rule ID; the rest stay listed as STAGGER_DEFERRED for a later statement. Refuses an empty statement")
 	pin := flags.Bool("pin", false, "human mode only: select only rules that meet the fixed-version predicate and pin their lease (validUntil exactly ten years after attestedAt, no time expiry); cap the batch with --max-rules. Automated mode refuses it")
@@ -262,6 +262,7 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 	flags.StringVar(&rulesPath, "rules", "", "current rule pack file (absolute path)")
 	flags.StringVar(&rulesWorklistPath, "rules-worklist-path", "", "the rule pack path as it appears in the worklist, if different from --rules")
 	flags.StringVar(&statementChainDir, "statement-chain-dir", "", "this pack's statement chain directory of <stem>.statement.json and <stem>.statement.sig.json pairs (absolute path; required, may be empty)")
+	flags.StringVar(&movedBlobsDir, "moved-blobs-dir", "", "the directory \"evidence repin --moved-blobs-dir\" wrote (absolute path): the old and new file of every span move. Without it a rule whose citation only moved is not renewed (human mode only)")
 	flags.StringVar(&trustRootPath, "trust-root", "", "trust root the chain's statements are signed under (absolute path; required, with --trust-root-digest, when the chain is not empty)")
 	flags.StringVar(&trustRootDigest, "trust-root-digest", "", "the trust root's digest as independently known to the caller, sha256:... (never derived from --trust-root itself)")
 	flags.StringVar(&nextRevision, "next-revision", "", "new pack revision string for rules.next.json")
@@ -349,11 +350,16 @@ func runEvidenceReattestPrepare(args []string, stdout, stderr io.Writer) error {
 		}
 	}
 
+	movedBlobs, err := readMovedBlobs(movedBlobsDir)
+	if err != nil {
+		return evidenceReattestError()
+	}
+
 	result, err := evidencereattest.Prepare(evidencereattest.PrepareOptions{
 		WorklistRaw: worklistRaw, PackName: packName, PackPath: rulesWorklistPath, PackRaw: packRaw,
 		Chain: chain, Mode: *mode, Pin: *pin, Wave: *wave, MaxRules: *maxRules, AttestedAt: attestedAt, Now: now, NextRevision: nextRevision,
 		EngineCapabilityDigest: capabilityDigest, ReviewRecords: reviewRecords,
-		Rehearsal: nowFlag != "", BaselinesRaw: baselinesRaw,
+		Rehearsal: nowFlag != "", BaselinesRaw: baselinesRaw, MovedBlobs: movedBlobs,
 	})
 	if err != nil {
 		fmt.Fprintf(stderr, "evidence reattest prepare: %v\n", err)
@@ -693,7 +699,7 @@ func (l *stringList) Set(value string) error {
 func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("evidence reattest verify", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
-	var statementPath, priorPackPath, nextPackPath, worklistPath, rerunWorklistPath, packName, rulesWorklistPath, reviewRecordDir, envelopePath, trustRootPath, trustRootDigest, statementChainDir, baseStatementChainDir, baselinesPath string
+	var statementPath, priorPackPath, nextPackPath, worklistPath, rerunWorklistPath, packName, rulesWorklistPath, reviewRecordDir, envelopePath, trustRootPath, trustRootDigest, statementChainDir, baseStatementChainDir, baselinesPath, movedBlobsDir string
 	var structuralOnly bool
 	flags.StringVar(&statementPath, "statement", "", "statement.json to verify (absolute path)")
 	flags.StringVar(&priorPackPath, "prior-pack", "", "the base-branch rule pack (absolute path)")
@@ -706,6 +712,7 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 	flags.StringVar(&baselinesPath, "baselines", "", "the owner baseline file as it is on the base branch (absolute path); required, with --rerun-worklist, when the statement renews on an owner-chosen baseline")
 	flags.StringVar(&statementChainDir, "statement-chain-dir", "", "this pack's statement chain directory of <stem>.statement.json and <stem>.statement.sig.json pairs (absolute path; required, may be empty)")
 	flags.StringVar(&baseStatementChainDir, "base-statement-chain-dir", "", "the same pack's statement chain directory as it is on the base branch, checked out separately (absolute path; required, may be empty); --statement-chain-dir must equal it plus at most the statement under verification")
+	flags.StringVar(&movedBlobsDir, "moved-blobs-dir", "", "the retained old and new file of every span move the statement renews (absolute path); required, with --rerun-worklist, when it renews a moved citation")
 	flags.StringVar(&envelopePath, "envelope", "", "statement.sig.json; required, with --trust-root and --trust-root-digest, whenever the statement renews at least one rule")
 	flags.StringVar(&trustRootPath, "trust-root", "", "trust root the statement and the chain are signed under; required with --trust-root-digest whenever --envelope is given or the chain is not empty")
 	flags.StringVar(&trustRootDigest, "trust-root-digest", "", "the trust root's digest as independently known to the caller, sha256:... (never derived from --trust-root itself)")
@@ -784,12 +791,17 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 		}
 	}
 
+	movedBlobs, err := readMovedBlobs(movedBlobsDir)
+	if err != nil {
+		return evidenceReattestError()
+	}
+
 	result, err := evidencereattest.Verify(evidencereattest.VerifyOptions{
 		StatementRaw: statementRaw, PriorPackRaw: priorPackRaw, NextPackRaw: nextPackRaw,
 		WorklistRaw: worklistRaw, Chain: chain, BaseChain: baseChain,
 		PackName: packName, PackPath: rulesWorklistPathOrDefault(rulesWorklistPath, priorPackPath), EngineCapabilityDigest: capabilityDigest,
 		ReviewRecords: reviewRecords, AttestedAtNow: time.Now().UTC(),
-		PreSign: structuralOnly, IndependentWorklistRaw: rerunWorklistRaw, BaselinesRaw: baselinesRaw,
+		PreSign: structuralOnly, IndependentWorklistRaw: rerunWorklistRaw, BaselinesRaw: baselinesRaw, MovedBlobs: movedBlobs,
 	})
 	if err != nil {
 		fmt.Fprintf(stderr, "evidence reattest verify: FAIL: %v\n", err)
@@ -836,6 +848,18 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 	fmt.Fprintf(stdout, "evidence reattest verify: OK rules=%d sampled=%d notExtended=%d (nothing renewed; no signature required)\n",
 		result.RuleCount, result.SampledCount, result.NotExtendedCount)
 	return nil
+}
+
+// readMovedBlobs reads the retained files of span moves from an absolute
+// directory; no directory means none.
+func readMovedBlobs(dir string) (map[string][]byte, error) {
+	if dir == "" {
+		return nil, nil
+	}
+	if !filepath.IsAbs(dir) {
+		return nil, errors.New("moved blobs directory must be absolute")
+	}
+	return evidencereattest.LoadMovedBlobs(dir)
 }
 
 func rulesWorklistPathOrDefault(rulesWorklistPath, priorPackPath string) string {

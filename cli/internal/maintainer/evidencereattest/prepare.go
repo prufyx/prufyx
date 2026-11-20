@@ -166,6 +166,12 @@ type PrepareOptions struct {
 	// (the CLI's --now). Such a statement is refused by Sign, Verify and
 	// VerifySignature, and by the chain.
 	Rehearsal bool
+	// MovedBlobs are the retained files of recorded span moves, keyed by the
+	// digest of their own bytes (LoadMovedBlobs). A moved citation makes its
+	// rule eligible only when its old file (the pack's contentDigest) and its
+	// new file (the worklist's movedTo digest) are here and every guard
+	// recomputes from them.
+	MovedBlobs map[string][]byte
 }
 
 // PrepareResult is everything Prepare produces.
@@ -382,7 +388,7 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		}
 		_, reviewedNow := fresh[candidate.RuleID]
 		cycles := state.expectedCycles(candidate.RuleID, reviewedNow)
-		reason, ok := evaluateEligibility(candidate, e2ok, e4worklist, attestedAt, repoByKey, lines, mismatchProjects, cycles, automated, baselines)
+		reason, ok := evaluateEligibility(candidate, e2ok, e4worklist, attestedAt, repoByKey, lines, mismatchProjects, cycles, automated, baselines, opts.Pin, opts.MovedBlobs)
 		if ok && candidate.Fields.record && citesAny(candidate, mismatchRepos) {
 			reason, ok = reasonCorpusMismatchRepository, false
 		}
@@ -461,7 +467,24 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	if automated {
 		sampleSize = 0
 	}
-	sampled := sampleRuleIDs(worklistDigest, eligibleIDs, sampleSize)
+	// Every rule with a moved citation is in the sample, forced in; the seeded
+	// sample fills the rest of the usual size from the other rules.
+	var movedIDs, otherIDs []string
+	for _, id := range eligibleIDs {
+		hasMove := false
+		for _, c := range citationsByRule[id] {
+			if c.Class == evidencerepin.ClassSpanMoved {
+				hasMove = true
+			}
+		}
+		if hasMove {
+			movedIDs = append(movedIDs, id)
+		} else {
+			otherIDs = append(otherIDs, id)
+		}
+	}
+	sampled := append(append([]string(nil), movedIDs...), sampleRuleIDs(worklistDigest, otherIDs, sampleSize-len(movedIDs))...)
+	sort.Strings(sampled)
 	sampledSet := map[string]bool{}
 	for _, id := range sampled {
 		sampledSet[id] = true
@@ -481,7 +504,11 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		if opts.Pin {
 			lease = constraintengine.LeasePinned
 		}
-		mutated, err := mutateRuleEvidence(nextDoc.Entries[i].Rule, attestedAtString, ruleValidUntil[fields.ID].Format(time.RFC3339), lease)
+		moves, err := movesFor(candidateByID[fields.ID], citationsByRule[fields.ID])
+		if err != nil {
+			return PrepareResult{}, err
+		}
+		mutated, err := mutateRuleEvidenceMoves(nextDoc.Entries[i].Rule, attestedAtString, ruleValidUntil[fields.ID].Format(time.RFC3339), lease, moves)
 		if err != nil {
 			return PrepareResult{}, err
 		}
@@ -521,7 +548,11 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		if err != nil {
 			return PrepareResult{}, err
 		}
-		if sourcesDigest != nextSourcesDigest {
+		moved := false
+		for _, c := range citationsByRule[fields.ID] {
+			moved = moved || c.Class == evidencerepin.ClassSpanMoved
+		}
+		if sourcesDigest != nextSourcesDigest && !moved {
 			return PrepareResult{}, fmt.Errorf("%w: sources digest changed under mutation", ErrRejected)
 		}
 
@@ -620,6 +651,9 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	authority, text, wave := Authority, FixedStatementText(wl.GeneratedAt, validUntil), opts.Wave
 	if opts.Pin {
 		text = PinnedStatementText(wl.GeneratedAt)
+	}
+	if len(movedIDs) > 0 && !automated {
+		text = MovedStatementText(wl.GeneratedAt, validUntil)
 	}
 	if automated {
 		authority, text, wave = AuthorityAutomated, AutomatedStatementText(wl.GeneratedAt, validUntil), 0
@@ -751,6 +785,7 @@ func citationAttestationsFor(candidate ruleCandidate, citations []evidencerepin.
 		attestation := CitationAttestation{
 			SourceID: c.SourceID, Class: c.Class, PinnedCommit: c.OldCommit,
 			ComparedTag: repo.CurrentTag, ComparedCommit: c.NewCommit, ContentDigest: contentDigestBySource[c.SourceID],
+			Moved: movedAttestation(c, contentDigestBySource[c.SourceID]),
 		}
 		if c.Baseline == evidencerepin.BaselineOwnerChoice {
 			attestation.ComparedTag = c.BaselineTag
@@ -775,7 +810,7 @@ func citationAttestationsFor(candidate ruleCandidate, citations []evidencerepin.
 func evaluateEligibility(
 	candidate ruleCandidate, e2ok, e4worklist bool, attestedAt time.Time,
 	repoByKey map[string]evidencerepin.RepoResolution, lines []evidencerepin.LineResolution, mismatchProjects map[string]bool,
-	consecutiveCycles int, automated bool, baselines *repinbaselines.File,
+	consecutiveCycles int, automated bool, baselines *repinbaselines.File, pin bool, movedBlobs map[string][]byte,
 ) (string, bool) {
 	if !e2ok {
 		return reasonScopeIncomplete, false
@@ -806,6 +841,22 @@ func evaluateEligibility(
 	if len(candidate.Fields.Evidence.Sources) == 0 {
 		return reasonUncoveredSource, false
 	}
+	// A rule with a moved citation reports another citation's own class first
+	// (a moved span next to changed content is CONTENT_CHANGED), as it would
+	// without the move.
+	hasMoved := false
+	for _, citation := range candidate.Citations {
+		hasMoved = hasMoved || citation.Class == evidencerepin.ClassSpanMoved
+	}
+	if hasMoved {
+		for _, citation := range candidate.Citations {
+			switch citation.Class {
+			case evidencerepin.ClassPending, evidencerepin.ClassNoNewRelease, evidencerepin.ClassFileIdentical, evidencerepin.ClassSpanIdentical, evidencerepin.ClassSpanMoved:
+			default:
+				return citation.Class, false
+			}
+		}
+	}
 	citationsBySource := map[string][]evidencerepin.ClassResult{}
 	for _, citation := range candidate.Citations {
 		citationsBySource[citation.SourceID] = append(citationsBySource[citation.SourceID], citation)
@@ -824,8 +875,17 @@ func evaluateEligibility(
 		if citation.Class == evidencerepin.ClassPending {
 			continue
 		}
-		if citation.Class != evidencerepin.ClassNoNewRelease && citation.Class != evidencerepin.ClassFileIdentical && citation.Class != evidencerepin.ClassSpanIdentical {
+		moved := citation.Class == evidencerepin.ClassSpanMoved
+		if !moved && citation.Class != evidencerepin.ClassNoNewRelease && citation.Class != evidencerepin.ClassFileIdentical && citation.Class != evidencerepin.ClassSpanIdentical {
 			return citation.Class, false
+		}
+		if moved {
+			// E1-moved: the moved bytes are the same code in one guarded
+			// place, recomputed from the retained files; it is a human
+			// statement's class only.
+			if reason := movedCitationReason(candidate, citation, source, automated, pin, movedBlobs); reason != "" {
+				return reason, false
+			}
 		}
 		if citation.Stale {
 			return reasonStaleBaseline, false
@@ -842,6 +902,9 @@ func evaluateEligibility(
 		// record that resolved this very tag and commit.
 		switch citation.Baseline {
 		case "", evidencerepin.BaselineLatest:
+			if moved {
+				return reasonMovedUnverified, false
+			}
 			// The owner's approval of automated renewal covers a citation
 			// whose cited commit is byte-identical on its own release
 			// line only; a comparison with the repository's latest
@@ -863,6 +926,9 @@ func evaluateEligibility(
 				return reasonTagLineNotAutomatable, false
 			}
 		case evidencerepin.BaselineOwnerChoice:
+			if moved {
+				return reasonMovedUnverified, false
+			}
 			if automated {
 				return reasonOwnerBaselineNotAutomatable, false
 			}
@@ -1303,6 +1369,16 @@ func renderSummary(statement Statement, opts PrepareOptions, entries []packEntry
 		ids := byProject[project]
 		sort.Strings(ids)
 		fmt.Fprintf(&b, "  %s: %s\n", project, strings.Join(ids, ", "))
+	}
+	if statementMoves(statement) {
+		fmt.Fprintf(&b, "moved citations (the cited bytes moved, they did not change; every such rule is in the sample):\n")
+		for _, ra := range statement.Rules {
+			for _, c := range ra.Citations {
+				if c.Moved != nil {
+					fmt.Fprintf(&b, "  %s %s: %s lines %d-%d -> %d-%d at %s\n", ra.RuleID, c.SourceID, c.Moved.Path, c.Moved.OldStartLine, c.Moved.OldEndLine, c.Moved.NewStartLine, c.Moved.NewEndLine, c.ComparedCommit)
+				}
+			}
+		}
 	}
 	if len(records) > 0 {
 		renewed := map[string]bool{}

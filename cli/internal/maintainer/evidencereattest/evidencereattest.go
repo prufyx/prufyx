@@ -335,6 +335,9 @@ type CitationAttestation struct {
 	// digest of the owner baseline file entry that chose ComparedTag
 	// (ComparedCommit is the commit that entry records).
 	BaselineEntryDigest string `json:"baselineEntryDigest,omitempty"`
+	// Moved is set exactly on a SPAN_MOVED citation (see moved.go): the old
+	// and new place of the cited bytes and both whole-file digests.
+	Moved *MovedAttestation `json:"moved,omitempty"`
 }
 
 // RuleAttestation is one batch-renewed rule.
@@ -602,6 +605,9 @@ func ParseStatement(raw []byte) (Statement, error) {
 		if statementPins(statement) {
 			wantText = PinnedStatementText(statement.Worklist.GeneratedAt)
 		}
+		if statementMoves(statement) {
+			wantText = MovedStatementText(statement.Worklist.GeneratedAt, statement.ValidUntil)
+		}
 		if statement.Authority != Authority || statement.Statement != wantText {
 			return Statement{}, ErrRejected
 		}
@@ -631,6 +637,9 @@ func ParseStatement(raw []byte) (Statement, error) {
 		}
 	}
 	if err := checkRowLeases(statement, role); err != nil {
+		return Statement{}, err
+	}
+	if err := checkRowMoves(statement, role); err != nil {
 		return Statement{}, err
 	}
 	return statement, nil

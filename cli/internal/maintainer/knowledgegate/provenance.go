@@ -355,6 +355,19 @@ func reattestPathReason(rest string, packs map[string]bool, statements map[strin
 			return "not the worklist of the appended statement"
 		}
 		return ""
+	case "moved-blobs":
+		// The old and new file of a span move, named by the hex digest of
+		// their bytes; the statement's verification hashes every file it
+		// reads, so a name carries no authority and an unused file is inert.
+		switch {
+		case !stmt.OK:
+			return "no verified statement appended in this change"
+		case inBase || !inHead:
+			return "moved blobs are append-only"
+		case len(parts[2]) != 64 || strings.Trim(parts[2], "0123456789abcdef") != "":
+			return "not named by the hex digest of its bytes"
+		}
+		return ""
 	case "review-records":
 		id := strings.TrimSuffix(parts[2], reviewRecordSuffix)
 		switch {

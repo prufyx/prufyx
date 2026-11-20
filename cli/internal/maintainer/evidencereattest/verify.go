@@ -95,6 +95,12 @@ type VerifyOptions struct {
 	// owner-choice citation is accepted only with it and with
 	// IndependentWorklistRaw (see checkOwnerBaselines).
 	BaselinesRaw []byte
+	// MovedBlobs are the retained files of the statement's moved citations,
+	// keyed by the digest of their own bytes (LoadMovedBlobs): the old file
+	// (the digest the prior pack records) and the new file (the digest the
+	// worklist records) of every move. A moved citation is accepted only when
+	// every guard recomputes from them.
+	MovedBlobs map[string][]byte
 }
 
 // VerifyResult reports what Verify established. Every field is filled in
@@ -208,6 +214,9 @@ func Verify(options VerifyOptions) (VerifyResult, error) {
 	if err := checkV10(priorDoc, nextDoc); err != nil {
 		return VerifyResult{}, err
 	}
+	if err := checkMoved(statement, options.PackPath, priorByID, nextByID, candidatesByID(priorCandidates), options.IndependentWorklistRaw); err != nil {
+		return VerifyResult{}, err
+	}
 	if len(options.IndependentWorklistRaw) > 0 {
 		if err := checkIndependentWorklist(statement, options.PackPath, options.IndependentWorklistRaw); err != nil {
 			return VerifyResult{}, err
@@ -313,7 +322,7 @@ func checkV1AndV3(statement Statement, statementRaw []byte, options VerifyOption
 		PackRaw: options.PriorPackRaw,
 		Wave:    statement.Wave, AttestedAt: mustParse(statement.AttestedAt), NextRevision: statement.Pack.Next.Revision,
 		EngineCapabilityDigest: options.EngineCapabilityDigest, ReviewRecords: options.ReviewRecords,
-		BaselinesRaw: options.BaselinesRaw,
+		BaselinesRaw: options.BaselinesRaw, MovedBlobs: options.MovedBlobs,
 	}, state)
 	if err != nil {
 		return fmt.Errorf("%w: V3: recomputation failed: %v", ErrRejected, err)
@@ -696,6 +705,18 @@ func checkRolePolicy(statement Statement, prior map[string]ruleCandidate) error 
 			seen[citation.SourceID] = true
 			switch citation.Class {
 			case evidencerepin.ClassNoNewRelease, evidencerepin.ClassFileIdentical, evidencerepin.ClassSpanIdentical:
+			case evidencerepin.ClassSpanMoved:
+				// A moved citation: a human statement only, on a release line,
+				// with the row agreeing with the prior pack's own source, and
+				// its rule in the review sample.
+				source, found := movedSource(candidate, citation.SourceID)
+				owner, repo, _, path, parsed := evidencerepin.ParseCitationURL(source.URL)
+				m := citation.Moved
+				if role != RoleHuman || m == nil || !found || !parsed || !isLineBaseline(citation.Baseline) ||
+					m.Path != path || m.OldStartLine != source.StartLine || m.OldEndLine != source.EndLine || m.OldContentDigest != source.ContentDigest ||
+					owner == "" || repo == "" || !ruleSampled(statement, ra.RuleID) {
+					return fmt.Errorf("%w: V8: rule %s moved citation %s is not renewable as stated", ErrRejected, ra.RuleID, citation.SourceID)
+				}
 			default:
 				return fmt.Errorf("%w: V8: rule %s citation %s is classified %s", ErrRejected, ra.RuleID, citation.SourceID, citation.Class)
 			}
@@ -969,4 +990,14 @@ func checkV11Independent(statement Statement, packPath string, worklistRaw []byt
 		}
 	}
 	return nil
+}
+
+// ruleSampled reports whether the statement's review sample holds the rule.
+func ruleSampled(statement Statement, ruleID string) bool {
+	for _, entry := range statement.SampledForFullReview {
+		if entry.RuleID == ruleID {
+			return true
+		}
+	}
+	return false
 }

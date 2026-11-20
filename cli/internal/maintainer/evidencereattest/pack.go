@@ -59,8 +59,11 @@ type packEntryDoc struct {
 // generic decode path in digest.go, never this typed view).
 type ruleSourceField struct {
 	ID            string `json:"id"`
+	URL           string `json:"url"`
 	Revision      string `json:"revision"`
 	ContentDigest string `json:"contentDigest"`
+	StartLine     int    `json:"startLine"`
+	EndLine       int    `json:"endLine"`
 }
 
 // isMechanical reports whether the rule's evidence was derived from source by
@@ -208,7 +211,7 @@ func recordFields(record evidencerepin.PackRecord) ruleFields {
 	fields.Evidence.ReviewedAt = record.ReviewedAt
 	fields.Evidence.ValidUntil = record.ValidUntil
 	for _, source := range record.Sources {
-		fields.Evidence.Sources = append(fields.Evidence.Sources, ruleSourceField{ID: source.ID, Revision: source.Revision, ContentDigest: source.ContentDigest})
+		fields.Evidence.Sources = append(fields.Evidence.Sources, ruleSourceField{ID: source.ID, URL: source.URL, Revision: source.Revision, ContentDigest: source.ContentDigest, StartLine: source.StartLine, EndLine: source.EndLine})
 	}
 	return fields
 }
@@ -480,6 +483,13 @@ func mutateRuleEvidenceDates(raw json.RawMessage, reviewedAt, validUntil string)
 // mutateRuleEvidence is mutateRuleEvidenceDates that also sets evidence.lease
 // when lease is not empty (a pinning row); nothing else changes.
 func mutateRuleEvidence(raw json.RawMessage, reviewedAt, validUntil, lease string) (json.RawMessage, error) {
+	return mutateRuleEvidenceMoves(raw, reviewedAt, validUntil, lease, nil)
+}
+
+// mutateRuleEvidenceMoves is mutateRuleEvidence that also rewrites the
+// location fields of the listed sources (see sourceMove); nothing else
+// changes. A listed source the rule does not have is an error.
+func mutateRuleEvidenceMoves(raw json.RawMessage, reviewedAt, validUntil, lease string, moves map[string]sourceMove) (json.RawMessage, error) {
 	value, err := sourcecorpus.DecodeBounded(raw, int64(len(raw)))
 	if err != nil {
 		return nil, fmt.Errorf("%w: mutate rule", ErrRejected)
@@ -496,6 +506,11 @@ func mutateRuleEvidence(raw json.RawMessage, reviewedAt, validUntil, lease strin
 	evidence["validUntil"] = validUntil
 	if lease != "" {
 		evidence["lease"] = lease
+	}
+	if len(moves) > 0 {
+		if err := applySourceMoves(evidence, moves); err != nil {
+			return nil, err
+		}
 	}
 	canon, err := sourcecorpus.Canonical(obj)
 	if err != nil {

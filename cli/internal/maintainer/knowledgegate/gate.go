@@ -682,10 +682,17 @@ func admitReviewed(c *Change, stmt statementResult, loadKeys func() (*ApprovalKe
 		// (V1 binds the whole next pack), so every change in the pack is
 		// its effect; the rule must still be one it renews.
 		if stmt.Renewed[c.RuleID] {
-			c.OK, c.Proof = true, ProofReattestation
-			return
+			// A change of a cited place is the renewal class only as the
+			// moved row of this verified statement states it.
+			why := movedRenewalProblem(c, stmt.Statement)
+			if why == "" {
+				c.OK, c.Proof = true, ProofReattestation
+				return
+			}
+			reasons = append(reasons, "moved citation: "+why)
+		} else {
+			reasons = append(reasons, "the reattestation statement does not renew this rule")
 		}
-		reasons = append(reasons, "the reattestation statement does not renew this rule")
 	} else if stmt.Detail != "" {
 		reasons = append(reasons, "reattestation: "+stmt.Detail)
 	} else {

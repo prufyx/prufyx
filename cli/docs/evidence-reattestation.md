@@ -245,6 +245,45 @@ next pack, byte-for-byte.
 | E6 | The rule's consecutive batch-renewal count, derived from the pack's verified statement chain (see [The statement chain](#the-statement-chain-v5)), does not exceed 2 | A rule renewed by batch twice since its last recorded individual review must go through an individual review next |
 | E7 | The rule's evidence state is `active`, and no citation anywhere in the rule's project classified `CORPUS_DIGEST_MISMATCH` | A withdrawn rule, or a project with an unresolved corpus-integrity finding, is excluded project-wide |
 
+#### E1-moved: a citation whose bytes only moved
+
+In a **human** statement, a `SPAN_MOVED` citation that carries a `movedTo`
+record (see [evidence-repin.md](evidence-repin.md#span_moved-and-movedto)) is as
+good as an unchanged one for E1, so a rule whose citations are all unchanged or
+moved is eligible. Everything E1 asks of the other classes still applies, and
+more:
+
+- the baseline is a release line (`release_line` or `tag_line`), never the
+  latest release or an owner choice; `verify` takes the line head from the
+  worklist's line record and the independent worklist (V13), never from the
+  statement, and `movedTo.commit` must be that commit;
+- the path is unchanged and the new range is as long as the old one;
+- every guard of `movedTo` is **recomputed** from the bytes of the two files:
+  the old file (the digest the prior pack records) and the new file (the digest
+  the worklist records), supplied with `--moved-blobs-dir`. The files are
+  content addressed: `prepare` and `verify` hash every file they read and use
+  the hash, never the name. Without the files, or when any guard does not
+  recompute, the rule is not eligible (`MOVED_UNVERIFIED`), and `verify`
+  refuses the statement;
+- **automated mode refuses it** (`MOVED_NOT_AUTOMATABLE`), a pinning batch
+  refuses it (`MOVED_NOT_PINNABLE`), and a statement signed by an automation
+  key never parses with a moved row;
+- the rule is always in the review sample (forced in; the seeded sample fills
+  the usual 10% from the other rules), and the renewal counts as one batch
+  cycle against E6, as any renewal does.
+
+The statement row of a moved citation (`citations[].moved`) carries the path,
+the old and new range, and the old and new whole-file digests, and a statement
+with a moved row carries its own fixed text (`MovedStatementText`) instead of
+the usual one. `rules.next.json` differs from the prior pack in exactly the
+moved source's `revision`, `url`, `contentDigest`, `startLine` and `endLine`
+(`url` and `revision` are derived from the compared commit and the path, in
+the shape of the old `url`) plus the rule's `reviewedAt` and `validUntil`.
+Nothing else in the rule changes, and the other sources are untouched. Not in
+scope: `CONTENT_CHANGED`, `PATH_GONE`, `NO_RELEASE_BASELINE` and `PENDING`
+stay with a human reviewer, and a rule that cites any of them is not eligible,
+moved citation or not.
+
 A rule that passes E1–E7 is renewed only if the renewal moves its
 `validUntil` later and its lease is close to its end:
 
@@ -691,7 +730,7 @@ Per-project knowledge targets (`knowledge-targets build`) carry both
 sections, each record in its own project's target (see
 [cncf-knowledge-per-project.md](cncf-knowledge-per-project.md#records-in-project-targets)).
 
-## What `verify` checks (V1–V12)
+## What `verify` checks (V1–V13)
 
 `verify` is deterministic and side-effect-free. It takes the statement, the
 prior and next rule pack bytes, the retained worklist, the pack's statement
@@ -708,6 +747,19 @@ the first violation it finds:
   no entry may be added, removed, or reordered") and V3 ("eligibility is
   never a caller claim") hold at once: any difference anywhere in either
   document breaks the byte match.
+- **V13** — a statement with a moved row (E1-moved above) is accepted only
+  with `--rerun-worklist` (a worklist the verifying job produced itself) that
+  records the same `movedTo` for every moved citation, with the rule in the
+  sample, and with the rule's next record equal to its prior record with only
+  the moved source's location fields and the evidence dates substituted. The
+  per-citation guards themselves are recomputed by V1/V3 from the files
+  supplied with `--moved-blobs-dir`; without them the statement does not
+  reproduce. The knowledge gate reads them from
+  `<reattestation dir>/<pack>/moved-blobs/` (append-only, named by hex digest)
+  and treats a changed source as the renewal class only when a moved row of the
+  verified statement lists exactly that change (rule, source id, old and new
+  range, both digests, commit and url); any other change of a source stays a
+  loosening that needs an owner approval.
 - **V2** — the lease (`validUntil − attestedAt`) is positive and never
   exceeds the 90-day cap. For a human statement, its `validUntil` equals
   the wave's slot date computed from `attestedAt`, and every renewed rule's

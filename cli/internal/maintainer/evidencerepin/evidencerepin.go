@@ -733,6 +733,12 @@ type ClassResult struct {
 	// BaselineEntryDigest is the digest of the owner baseline file entry
 	// a BaselineOwnerChoice comparison used.
 	BaselineEntryDigest string `json:"baselineEntryDigest,omitempty"`
+	// MovedTo is set only on a SPAN_MOVED citation whose cited bytes are
+	// provably the same code in one new place (see EvaluateMove) on the head of
+	// the pinned tag's release line. It is what lets a rule whose citations
+	// only moved be renewed without a hand re-review; without it a SPAN_MOVED
+	// rule stays for a human.
+	MovedTo *MovedTo `json:"movedTo,omitempty"`
 }
 
 // costRank orders the worklist cheapest-reviewer-cost first: batch-attestable
@@ -866,6 +872,12 @@ func Classify(ctx context.Context, citation Citation, currentCommit string, blob
 			result.Class = class
 			if class == ClassSpanMoved {
 				result.NewStart, result.NewEnd = newStart, newEnd
+				// classifySpan takes the first match; a move is recorded only
+				// when EvaluateMove finds that same place to be the only one
+				// and every guard holds.
+				if ns, ne, reason := EvaluateMove(oldFetch.Body, citation.StartLine, citation.EndLine, newFetch.Body); reason == "" && ns == newStart && ne == newEnd {
+					result.MovedTo = &MovedTo{Commit: currentCommit, Path: citation.Path, StartLine: ns, EndLine: ne, ContentDigest: sourcecorpus.SHA(newFetch.Body)}
+				}
 			}
 		case "HTTP_STATUS":
 			if oldFetch.StatusCode == 404 {
@@ -1199,6 +1211,11 @@ type Worklist struct {
 	// BaselinesDigest is the digest of the owner baseline file this run
 	// read (sha256 of its bytes); empty when none was given.
 	BaselinesDigest string `json:"baselinesDigest,omitempty"`
+
+	// MovedBlobs holds, by whole-file digest, the bytes of the old and the new
+	// file of every recorded move. It is never part of the worklist JSON; the
+	// command writes it to --moved-blobs-dir for the verifier.
+	MovedBlobs map[string][]byte `json:"-"`
 }
 
 // WorklistScope records what subset of the corpus this run covered.
@@ -1217,7 +1234,7 @@ var worklistLimitations = []string{
 	"this worklist is a mechanical drift classification, not a compatibility claim, a review, or a rule change",
 	"it reads existing rule packs and writes only this worklist and an optional state file; it cannot modify a pack or a rule",
 	"a repository's \"current release commit\" is its latest release under one shared rule (" + latestrelease.Rule + "), the same rule the local mirror source applies; this is a proxy for \"upstream now\", not a guarantee of the true latest stable line",
-	"SPAN_MOVED, CONTENT_CHANGED, PATH_GONE, and CORPUS_DIGEST_MISMATCH all require a human reviewer; this tool only narrows where reviewer time goes",
+	"SPAN_MOVED, CONTENT_CHANGED, PATH_GONE, and CORPUS_DIGEST_MISMATCH all require a human reviewer, except that a SPAN_MOVED citation carrying a movedTo record (a unique, guarded move on its release line head) may be renewed by a human statement without a hand re-review of its bytes; this tool only narrows where reviewer time goes",
 	"CORPUS_DIGEST_MISMATCH means the file fetched at the citation's own pinned commit does not hash to the recorded contentDigest (or is not reachable there at all); this is a corpus integrity problem, not citation drift, and should be investigated separately",
 	"a repo resolution or citation classification resumed from --state is reported as current only if it is within --max-age of this run; an older entry is either recomputed or, when this run could not recompute it, kept and marked \"stale\": true rather than reported as fresh",
 	"a citation with \"baseline\": \"release_line\" was compared with the newest GitHub Release on the release line of the release tag proven to point at its pinned commit, not with the repository's most recent release; it answers whether the cited content changed in later releases of that line and says nothing about other release lines",
@@ -1452,6 +1469,17 @@ func BuildWorklistWithOptions(ctx context.Context, citations []Citation, project
 		results = append(results, result)
 	}
 
+	oldDigests := map[string]string{}
+	for _, citation := range filtered {
+		oldDigests[citation.key()] = citation.OldDigest
+	}
+	movedBlobs := finalizeMoves(ctx, results, cachedBlobFetcher, oldDigests)
+	for _, result := range results {
+		if result.Class == ClassSpanMoved {
+			state.Results[result.key()] = result
+		}
+	}
+
 	sort.SliceStable(results, func(i, j int) bool {
 		if costRank(results[i].Class) != costRank(results[j].Class) {
 			return costRank(results[i].Class) < costRank(results[j].Class)
@@ -1538,6 +1566,7 @@ func BuildWorklistWithOptions(ctx context.Context, citations []Citation, project
 		Limitations: worklistLimitations,
 
 		BaselinesDigest: buildOpts.BaselinesDigest,
+		MovedBlobs:      movedBlobs,
 	}
 	return worklist, nil
 }
@@ -1727,6 +1756,7 @@ func RunWith(ctx context.Context, args []string, stdout, stderr io.Writer, deps 
 	wantsOut := flags.String("wants-out", "", "with --source mirror: write the pinned files the mirror is missing as a wants file for \"factory mirror --wants\"")
 	failOnMissing := flags.Bool("fail-on-missing", false, "with --source mirror: exit 3 (after writing the worklist and wants) when files are missing from the mirror, so a script can tell an incomplete run from a complete one; default exit 0 keeps the wants file as the signal")
 	baselinesPath := flags.String("baselines", "", "owner baseline file (cli/knowledge/repin-baselines.json): a repository whose latest release is ambiguous uses the tag the owner chose, only while that tag resolves to the recorded commit")
+	movedBlobsDir := flags.String("moved-blobs-dir", "", "write the old and the new file of every recorded span move, one file per whole-file digest, into this new directory, for \"evidence reattest prepare|verify --moved-blobs-dir\"")
 	pinnedOnly := flags.Bool("pinned-only", false, "check only the citations of rules that hold a pinned lease, on their release line (the release-line baseline, needs no --limit or --project); exit 4 when any of them drifted or could not be checked, 0 when none did")
 	flags.Var(&rulePacks, "rules", "rule pack path (repeatable; default: the shipped CNCF and community packs)")
 	flags.Var(&projects, "project", "restrict to this project slug (repeatable; default: all)")
@@ -1844,6 +1874,12 @@ func RunWith(ctx context.Context, args []string, stdout, stderr io.Writer, deps 
 	if err := os.WriteFile(*outputPath, raw, 0o644); err != nil {
 		fmt.Fprintf(stderr, "evidence repin: cannot write worklist: %v\n", err)
 		return 2
+	}
+	if *movedBlobsDir != "" {
+		if err := WriteMovedBlobs(*movedBlobsDir, worklist.MovedBlobs); err != nil {
+			fmt.Fprintf(stderr, "evidence repin: cannot write moved blobs: %v\n", err)
+			return 2
+		}
 	}
 	fmt.Fprintf(stdout, "evidence repin: %d citations, %d classified, %d pending, %d rules, batch-attestable fraction %.2f\n",
 		worklist.Summary.TotalCitations, worklist.Summary.Classified, worklist.Summary.Pending, len(worklist.Rules), worklist.Summary.BatchAttestableFraction)
