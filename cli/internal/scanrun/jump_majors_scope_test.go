@@ -154,16 +154,36 @@ func TestJumpWiderRuleCombinations(t *testing.T) {
 			h.WiderRuleIDs, h.WiderNoticeIDs = []string{"crossing"}, []string{"wide-notice"}
 		}), scanreport.JumpBlocked},
 	}
+	// rank orders the jump statuses by strictness: BLOCKED > ATTENTION >
+	// UNKNOWN > STEPWISE_PASS. floor is the least strict status the same
+	// input may get, read from the hop's own facts alone (any rule that
+	// blocks, exact or wider, is BLOCKED; any notice, exact or wider, is at
+	// least ATTENTION), the way the report and the hop table read it.
+	rank := map[string]int{scanreport.JumpStepwisePass: 0, scanreport.JumpUnknown: 1, scanreport.JumpAttention: 2, scanreport.JumpBlocked: 3}
+	floor := func(h scanreport.JumpHop) int {
+		switch {
+		case h.Status == scanreport.JumpHopBlocked || len(h.RuleIDs) > 0 || len(h.WiderRuleIDs) > 0:
+			return rank[scanreport.JumpBlocked]
+		case len(h.Entries) > 0 || len(h.WiderNoticeIDs) > 0:
+			return rank[scanreport.JumpAttention]
+		}
+		return rank[scanreport.JumpUnknown]
+	}
 	for name, tc := range cases {
-		j := scanreport.NewJump([]scanreport.JumpHop{pass, tc.second}, digest, nil, nil)
-		if j.Status != tc.want || j.Status == scanreport.JumpStepwisePass || len(j.DecidedBy) != 1 || j.DecidedBy[0] != 2 {
-			t.Fatalf("%s: status %s decidedBy %v", name, j.Status, j.DecidedBy)
-		}
-		if len(tc.second.WiderRuleIDs) > 0 || len(tc.second.WiderNoticeIDs) > 0 {
-			text := strings.Join(scanreport.JumpLines("strimzi", "0.50.1", "1.0", j), "\n")
-			if !strings.Contains(text, "wider-range rule, not scoped to this hop") {
-				t.Fatalf("%s: text\n%s", name, text)
+		t.Run(name, func(t *testing.T) {
+			j := scanreport.NewJump([]scanreport.JumpHop{pass, tc.second}, digest, nil, nil)
+			if rank[j.Status] < floor(tc.second) {
+				t.Fatalf("jump %s is less strict than the hop's own facts", j.Status)
 			}
-		}
+			if j.Status != tc.want || j.Status == scanreport.JumpStepwisePass || len(j.DecidedBy) != 1 || j.DecidedBy[0] != 2 {
+				t.Fatalf("status %s want %s decidedBy %v", j.Status, tc.want, j.DecidedBy)
+			}
+			if len(tc.second.WiderRuleIDs) > 0 || len(tc.second.WiderNoticeIDs) > 0 {
+				text := strings.Join(scanreport.JumpLines("strimzi", "0.50.1", "1.0", j), "\n")
+				if !strings.Contains(text, "wider-range rule, not scoped to this hop") {
+					t.Fatalf("text\n%s", text)
+				}
+			}
+		})
 	}
 }
