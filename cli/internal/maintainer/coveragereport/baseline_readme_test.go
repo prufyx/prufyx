@@ -3,6 +3,7 @@
 package coveragereport
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -43,7 +44,7 @@ func checkFloorVsPublished(name string, floor, published, allowance int) error {
 }
 
 func TestParseCount(t *testing.T) {
-	row := "| " + readmeDecidedLabel + " | 49 | 12.5% |\n"
+	row := "| " + readmeCRDLabel + " | 49 |\n"
 	for _, tc := range []struct {
 		name, block string
 		want        int
@@ -52,9 +53,9 @@ func TestParseCount(t *testing.T) {
 		{"one row", "x\n" + row, 49, false},
 		{"row missing", "x\n", 0, true},
 		{"row duplicated", row + row, 0, true},
-		{"label altered", strings.Replace(row, "bounded", "limited", 1), 0, true},
+		{"label altered", strings.Replace(row, "published", "unpublished", 1), 0, true},
 	} {
-		got, err := parseCount(tc.block, readmeDecidedLabel)
+		got, err := parseCount(tc.block, readmeCRDLabel)
 		if (err != nil) != tc.fail || got != tc.want {
 			t.Errorf("%s: got %d, %v", tc.name, got, err)
 		}
@@ -108,19 +109,29 @@ func TestBaselineTiedToPublishedNumbers(t *testing.T) {
 		allowPairs += w.DecidedPairs
 		allowCRD += w.CRDProjects
 	}
-	for _, c := range []struct {
-		label, name      string
-		floor, allowance int
-	}{
-		{readmeDecidedLabel, "decidedPairs", b.DecidedPairs, allowPairs},
-		{readmeCRDLabel, "crdPublishedProjects", b.CRDProjects, allowCRD},
-	} {
-		pub, err := parseCount(block, c.label)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := checkFloorVsPublished(c.name, c.floor, pub, c.allowance); err != nil {
-			t.Error(err)
-		}
+	// The decided-pair floor is read from the counts file the block is
+	// generated with (the README prints no summed number): the fleet pairs
+	// decided by a rule or attestation, A plus B.
+	craw, err := os.ReadFile("../../../docs/generated/coverage-counts.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var counts struct {
+		Report struct {
+			Fleet struct{ A, B int } `json:"fleet"`
+		} `json:"report"`
+	}
+	if err := json.Unmarshal(craw, &counts); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkFloorVsPublished("decidedPairs", b.DecidedPairs, counts.Report.Fleet.A+counts.Report.Fleet.B, allowPairs); err != nil {
+		t.Error(err)
+	}
+	pub, err := parseCount(block, readmeCRDLabel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := checkFloorVsPublished("crdPublishedProjects", b.CRDProjects, pub, allowCRD); err != nil {
+		t.Error(err)
 	}
 }

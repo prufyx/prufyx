@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/prufyx/prufyx/cli/internal/maintainer/coveragereport"
 )
 
 // Options labels the two trees and carries the merged pull requests.
@@ -29,6 +31,24 @@ type Options struct {
 	// release; both are required. Previous names the pin of Prev.
 	Prev, Cur *Counts
 	Previous  PreviousPin
+
+	prevForms, curForms coveragereport.Forms
+}
+
+// fleetForms returns the fleet's pairs by form. A v2 file must carry its
+// forms table; a v1 file has none and the forms are derived from its pairs.
+func fleetForms(c *Counts) (coveragereport.Forms, error) {
+	if c.Schema == CountsSchemaV2 {
+		if c.Forms == nil {
+			return coveragereport.Forms{}, errors.New("a v2 counts file must carry forms")
+		}
+		return c.Forms.Fleet.Forms, nil
+	}
+	t, err := coveragereport.FormsOf(c.Report)
+	if err != nil {
+		return coveragereport.Forms{}, err
+	}
+	return t.Fleet.Forms, nil
 }
 
 // Render writes the Markdown for the changes from one snapshot to the next.
@@ -36,6 +56,15 @@ func Render(from, to *Snapshot, o Options) (string, error) {
 	if o.Prev == nil || o.Cur == nil {
 		return "", errors.New("release notes need the coverage counts of both releases")
 	}
+	prevForms, err := fleetForms(o.Prev)
+	if err != nil {
+		return "", fmt.Errorf("previous counts: %w", err)
+	}
+	curForms, err := fleetForms(o.Cur)
+	if err != nil {
+		return "", fmt.Errorf("current counts: %w", err)
+	}
+	o.prevForms, o.curForms = prevForms, curForms
 	var b strings.Builder
 	fmt.Fprintf(&b, "Changes from `%s`%s to `%s`%s, computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.\n\n",
 		o.FromLabel, commitNote(o.FromCommit), o.ToLabel, commitNote(o.ToCommit))
@@ -129,9 +158,11 @@ func summary(b *strings.Builder, from, to *Snapshot, o Options) {
 	}{
 		{"Projects with a release-line snapshot (README coverage block)", pf.Projects, pt.Projects},
 		{"Upgrades between consecutive release lines", pf.Pairs, pt.Pairs},
-		{"Decided for the whole release-line pair (A+B)", pf.A + pf.B, pt.A + pt.B},
-		{"Rule for one exact version pair only (S)", pf.S, pt.S},
-		{"Gap, no valid rule (G)", pf.G, pt.G},
+		{"A/B decided (whole release-line pair; Kubernetes served-API only pairs excluded)", o.prevForms.AB, o.curForms.AB},
+		{"Kubernetes served-API (decided)", o.prevForms.K8s, o.curForms.K8s},
+		{"Rule for one exact version pair only (S)", o.prevForms.S, o.curForms.S},
+		{"Listed, not judged (L)", o.prevForms.L, o.curForms.L},
+		{"Gap (G)", o.prevForms.G, o.curForms.G},
 	} {
 		row(b, m.name, m.a, m.c, true)
 	}

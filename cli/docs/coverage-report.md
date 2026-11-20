@@ -100,7 +100,7 @@ the lines file.
 `prufyx-maintainer coverage readme [--check] [--root DIR] [--json-out FILE]`
 regenerates the README coverage block. With `--json-out` it also writes the
 exact report the block is rendered from, the support-inventory counts the block
-prints and the SHA-256 of the block (`prufyx.io/coverage-readme-counts/v1`).
+prints and the SHA-256 of the block (`prufyx.io/coverage-readme-counts/v2`, which also carries the by-form table; v1 files stay readable).
 Release notes and the site can render from that file; the same tree gives the
 same bytes. It works with and without `--check`; the file is written before
 the README, so an unwritable path changes nothing.

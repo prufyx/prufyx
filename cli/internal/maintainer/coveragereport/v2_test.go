@@ -212,11 +212,12 @@ func TestV2PctExact(t *testing.T) {
 func TestReadmeBlockDoesNotPublishV2(t *testing.T) {
 	t.Parallel()
 	crd := lineattest.FamilyCustomResourceVersions
-	r := v2Report(Project{Project: "zzz-declared-only", Pairs: []Pair{{From: "1.0", To: "1.1", Status: StatusA, Families: []string{crd}}}})
+	r := v2Report(Project{Project: "kubernetes", Window: []string{"1.30", "1.31"}}, Project{Project: "zzz-declared-only", Pairs: []Pair{{From: "1.0", To: "1.1", Status: StatusA, Families: []string{crd}}}})
 	applyV2(&r, testTiers([]string{"zzz-declared-only"}, nil), ApplicabilityFile{}, nil)
 	if r.V2 == nil || r.V2.DPCDeclared == 0 {
 		t.Fatal("metric v2 is no longer computed")
 	}
+	r.Fleet = Totals{Projects: 1, Pairs: 1, A: 1}
 	out, err := readmeFixture(r)
 	if err != nil {
 		t.Fatal(err)

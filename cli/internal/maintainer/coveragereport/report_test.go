@@ -279,6 +279,30 @@ func TestClassification(t *testing.T) {
 	}
 }
 
+// The decided split counts only A/B-form pairs: a pair decided by the
+// Kubernetes served-API family alone is its own form and is not in it.
+func TestDecidedSplitExcludesServedAPIOnlyPairs(t *testing.T) {
+	rules := []string{
+		ruleJSON("range.132", "1.31.0", "1.32.0", rangeJSON("1.31.0", "1.32.0", "1.32.0", "1.33.0"), valid),
+		ruleJSON("anchor.133", "1.32.4", "1.33.1", "", valid),
+	}
+	atts := []string{attJSON("1.31", valid), attJSON("1.33", valid, "anchor.133")}
+	report, err := Compute(Input{Pack: pack(rules, atts), Lines: lines("kubernetes", "1.30", "1.31", "1.32", "1.33"), Now: baselineNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	forms, err := FormsOf(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if forms.Fleet.K8s == 0 {
+		t.Fatalf("fixture has no served-API-only pair: %+v", forms.Fleet)
+	}
+	if report.split.total() != forms.Fleet.AB {
+		t.Fatalf("split total %d, A/B pairs %d (fleet A+B %d)", report.split.total(), forms.Fleet.AB, report.Fleet.A+report.Fleet.B)
+	}
+}
+
 // Range boundaries: a range that does not cover the whole line on both sides
 // is a spot at best, never a bounded pair.
 func TestRangeBoundaryMutations(t *testing.T) {
@@ -537,16 +561,10 @@ func TestCustomResourceFamilyCountsA(t *testing.T) {
 	if report.split.canBlock != 1 || len(report.split.noBlock) != 1 || report.split.noBlock[0] != (familyCount{"crd.custom_resource_versions", 2}) || report.split.total() != report.Fleet.A+report.Fleet.B {
 		t.Fatalf("split %+v fleet %+v", report.split, report.Fleet)
 	}
-	got, err := decidedSplitSentence(report.split, 3)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(got, "Only 1 of the 3 decided upgrades") || !strings.Contains(got, "The other 2 are decided only by line attestations that list no rule (2 by `crd.custom_resource_versions`)") {
+	// The sentence names the families, never a count of decided upgrades.
+	got := noBlockSentence(report.split)
+	if !strings.Contains(got, "decided only by line attestations that list no rule (`crd.custom_resource_versions`)") || strings.Contains(got, "Only 1 of") {
 		t.Fatalf("sentence %q", got)
-	}
-	// A split that does not add up to the decided count is an error, never fallback text.
-	if got, err := decidedSplitSentence(report.split, 4); err == nil {
-		t.Fatalf("mismatched split returned %q, want an error", got)
 	}
 	// A listed rule that holds for its anchor pair only keeps the pair from A.
 	anchorOnly := strings.Replace(rule, ","+rangeJSON("0.50.0", "0.51.0", "0.51.0", "0.52.0"), "", 1)

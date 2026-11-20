@@ -336,19 +336,118 @@ Generated on 2026-11-18 by `scripts/readme-coverage.sh` (do not edit this block 
 | Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 87 |
 | Projects with a published CRD rule or line attestation | 40 |
 
-Version-coverage depth, measured over the last five minor upgrades of each of the 79 CNCF-catalog projects of the snapshot (97 projects have one; 395 upgrades between consecutive release lines):
+Version-coverage by form, over the last five minor upgrades of each of the 79 CNCF-catalog projects of the snapshot (395 upgrades between consecutive release lines). Each upgrade is counted once, under its strongest form, in this order: A/B decided, then k8s served-API, then S, then L, then G. Only A/B is called decided: a valid rule or attestation covers every version of both release lines. k8s served-API is an answer from the Kubernetes served-API family alone. S is a rule for one exact version pair only. L is listed, not judged: the change is listed, the answer is ATTENTION, never PASS. G is a gap, with its reason. There is no total over the forms.
 
-| Status | Upgrades | Share |
-| --- | --- | --- |
-| Decided for the whole release-line pair (A attested, B bounded) | 94 | 23.7% |
-| Rule for one exact version pair only (S) | 39 | 9.8% |
-| Gap, no valid rule (G) | 262 | 66.3% |
+Projects with an answer of any form (A/B, k8s served-API, S or L): 52 of 79 in the fleet; 9 of 18 in the community group, which is marked in the table and outside the release-line fleet.
 
-Community catalogue, measured separately and not part of the table above: 42 of 88 upgrades decided (A or B) over 18 projects.
+<details>
+<summary>Per project: A/B decided, k8s served-API, S, L listed not judged, G gap with reason</summary>
+
+| Project | Group | Upgrades | A/B decided | k8s served-API | S exact-pair rule | L listed, not judged | G gap | G reason |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| antrea | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| argo-cd | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| argo-workflows | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| buildpacks | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| calico | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| cert-manager | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| cilium | release-line fleet | 5 | 2 | 0 | 2 | 0 | 1 | NOT_DECIDED_FOR_THIS_PAIR |
+| cloud-custodian | release-line fleet | 5 | 0 | 0 | 2 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
+| cloudnativepg | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| cluster-autoscaler | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| container-network-interface-cni | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
+| containerd | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| contour | release-line fleet | 5 | 4 | 0 | 0 | 0 | 1 | NOT_DECIDED_FOR_THIS_PAIR |
+| coredns | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| cortex | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| cri-o | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| crossplane | release-line fleet | 5 | 1 | 0 | 0 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| cubefs | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| dapr | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| dex | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| distribution | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| dragonfly | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
+| elasticsearch | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| emissary-ingress | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| envoy | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| etcd | release-line fleet | 5 | 0 | 0 | 2 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
+| external-dns | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| external-secrets | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| falco | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| fluent-bit | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| fluentd | release-line fleet | 5 | 0 | 0 | 3 | 0 | 2 | NOT_DECIDED_FOR_THIS_PAIR |
+| flux | release-line fleet | 5 | 0 | 0 | 2 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
+| grafana | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| harbor | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| helm | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
+| in-toto | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
+| ingress-nginx | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| istio | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| jaeger | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| k8gb | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| k8up | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| karmada | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| keda | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| keycloak | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
+| kibana | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| kmesh | release-line fleet | 5 | 2 | 0 | 0 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
+| knative | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
+| koordinator | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| kube-state-metrics | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| kubeedge | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| kubeflow | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
+| kubernetes | release-line fleet | 5 | 0 | 5 | 0 | 0 | 0 | - |
+| kubevirt | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| kuma | release-line fleet | 5 | 4 | 0 | 0 | 0 | 1 | NOT_DECIDED_FOR_THIS_PAIR |
+| kyverno | release-line fleet | 5 | 1 | 0 | 1 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
+| linkerd | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
+| loki | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| longhorn | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
+| metallb | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| metrics-server | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| nats | release-line fleet | 5 | 0 | 0 | 2 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
+| opa | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| opencost | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
+| openfga | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| openkruise | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| opentelemetry | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
+| openyurt | release-line fleet | 5 | 3 | 0 | 0 | 0 | 2 | NOT_DECIDED_FOR_THIS_PAIR |
+| prometheus | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| rook | release-line fleet | 5 | 1 | 0 | 1 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
+| spire | release-line fleet | 5 | 0 | 0 | 2 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
+| strimzi | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| submariner | release-line fleet | 5 | 2 | 0 | 0 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
+| tekton | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| thanos | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| the-update-framework-tuf | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| traefik | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| velero | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| vitess | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| volcano | release-line fleet | 5 | 4 | 0 | 0 | 0 | 1 | NOT_DECIDED_FOR_THIS_PAIR |
+| burrito (community) | community, outside the release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| chaosblade-operator (community) | community, outside the release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| cluster-api (community) | community, outside the release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| eck-operator (community) | community, outside the release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| furiko (community) | community, outside the release-line fleet | 3 | 3 | 0 | 0 | 0 | 0 | - |
+| gateway-api (community) | community, outside the release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| github-actions-runner-operator (community) | community, outside the release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| k8s-cleaner (community) | community, outside the release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| kong-ingress-controller (community) | community, outside the release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| kubemod (community) | community, outside the release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| kueue (community) | community, outside the release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| mongodb-kubernetes (community) | community, outside the release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| movetokube-postgres-operator (community) | community, outside the release-line fleet | 5 | 4 | 0 | 0 | 0 | 1 | NOT_DECIDED_FOR_THIS_PAIR |
+| node-feature-discovery (community) | community, outside the release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| ollama-operator (community) | community, outside the release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
+| percona-postgresql-operator (community) | community, outside the release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| prometheus-operator (community) | community, outside the release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+| rancher (community) | community, outside the release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
+
+</details>
 
 Kubernetes: 63 valid rules, but 19 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
 
-Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. Only 9 of the 94 decided upgrades are decided by a rule, or by an attestation that lists rules, so the answer for them can be BLOCKED or UNKNOWN. The other 85 are decided only by line attestations that list no rule (85 by `crd.custom_resource_versions`): for them an attestation can only give a family-scoped PASS (`scan` prints "PASS within <family> only"), never BLOCKED. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
+Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. Some decided upgrades are decided only by line attestations that list no rule (`crd.custom_resource_versions`): for them an attestation can only give a family-scoped PASS (`scan` prints "PASS within <family> only"), never BLOCKED. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
 <!-- coverage:end -->
 
 Update the block with `scripts/readme-coverage.sh` (`--check` fails when it is

@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/prufyx/prufyx/cli/internal/maintainer/coveragereport"
 )
 
 func fixture(t *testing.T, name string) []byte {
@@ -68,7 +70,11 @@ func TestLoadCountsRefuses(t *testing.T) {
 	}{
 		{"empty", nil, nil},
 		{"not json", []byte("{"), nil},
-		{"wrong schema", mutate(t, func(m map[string]any) { m["schema"] = "prufyx.io/coverage-readme-counts/v2" }), nil},
+		{"wrong schema", mutate(t, func(m map[string]any) { m["schema"] = "prufyx.io/coverage-readme-counts/v9" }), nil},
+		{"v2 without forms", mutate(t, func(m map[string]any) { m["schema"] = CountsSchemaV2 }), nil},
+		{"v1 with forms", mutate(t, func(m map[string]any) { m["forms"] = formsJSON(t) }), nil},
+		{"v2 with tampered forms", v2Counts(t, func(f map[string]any) { f["fleet"].(map[string]any)["ab"] = 999 }), nil},
+		{"v2 with a row removed", v2Counts(t, func(f map[string]any) { f["rows"] = f["rows"].([]any)[1:] }), nil},
 		{"missing schema", mutate(t, func(m map[string]any) { delete(m, "schema") }), nil},
 		{"extra top-level field", mutate(t, func(m map[string]any) { m["extra"] = 1 }), nil},
 		{"extra report field", mutate(t, func(m map[string]any) { m["report"].(map[string]any)["extra"] = 1 }), nil},
@@ -230,5 +236,88 @@ func TestRenderBootstrapApproximationNote(t *testing.T) {
 	}
 	if strings.Contains(got, "approximate") {
 		t.Error("note printed for a release with real counts")
+	}
+}
+
+// formsJSON is the forms table of the v1 fixture, as a generic JSON value.
+func formsJSON(t *testing.T) any {
+	t.Helper()
+	tab, err := coveragereport.FormsOf(fixtureCounts(t, "counts-cur.json").Report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := json.Marshal(tab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var v any
+	if err := json.Unmarshal(b, &v); err != nil {
+		t.Fatal(err)
+	}
+	return v
+}
+
+// v2Counts is the fixture as a v2 file with its forms table, after edit.
+func v2Counts(t *testing.T, edit func(forms map[string]any)) []byte {
+	t.Helper()
+	return mutate(t, func(m map[string]any) {
+		m["schema"] = CountsSchemaV2
+		f := formsJSON(t).(map[string]any)
+		edit(f)
+		m["forms"] = f
+	})
+}
+
+// A v1 file loads as before; a v2 file loads with a matching forms table.
+func TestLoadCountsV1AndV2(t *testing.T) {
+	if c := fixtureCounts(t, "counts-cur.json"); c.Forms != nil {
+		t.Error("a v1 file has forms")
+	}
+	c, err := LoadCounts(v2Counts(t, func(map[string]any) {}), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Forms == nil || len(c.Forms.Rows) != len(c.Report.Projects) {
+		t.Errorf("v2 forms: %+v", c.Forms)
+	}
+}
+
+// A pair decided by the served-API family alone is in its own row, never in
+// the A/B row; a v2 file without forms is refused.
+func TestSummarySplitsServedAPIOnlyPairs(t *testing.T) {
+	cur := fixtureCounts(t, "counts-cur.json")
+	var fleet *coveragereport.Project
+	for i := range cur.Report.Projects {
+		if cur.Report.Projects[i].Catalog == "" && len(cur.Report.Projects[i].Pairs) > 0 {
+			fleet = &cur.Report.Projects[i]
+			break
+		}
+	}
+	if fleet == nil {
+		t.Fatal("no fleet project in the fixture")
+	}
+	fleet.Pairs = append(fleet.Pairs, coveragereport.Pair{From: "9.0", To: "9.1", Status: coveragereport.StatusA, Families: []string{coveragereport.FamilyServedAPI}})
+	cur.Report.Fleet.Pairs++
+	cur.Report.Fleet.A++
+	cur.Schema = CountsSchemaV2
+	forms, err := coveragereport.FormsOf(cur.Report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cur.Forms = &forms
+	prev := fixtureCounts(t, "counts-prev.json")
+	out, err := Render(&Snapshot{}, &Snapshot{}, Options{Prev: prev, Cur: cur, Previous: PreviousPin{Tag: "v1", Commit: "aaa", CountsSha256: prev.Sha256}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if forms.Fleet.K8s != 1 || !strings.Contains(out, "| Kubernetes served-API (decided) | 0 | 1 | +1 |") || !strings.Contains(out, "excluded) | 2 | 2 | 0 |") {
+		t.Fatalf("forms %+v\n%s", forms.Fleet, out)
+	}
+	if strings.Contains(out, "(A+B)") {
+		t.Error("a summed A+B row is still printed")
+	}
+	cur.Forms = nil
+	if _, err := Render(&Snapshot{}, &Snapshot{}, Options{Prev: prev, Cur: cur, Previous: PreviousPin{Tag: "v1", Commit: "aaa", CountsSha256: prev.Sha256}}); err == nil {
+		t.Error("a v2 counts file without forms was rendered")
 	}
 }
