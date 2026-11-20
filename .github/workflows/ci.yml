@@ -475,6 +475,7 @@ jobs:
     timeout-minutes: 10
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
+      knowledgegate: ${{ steps.plan.outputs.knowledgegate }}
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -504,6 +505,7 @@ jobs:
           root=$(pwd)
           cd cli
           selected=""
+          changed=""
           if [ "${EVENT_NAME}" = "pull_request" ] || [ "${EVENT_NAME}" = "merge_group" ]; then
             if [ "${EVENT_NAME}" = "merge_group" ]; then
               # The queue builds the pull request merged into the tip of the base.
@@ -556,10 +558,18 @@ jobs:
               jq -cn --arg p "${pkg}" '{package: $p, timeout_minutes: 50, go_timeout: "40m"}'
             fi
           done | jq -cs '.')
-          if [ "${EVENT_NAME}" = "schedule" ]; then
-            # knowledgegate is too slow under -race for every commit; the nightly covers it.
-            matrix=$(printf '%s' "${matrix}" | jq -c '. + [{package: "./internal/maintainer/knowledgegate/", timeout_minutes: 90, go_timeout: "85m"}]')
+          # knowledgegate is too slow under -race for every commit (one process needed
+          # more than 85 minutes), so its six race shards (job race-knowledgegate) run
+          # in the nightly, in manual runs, and in a change to this workflow or to the
+          # shard script, which proves the shards still finish.
+          knowledgegate=false
+          if [ "${EVENT_NAME}" = "schedule" ] || [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            knowledgegate=true
+          elif printf '%s\n' "${changed}" | grep -Eq '^(\.github/workflows/ci\.yml|scripts/ci-test-shard\.sh)$'; then
+            knowledgegate=true
           fi
+          echo "knowledgegate race shards: ${knowledgegate}"
+          echo "knowledgegate=${knowledgegate}" >> "${GITHUB_OUTPUT:-/dev/stdout}"
           echo "race matrix: ${matrix}"
           echo "matrix=${matrix}" >> "${GITHUB_OUTPUT:-/dev/stdout}"
 
@@ -594,9 +604,64 @@ jobs:
           RACE_PACKAGE: ${{ matrix.package }}
           RACE_TIMEOUT: ${{ matrix.go_timeout }}
         # Published binaries stay CGO_ENABLED=0; only this job needs cgo for -race.
-        # knowledgegate is raced by the nightly run only: under -race it ran past
-        # 60 minutes (it already runs in the test-knowledgegate job, also with the tag).
+        # knowledgegate is raced by race-knowledgegate, in shards.
         run: go test -race -timeout "${RACE_TIMEOUT}" "${RACE_PACKAGE}"
+
+  race-knowledgegate:
+    # The race run of knowledgegate in one process needed more than 85 minutes, so
+    # its tests are spread over SHARDS jobs by scripts/ci-test-shard.sh (every test
+    # is in exactly one shard; TestCIShardsAreComplete keeps the matrix and SHARDS
+    # in step). Advisory like race; race-knowledgegate-result reports it under the
+    # job name the nightly always used.
+    name: Race detector shard ${{ matrix.shard }}/6
+    needs: race-plan
+    if: needs.race-plan.outputs.knowledgegate == 'true'
+    runs-on: ${{ (github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON(vars.CI_RUNNER_LABELS || '"ubuntu-24.04"') || 'ubuntu-24.04' }}
+    timeout-minutes: 60
+    env:
+      SHARDS: "6"
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Test with the race detector
+        working-directory: cli
+        env:
+          CGO_ENABLED: "1"
+          SHARD: ${{ matrix.shard }}
+        run: ../scripts/ci-test-shard.sh "${SHARD}" "${SHARDS}" ./internal/maintainer/knowledgegate/ -race -- -timeout 40m
+
+  race-knowledgegate-result:
+    # Keeps the job name "Race detector (./internal/maintainer/knowledgegate/)" that
+    # the nightly-fix check of nightly-main.yml matches by name: it is green only
+    # when every shard is green, and a skipped or cancelled shard makes it red.
+    name: Race detector (./internal/maintainer/knowledgegate/)
+    needs: [race-plan, race-knowledgegate]
+    if: always() && needs.race-plan.outputs.knowledgegate == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every shard
+        env:
+          RESULT: ${{ needs.race-knowledgegate.result }}
+        run: |
+          set -euo pipefail
+          if [ "${RESULT}" != "success" ]; then
+            echo "knowledgegate race shards: ${RESULT}" >&2
+            exit 1
+          fi
 
   staticcheck:
     name: Staticcheck

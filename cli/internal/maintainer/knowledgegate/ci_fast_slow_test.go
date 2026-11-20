@@ -33,7 +33,7 @@ const (
 // ciMovable are the only jobs allowed to read CI_RUNNER_LABELS.
 var ciMovable = map[string]bool{
 	"test-core": true, "test-knowledgegate": true, "test-synthetic-a": true, "test-synthetic-b": true,
-	"test-synthetic-knowledgegate": true, "race": true, "staticcheck": true, "govulncheck": true,
+	"test-synthetic-knowledgegate": true, "race": true, "race-knowledgegate": true, "staticcheck": true, "govulncheck": true,
 }
 
 // ciSlowJobs are the suites kept off the required pull request run.
@@ -334,6 +334,47 @@ func TestCIRacePlanQueueEntries(t *testing.T) {
 		if !strings.Contains(s, want) {
 			t.Errorf("race plan lacks %q", want)
 		}
+	}
+}
+
+// The race run of knowledgegate is sharded, and the job name the nightly-fix
+// check matches by name stays reported: by a result job that is red unless
+// every shard succeeded (its plan also runs the shards for a change to the
+// workflow itself, so the fixing pull request carries a green result).
+func TestCIRaceKnowledgegateResult(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "ci.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wf ciWorkflowFile
+	if err := yaml.Unmarshal(raw, &wf); err != nil {
+		t.Fatal(err)
+	}
+	res, ok := wf.Jobs["race-knowledgegate-result"]
+	if !ok {
+		t.Fatal("job race-knowledgegate-result is missing")
+	}
+	if res.Name != "Race detector (./internal/maintainer/knowledgegate/)" {
+		t.Errorf("result job name %q is not the stable nightly name", res.Name)
+	}
+	text, _ := yaml.Marshal(res)
+	for _, want := range []string{"race-knowledgegate", "always()", `!= "success"`, "exit 1"} {
+		if !strings.Contains(string(text), want) {
+			t.Errorf("result job lacks %q", want)
+		}
+	}
+	s := string(raw)
+	for _, want := range []string{
+		`[ "${EVENT_NAME}" = "workflow_dispatch" ]`,
+		`scripts/ci-test-shard\.sh`,
+		`knowledgegate=true`,
+	} {
+		if !strings.Contains(s, want) {
+			t.Errorf("race plan lacks %q", want)
+		}
+	}
+	if strings.Contains(s, `timeout_minutes: 90, go_timeout: "85m"}]`) {
+		t.Error("the single-process knowledgegate race entry is back")
 	}
 }
 
