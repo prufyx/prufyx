@@ -529,12 +529,21 @@ func Compute(in Input) (Report, error) {
 	// takes the component of its reviewed CRD target. Fail closed: a project
 	// that already owns a component, a component that another project owns
 	// or that two targets claim, or an empty component attributes nothing.
-	targetClaims := map[string]int{}
-	for _, c := range in.CRDTargetComponents {
-		targetClaims[c]++
+	// A project that has both a CRD and a change-list target for the same
+	// component is one claimant, not two: a change-list target never takes
+	// away an attribution the CRD target already makes.
+	claimants := map[string]map[string]bool{}
+	claim := func(project, c string) {
+		if claimants[c] == nil {
+			claimants[c] = map[string]bool{}
+		}
+		claimants[c][project] = true
 	}
-	for _, c := range in.ChangelogTargetComponents {
-		targetClaims[c]++
+	for project, c := range in.CRDTargetComponents {
+		claim(project, c)
+	}
+	for project, c := range in.ChangelogTargetComponents {
+		claim(project, c)
 	}
 	attributable := map[string]string{}
 	for project, c := range in.CRDTargetComponents {
@@ -546,7 +555,7 @@ func Compute(in Input) (Report, error) {
 		}
 	}
 	for project, c := range attributable {
-		if c == "" || targetClaims[c] != 1 || len(components[project]) > 0 || linesFile.Projects[project].Component != "" {
+		if c == "" || len(claimants[c]) != 1 || len(components[project]) > 0 || linesFile.Projects[project].Component != "" {
 			continue
 		}
 		if _, inSnapshot := linesFile.Projects[project]; !inSnapshot {
@@ -938,9 +947,11 @@ func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineatt
 				if bf, ok := boundedFamilies(fromLine, toLine, rules); ok {
 					pair.Status, pair.Families, pair.canBlock = StatusB, bf, true
 				} else {
-					pair.Changelog = true
+					// order A, B, S, L: the exact-pair rule keeps S and the list mark is dropped
 					if exactPairRule(project, fromLine, toLine, rules) {
-						pair.Status = StatusS // order A, B, S, L: the exact-pair rule keeps S
+						pair.Status = StatusS
+					} else {
+						pair.Changelog = true
 					}
 				}
 				return pair
@@ -951,9 +962,10 @@ func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineatt
 				if bf, ok := boundedFamilies(fromLine, toLine, rules); ok {
 					pair.Status, pair.Families, pair.canBlock = StatusB, bf, true
 				} else {
-					pair.Changelog = true
 					if exactPairRule(project, fromLine, toLine, rules) {
 						pair.Status = StatusS
+					} else {
+						pair.Changelog = true
 					}
 				}
 				return pair
