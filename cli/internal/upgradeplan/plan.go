@@ -444,7 +444,7 @@ func hopTables(plan *Plan) {
 			// match by their position in the route, which both lists share.
 			for n := range route.HopTable {
 				for _, jh := range route.Jump.Hops {
-					if jh.Status == scanreport.JumpHopAttention && jh.Index == route.HopTable[n].Index && (route.HopTable[n].Status == VerdictBlocked || route.HopTable[n].Status == VerdictPass) {
+					if jh.Status == scanreport.JumpHopAttention && len(jh.WiderRuleIDs) == 0 && jh.Index == route.HopTable[n].Index && (route.HopTable[n].Status == VerdictBlocked || route.HopTable[n].Status == VerdictPass) {
 						route.HopTable[n].Status = scanreport.JumpHopAttention
 						route.HopTable[n].Reasons = append(route.HopTable[n].Reasons, jh.Entries...)
 					}

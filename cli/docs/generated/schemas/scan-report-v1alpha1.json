@@ -768,6 +768,7 @@
             "EVIDENCE_EXPIRED",
             "INTERMEDIATE_LINE_NOT_COVERED_BY_RANGE",
             "LINE_NOT_ATTESTED",
+            "LINES_NOT_LISTED",
             "MAJOR_HOP_NOT_COVERED",
             "NO_REVIEWED_PATH_POLICY",
             "PATH_NOT_PLANNABLE",
@@ -1555,6 +1556,18 @@
           "type": "string"
         },
         "ruleIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "widerRuleIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "widerNoticeIds": {
           "type": "array",
           "items": {
             "type": "string"

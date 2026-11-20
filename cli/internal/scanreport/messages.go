@@ -27,6 +27,7 @@ const (
 	ReasonPathNotPlannable           = "PATH_NOT_PLANNABLE"
 	ReasonComponentNotCovered        = "COMPONENT_NOT_COVERED"
 	ReasonMajorHopNotCovered         = "MAJOR_HOP_NOT_COVERED"
+	ReasonLinesNotListed             = "LINES_NOT_LISTED"
 	ReasonVersionNotDetected         = "VERSION_NOT_DETECTED"
 	ReasonVersionConflict            = "VERSION_CONFLICT"
 	ReasonDeclarationMissing         = "DECLARATION_MISSING"
@@ -135,6 +136,9 @@ const (
 	// GapMajorHopNotCovered: the hop of a jump that changes the major line is
 	// decided by no rule scoped to that transition.
 	GapMajorHopNotCovered GapKey = ReasonMajorHopNotCovered
+	// GapLinesNotListed: the client holds no list of the release lines between
+	// the last reviewed line of a major and the first line of the next.
+	GapLinesNotListed GapKey = ReasonLinesNotListed
 	// GapHelmValuesNotComplete: the supplied values are not declared to be
 	// every values source of the release.
 	GapHelmValuesNotComplete GapKey = ReasonDeclarationMissing + "/helm-values-complete"
@@ -308,6 +312,8 @@ var gapMessages = map[GapKey]gapMessage{
 		"see the other gaps of this hop, or check the CRDs of %[1]s by hand", 1},
 	GapMajorHopNotCovered: {"major upgrade: no reviewed rule for %[1]s -> %[2]s",
 		"read the upstream upgrade guide for the major change %[1]s -> %[2]s, or request coverage", 2},
+	GapLinesNotListed: {"release lines after %[1]s and before %[2]s.0 are not known to this client; each needs its own review",
+		"request a review of each release line after %[1]s and before %[2]s.0", 2},
 	GapChartValuesOnly: {"%[1]s chart %[2]s: only its values and Kubernetes-version rules are checked, not the rest of the upgrade",
 		"verify the rest of the chart's upgrade notes and the %[1]s release notes by hand", 2},
 	GapHelmValuesNotComplete: {"%[1]s chart %[2]s: the supplied values are not declared complete, so no required key is confirmed",
@@ -329,7 +335,7 @@ func GapReasons() []string {
 	return []string{
 		ReasonAlphaAPINotCovered, ReasonAPIVersionNotReviewed, ReasonAPIVersionNotServed, ReasonUnsupportedCombination, ReasonComponentNotCovered, ReasonDeclarationMismatch, ReasonDeclarationMissing,
 		ReasonDistributionNotCovered, ReasonDocumentsNotEvaluated, ReasonDocumentsTemplated, ReasonDowngradeNotReviewed,
-		ReasonEvidenceExpired, ReasonIntermediateLineNotCovered, ReasonLineNotAttested, ReasonMajorHopNotCovered, ReasonNoReviewedPathPolicy,
+		ReasonEvidenceExpired, ReasonIntermediateLineNotCovered, ReasonLinesNotListed, ReasonLineNotAttested, ReasonMajorHopNotCovered, ReasonNoReviewedPathPolicy,
 		ReasonPathNotPlannable, ReasonPathPolicyNotCurrent, ReasonProjectNotInKnowledge, ReasonRuleNotDecided, ReasonVersionConflict, ReasonVersionNotDetected,
 	}
 }
