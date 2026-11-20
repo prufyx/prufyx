@@ -21,7 +21,9 @@ import (
 // embeddedProjectTargets builds the per-project layout of the embedded pack.
 func embeddedProjectTargets(t *testing.T, revision string) ([]byte, []Target) {
 	t.Helper()
-	index, built, err := cncfcheck.BuildEmbeddedExternalTargets(revision, nil)
+	// The publisher path while the oldest supported client is below the
+	// listed-family floor: the real exclusion runs.
+	index, built, _, err := cncfcheck.BuildEmbeddedExternalTargetsPinned(revision, nil, "v0.1.0-beta.0")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -30,6 +30,20 @@ func listedPack(t *testing.T) []byte {
 	if err := json.Unmarshal(embedded, &pack); err != nil {
 		t.Fatal(err)
 	}
+	// The embedded pack may already carry listed records: start from the
+	// pack as a publisher below the floor ships it (the real exclusion), so
+	// the injected record is the only listed one.
+	if raw, ok := pack["lineAttestations"]; ok {
+		kept, _, err := cncfcheck.ExcludeListedAttestations(raw, "v0.1.0-beta.0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(kept) == 0 {
+			delete(pack, "lineAttestations")
+		} else {
+			pack["lineAttestations"] = kept
+		}
+	}
 	var atts []lineattest.LineAttestation
 	if raw, ok := pack["lineAttestations"]; ok {
 		if atts, err = lineattest.Parse(raw); err != nil {
