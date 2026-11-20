@@ -597,26 +597,35 @@ func (c *checker) render(name, tag, prev, toCommit string) (r3, r4 string, ok bo
 	return r3, r4, true
 }
 
-// changelogSection returns the text of the single "## [version]" entry.
-func changelogSection(doc, version string) (string, bool) {
+// changelogSpan returns the byte span of the single "## [version]" entry.
+func changelogSpan(doc, version string) (start, end int, ok bool) {
 	locs := headingRe.FindAllStringSubmatchIndex(doc, -1)
 	found := -1
 	for i, l := range locs {
 		if doc[l[2]:l[3]] == version {
 			if found >= 0 {
-				return "", false
+				return 0, 0, false
 			}
 			found = i
 		}
 	}
 	if found < 0 {
-		return "", false
+		return 0, 0, false
 	}
-	end := len(doc)
+	end = len(doc)
 	if found+1 < len(locs) {
 		end = locs[found+1][0]
 	}
-	return doc[locs[found][0]:end], true
+	return locs[found][0], end, true
+}
+
+// changelogSection returns the text of the single "## [version]" entry.
+func changelogSection(doc, version string) (string, bool) {
+	s, e, ok := changelogSpan(doc, version)
+	if !ok {
+		return "", false
+	}
+	return doc[s:e], true
 }
 
 func (c *checker) changelogScans(doc string, want map[string]bool) []scanText {
