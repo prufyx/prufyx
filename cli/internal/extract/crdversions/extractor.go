@@ -85,6 +85,10 @@ type Extractor struct {
 	lines map[string]*releaseLine
 	// lineOf maps a tag name to its line key.
 	lineOf map[string]string
+	// deriveTrees: clear nominated non-install trees (treeproof.go);
+	// treeWords holds the words of the files the proof reads, by object id.
+	deriveTrees bool
+	treeWords   map[string]surfaceWords
 }
 
 type inventoryResult struct {
@@ -98,7 +102,7 @@ func New(t Target) *Extractor { return NewConcurrent(t, 1) }
 // NewConcurrent returns the extractor of a target that reads up to
 // concurrency files at a time during the scan. Output never depends on it.
 func NewConcurrent(t Target, concurrency int) *Extractor {
-	return &Extractor{target: t, concurrency: max(concurrency, 1), index: customresources.DefaultIndex(), cache: map[string]inventoryResult{}, scans: map[string]*ScanRecord{}, blobs: map[string]*blobInfo{}, surfaces: map[string]*surfaceInfo{}, lines: map[string]*releaseLine{}, lineOf: map[string]string{}}
+	return &Extractor{target: t, concurrency: max(concurrency, 1), index: customresources.DefaultIndex(), cache: map[string]inventoryResult{}, scans: map[string]*ScanRecord{}, blobs: map[string]*blobInfo{}, surfaces: map[string]*surfaceInfo{}, treeWords: map[string]surfaceWords{}, lines: map[string]*releaseLine{}, lineOf: map[string]string{}}
 }
 
 // WithIndex makes the extractor attribute definitions by ix instead of the

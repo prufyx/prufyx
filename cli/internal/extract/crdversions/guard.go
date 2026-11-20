@@ -725,6 +725,12 @@ func (x *Extractor) guard(ctx context.Context, r extract.PinnedReader, repo extr
 			excl = append(excl, e)
 		}
 	}
+	return x.guardEntries(ctx, r, repo, commit, blobs, commits, inv, excl)
+}
+
+// guardEntries is guard over the given entries (the reviewed ones, or the
+// directories a tree proof nominates, see treeproof.go).
+func (x *Extractor) guardEntries(ctx context.Context, r extract.PinnedReader, repo extract.RepoRef, commit string, blobs []extract.TreeEntry, commits []string, inv *Inventory, excl []Exclusion) ([]Finding, map[string]bool, error) {
 	if len(excl) == 0 {
 		return nil, nil, nil
 	}

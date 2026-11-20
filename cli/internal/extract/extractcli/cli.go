@@ -75,7 +75,7 @@ func Catalog() map[string]Spec {
 		out[t.ExtractorID()] = Spec{
 			ID:     t.ExtractorID(),
 			Repo:   t.Repo,
-			New:    func(c int) extract.Extractor { return crdversions.NewConcurrent(t, c) },
+			New:    func(c int) extract.Extractor { return crdversions.NewConcurrent(t, c).WithDerivedTrees() },
 			Oracle: crdversions.Oracle,
 		}
 	}
