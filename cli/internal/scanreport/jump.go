@@ -127,16 +127,16 @@ func ComposeJump(hops []JumpHop, digest string) (status string, decidedBy []int)
 	var blocked, attention, passed []int
 	for _, hop := range hops {
 		norm := hop.normal(digest)
+		// A rule that blocks the upgrade over the hop (WiderRuleIDs) makes the
+		// jump BLOCKED whatever the hop's own status is and whatever object
+		// set it sits on: nothing a hop says about itself (PASS, ATTENTION,
+		// UNDECIDED, an exact notice) lowers it. A notice of a wider rule
+		// (WiderNoticeIDs) keeps the hop from counting as PASS and counts as
+		// ATTENTION, unless the hop itself is BLOCKED.
 		switch {
-		case norm == JumpHopBlocked:
+		case norm == JumpHopBlocked || len(hop.WiderRuleIDs) > 0:
 			blocked = append(blocked, hop.Index)
-		case norm == JumpHopUndecided && digest != "" && hop.ObjectSetDigest == digest && len(hop.WiderRuleIDs) > 0:
-			// Not decided by a rule of this hop, but a rule that blocks the
-			// upgrade over it does: the jump is not UNKNOWN beside a block.
-			blocked = append(blocked, hop.Index)
-		case norm == JumpHopAttention:
-			attention = append(attention, hop.Index)
-		case norm == JumpHopUndecided && digest != "" && hop.ObjectSetDigest == digest && len(hop.WiderNoticeIDs) > 0:
+		case len(hop.WiderNoticeIDs) > 0 || norm == JumpHopAttention:
 			attention = append(attention, hop.Index)
 		case norm == JumpHopPass:
 			passed = append(passed, hop.Index)
@@ -206,10 +206,11 @@ func JumpLines(component, from, to string, j Jump) []string {
 			text += " " + strings.Join(hop.RuleIDs, ", ")
 		case len(hop.Entries) > 0:
 			text += " " + strings.Join(hop.Entries, "; ")
-		case len(hop.WiderRuleIDs) > 0 || len(hop.WiderNoticeIDs) > 0:
-			text += " (" + strings.Join(hop.Reasons, ", ") + "; wider-range rule, not scoped to this hop: " + strings.Join(append(append([]string{}, hop.WiderRuleIDs...), hop.WiderNoticeIDs...), ", ") + ")"
 		case len(hop.Reasons) > 0:
 			text += " (" + strings.Join(hop.Reasons, ", ") + ")"
+		}
+		if wider := append(append([]string{}, hop.WiderRuleIDs...), hop.WiderNoticeIDs...); len(wider) > 0 {
+			text += " [wider-range rule, not scoped to this hop: " + strings.Join(wider, ", ") + "]"
 		}
 		out = append(out, text)
 	}

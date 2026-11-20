@@ -74,6 +74,12 @@ func TestMajorHopDecidedOnlyByRulesScopedToItsTransition(t *testing.T) {
 	if j.Status != scanreport.JumpBlocked || j.Hops[1].Status != scanreport.JumpHopBlocked || len(j.Hops[1].RuleIDs) != 1 || j.Hops[1].RuleIDs[0] != "exact" {
 		t.Fatalf("exact beside wide: %+v", j)
 	}
+	// A wider BLOCK beside an exact notice: the hop is ATTENTION by its exact
+	// notice, the jump is BLOCKED citing the wider rule (never lower).
+	j = compose(hopDecision{blocks: []string{"crossing"}, neutral: []neutralRule{{id: "exact-notice", text: "read", noticed: true}}})
+	if j.Status != scanreport.JumpBlocked || j.Hops[1].Status != scanreport.JumpHopAttention || len(j.Hops[1].WiderRuleIDs) != 1 || j.Hops[1].WiderRuleIDs[0] != "crossing" || len(j.DecidedBy) != 1 || j.DecidedBy[0] != 2 {
+		t.Fatalf("wider block beside an exact notice: %+v", j)
+	}
 	// An exact notice still makes the hop ATTENTION (never a pass).
 	j = compose(hopDecision{neutral: []neutralRule{{id: "exact-notice", text: "read", noticed: true}}})
 	if j.Status != scanreport.JumpAttention || j.Hops[1].Status != scanreport.JumpHopAttention {
@@ -103,5 +109,61 @@ func TestMajorHopCarriesLinesNotListed(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("gaps %v", gapReasons(result.Report))
+	}
+}
+
+// Combinations of exact and wider rules on one hop: a wider BLOCK makes the
+// jump BLOCKED whatever else the hop says (an exact notice, a decided PASS
+// looking hop, an undecided one); a wider notice never lowers a block and
+// never lets the hop count as PASS.
+func TestJumpWiderRuleCombinations(t *testing.T) {
+	t.Parallel()
+	const digest = "sha256:1"
+	hop := func(index int, status string, mutate func(*scanreport.JumpHop)) scanreport.JumpHop {
+		h := scanreport.JumpHop{Index: index, From: "0.50.1", To: "0.51", Status: status, ObjectSetDigest: digest}
+		if index == 2 {
+			h.From, h.To = "0.51", "1.0"
+		}
+		if mutate != nil {
+			mutate(&h)
+		}
+		return h
+	}
+	pass := hop(1, scanreport.JumpHopPass, nil)
+	cases := map[string]struct {
+		second scanreport.JumpHop
+		want   string
+	}{
+		"wider block, exact notice (attention)": {hop(2, scanreport.JumpHopAttention, func(h *scanreport.JumpHop) {
+			h.Entries, h.WiderRuleIDs = []string{"exact-notice: read"}, []string{"crossing"}
+		}), scanreport.JumpBlocked},
+		"wider block, undecided":                       {hop(2, scanreport.JumpHopUndecided, func(h *scanreport.JumpHop) { h.WiderRuleIDs = []string{"crossing"} }), scanreport.JumpBlocked},
+		"wider block on a hop that looks decided PASS": {hop(2, scanreport.JumpHopPass, func(h *scanreport.JumpHop) { h.WiderRuleIDs = []string{"crossing"} }), scanreport.JumpBlocked},
+		"wider block on another object set": {hop(2, scanreport.JumpHopUndecided, func(h *scanreport.JumpHop) {
+			h.ObjectSetDigest, h.WiderRuleIDs = "sha256:2", []string{"crossing"}
+		}), scanreport.JumpBlocked},
+		"wider notice, exact block": {hop(2, scanreport.JumpHopBlocked, func(h *scanreport.JumpHop) {
+			h.RuleIDs, h.WiderNoticeIDs = []string{"exact"}, []string{"wide-notice"}
+		}), scanreport.JumpBlocked},
+		"wider notice, exact notice": {hop(2, scanreport.JumpHopAttention, func(h *scanreport.JumpHop) {
+			h.Entries, h.WiderNoticeIDs = []string{"exact-notice: read"}, []string{"wide-notice"}
+		}), scanreport.JumpAttention},
+		"wider notice alone":                    {hop(2, scanreport.JumpHopUndecided, func(h *scanreport.JumpHop) { h.WiderNoticeIDs = []string{"wide-notice"} }), scanreport.JumpAttention},
+		"wider notice on a hop that looks PASS": {hop(2, scanreport.JumpHopPass, func(h *scanreport.JumpHop) { h.WiderNoticeIDs = []string{"wide-notice"} }), scanreport.JumpAttention},
+		"wider block and wider notice": {hop(2, scanreport.JumpHopUndecided, func(h *scanreport.JumpHop) {
+			h.WiderRuleIDs, h.WiderNoticeIDs = []string{"crossing"}, []string{"wide-notice"}
+		}), scanreport.JumpBlocked},
+	}
+	for name, tc := range cases {
+		j := scanreport.NewJump([]scanreport.JumpHop{pass, tc.second}, digest, nil, nil)
+		if j.Status != tc.want || j.Status == scanreport.JumpStepwisePass || len(j.DecidedBy) != 1 || j.DecidedBy[0] != 2 {
+			t.Fatalf("%s: status %s decidedBy %v", name, j.Status, j.DecidedBy)
+		}
+		if len(tc.second.WiderRuleIDs) > 0 || len(tc.second.WiderNoticeIDs) > 0 {
+			text := strings.Join(scanreport.JumpLines("strimzi", "0.50.1", "1.0", j), "\n")
+			if !strings.Contains(text, "wider-range rule, not scoped to this hop") {
+				t.Fatalf("%s: text\n%s", name, text)
+			}
+		}
 	}
 }
