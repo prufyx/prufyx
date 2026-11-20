@@ -89,13 +89,20 @@ func TestConstraintsProjectsRejectOddMemberNamesInThePackage(t *testing.T) {
 func TestConstraintsProjectsRejectPackageOverTheMemberTotalBeforeStoreUse(t *testing.T) {
 	f := newProjectsFixture(t)
 	base := projectsTargets(t, "5", nil)
+	// The base targets grow with the embedded data, so fillers are added in
+	// steps smaller than the 1 MiB window until the package passes 7 MiB.
 	extra := map[string][]byte{}
-	for i := 0; i < 8; i++ {
+	var path string
+	var info os.FileInfo
+	var err error
+	for i := 0; i < 32; i++ {
 		name := "targets/knowledge/cncf/projects/" + hexOf(strings.Repeat("m", i+1)) + ".filler.v1.json"
-		extra[name] = []byte(strings.Repeat(" ", 880000))
+		extra[name] = []byte(strings.Repeat(" ", 440000))
+		path = f.write(t, knowledgefixture.ProjectsPackage{Targets: base, Extra: extra})
+		if info, err = os.Stat(path); err != nil || info.Size() > 7<<20 {
+			break
+		}
 	}
-	path := f.write(t, knowledgefixture.ProjectsPackage{Targets: base, Extra: extra})
-	info, err := os.Stat(path)
 	if err != nil || info.Size() <= 7<<20 || info.Size() >= 8<<20 {
 		t.Fatalf("test package size %v is not between the member total and the file bound: %v", info, err)
 	}
