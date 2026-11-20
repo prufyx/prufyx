@@ -6,7 +6,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -114,6 +116,20 @@ type Workspace struct {
 // ErrDecode reports bytes that are not valid or not within bounds.
 var ErrDecode = errors.New("input is not a bounded YAML or JSON document set")
 
+// DecodeError is an ErrDecode that names the file, the 1-based line and the
+// refused construct. File is escaped when printed.
+type DecodeError struct {
+	File string
+	Line int
+	What string
+}
+
+func (e *DecodeError) Error() string {
+	return fmt.Sprintf("%s: line %d: %s", strconv.QuoteToASCII(e.File), e.Line, e.What)
+}
+
+func (e *DecodeError) Is(target error) bool { return target == ErrDecode }
+
 // Decode reads one file's bytes as single or multi-document YAML or JSON. The
 // manifest options keep the strictness of the JSON preparers (duplicate keys
 // that differ only in case are rejected) and read untagged timestamps as text.
@@ -153,6 +169,10 @@ func decodeFile(display string, raw []byte, bounds decodeOptions) (Workspace, er
 		// as undecodable.
 		if !errors.Is(err, errStructure) && hasTemplateSyntax(string(raw)) {
 			return Workspace{Omissions: []Omission{{Source: Source{Display: display, Digest: digest, Item: -1}, Reason: ReasonUnparseable}}}, nil
+		}
+		var named refusal
+		if errors.As(err, &named) {
+			return Workspace{}, &DecodeError{File: display, Line: named.line, What: named.what}
 		}
 		return Workspace{}, ErrDecode
 	}

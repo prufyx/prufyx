@@ -1,0 +1,4 @@
+### Changed
+- A file refused for a deliberately unsupported YAML construct (anchors and aliases, merge keys, duplicate or non-string keys, nesting beyond the depth limit, oversized mappings and sequences) now names the construct, the file and the line, and says how to fix it. File names are escaped. What is admitted does not change and the exit code stays 2.
+- An input that yields no documents (an empty directory, or files with only comments or empty documents) is now a usage refusal (exit 2) that says to pass rendered manifests, instead of an UNKNOWN result.
+- Behaviour change for CI users of the GitHub Action (`scripts/action/run.sh`, `action.yml`): an empty manifest set (no documents read) used to end as a passing warning (UNKNOWN, exit 11 with `fail-on: blocked`); it now fails the step with exit 2, which is invalid input.

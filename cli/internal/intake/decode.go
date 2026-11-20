@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -144,6 +146,45 @@ func structuralTokens(raw []byte) int {
 	return count
 }
 
+// refusal names a construct the decoder deliberately refuses, and where it
+// is. It is an unsupported-input error like errK8sComponentYAML.
+type refusal struct {
+	line int
+	what string
+}
+
+func (e refusal) Error() string { return fmt.Sprintf("line %d: %s", e.line, e.what) }
+
+func (e refusal) Is(target error) bool { return target == errK8sComponentYAML }
+
+// structuralRefusal is a refusal of a bound or uniqueness rule. It is also an
+// errStructure, so template syntax is never blamed for it.
+type structuralRefusal struct{ refusal }
+
+func (e structuralRefusal) Unwrap() error { return e.refusal }
+
+func structural(line int, what string) error { return structuralRefusal{refusal{line, what}} }
+
+func (e structuralRefusal) Is(target error) bool {
+	return target == errK8sComponentYAML || target == errStructure
+}
+
+const (
+	whatAnchor  = "YAML anchors and aliases are not supported; expand them (for example `yq 'explode(.)'`)"
+	whatMerge   = "YAML merge keys (`<<:`) are not supported; expand them (for example `yq 'explode(.)'`)"
+	whatTag     = "custom or non-standard YAML tags are not supported; write the value as a plain scalar"
+	whatKey     = "mapping keys must be non-empty plain strings"
+	whatDup     = "duplicate mapping keys are not supported"
+	whatFold    = "mapping keys that differ only in letter case are not supported"
+	whatMembers = "a mapping with more than 4096 keys is not supported"
+	whatItems   = "a sequence with more than 2048 items is not supported"
+	whatScalar  = "this scalar type is not supported; quote the value"
+)
+
+func depthWhat(limit int) string {
+	return fmt.Sprintf("nesting deeper than %d levels is not supported", limit)
+}
+
 func decodeDocuments(raw []byte, opts decodeOptions) ([]any, error) {
 	decoder := yaml.NewDecoder(bytes.NewReader(raw))
 	documents := make([]any, 0, 1)
@@ -166,7 +207,7 @@ func decodeDocuments(raw []byte, opts decodeOptions) ([]any, error) {
 			break
 		}
 		if err != nil {
-			return nil, errK8sComponentYAML
+			return nil, parseRefusal(err)
 		}
 		if node.Kind != yaml.DocumentNode {
 			return nil, errK8sComponentYAML
@@ -304,34 +345,45 @@ func (opts decodeOptions) yamlValue(node *yaml.Node, depth int, budget *int, ctx
 	if *budget < 0 {
 		return nil, limitReached{"nodes"}
 	}
-	if node == nil || node.Anchor != "" || node.Alias != nil || node.Kind == yaml.AliasNode {
+	if node == nil {
 		return nil, errK8sComponentYAML
 	}
+	if node.Anchor != "" || node.Alias != nil || node.Kind == yaml.AliasNode {
+		return nil, refusal{node.Line, whatAnchor}
+	}
 	if depth > opts.depthLimit() {
-		return nil, errStructure
+		return nil, structural(node.Line, depthWhat(opts.depthLimit()))
 	}
 	switch node.Kind {
 	case yaml.MappingNode:
-		if node.ShortTag() != "!!map" || len(node.Content)%2 != 0 {
+		if node.ShortTag() != "!!map" {
+			return nil, refusal{node.Line, whatTag}
+		}
+		if len(node.Content)%2 != 0 {
 			return nil, errK8sComponentYAML
 		}
 		if len(node.Content)/2 > MaxObjectMembers {
-			return nil, errStructure
+			return nil, structural(node.Line, whatMembers)
 		}
 		object := make(map[string]any, len(node.Content)/2)
 		seen := map[string]bool{}
 		for index := 0; index < len(node.Content); index += 2 {
 			key := node.Content[index]
-			if key.Kind != yaml.ScalarNode || key.ShortTag() != "!!str" || key.Anchor != "" || key.Alias != nil || key.Value == "" || key.Value == "<<" {
-				return nil, errK8sComponentYAML
+			switch {
+			case key.Anchor != "" || key.Alias != nil || key.Kind == yaml.AliasNode:
+				return nil, refusal{key.Line, whatAnchor}
+			case key.Kind == yaml.ScalarNode && key.Value == "<<":
+				return nil, refusal{key.Line, whatMerge}
+			case key.Kind != yaml.ScalarNode || key.ShortTag() != "!!str" || key.Value == "":
+				return nil, refusal{key.Line, whatKey}
 			}
 			if _, duplicate := object[key.Value]; duplicate {
-				return nil, errStructure
+				return nil, structural(key.Line, whatDup)
 			}
 			if opts.foldKeys && ctx != ctxProps {
 				folded := strings.ToLower(key.Value)
 				if seen[folded] {
-					return nil, errStructure
+					return nil, structural(key.Line, whatFold)
 				}
 				seen[folded] = true
 			}
@@ -344,7 +396,10 @@ func (opts decodeOptions) yamlValue(node *yaml.Node, depth int, budget *int, ctx
 		return object, nil
 	case yaml.SequenceNode:
 		if node.ShortTag() != "!!seq" {
-			return nil, errK8sComponentYAML
+			return nil, refusal{node.Line, whatTag}
+		}
+		if len(node.Content) > MaxArrayItems {
+			return nil, structural(node.Line, whatItems)
 		}
 		if len(node.Content) > MaxArrayItems {
 			return nil, errStructure
@@ -369,7 +424,7 @@ func (opts decodeOptions) yamlValue(node *yaml.Node, depth int, budget *int, ctx
 			case "false", "False", "FALSE":
 				return false, nil
 			}
-			return nil, errK8sComponentYAML
+			return nil, refusal{node.Line, whatScalar}
 		case "!!int", "!!float":
 			return json.Number(node.Value), nil
 		case "!!null":
@@ -379,7 +434,32 @@ func (opts decodeOptions) yamlValue(node *yaml.Node, depth int, budget *int, ctx
 				return node.Value, nil
 			}
 		}
-		return nil, errK8sComponentYAML
+		return nil, refusal{node.Line, whatScalar}
 	}
 	return nil, errK8sComponentYAML
+}
+
+var parseLine = regexp.MustCompile(`^yaml: (?:unmarshal errors:\n\s*)?line (\d+): (.*)$`)
+
+// parseRefusal names the line and the parser's reason for bytes that are not
+// YAML at all. Anything it cannot place stays the unnamed refusal.
+func parseRefusal(err error) error {
+	match := parseLine.FindStringSubmatch(strings.SplitN(err.Error(), "\n", 2)[0])
+	if match == nil {
+		return errK8sComponentYAML
+	}
+	line, convErr := strconv.Atoi(match[1])
+	if convErr != nil {
+		return errK8sComponentYAML
+	}
+	reason := strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return '?'
+		}
+		return r
+	}, match[2])
+	if len(reason) > 120 {
+		reason = strings.ToValidUTF8(reason[:120], "")
+	}
+	return refusal{line, "not valid YAML or JSON: " + reason}
 }

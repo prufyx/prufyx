@@ -17,6 +17,7 @@ import (
 	"io"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -278,6 +279,14 @@ func Run(request Request, options Options) (Result, error) {
 	workspace, err := intake.Open(paths, intake.Options{Permissions: request.Permissions, Stdin: options.Stdin})
 	if err != nil {
 		return Result{}, inputError(err, request)
+	}
+	if len(workspace.Documents) == 0 && len(workspace.Omissions) == 0 && len(workspace.Auxiliary) == 0 &&
+		len(effective.Helm) == 0 {
+		shown := strings.Join(quoteAll(paths), ", ")
+		if request.Redact {
+			shown = "the input"
+		}
+		return Result{}, usage(scanreport.UsageNoDocuments, shown)
 	}
 	if knowledge == nil {
 		if err := openKnowledge(); err != nil {
@@ -630,6 +639,13 @@ func inputError(err error, request Request) error {
 	case errors.Is(err, intake.ErrLimit):
 		message = scanreport.Text(scanreport.UsageInputLimit)
 	case errors.Is(err, intake.ErrDecode):
+		var named *intake.DecodeError
+		if errors.As(err, &named) {
+			if request.Redact {
+				return usage(scanreport.UsageInputNotAccepted, scanreport.Text(scanreport.UsageInputDetail, scanreport.Text(scanreport.UsageInputDecode), fmt.Sprintf("line %d: %s", named.Line, named.What)))
+			}
+			return usage(scanreport.UsageInputNotAccepted, scanreport.Text(scanreport.UsageInputRefused, named.Error()))
+		}
 		message = scanreport.Text(scanreport.UsageInputDecode)
 	case errors.Is(err, validation.ErrUnsupportedPlatform):
 		// A fixed message, shown even when paths are redacted.
@@ -843,4 +859,12 @@ func storeGap(store *StoreInfo, slug string) (scanreport.Gap, bool) {
 		return scanreport.NewGap(slug, nil, scanreport.GapProjectRulesDeferred, slug), true
 	}
 	return scanreport.Gap{}, false
+}
+
+func quoteAll(paths []string) []string {
+	out := make([]string, len(paths))
+	for i, path := range paths {
+		out[i] = strconv.QuoteToASCII(path)
+	}
+	return out
 }

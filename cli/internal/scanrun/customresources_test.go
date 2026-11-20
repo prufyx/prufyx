@@ -493,11 +493,11 @@ func TestScanCustomResourceRefusedInput(t *testing.T) {
 // Kubernetes object).
 func TestScanCustomResourceDocumentGaps(t *testing.T) {
 	t.Parallel()
-	result := crdScan(t, newCRDKnowledge(t), []string{"# nothing here\n"}, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete")
-	if !hasComponentGap(result.Report, "strimzi", scanreport.ReasonDocumentsNotEvaluated, "no Kubernetes manifests") {
-		t.Fatalf("empty input gaps %v", gapReasons(result.Report))
+	_, emptyPaths := files(t, map[string]string{"kafka.yaml": "# nothing here\n"})
+	if _, err := scan(t, newCRDKnowledge(t), append(append([]string{}, emptyPaths...), "--now", testNow, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete")...); err == nil || !strings.Contains(err.Error(), "no documents read from") {
+		t.Fatalf("empty input error %v, want the no-documents refusal", err)
 	}
-	result = crdScan(t, newCRDKnowledge(t), []string{kafkaV1Doc, "replicas: 3\n"}, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete")
+	result := crdScan(t, newCRDKnowledge(t), []string{kafkaV1Doc, "replicas: 3\n"}, "--from", "strimzi=0.51.0", "--to", "strimzi=1.0.0", "--resource-scope-complete")
 	if !hasComponentGap(result.Report, "strimzi", scanreport.ReasonDocumentsNotEvaluated, "1 document(s) are not Kubernetes objects") {
 		t.Fatalf("values document gaps %v", gapReasons(result.Report))
 	}
