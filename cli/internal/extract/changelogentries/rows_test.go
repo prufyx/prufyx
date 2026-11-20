@@ -283,6 +283,7 @@ func jsonStr(s string) string { b, _ := json.Marshal(s); return string(b) }
 // this list).
 var rowsRechecked = map[string]RecheckedRow{
 	"alertmanager": {RowDigest: "72ec19460e172522ea6203b6c0d2d67ce326131f1731bd0af83c4c865adaadda", FixtureDigest: "sha256:578e27e08e6116ea3272e05fbb1089a9876b39f772b35a32f2ba1b7eb5090e73"},
+	"antrea":       {RowDigest: "46d52d5369aba73022ac91104e6071c527fddeab346708de69f327e00c584d20", FixtureDigest: "sha256:655672ab5b9573957531b6057749b3d80dbe402c82b25828f2d41fd9832ecd9b"},
 	"prometheus":   {RowDigest: "d7d99823994415c019b8ade914dfea2b65d05e1edac8240eb76a826cce7b9ac7", FixtureDigest: "sha256:eff0f8dad6f786e841316143a70b0dc07f63e6b7d713ac094d6dd1ffc7851bba"},
 }
 
