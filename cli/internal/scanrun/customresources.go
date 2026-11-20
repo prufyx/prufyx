@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
@@ -49,6 +51,17 @@ type customResourceRun struct {
 	excluded map[string]bool
 	// rootGaps are the component-level gaps, by key.
 	rootGaps map[scanreport.GapKey]scanreport.Gap
+	// decided is true when some hop had a reviewed rule or line review that
+	// applied to it; blocked holds the sources a blocking rule matched;
+	// unknownVersion is true when the component has no from version.
+	ran     bool
+	decided bool
+	// hops is, per planned hop in order, what the hop decided; whole is
+	// what the whole-upgrade evaluation decided, which stands for every hop.
+	hops           []*hopCover
+	whole          *hopCover
+	blocked        map[intake.Source]bool
+	unknownVersion bool
 }
 
 // newCustomResourceRun returns the run of a targeted slug that has a
@@ -83,6 +96,9 @@ func (r *customResourceRun) evaluate(from, to string) error {
 	}
 	r.findings, r.passes, r.excluded = map[string]int{}, map[string]bool{}, map[string]bool{}
 	r.rootGaps = map[scanreport.GapKey]scanreport.Gap{}
+	r.blocked = map[intake.Source]bool{}
+	r.hops, r.whole = nil, nil
+	r.ran = true
 	r.componentGaps()
 	r.unresolvedSetGap(cncfprepare.KubernetesApplySetReason(r.workspace))
 
@@ -97,6 +113,7 @@ func (r *customResourceRun) evaluate(from, to string) error {
 		}
 	}()
 	if from == "" {
+		r.unknownVersion = true
 		path.Gap = scanreport.ReasonVersionNotDetected
 		r.gap(nil, scanreport.GapVersionNotDetected, r.slug)
 		return nil
@@ -215,6 +232,18 @@ func (r *customResourceRun) hop(hop upgradepath.Hop, only func(cncfcheck.ScanRul
 		From:  scanreport.Endpoint{Version: hop.From.Version, Line: hop.From.Line},
 		To:    scanreport.Endpoint{Version: hop.To.Version, Line: hop.To.Line},
 	}
+	// Every planned hop is recorded before any early return, so a hop that is
+	// not evaluated is never skipped by the coverage of an object.
+	cover := &hopCover{label: "hop " + strconv.Itoa(hop.Index) + " " + ref.From + " -> " + ref.To, kinds: map[string]bool{}}
+	if only != nil {
+		cover.label = "whole upgrade " + ref.From + " -> " + ref.To
+		if r.whole == nil {
+			r.whole = &hopCover{label: cover.label, kinds: map[string]bool{}}
+		}
+		cover = r.whole
+	} else {
+		r.hops = append(r.hops, cover)
+	}
 	fromVersion, fromOK := hop.From.EngineVersion()
 	toVersion, toOK := hop.To.EngineVersion()
 	if !fromOK || !toOK {
@@ -262,6 +291,7 @@ func (r *customResourceRun) hop(hop upgradepath.Hop, only func(cncfcheck.ScanRul
 		claims[claim.RuleID] = claim
 	}
 
+	cover.evaluated = true
 	blocked, applicable := false, 0
 	overlapping := map[string]bool{}
 	// applicableIDs are the verdict rules that overlap the hop; decided
@@ -301,6 +331,12 @@ func (r *customResourceRun) hop(hop upgradepath.Hop, only func(cncfcheck.ScanRul
 		if claim.Status == "BLOCKED" || claim.Status == "PASS" {
 			decided[rule.Scope.ID] = true
 			blocks[rule.Scope.ID] = claim.Status == "BLOCKED"
+			cover.decided = true
+			for _, member := range rule.SetMembers {
+				if kind, ok := memberKind(member); ok {
+					cover.kinds[kind] = true
+				}
+			}
 		}
 		switch claim.Status {
 		case "BLOCKED":
@@ -336,7 +372,11 @@ func (r *customResourceRun) hop(hop upgradepath.Hop, only func(cncfcheck.ScanRul
 				family.Status = scanreport.FamilyBlocked
 			}
 			result.Families = []scanreport.FamilyResult{*family}
+			cover.decided, cover.all = true, true
 		}
+	}
+	if applicable > 0 || len(result.Families) > 0 {
+		r.decided = true
 	}
 	// Nothing covers this hop: the component is only partly evaluated.
 	result.Reasons = append(result.Reasons, r.rootGaps[scanreport.GapCustomResourcesOnly].Reason)
@@ -615,6 +655,11 @@ func (r *customResourceRun) unknown(rule cncfcheck.ScanRule, claim constrainteng
 // finding records a BLOCKED claim once, located at the documents that
 // carry the forbidden versions.
 func (r *customResourceRun) finding(rule cncfcheck.ScanRule, claim constraintengine.Claim, prepared cncfprepare.CustomResourceScan, ref scanreport.HopRef) {
+	for _, member := range claim.MatchedMembers {
+		for _, source := range prepared.Members[member] {
+			r.blocked[source] = true
+		}
+	}
 	if _, found := r.findings[rule.Scope.ID]; found {
 		return
 	}
@@ -731,4 +776,52 @@ func uniqueStrings(values []string) []string {
 // from, by the component's own line scheme (lineattest.PreviousLine).
 func isPreviousLine(component, fromLine, toLine string) bool {
 	return lineattest.LineHop(component, fromLine, toLine)
+}
+
+// hopCover is what one evaluated hop decided: the group/Kind pairs its
+// decided rules name, or every kind when a line review decided the family.
+type hopCover struct {
+	label string
+	// evaluated is true once the hop's engine evaluation ran and its claims
+	// were accepted.
+	evaluated bool
+	decided   bool
+	all       bool
+	kinds     map[string]bool
+}
+
+// memberKind is "group/Kind" of a set member "group/version/Kind".
+func memberKind(member string) (string, bool) {
+	parts := strings.Split(member, "/")
+	if len(parts) != 3 {
+		return "", false
+	}
+	return parts[0] + "/" + parts[2], true
+}
+
+// coverage says whether every evaluated hop decided the group/Kind: it
+// returns "" when so, else the typed reason and the hop to name.
+func (r *customResourceRun) coverage(kind string) (reason, hop string) {
+	if len(r.hops) == 0 {
+		return scanreport.CRPairNotCovered, ""
+	}
+	covered, anyDecided, allEvaluated := 0, r.whole != nil && r.whole.decided, true
+	var missing string
+	for _, h := range r.hops {
+		anyDecided = anyDecided || h.decided
+		allEvaluated = allEvaluated && h.evaluated
+		if h.evaluated && (h.all || h.kinds[kind] || r.whole != nil && (r.whole.all || r.whole.kinds[kind])) {
+			covered++
+		} else if missing == "" {
+			missing = h.label
+		}
+	}
+	switch {
+	case covered == len(r.hops):
+		return "", ""
+	case covered == 0 && anyDecided && allEvaluated:
+		return scanreport.CRKindNotCoveredByRules, missing
+	default:
+		return scanreport.CRPairNotCovered, missing
+	}
 }

@@ -110,6 +110,31 @@ func Human(report Report, options HumanOptions) []byte {
 			line("  %s   %s - %s", gapScope(gap), gap.Detail, gap.Action)
 		}
 	}
+	if len(report.CustomResources) > 0 {
+		line("")
+		line("CUSTOM RESOURCES (%d)", len(report.CustomResources))
+		for i, cr := range report.CustomResources {
+			if i == maxCustomResourceLines {
+				line("  and %d more (see --format json)", len(report.CustomResources)-i)
+				break
+			}
+			name := short(cr.Name)
+			if name == "" {
+				name = labelNoName
+			}
+			if cr.Namespace != "" {
+				name = short(cr.Namespace) + "/" + name
+			}
+			state := cr.Status
+			if cr.Verdict != "" {
+				state += " " + cr.Verdict
+			}
+			if cr.Reason != "" {
+				state += " (" + cr.Reason + ")"
+			}
+			line("  %s %s %s   %s - %s", cr.APIVersion, cr.Kind, name, state, cr.Next)
+		}
+	}
 	if len(report.Notices) > 0 {
 		line("")
 		line(labelNotices, len(report.Notices))
@@ -470,6 +495,9 @@ func locationText(location Location) string {
 	return place + "  " + location.Kind + " " + name
 }
 
+// maxCustomResourceLines bounds the text listing; JSON lists every object.
+const maxCustomResourceLines = 50
+
 const digestPrefix = "sha256:"
 
 // short prints a redacted digest as its first twelve hex characters.
@@ -508,6 +536,12 @@ func Redact(report *Report) {
 		report.Omitted[o].File = RedactValue(report.Omitted[o].File)
 	}
 	sortOmitted(report.Omitted)
+	for c := range report.CustomResources {
+		report.CustomResources[c].File = RedactValue(report.CustomResources[c].File)
+		report.CustomResources[c].Namespace = RedactValue(report.CustomResources[c].Namespace)
+		report.CustomResources[c].Name = RedactValue(report.CustomResources[c].Name)
+	}
+	sortCustomResources(report.CustomResources)
 	if store := report.Provenance.KnowledgeStore; store != nil {
 		redacted := *store
 		redacted.Path = RedactValue(store.Path)

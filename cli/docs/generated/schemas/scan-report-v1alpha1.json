@@ -117,6 +117,12 @@
     },
     "provider": {
       "$ref": "#/$defs/providerSection"
+    },
+    "customResources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/customResource"
+      }
     }
   },
   "$defs": {
@@ -1587,6 +1593,74 @@
           "type": "string"
         },
         "action": {
+          "type": "string"
+        }
+      }
+    },
+    "customResource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "apiVersion",
+        "kind",
+        "file",
+        "document",
+        "item",
+        "status",
+        "next"
+      ],
+      "properties": {
+        "apiVersion": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "file": {
+          "type": "string"
+        },
+        "document": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "item": {
+          "type": "integer",
+          "minimum": -1
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "component": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "EVALUATED",
+            "NOT_EVALUATED"
+          ]
+        },
+        "verdict": {
+          "enum": [
+            "BLOCKED",
+            "NO_FINDING"
+          ]
+        },
+        "reason": {
+          "enum": [
+            "CR_COMPONENT_VERSION_UNKNOWN",
+            "CR_PAIR_NOT_COVERED",
+            "CR_KIND_NOT_IN_KNOWLEDGE",
+            "CR_KIND_NOT_COVERED_BY_RULES"
+          ]
+        },
+        "next": {
           "type": "string"
         }
       }
