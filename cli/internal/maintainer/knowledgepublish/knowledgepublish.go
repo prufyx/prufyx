@@ -401,6 +401,13 @@ func admitTargetSet(target []byte, projects []Target) (targetSet, error) {
 		}
 		byPath[project.Path] = project.Raw
 	}
+	raws := make([][]byte, 0, len(projects))
+	for _, project := range projects {
+		raws = append(raws, project.Raw)
+	}
+	if err := cncfcheck.CheckListedFamilyFloor(target, raws); err != nil {
+		return targetSet{}, fmt.Errorf("listed family: %v: %w", err, ErrRejected)
+	}
 	files := []Target{{Path: cncfcheck.ExternalIndexTargetPath, Raw: target}}
 	for _, entry := range entries {
 		raw, ok := byPath[entry.TargetPath]

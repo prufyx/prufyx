@@ -126,6 +126,28 @@ func SectionCarriesListedFamily(section json.RawMessage) bool {
 // without the family is not constrained. Any target that cannot be read
 // refuses.
 func CheckListedFamilyShipping(index []byte, targets [][]byte, oldestClient string) error {
+	carries, err := checkListedFamilyFloor(index, targets)
+	if err != nil || !carries {
+		return err
+	}
+	ships, err := ListedFamilyShips(oldestClient)
+	if err != nil || !ships {
+		return fmt.Errorf("the package carries changelog.listed_entries while the oldest supported client is below %s", ListedFamilyFloor)
+	}
+	return nil
+}
+
+// CheckListedFamilyFloor is the part of the shipping check that needs no
+// knowledge of the oldest supported client: a package that carries the listed
+// family is refused unless its index names a minClientVersion at or above the
+// floor. Every admission of a target set runs it, so a set read from a
+// directory is held to the same floor as a built release.
+func CheckListedFamilyFloor(index []byte, targets [][]byte) error {
+	_, err := checkListedFamilyFloor(index, targets)
+	return err
+}
+
+func checkListedFamilyFloor(index []byte, targets [][]byte) (bool, error) {
 	carries := false
 	for _, raw := range targets {
 		var envelope struct {
@@ -134,22 +156,18 @@ func CheckListedFamilyShipping(index []byte, targets [][]byte, oldestClient stri
 			} `json:"pack"`
 		}
 		if json.Unmarshal(raw, &envelope) != nil {
-			return fmt.Errorf("a project target cannot be read")
+			return false, fmt.Errorf("a project target cannot be read")
 		}
 		if SectionCarriesListedFamily(envelope.Pack.LineAttestations) {
 			carries = true
 		}
 	}
 	if !carries {
-		return nil
+		return false, nil
 	}
 	min, ok := ExternalIndexMinClient(index)
 	if !ok || !buildidentity.ValidVersion(min) || !buildidentity.AtLeast(min, ListedFamilyFloor) {
-		return fmt.Errorf("the package carries changelog.listed_entries but its minClientVersion is absent or below %s", ListedFamilyFloor)
+		return true, fmt.Errorf("the package carries changelog.listed_entries but its minClientVersion is absent or below %s", ListedFamilyFloor)
 	}
-	ships, err := ListedFamilyShips(oldestClient)
-	if err != nil || !ships {
-		return fmt.Errorf("the package carries changelog.listed_entries while the oldest supported client is below %s", ListedFamilyFloor)
-	}
-	return nil
+	return true, nil
 }

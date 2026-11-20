@@ -48,7 +48,7 @@ const (
 // family, the pairs it decides and the typed reasons of the others.
 type changelogStats struct {
 	targets int // projects with a reviewed changelog target
-	decided int // pairs listed (L) by the changelog chain alone: not decided, never A or B
+	listed  int // pairs listed (L) by the changelog chain alone: not decided, never A or B
 	bounded int // pairs of member projects decided by a source family or a rule (A or B)
 	spot    int // pairs of member projects with a rule for one exact version pair only (S)
 	gap     int
@@ -56,7 +56,7 @@ type changelogStats struct {
 	reasons map[string]int
 }
 
-func (c *changelogStats) active() bool { return c.targets > 0 || c.decided > 0 }
+func (c *changelogStats) active() bool { return c.targets > 0 || c.listed > 0 }
 
 func (c *changelogStats) addPair(p Pair, reason string) {
 	c.pairs++
@@ -66,7 +66,7 @@ func (c *changelogStats) addPair(p Pair, reason string) {
 	case p.Status == StatusS:
 		c.spot++
 	case p.Changelog:
-		c.decided++
+		c.listed++
 	case p.Status == StatusG:
 		c.gap++
 		if c.reasons == nil {
@@ -171,5 +171,5 @@ func changelogSentence(c changelogStats) string {
 	if len(reasons) > 0 {
 		hist = strings.Join(reasons, ", ")
 	}
-	return fmt.Sprintf("Changelog-listed (`%s`): %d upgrades where every final release of the line has a listed entry at its own release commit; listed, not judged; never a pass; not counted as decided; no scan reads it yet, %d gap over %d upgrades of its member projects (%d more decided by a source family or a rule, %d by a rule for one exact version pair only). %d projects have a changelog target; that is catalogue coverage, not the number of upgrades decided. Gap reasons: %s.\n", FamilyChangelogListed, c.decided, c.gap, c.pairs, c.bounded, c.spot, c.targets, hist)
+	return fmt.Sprintf("Changelog-listed (`%s`): %d upgrades where every final release of the line has a listed entry at its own release commit; listed, not judged; never a pass; not counted as decided; no scan reads it yet, %d gap over %d upgrades of its member projects (%d more decided by a source family or a rule, %d by a rule for one exact version pair only). %d projects have a changelog target; that is catalogue coverage, not the number of upgrades decided. Gap reasons: %s.\n", FamilyChangelogListed, c.listed, c.gap, c.pairs, c.bounded, c.spot, c.targets, hist)
 }

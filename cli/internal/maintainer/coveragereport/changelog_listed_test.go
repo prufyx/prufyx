@@ -65,13 +65,13 @@ func TestListedPairIsLNeverDecided(t *testing.T) {
 	if p.Pairs[0].Status != StatusG || len(p.Pairs[0].Families) != 0 {
 		t.Fatalf("an L pair is not a plain G: %+v", p.Pairs[0])
 	}
-	if p.A != 0 || p.B != 0 || p.S != 0 || p.G != 2 || p.DecidedChangelog != 1 {
+	if p.A != 0 || p.B != 0 || p.S != 0 || p.G != 2 || p.ListedChangelog != 1 {
 		t.Fatalf("row %+v", p)
 	}
-	if r.Fleet.A != 0 || r.Fleet.B != 0 || r.Fleet.DecidedChangelog != 1 {
+	if r.Fleet.A != 0 || r.Fleet.B != 0 || r.Fleet.ListedChangelog != 1 {
 		t.Fatalf("totals %+v", r.Fleet)
 	}
-	if r.changelog.decided != 1 || r.changelog.bounded != 0 || r.changelog.gap != 1 || r.changelog.targets != 1 {
+	if r.changelog.listed != 1 || r.changelog.bounded != 0 || r.changelog.gap != 1 || r.changelog.targets != 1 {
 		t.Fatalf("changelog row %+v", r.changelog)
 	}
 	b, err := json.Marshal(p.Pairs[0])
@@ -89,7 +89,7 @@ func TestListedPairIsLNeverDecided(t *testing.T) {
 func TestListedPartialToLineGivesNoL(t *testing.T) {
 	r := computeListed(t, nil, listedAttJSON(listedComp, "1.9.0"), map[string]string{"prometheus": listedComp}, nil)
 	p := r.Projects[0]
-	if p.Pairs[0].Changelog || p.DecidedChangelog != 0 || r.changelog.reasons[GapStaleReleases] != 1 {
+	if p.Pairs[0].Changelog || p.ListedChangelog != 0 || r.changelog.reasons[GapStaleReleases] != 1 {
 		t.Fatalf("pairs %+v stats %+v", p.Pairs, r.changelog)
 	}
 	// More releases than the snapshot's line is as refused.
@@ -108,7 +108,7 @@ func TestListedComponentOutsideTheRowsGivesNoL(t *testing.T) {
 		"another slugs": {"other": "pkg:github/example/other"},
 	} {
 		r := computeListed(t, nil, att, members, nil)
-		if r.Projects[0].Pairs[0].Changelog || r.Projects[0].DecidedChangelog != 0 || r.changelog.decided != 0 {
+		if r.Projects[0].Pairs[0].Changelog || r.Projects[0].ListedChangelog != 0 || r.changelog.listed != 0 {
 			t.Errorf("%s: an attestation of a component without a row counted", name)
 		}
 	}
@@ -118,7 +118,7 @@ func TestListedComponentOutsideTheRowsGivesNoL(t *testing.T) {
 func TestListedMixedMemberGivesNoL(t *testing.T) {
 	r := computeListed(t, nil, listedAttJSON(listedComp, "1.9.0", "1.9.1"),
 		map[string]string{"prometheus": listedComp}, map[string]string{"prometheus": listedComp})
-	if r.Projects[0].Pairs[0].Changelog || r.changelog.decided != 0 || r.changelog.reasons[GapMixedMember] != 2 {
+	if r.Projects[0].Pairs[0].Changelog || r.changelog.listed != 0 || r.changelog.reasons[GapMixedMember] != 2 {
 		t.Fatalf("stats %+v pairs %+v", r.changelog, r.Projects[0].Pairs)
 	}
 }
@@ -173,10 +173,10 @@ func TestListedKeepsAnExactPairS(t *testing.T) {
 	if p.Pairs[0].Status != StatusS || !p.Pairs[0].Changelog {
 		t.Fatalf("pair %+v", p.Pairs[0])
 	}
-	if p.S != 1 || p.DecidedChangelog != 0 || with.Fleet.S != without.Fleet.S || with.Fleet.G != without.Fleet.G || with.Fleet.DecidedChangelog != 0 {
+	if p.S != 1 || p.ListedChangelog != 0 || with.Fleet.S != without.Fleet.S || with.Fleet.G != without.Fleet.G || with.Fleet.ListedChangelog != 0 {
 		t.Fatalf("row %+v fleet %+v vs %+v", p, with.Fleet, without.Fleet)
 	}
-	if with.changelog.spot != 1 || with.changelog.decided != 0 {
+	if with.changelog.spot != 1 || with.changelog.listed != 0 {
 		t.Fatalf("changelog row %+v", with.changelog)
 	}
 }
@@ -184,7 +184,7 @@ func TestListedKeepsAnExactPairS(t *testing.T) {
 func TestChangelogCounterSpotBeforeListed(t *testing.T) {
 	var c changelogStats
 	c.addPair(Pair{Status: StatusS, Changelog: true}, "")
-	if c.spot != 1 || c.decided != 0 {
+	if c.spot != 1 || c.listed != 0 {
 		t.Fatalf("%+v", c)
 	}
 }
@@ -199,5 +199,30 @@ func TestListedOnlyProjectIsNotCovered(t *testing.T) {
 	}
 	if !with.Projects[0].Pairs[0].Changelog {
 		t.Fatal("setup: no L pair")
+	}
+}
+
+// An L pair is reported under listedChangelog only: no decided key exists, the
+// per-project and fleet counts equal the L pairs, and A, B and S stay 0.
+func TestListedPairsCountUnderListedKeyOnly(t *testing.T) {
+	r := computeListed(t, nil, listedAttJSON(listedComp, "1.9.0", "1.9.1"), map[string]string{"prometheus": listedComp}, nil)
+	l := 0
+	for _, p := range r.Projects[0].Pairs {
+		if p.Changelog && p.Status == StatusG {
+			l++
+		}
+	}
+	if l == 0 || r.Projects[0].ListedChangelog != l || r.Fleet.ListedChangelog != l {
+		t.Fatalf("listed %d, row %d, fleet %d", l, r.Projects[0].ListedChangelog, r.Fleet.ListedChangelog)
+	}
+	raw, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "decidedChangelog") || !strings.Contains(string(raw), `"listedChangelog":`) {
+		t.Fatalf("report keys: %s", raw)
+	}
+	if r.Fleet.A != 0 || r.Fleet.B != 0 || r.Fleet.S != 0 {
+		t.Fatalf("an L pair raised a decided count: %+v", r.Fleet)
 	}
 }

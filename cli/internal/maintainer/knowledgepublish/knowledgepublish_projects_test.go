@@ -4,9 +4,11 @@ package knowledgepublish
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -258,5 +260,34 @@ func TestPerProjectPublication_SignedRoleOverAnotherSetIsRefused(t *testing.T) {
 				t.Fatalf("snapshot over a role with another set accepted: %v", err)
 			}
 		})
+	}
+}
+
+// The target-set admission shared by prepare, finalize and the rotated
+// package refuses a set that carries the listed changelog family under an
+// index without the client floor, the same as a built release.
+func TestAdmitTargetSet_RefusesListedFamilyWithoutFloor(t *testing.T) {
+	index, projects := embeddedProjectTargets(t, "62")
+	if _, ok := cncfcheck.ExternalIndexMinClient(index); ok {
+		t.Fatal("the unpinned embedded index names a client floor; the test needs one without")
+	}
+	var project map[string]any
+	if err := json.Unmarshal(projects[0].Raw, &project); err != nil {
+		t.Fatal(err)
+	}
+	pack, _ := project["pack"].(map[string]any)
+	if pack == nil {
+		t.Fatal("project target has no pack")
+	}
+	pack["lineAttestations"] = "unreadable"
+	carrier, err := json.Marshal(project)
+	if err != nil {
+		t.Fatal(err)
+	}
+	set := append([]Target(nil), projects...)
+	set[0] = Target{Path: set[0].Path, Raw: carrier}
+	_, err = admitTargetSet(index, set)
+	if !errors.Is(err, ErrRejected) || err == nil || !strings.Contains(err.Error(), "listed family") {
+		t.Fatalf("a family pack without the floor was not refused by the listed-family check: %v", err)
 	}
 }

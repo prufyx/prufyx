@@ -120,9 +120,9 @@ type Project struct {
 	B        int      `json:"b"`
 	S        int      `json:"s"`
 	G        int      `json:"g"`
-	// DecidedChangelog counts pairs listed (L) by the changelog chain alone:
-	// their status stays G; they are not decided. The key keeps its name.
-	DecidedChangelog int `json:"decidedChangelog,omitempty"`
+	// ListedChangelog counts pairs listed (L) by the changelog chain alone:
+	// their status stays G; they are not decided. Reported under its own key, never as decided.
+	ListedChangelog int `json:"listedChangelog,omitempty"`
 	// VC is (A+B)/pairs and VCA is A/pairs; both are 0 without pairs.
 	VC  float64 `json:"vc"`
 	VCA float64 `json:"vcA"`
@@ -148,9 +148,9 @@ type Totals struct {
 	B        int `json:"b"`
 	S        int `json:"s"`
 	G        int `json:"g"`
-	// DecidedChangelog counts pairs listed (L) by the changelog chain alone:
-	// their status stays G; they are not decided. The key keeps its name.
-	DecidedChangelog int `json:"decidedChangelog,omitempty"`
+	// ListedChangelog counts pairs listed (L) by the changelog chain alone:
+	// their status stays G; they are not decided. Reported under its own key, never as decided.
+	ListedChangelog int `json:"listedChangelog,omitempty"`
 	// C1 counts covered projects among those with lines.
 	C1 int `json:"c1"`
 	// C3 counts projects with VC >= 0.6, C5 projects with VC_A = 1.
@@ -776,7 +776,7 @@ func Compute(in Input) (Report, error) {
 			default:
 				row.G++
 				if pair.Changelog {
-					row.DecidedChangelog++
+					row.ListedChangelog++
 				}
 			}
 		}
@@ -808,7 +808,7 @@ func Compute(in Input) (Report, error) {
 			t.B += p.B
 			t.S += p.S
 			t.G += p.G
-			t.DecidedChangelog += p.DecidedChangelog
+			t.ListedChangelog += p.ListedChangelog
 			t.RulesInWindow += p.RulesInWindow
 			if p.Covered {
 				t.C1++
