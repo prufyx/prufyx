@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:ed3c699b58239afb6f908eea2052cbc33c421f48d99fee3c4f9822ea384a2b01",
+    "candidateDigest": "sha256:3feb0dc8e7b98806146b1475048f53c5ccc85e31b63faf5ae963124048e8f1e8",
+    "candidateId": "pr-691",
+    "decidedAt": "2026-11-18T17:41:45Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "community",
+    "ruleId": "mariadb-operator.upgrade-26-6.requires-dataplane-prerequisite"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "ytdzidvx2CwyzUMdGj9smdwmizgQilICQ0lPdJIkgC80C2PxVznqZ/2Gxg8kWduIRl3QjervZnIafkbMxDkKBA=="
+}
