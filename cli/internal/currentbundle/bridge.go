@@ -27,6 +27,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/prufyx/prufyx/cli/internal/bundlechart"
 	"github.com/prufyx/prufyx/cli/internal/observation"
 )
 
@@ -204,6 +205,11 @@ type CurrentBundle struct {
 	Freshness                FreshnessBinding `json:"freshness"`
 	Conflicts                []Conflict       `json:"conflicts"`
 	Omissions                []Omission       `json:"omissions"`
+	// ChartIdentity is the chart name and version of chart-installed
+	// components with the object each came from. Absent in bundles built from
+	// observations that predate the field. Nothing decides on it yet; a set
+	// whose status is not "identified" is UNKNOWN with a fixed next action.
+	ChartIdentity *bundlechart.Set `json:"chartIdentity,omitempty"`
 	// Source metadata is internal provenance carried from observation.Import;
 	// json remains the closed canonical current-bundle contract.
 	SourceGeneratedAt         string   `json:"-"`
@@ -889,6 +895,7 @@ func convert(source observation.CurrentBundle, options Options) (CurrentBundle, 
 		SourceGeneratedAtConflict: source.SourceGeneratedAtConflict, SourceCollectionStatus: source.SourceCollectionStatus,
 		SourceOmissionCodes: append([]string(nil), source.SourceOmissionCodes...),
 		Synthetic:           source.Synthetic,
+		ChartIdentity:       source.ChartIdentity,
 	}, nil
 }
 
@@ -1050,6 +1057,11 @@ func validateBundle(bundle CurrentBundle) error {
 	}
 	if bundle.PredicateRegistryVersion != PredicateRegistryVersion && bundle.PredicateRegistryVersion != PredicateRegistryVersionV2 || bundle.OmissionRegistryVersion != OmissionRegistryVersion {
 		return fmt.Errorf("unsupported registry version: %w", ErrInvalid)
+	}
+	if bundle.ChartIdentity != nil {
+		if err := bundlechart.Validate(*bundle.ChartIdentity); err != nil {
+			return fmt.Errorf("invalid chart identity: %w", ErrInvalid)
+		}
 	}
 	if bundle.Synthetic != nil {
 		if bundle.Synthetic.Classification != "PUBLIC_SYNTHETIC" || bundle.Synthetic.Authority != "SYNTHETIC_NON_AUTHORITATIVE_TEST_INPUT" || bundle.Synthetic.Canary != "PRUFYX_SYNTHETIC_NEVER_COMPATIBILITY_EVIDENCE" || !bundle.Synthetic.NonAuthoritative {

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/prufyx/prufyx/cli/internal/bundlechart"
 	"github.com/prufyx/prufyx/cli/internal/localcollector"
 )
 
@@ -38,13 +39,13 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "Output directory must precede collector options.")
 		return 2
 	}
-	if duplicateOption(args[2:], "--kubeconfig") || duplicateOption(args[2:], "--component-configuration-profile") || duplicateOption(args[2:], "--kubectl") {
+	if duplicateOption(args[2:], "--kubeconfig") || duplicateOption(args[2:], "--component-configuration-profile") || duplicateOption(args[2:], "--kubectl") || duplicateOption(args[2:], "--chart-declaration") {
 		fmt.Fprintln(stderr, "A singleton collector option was supplied more than once.")
 		return 2
 	}
 	fs := flag.NewFlagSet("prufyx-collector collect", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	var kubeconfig, profile, kubectl string
+	var kubeconfig, profile, kubectl, chartDeclaration string
 	var pods, components, partial, ack bool
 	var execEnv stringsFlag
 	fs.StringVar(&kubeconfig, "kubeconfig", "", "explicit private kubeconfig")
@@ -54,6 +55,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	fs.BoolVar(&partial, "allow-partial", false, "accept bounded omissions")
 	fs.BoolVar(&ack, "acknowledge-kubeconfig-exec-risk", false, "acknowledge kubeconfig authentication helpers")
 	fs.Var(&execEnv, "exec-env", "forward one named ambient variable; repeatable")
+	fs.StringVar(&chartDeclaration, "chart-declaration", "", "optional JSON file declaring chart names and versions")
 	fs.StringVar(&kubectl, "kubectl", "", "kubectl executable (default PATH lookup)")
 	if err := fs.Parse(args[2:]); err != nil {
 		if err == flag.ErrHelp {
@@ -67,14 +69,42 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "--component-configuration-profile requires --include-component-configuration.")
 		return 2
 	}
-	opts := localcollector.Options{OutputRoot: output, Kubeconfig: kubeconfig, Contexts: fs.Args(), IncludePodStatusImages: pods, IncludeComponentConfiguration: components, ComponentConfigurationProfile: profile, AllowPartial: partial, AcknowledgeExecRisk: ack, ExecEnv: execEnv, Kubectl: kubectl}
+	var declared []bundlechart.Declared
+	if chartDeclaration != "" {
+		var err error
+		if declared, err = readChartDeclaration(chartDeclaration); err != nil {
+			fmt.Fprintln(stderr, "The chart declaration is not usable: it must be a regular file of the documented format.")
+			return 2
+		}
+	}
+	opts := localcollector.Options{ChartDeclaration: declared, OutputRoot: output, Kubeconfig: kubeconfig, Contexts: fs.Args(), IncludePodStatusImages: pods, IncludeComponentConfiguration: components, ComponentConfigurationProfile: profile, AllowPartial: partial, AcknowledgeExecRisk: ack, ExecEnv: execEnv, Kubectl: kubectl}
 	_, code := (localcollector.Collector{}).Collect(ctx, opts, stdout, stderr)
 	return code
 }
 
+// readChartDeclaration reads the user's declaration file: a regular,
+// non-symlink file of bounded size, parsed strictly. Any other state is an
+// error and the collection does not start.
+func readChartDeclaration(path string) ([]bundlechart.Declared, error) {
+	info, err := os.Lstat(path)
+	if err != nil || !info.Mode().IsRegular() || info.Size() > bundlechart.MaxDeclarationBytes {
+		return nil, bundlechart.ErrInvalid
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, bundlechart.ErrInvalid
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, bundlechart.MaxDeclarationBytes+1))
+	if err != nil {
+		return nil, bundlechart.ErrInvalid
+	}
+	return bundlechart.ParseDeclaration(data)
+}
+
 func printUsage(out io.Writer) {
 	fmt.Fprintln(out, "Usage: prufyx-collector collect OUTPUT_DIR --kubeconfig FILE [OPTIONS] CONTEXT...")
-	fmt.Fprintln(out, "Read-only options: --include-pod-status-images, --include-component-configuration, --component-configuration-profile v2|v3, --allow-partial, --acknowledge-kubeconfig-exec-risk, --exec-env NAME, --kubectl PATH")
+	fmt.Fprintln(out, "Read-only options: --include-pod-status-images, --include-component-configuration, --component-configuration-profile v2|v3, --allow-partial, --acknowledge-kubeconfig-exec-risk, --exec-env NAME, --kubectl PATH, --chart-declaration FILE")
 }
 
 func optionPresent(args []string, name string) bool {
@@ -105,7 +135,7 @@ func optionTokens(args []string) []string {
 		}
 		out = append(out, arg)
 		name := strings.TrimLeft(strings.SplitN(arg, "=", 2)[0], "-")
-		if !strings.Contains(arg, "=") && (name == "kubeconfig" || name == "component-configuration-profile" || name == "exec-env" || name == "kubectl") {
+		if !strings.Contains(arg, "=") && (name == "kubeconfig" || name == "component-configuration-profile" || name == "exec-env" || name == "kubectl" || name == "chart-declaration") {
 			i++ // flag.Parse treats the next token as this option's value
 		}
 	}

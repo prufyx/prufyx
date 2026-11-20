@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/prufyx/prufyx/cli/internal/bundlechart"
 	"github.com/prufyx/prufyx/cli/internal/imageidentity"
 )
 
@@ -34,10 +35,14 @@ func projectWorkload(root any, adapter adapterAssets, profile string, now time.T
 	}
 	containers := []containerRecord{}
 	omissions := []any{}
+	chartLabels := []bundlechart.LabelObservation{}
 	for index, item := range items {
 		kind, ok := stringValue(at(item, "kind"))
 		if !ok {
 			return nil, errProjection
+		}
+		if observed, ok := chartLabelOf(item, kind); ok {
+			chartLabels = append(chartLabels, observed)
 		}
 		podSpec := workloadPodSpec(item, kind)
 		if podSpec == nil {
@@ -112,7 +117,7 @@ func projectWorkload(root any, adapter adapterAssets, profile string, now time.T
 		}
 	}
 	sortAny(publicImages)
-	return map[string]any{"images": []any{}, "publicImages": publicImages, "configuration": configuration, "omissions": omissions, "version": "v1"}, nil
+	return map[string]any{"images": []any{}, "publicImages": publicImages, "configuration": configuration, "omissions": omissions, "version": "v1", "chartLabels": chartLabels}, nil
 }
 
 // registryWorkloadKinds are the kinds whose regular containers the reviewed

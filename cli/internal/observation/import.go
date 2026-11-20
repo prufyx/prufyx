@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/prufyx/prufyx/cli/internal/bundlechart"
 )
 
 const (
@@ -69,14 +71,19 @@ var (
 // context. It is not a compatibility decision and carries no customer
 // identity or raw Kubernetes object data.
 type CurrentBundle struct {
-	APIVersion              string      `json:"apiVersion"`
-	Kind                    string      `json:"kind"`
-	KubernetesVersion       string      `json:"kubernetesVersion"`
-	Components              []Component `json:"components"`
-	Conflicts               []Conflict  `json:"conflicts"`
-	Omissions               []Omission  `json:"omissions"`
-	SourceDigests           []string    `json:"sourceDigests"`
-	KubernetesSourceDigests []string    `json:"-"`
+	APIVersion        string      `json:"apiVersion"`
+	Kind              string      `json:"kind"`
+	KubernetesVersion string      `json:"kubernetesVersion"`
+	Components        []Component `json:"components"`
+	Conflicts         []Conflict  `json:"conflicts"`
+	Omissions         []Omission  `json:"omissions"`
+	// ChartIdentity is the chart name and version of chart-installed
+	// components, from the user's declaration or the chart label of
+	// already-read workloads. Nil for observations collected before the field
+	// existed; a present set whose status is not "identified" means UNKNOWN.
+	ChartIdentity           *bundlechart.Set `json:"chartIdentity,omitempty"`
+	SourceDigests           []string         `json:"sourceDigests"`
+	KubernetesSourceDigests []string         `json:"-"`
 	// CertManagerProjectionDigest binds the optional persisted helper version
 	// into the next-stage currentbundle adapter and is not public JSON.
 	CertManagerProjectionDigest string `json:"-"`
@@ -177,6 +184,7 @@ type metadataFile struct {
 	KubectlBoundedRunnerDigest             string          `json:"kubectlBoundedRunnerDigest"`
 	ImageSourcesDigest                     *string         `json:"imageSourcesDigest"`
 	ImageSourcesSchema                     *string         `json:"imageSourcesSchema"`
+	ChartIdentitySchema                    *string         `json:"chartIdentitySchema"`
 	CRDPaginationPolicy                    json.RawMessage `json:"crdPaginationPolicy"`
 	OmissionCount                          int             `json:"omissionCount"`
 	DataClassification                     string          `json:"dataClassification"`
@@ -507,6 +515,8 @@ func projectContext(cache *byteCache, ctx string, entries []manifestEntry, index
 		return nil
 	}
 	serverSeen := false
+	var chartIdentity *bundlechart.Set
+	chartIdentityDeclared := false
 	metadataSeen := false
 	metadataStatus := ""
 	metadataOmissions := -1
@@ -573,6 +583,10 @@ func projectContext(cache *byteCache, ctx string, entries []manifestEntry, index
 			if metadata.ImageSourcesDigest != nil && (!digestRE.MatchString(*metadata.ImageSourcesDigest) || len(*metadata.ImageSourcesSchema) == 0 || len(*metadata.ImageSourcesSchema) > 128 || strings.ContainsAny(*metadata.ImageSourcesSchema, "\x00\r\n")) {
 				return CurrentBundle{}, fmt.Errorf("invalid image sources digest or schema: %w", ErrInvalid)
 			}
+			if metadata.ChartIdentitySchema != nil && *metadata.ChartIdentitySchema != bundlechart.Schema {
+				return CurrentBundle{}, fmt.Errorf("invalid chart identity schema: %w", ErrInvalid)
+			}
+			chartIdentityDeclared = metadata.ChartIdentitySchema != nil
 			if metadata.IncludeComponentConfiguration {
 				if metadata.ComponentConfigurationAdapterVersion == nil || metadata.ComponentConfigurationRegistryVersion == nil || metadata.ComponentConfigurationRegistryDigest == nil || metadata.ComponentConfigurationFilterDigest == nil || metadata.ComponentConfigurationAggregateDigest == nil || metadata.ComponentConfigurationStrictJSONDigest == nil {
 					return CurrentBundle{}, fmt.Errorf("component configuration metadata is incomplete: %w", ErrInvalid)
@@ -587,6 +601,15 @@ func projectContext(cache *byteCache, ctx string, entries []manifestEntry, index
 			metadataCopy := metadata
 			observationMetadata = &metadataCopy
 			metadataStatus, metadataOmissions = metadata.CollectionStatus, metadata.OmissionCount
+		case bundlechart.FileName:
+			if chartIdentity != nil {
+				return CurrentBundle{}, fmt.Errorf("duplicate chart identity: %w", ErrIntegrity)
+			}
+			set, err := bundlechart.Decode(data)
+			if err != nil {
+				return CurrentBundle{}, fmt.Errorf("decode chart identity: %w", ErrInvalid)
+			}
+			chartIdentity = &set
 		case "component-configuration-surface.json":
 			if configurationSurfaceSeen {
 				return CurrentBundle{}, fmt.Errorf("duplicate component configuration surface: %w", ErrIntegrity)
@@ -817,6 +840,12 @@ func projectContext(cache *byteCache, ctx string, entries []manifestEntry, index
 			}
 		}
 	}
+	// The metadata and the file must agree: a collector that declares the field
+	// must have written it, and a file nobody declared is not admitted.
+	if chartIdentityDeclared != (chartIdentity != nil) {
+		return CurrentBundle{}, fmt.Errorf("chart identity metadata and file disagree: %w", ErrIntegrity)
+	}
+	bundle.ChartIdentity = chartIdentity
 	if !serverSeen {
 		// Authorization failures can prevent the discovery endpoint from being
 		// read.  Preserve that as an explicit UNKNOWN only for a collector
