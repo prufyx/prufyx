@@ -282,6 +282,11 @@ func (r *customResourceRun) composeJump(path *scanreport.Path, plan upgradepath.
 	if len(path.Hops) != len(decisions) || len(decisions) < 1 {
 		return
 	}
+	// One hop is a jump only when it is the hop that changes the major line;
+	// a direct one-hop upgrade has no jump object.
+	if len(decisions) == 1 && !isMajorHop(path.Hops[0]) {
+		return
+	}
 	digest := decisions[0].setDigest
 	family, _ := lineattest.LookupFamily(lineattest.FamilyCustomResourceVersions)
 	hops := make([]scanreport.JumpHop, 0, len(path.Hops))

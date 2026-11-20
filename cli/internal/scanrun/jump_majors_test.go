@@ -305,3 +305,19 @@ func TestJumpAcrossMajorWithoutTailIsOneTypedMajorHop(t *testing.T) {
 		}
 	}
 }
+
+// A single hop that does not change the major line is a direct upgrade, not
+// a jump: no jump object, whatever the reviews say.
+func TestSingleMinorHopHasNoJump(t *testing.T) {
+	t.Parallel()
+	for name, c := range map[string]struct{ from, to string }{
+		"adjacent minor": {"0.50.0", "0.51.0"},
+		"patch":          {"0.51.0", "0.51.1"},
+	} {
+		result := majorScan(t, majorKnowledge(t, "0.50", "0.51", "1.1"), c.from, c.to)
+		path, jump := strimziJump(t, result.Report)
+		if jump != nil || len(path.Hops) != 1 {
+			t.Fatalf("%s: hops %d jump %+v", name, len(path.Hops), jump)
+		}
+	}
+}
