@@ -37,6 +37,14 @@ var trustPrefixes = []string{
 	"scripts/",
 }
 
+// Single files that sit under a data tree but are hand-reviewed trust
+// files: a factory export or any data author touching one is a trust-path
+// change, never data. The CNCF sub-project overlay admits repositories by
+// hand-cited rows and is written only by an owner-signed change.
+var trustFiles = map[string]bool{
+	"cli/internal/cncfcheck/data/cncf-subprojects.json": true,
+}
+
 var dataAuthors = map[string]bool{"prufyx-bot": true, markerAuthor: true}
 
 func isDataPath(p string) bool {
@@ -52,6 +60,9 @@ func isDataPath(p string) bool {
 }
 
 func isTrustPath(p string) bool {
+	if trustFiles[p] {
+		return true
+	}
 	for _, pre := range trustPrefixes {
 		if strings.HasPrefix(p, pre) {
 			return true

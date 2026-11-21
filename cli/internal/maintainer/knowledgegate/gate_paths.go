@@ -67,6 +67,16 @@ func defaultGatePaths() []string {
 		"cli/internal/maintainer/targetdraft/classify.go",
 		"cli/cmd/prufyx-maintainer/gate.go",
 		"cli/cmd/prufyx-maintainer/release_docs.go",
+		// The CNCF sub-project overlay: its data, its loader, the network
+		// tool that re-checks its citations, and the classifier rule that
+		// keeps a factory export from writing it. Every change is signed.
+		"cli/internal/cncfcheck/data/cncf-subprojects.json",
+		"cli/internal/cncfcheck/subprojects.go",
+		"cli/internal/cncfcheck/subprojects_test.go",
+		"cli/cmd/prufyx-maintainer/subprojects_test.go",
+		"cli/cmd/prufyx-maintainer/subprojects.go",
+		"cli/internal/maintainer/knowledgepacket/classify.go",
+		"cli/internal/maintainer/knowledgepacket/classify_overlay_test.go",
 	}
 }
 
