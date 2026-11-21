@@ -218,6 +218,11 @@ type Report struct {
 	// crd.custom_resource_versions target: the projects whose CRD version
 	// knowledge exists, whether or not lines are known for them.
 	CRDVersionProjects int `json:"crdVersionProjects,omitempty"`
+	// ExtraComponents counts the reviewed extra components attributed to a
+	// project (Input.ExtraComponents), separately from the project and pair
+	// counts. Emitted only when it is non-zero, so a report without extras
+	// is byte-identical.
+	ExtraComponents int `json:"extraComponents,omitempty"`
 	// CRDPublishedProjects is the number of those target projects that
 	// also have a valid rule or a current line attestation of the
 	// crd.custom_resource_versions family in the pack. A target alone
@@ -624,6 +629,11 @@ func Compute(in Input) (Report, error) {
 
 	var report Report
 	report.CRDVersionProjects = in.CRDVersionProjects
+	for component, project := range in.ExtraComponents {
+		if component != "" && project != "" {
+			report.ExtraComponents++
+		}
+	}
 	report.Schema = Schema
 	report.Now = now.Format(time.RFC3339)
 	report.Window = window

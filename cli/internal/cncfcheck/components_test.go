@@ -252,6 +252,8 @@ func TestComponentsRefusals(t *testing.T) {
 		"other landscape project": componentsDoc(t, entry("spiffe", "pkg:github/spiffe/spire")),
 		"no source":               componentsDoc(t, componentEntry{Slug: "prometheus", Purl: alertmanager}),
 		"http source":             componentsDoc(t, componentEntry{Slug: "prometheus", Purl: alertmanager, Source: "http://github.com/prometheus/alertmanager"}),
+		"source on another host":  componentsDoc(t, componentEntry{Slug: "prometheus", Purl: alertmanager, Source: "https://example.com/prometheus/alertmanager"}),
+		"source lookalike host":   componentsDoc(t, componentEntry{Slug: "prometheus", Purl: alertmanager, Source: "https://github.com.example.com/prometheus/alertmanager"}),
 		"source with user":        componentsDoc(t, componentEntry{Slug: "prometheus", Purl: alertmanager, Source: "https://u@github.com/prometheus/alertmanager"}),
 		"source not a url":        componentsDoc(t, componentEntry{Slug: "prometheus", Purl: alertmanager, Source: "::"}),
 		"self duplicate":          componentsDoc(t, good, good),
@@ -316,5 +318,52 @@ func TestComponentsCommunityCollision(t *testing.T) {
 	// Without the listing the same community project is the only claimant.
 	if _, err := assembleComponents(t, nil, []customresources.Project{clash}); err != nil {
 		t.Fatalf("community project alone refused: %v", err)
+	}
+}
+
+// A project whose repository URL carries extra path segments owns a subject
+// with those segments. An entry equal to it, or a sibling that is not in the
+// project's organization, is refused; a same-organization sibling is not.
+func TestComponentsRepositoryWithExtraPathSegments(t *testing.T) {
+	t.Parallel()
+	projects := []projectIdentity{{Slug: "a", Name: "A", RepositoryURL: "https://github.com/org/repo/tree/main/sub"}}
+	const digestValue = "sha256:8ee4c10af7d58ddda752ff91c20bf6a5f328bfa5aa288f93801d0ca9d2b0c0ef"
+	doc := func(purl string) []byte {
+		raw, _ := json.Marshal(componentsDocument{Schema: componentsSchema, LandscapeFileDigest: digestValue, Components: []componentEntry{{Slug: "a", Purl: purl, Source: "https://github.com/org/other"}}})
+		return raw
+	}
+	for purl, ok := range map[string]bool{
+		"pkg:github/org/repo/tree/main/sub": false,
+		"pkg:github/other/repo":             false,
+		"pkg:github/org/other":              true,
+	} {
+		_, _, err := attachComponents(doc(purl), digestValue, projects)
+		if (err == nil) != ok {
+			t.Errorf("%s: accepted=%v, want %v", purl, err == nil, ok)
+		}
+	}
+}
+
+// The listed fixture reaches ErrRecordWithoutOwner through the target
+// builder only when the record's component is not listed.
+func TestComponentsRecordWithoutOwnerThroughTargetBuilder(t *testing.T) {
+	t.Parallel()
+	b := recordsBase(t, allRecords(t))
+	b.landscape.Projects = append([]projectIdentity(nil), b.landscape.Projects...)
+	b.pack.ServedAPIs = json.RawMessage(strings.ReplaceAll(string(b.pack.ServedAPIs), k8sComponent, alertmanager))
+	build := func(b bundle) error {
+		_, _, err := buildExternalTargets(b, "rev", "operator_provided", func(string, func(string) ([]byte, error)) (string, error) { return "rev", nil })
+		return err
+	}
+	if err := build(b); !errors.Is(err, ErrRecordWithoutOwner) || !errors.Is(err, ErrIntegrity) {
+		t.Fatalf("unlisted record: %v", err)
+	}
+	listed, err := assembleComponents(t, fixtureComponents(t), customresources.Projects())
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.landscape.Projects = listed.landscape.Projects
+	if err := build(b); errors.Is(err, ErrRecordWithoutOwner) {
+		t.Fatalf("listed record still without owner: %v", err)
 	}
 }

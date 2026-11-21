@@ -5,6 +5,7 @@ package coveragereport
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -52,7 +53,12 @@ func TestExtraComponentAttribution(t *testing.T) {
 	b, _ := Compute(base)
 	ja, _ := json.Marshal(a)
 	jb, _ := json.Marshal(b)
-	if string(ja) != string(jb) {
+	if string(ja) != string(jb) || strings.Contains(string(jb), "extraComponents") {
 		t.Fatal("empty extras changed the report")
+	}
+	base.ExtraComponents = map[string]string{strimzi: "strimzi", "": "strimzi", other: ""}
+	c, _ := Compute(base)
+	if c.ExtraComponents != 1 || len(c.Projects) != 1 {
+		t.Fatalf("component count %d rows %d", c.ExtraComponents, len(c.Projects))
 	}
 }
