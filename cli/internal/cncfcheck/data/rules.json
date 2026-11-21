@@ -24104,6 +24104,832 @@
       }
     },
     {
+      "component": "pkg:github/coredns/coredns",
+      "line": "1.5",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.4.0",
+            "commit": "8dcc7fccd74454134b33c8bc9f780ed6d7f076cf"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.5.0",
+            "commit": "e3f9a80b1d5a112907a012acee276e9080b32852"
+          },
+          {
+            "version": "1.5.1",
+            "commit": "6c33397d29f6f856e3a197177e63d1bc5341ab0d"
+          },
+          {
+            "version": "1.5.2",
+            "commit": "d933f635af392fb7b7938857576f460741151e46"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.coredns",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-12T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.5.0",
+            "url": "https://github.com/coredns/coredns/blob/e3f9a80b1d5a112907a012acee276e9080b32852/notes/coredns-1.5.0.md",
+            "revision": "e3f9a80b1d5a112907a012acee276e9080b32852",
+            "contentDigest": "sha256:16f31d857a26dbbd147e690bd94b4bb4745108f1aef3a039cbaec480be96697e",
+            "startLine": 1,
+            "endLine": 62
+          },
+          {
+            "id": "changelog-1.5.1",
+            "url": "https://github.com/coredns/coredns/blob/6c33397d29f6f856e3a197177e63d1bc5341ab0d/notes/coredns-1.5.1.md",
+            "revision": "6c33397d29f6f856e3a197177e63d1bc5341ab0d",
+            "contentDigest": "sha256:f70c52fa3fa4a3f93dea81269ee55bc5f5075d67d37ab07f2646bd291e27e82c",
+            "startLine": 1,
+            "endLine": 75
+          },
+          {
+            "id": "changelog-1.5.2",
+            "url": "https://github.com/coredns/coredns/blob/d933f635af392fb7b7938857576f460741151e46/notes/coredns-1.5.2.md",
+            "revision": "d933f635af392fb7b7938857576f460741151e46",
+            "contentDigest": "sha256:72b42c3e334418b6a593ae1dc870e0f887fba0c7a223ca61b96ffa8677f6b9ae",
+            "startLine": 1,
+            "endLine": 39
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/coredns/coredns",
+      "line": "1.7",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.6.0",
+            "commit": "0a218d3cf4aeab36a7931924aaf22426370fa392"
+          },
+          {
+            "version": "1.6.1",
+            "commit": "1fda5703fc83f21b21bbe3b6796e476397394e18"
+          },
+          {
+            "version": "1.6.2",
+            "commit": "795a3ebb649cc11e0744797314eee1f3f22277b6"
+          },
+          {
+            "version": "1.6.3",
+            "commit": "37b9550d62685d450553437776978518ccca631b"
+          },
+          {
+            "version": "1.6.4",
+            "commit": "b139ba34f370a4937bf76e7cc259a26f1394a91d"
+          },
+          {
+            "version": "1.6.5",
+            "commit": "c2fd1b2467249d8b1bb6bbee72ad83b63dd9087f"
+          },
+          {
+            "version": "1.6.6",
+            "commit": "6a7a75e0cc14159177e604d0157836cc32add343"
+          },
+          {
+            "version": "1.6.7",
+            "commit": "da7f65b3a8f1a092c0b7f2c84b7c1b215dfb94a0"
+          },
+          {
+            "version": "1.6.8",
+            "commit": "187d0f3c71531fa3e0bcac826d0b66209e4ce5c4"
+          },
+          {
+            "version": "1.6.9",
+            "commit": "1766568398e3120c85d44f5c6237a724248b652e"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.7.0",
+            "commit": "f59c03d09c3a3a12f571ad1087b979325f3dae30"
+          },
+          {
+            "version": "1.7.1",
+            "commit": "aa82ca62fb048562ffaf4aa24d3f2db8d8bd0333"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.coredns",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-12T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.7.0",
+            "url": "https://github.com/coredns/coredns/blob/f59c03d09c3a3a12f571ad1087b979325f3dae30/notes/coredns-1.7.0.md",
+            "revision": "f59c03d09c3a3a12f571ad1087b979325f3dae30",
+            "contentDigest": "sha256:849d946734a92268c94b3053c76b632b3a3e654c36f6f15b37e766e3aaf86e8a",
+            "startLine": 1,
+            "endLine": 91
+          },
+          {
+            "id": "changelog-1.7.1",
+            "url": "https://github.com/coredns/coredns/blob/aa82ca62fb048562ffaf4aa24d3f2db8d8bd0333/notes/coredns-1.7.1.md",
+            "revision": "aa82ca62fb048562ffaf4aa24d3f2db8d8bd0333",
+            "contentDigest": "sha256:7da6bb0a9220c66950d5aab8a82e67144ccf7eeae7c203d18af46158cfdf2b71",
+            "startLine": 1,
+            "endLine": 53
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/coredns/coredns",
+      "line": "1.8",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.7.0",
+            "commit": "f59c03d09c3a3a12f571ad1087b979325f3dae30"
+          },
+          {
+            "version": "1.7.1",
+            "commit": "aa82ca62fb048562ffaf4aa24d3f2db8d8bd0333"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.8.0",
+            "commit": "054c9ae1fbea39d586652664fbc9a5cedbd97618"
+          },
+          {
+            "version": "1.8.1",
+            "commit": "95622f4c9ae65de9465b5fb022711e95be4df2ce"
+          },
+          {
+            "version": "1.8.2",
+            "commit": "ff9b4bcb986323dc294d48c87848682138fd4816"
+          },
+          {
+            "version": "1.8.3",
+            "commit": "4293992bb83a5eac1d1e617a40638db6db046283"
+          },
+          {
+            "version": "1.8.4",
+            "commit": "053c4d5ca1772517746a854e87ffa971249df14b"
+          },
+          {
+            "version": "1.8.5",
+            "commit": "8ddb6313bb57d4f574c326431f5256e2ba4a8c65"
+          },
+          {
+            "version": "1.8.6",
+            "commit": "13a9191efb0574cc92ed5ffd55a1f144b840d668"
+          },
+          {
+            "version": "1.8.7",
+            "commit": "a9adfd56adbdfb3de781da255b9b6a8c7437fc42"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.coredns",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-12T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.8.0",
+            "url": "https://github.com/coredns/coredns/blob/054c9ae1fbea39d586652664fbc9a5cedbd97618/notes/coredns-1.8.0.md",
+            "revision": "054c9ae1fbea39d586652664fbc9a5cedbd97618",
+            "contentDigest": "sha256:86ff1360912111062aff162e19425c9813d01d0a4d389e4562758147c48b4dd5",
+            "startLine": 1,
+            "endLine": 68
+          },
+          {
+            "id": "changelog-1.8.1",
+            "url": "https://github.com/coredns/coredns/blob/95622f4c9ae65de9465b5fb022711e95be4df2ce/notes/coredns-1.8.1.md",
+            "revision": "95622f4c9ae65de9465b5fb022711e95be4df2ce",
+            "contentDigest": "sha256:4116894f4471c0e3d1bf7a539c5bc93f956c1baf9b82436eeb54df0442e86d10",
+            "startLine": 1,
+            "endLine": 46
+          },
+          {
+            "id": "changelog-1.8.2",
+            "url": "https://github.com/coredns/coredns/blob/ff9b4bcb986323dc294d48c87848682138fd4816/notes/coredns-1.8.2.md",
+            "revision": "ff9b4bcb986323dc294d48c87848682138fd4816",
+            "contentDigest": "sha256:2235908898da5c8d64cc3849ce23bfa8cee4c3832c0c758c5b7a2bd7b0deefb8",
+            "startLine": 1,
+            "endLine": 45
+          },
+          {
+            "id": "changelog-1.8.3",
+            "url": "https://github.com/coredns/coredns/blob/4293992bb83a5eac1d1e617a40638db6db046283/notes/coredns-1.8.3.md",
+            "revision": "4293992bb83a5eac1d1e617a40638db6db046283",
+            "contentDigest": "sha256:8b594f4553330191431cdc3d3cd23c1f6985b275f0bb6a44da929b1be09bf178",
+            "startLine": 1,
+            "endLine": 49
+          },
+          {
+            "id": "changelog-1.8.4",
+            "url": "https://github.com/coredns/coredns/blob/053c4d5ca1772517746a854e87ffa971249df14b/notes/coredns-1.8.4.md",
+            "revision": "053c4d5ca1772517746a854e87ffa971249df14b",
+            "contentDigest": "sha256:f465ab156e3bc430fe3d97a3c4b413c00790e8971b4f25f971259b2e0741a64b",
+            "startLine": 1,
+            "endLine": 57
+          },
+          {
+            "id": "changelog-1.8.5",
+            "url": "https://github.com/coredns/coredns/blob/8ddb6313bb57d4f574c326431f5256e2ba4a8c65/notes/coredns-1.8.5.md",
+            "revision": "8ddb6313bb57d4f574c326431f5256e2ba4a8c65",
+            "contentDigest": "sha256:2eeec5a920afd85629e67bb0a2ae27f8457c4219f05e4ed39ae57508444a18fd",
+            "startLine": 1,
+            "endLine": 62
+          },
+          {
+            "id": "changelog-1.8.6",
+            "url": "https://github.com/coredns/coredns/blob/13a9191efb0574cc92ed5ffd55a1f144b840d668/notes/coredns-1.8.6.md",
+            "revision": "13a9191efb0574cc92ed5ffd55a1f144b840d668",
+            "contentDigest": "sha256:e81a628181860fbe6f577791bf9b6b3b73ed99088c21ecf0af8040a2c0775194",
+            "startLine": 1,
+            "endLine": 20
+          },
+          {
+            "id": "changelog-1.8.7",
+            "url": "https://github.com/coredns/coredns/blob/a9adfd56adbdfb3de781da255b9b6a8c7437fc42/notes/coredns-1.8.7.md",
+            "revision": "a9adfd56adbdfb3de781da255b9b6a8c7437fc42",
+            "contentDigest": "sha256:96f4486692e2557283783f1f132b21048abe9bd0378f9ce06be5a1af8fbede82",
+            "startLine": 1,
+            "endLine": 58
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/coredns/coredns",
+      "line": "1.10",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.9.0",
+            "commit": "ace3dcb1a34ad710124e424247ed71200ba0abc1"
+          },
+          {
+            "version": "1.9.1",
+            "commit": "4b597f8308d8d7cecb538e9831d77117da68c04e"
+          },
+          {
+            "version": "1.9.2",
+            "commit": "092c144491e7f62d71eda98a07e4ce815d9df035"
+          },
+          {
+            "version": "1.9.3",
+            "commit": "45b0a11294c59bfd806a57807aaa2a185f761cd5"
+          },
+          {
+            "version": "1.9.4",
+            "commit": "1f0a41a66597cb8ab4aace8ea5b5bad880bcd23b"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.10.0",
+            "commit": "596a9f9e67dd9b01e15bc04a999460422fe65166"
+          },
+          {
+            "version": "1.10.1",
+            "commit": "055b2c31a9cf28321734e5f71613ea080d216cd3"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.coredns",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-12T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.10.0",
+            "url": "https://github.com/coredns/coredns/blob/596a9f9e67dd9b01e15bc04a999460422fe65166/notes/coredns-1.10.0.md",
+            "revision": "596a9f9e67dd9b01e15bc04a999460422fe65166",
+            "contentDigest": "sha256:4e1722af344646e4b0f8658fc01e88630b6650054e8d7a981570104d51c7aeef",
+            "startLine": 1,
+            "endLine": 24
+          },
+          {
+            "id": "changelog-1.10.1",
+            "url": "https://github.com/coredns/coredns/blob/055b2c31a9cf28321734e5f71613ea080d216cd3/notes/coredns-1.10.1.md",
+            "revision": "055b2c31a9cf28321734e5f71613ea080d216cd3",
+            "contentDigest": "sha256:7eab04d6641dd546789d1ee138bc92adbaa4c56c56de33ae62498422d6562406",
+            "startLine": 1,
+            "endLine": 50
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/coredns/coredns",
+      "line": "1.11",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.10.0",
+            "commit": "596a9f9e67dd9b01e15bc04a999460422fe65166"
+          },
+          {
+            "version": "1.10.1",
+            "commit": "055b2c31a9cf28321734e5f71613ea080d216cd3"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.11.0",
+            "commit": "9f4aa9d2625bb8b8f13efa98d3ecf1928cd112b6"
+          },
+          {
+            "version": "1.11.1",
+            "commit": "ae2bbc29be1aaae0b3ded5d188968a6c97bb3144"
+          },
+          {
+            "version": "1.11.3",
+            "commit": "a7ed346585e30b99317d36e4d007b7b19a228ea5"
+          },
+          {
+            "version": "1.11.4",
+            "commit": "6e11ebddfc13bfca683fcbcae72cc4af6de47dd2"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.coredns",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-12T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.11.0",
+            "url": "https://github.com/coredns/coredns/blob/9f4aa9d2625bb8b8f13efa98d3ecf1928cd112b6/notes/coredns-1.11.0.md",
+            "revision": "9f4aa9d2625bb8b8f13efa98d3ecf1928cd112b6",
+            "contentDigest": "sha256:a611b305afcabfc35a5173aece27b73bde76fa8c7a3966d75d49dc8736faecfb",
+            "startLine": 1,
+            "endLine": 83
+          },
+          {
+            "id": "changelog-1.11.1",
+            "url": "https://github.com/coredns/coredns/blob/ae2bbc29be1aaae0b3ded5d188968a6c97bb3144/notes/coredns-1.11.1.md",
+            "revision": "ae2bbc29be1aaae0b3ded5d188968a6c97bb3144",
+            "contentDigest": "sha256:fba73a28c79584a1ee18ec2356a834d0bb7c13960d90e52a14ebb3581e4c54b0",
+            "startLine": 1,
+            "endLine": 25
+          },
+          {
+            "id": "changelog-1.11.3",
+            "url": "https://github.com/coredns/coredns/blob/a7ed346585e30b99317d36e4d007b7b19a228ea5/notes/coredns-1.11.3.md",
+            "revision": "a7ed346585e30b99317d36e4d007b7b19a228ea5",
+            "contentDigest": "sha256:f6e86af85dcd1e6aec19e861ca5a72dc4f0206c90ca91ef9e09a2c7eac7e0bff",
+            "startLine": 1,
+            "endLine": 59
+          },
+          {
+            "id": "changelog-1.11.4",
+            "url": "https://github.com/coredns/coredns/blob/6e11ebddfc13bfca683fcbcae72cc4af6de47dd2/notes/coredns-1.11.4.md",
+            "revision": "6e11ebddfc13bfca683fcbcae72cc4af6de47dd2",
+            "contentDigest": "sha256:77302443f94a5338b181648dbc23e3102f6e63e649e3a9b5e3b89983bc002873",
+            "startLine": 3,
+            "endLine": 59
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/coredns/coredns",
+      "line": "1.12",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.11.0",
+            "commit": "9f4aa9d2625bb8b8f13efa98d3ecf1928cd112b6"
+          },
+          {
+            "version": "1.11.1",
+            "commit": "ae2bbc29be1aaae0b3ded5d188968a6c97bb3144"
+          },
+          {
+            "version": "1.11.3",
+            "commit": "a7ed346585e30b99317d36e4d007b7b19a228ea5"
+          },
+          {
+            "version": "1.11.4",
+            "commit": "6e11ebddfc13bfca683fcbcae72cc4af6de47dd2"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.12.0",
+            "commit": "51e11f166ef6c247a78e9e15468647c593b79b9f"
+          },
+          {
+            "version": "1.12.1",
+            "commit": "707c7c10acd52cb94e959e76ae233d9b76af0854"
+          },
+          {
+            "version": "1.12.2",
+            "commit": "0eb55420350647a788e96282d03978e8a782d478"
+          },
+          {
+            "version": "1.12.3",
+            "commit": "463fd1c1b390ef68f638e2f4e09837721b19efba"
+          },
+          {
+            "version": "1.12.4",
+            "commit": "f32329577fd5e3fe19908f8a9ba5c76aafb45bf6"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.coredns",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-12T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.12.0",
+            "url": "https://github.com/coredns/coredns/blob/51e11f166ef6c247a78e9e15468647c593b79b9f/notes/coredns-1.12.0.md",
+            "revision": "51e11f166ef6c247a78e9e15468647c593b79b9f",
+            "contentDigest": "sha256:fd8fd7e3786f7375045614ef658e9775c50de0c0532c8f8493d12beb5c954906",
+            "startLine": 2,
+            "endLine": 17
+          },
+          {
+            "id": "changelog-1.12.1",
+            "url": "https://github.com/coredns/coredns/blob/707c7c10acd52cb94e959e76ae233d9b76af0854/notes/coredns-1.12.1.md",
+            "revision": "707c7c10acd52cb94e959e76ae233d9b76af0854",
+            "contentDigest": "sha256:5b8d4dd69d18772cecb89a93736f9340a918c1c203716119f542be05a3b81d35",
+            "startLine": 1,
+            "endLine": 33
+          },
+          {
+            "id": "changelog-1.12.2",
+            "url": "https://github.com/coredns/coredns/blob/0eb55420350647a788e96282d03978e8a782d478/notes/coredns-1.12.2.md",
+            "revision": "0eb55420350647a788e96282d03978e8a782d478",
+            "contentDigest": "sha256:80acef97b6535a26fb297caa38a06870b097c8bdfe232024fd883e356425726a",
+            "startLine": 1,
+            "endLine": 50
+          },
+          {
+            "id": "changelog-1.12.3",
+            "url": "https://github.com/coredns/coredns/blob/463fd1c1b390ef68f638e2f4e09837721b19efba/notes/coredns-1.12.3.md",
+            "revision": "463fd1c1b390ef68f638e2f4e09837721b19efba",
+            "contentDigest": "sha256:b8b65c0649b3f769d726a901b742b148779f44ee7aeeec90f186b66121521996",
+            "startLine": 1,
+            "endLine": 48
+          },
+          {
+            "id": "changelog-1.12.4",
+            "url": "https://github.com/coredns/coredns/blob/f32329577fd5e3fe19908f8a9ba5c76aafb45bf6/notes/coredns-1.12.4.md",
+            "revision": "f32329577fd5e3fe19908f8a9ba5c76aafb45bf6",
+            "contentDigest": "sha256:969dac38707324d876631ce10961b428b56b1b5018c7311b6676c54f5c21dc88",
+            "startLine": 1,
+            "endLine": 39
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/coredns/coredns",
+      "line": "1.13",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.12.0",
+            "commit": "51e11f166ef6c247a78e9e15468647c593b79b9f"
+          },
+          {
+            "version": "1.12.1",
+            "commit": "707c7c10acd52cb94e959e76ae233d9b76af0854"
+          },
+          {
+            "version": "1.12.2",
+            "commit": "0eb55420350647a788e96282d03978e8a782d478"
+          },
+          {
+            "version": "1.12.3",
+            "commit": "463fd1c1b390ef68f638e2f4e09837721b19efba"
+          },
+          {
+            "version": "1.12.4",
+            "commit": "f32329577fd5e3fe19908f8a9ba5c76aafb45bf6"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.13.0",
+            "commit": "51f94b0bb4c59996459b98d395fe9f090906abe8"
+          },
+          {
+            "version": "1.13.1",
+            "commit": "1db4568df6aaacda6ebbce87717156bd855f8103"
+          },
+          {
+            "version": "1.13.2",
+            "commit": "0233f3e7c600b730426628f2cf9c829d404a181f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.coredns",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-12T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.13.0",
+            "url": "https://github.com/coredns/coredns/blob/51f94b0bb4c59996459b98d395fe9f090906abe8/notes/coredns-1.13.0.md",
+            "revision": "51f94b0bb4c59996459b98d395fe9f090906abe8",
+            "contentDigest": "sha256:279333d2533a0b7c574469e8242d05fdb3e737c8d9aa4edf6b09ba491f6c663b",
+            "startLine": 1,
+            "endLine": 37
+          },
+          {
+            "id": "changelog-1.13.1",
+            "url": "https://github.com/coredns/coredns/blob/1db4568df6aaacda6ebbce87717156bd855f8103/notes/coredns-1.13.1.md",
+            "revision": "1db4568df6aaacda6ebbce87717156bd855f8103",
+            "contentDigest": "sha256:3d45918258c7112be108e4f0eaebf1e00602cbb78c735ef3489ae895e6da32e4",
+            "startLine": 1,
+            "endLine": 24
+          },
+          {
+            "id": "changelog-1.13.2",
+            "url": "https://github.com/coredns/coredns/blob/0233f3e7c600b730426628f2cf9c829d404a181f/notes/coredns-1.13.2.md",
+            "revision": "0233f3e7c600b730426628f2cf9c829d404a181f",
+            "contentDigest": "sha256:157bfd3453f8567604113dc437722f0a6c74c2ef080666473b31d76a70ae84fe",
+            "startLine": 1,
+            "endLine": 68
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/coredns/coredns",
+      "line": "1.14",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.13.0",
+            "commit": "51f94b0bb4c59996459b98d395fe9f090906abe8"
+          },
+          {
+            "version": "1.13.1",
+            "commit": "1db4568df6aaacda6ebbce87717156bd855f8103"
+          },
+          {
+            "version": "1.13.2",
+            "commit": "0233f3e7c600b730426628f2cf9c829d404a181f"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.14.0",
+            "commit": "1c964f2f68bd04a875a41479822ec3da1f1e76ef"
+          },
+          {
+            "version": "1.14.1",
+            "commit": "80527fd389841310a728cf862491129321c8a112"
+          },
+          {
+            "version": "1.14.2",
+            "commit": "dd1df4f5db93767a44e37638df44969503b320d2"
+          },
+          {
+            "version": "1.14.3",
+            "commit": "17fceec6d93fd1dde5ba6888c363f131ff6d647f"
+          },
+          {
+            "version": "1.14.4",
+            "commit": "232d7cac38fbb8baeb900150d683e61da288ae75"
+          },
+          {
+            "version": "1.14.5",
+            "commit": "adba3b3703408ffe80bc03a7be0f6ea9c2372399"
+          },
+          {
+            "version": "1.14.6",
+            "commit": "424d125775cd70fa90dfc80bf0e52cc9a9aeb574"
+          },
+          {
+            "version": "1.14.7",
+            "commit": "427fc80ed9ca47f354585eb30a3f1332950856c4"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.coredns",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-12T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.14.0",
+            "url": "https://github.com/coredns/coredns/blob/1c964f2f68bd04a875a41479822ec3da1f1e76ef/notes/coredns-1.14.0.md",
+            "revision": "1c964f2f68bd04a875a41479822ec3da1f1e76ef",
+            "contentDigest": "sha256:c715c09839e7b22be792316fb1da4f15185fa22fe8ff2d3399bde89acd9ed97e",
+            "startLine": 1,
+            "endLine": 37
+          },
+          {
+            "id": "changelog-1.14.1",
+            "url": "https://github.com/coredns/coredns/blob/80527fd389841310a728cf862491129321c8a112/notes/coredns-1.14.1.md",
+            "revision": "80527fd389841310a728cf862491129321c8a112",
+            "contentDigest": "sha256:fc2b2233ee412449efc858754bdf221cb3ad2e15c978dfd25d395d1d4464b79e",
+            "startLine": 1,
+            "endLine": 24
+          },
+          {
+            "id": "changelog-1.14.2",
+            "url": "https://github.com/coredns/coredns/blob/dd1df4f5db93767a44e37638df44969503b320d2/notes/coredns-1.14.2.md",
+            "revision": "dd1df4f5db93767a44e37638df44969503b320d2",
+            "contentDigest": "sha256:c482cf923f47fabf5b42ed38a6e6065a6d025beaafc0aa9578065b7c3b7670cf",
+            "startLine": 1,
+            "endLine": 42
+          },
+          {
+            "id": "changelog-1.14.3",
+            "url": "https://github.com/coredns/coredns/blob/17fceec6d93fd1dde5ba6888c363f131ff6d647f/notes/coredns-1.14.3.md",
+            "revision": "17fceec6d93fd1dde5ba6888c363f131ff6d647f",
+            "contentDigest": "sha256:e982b7b8bbd47f36ef4ff604b6bf44a11637349fa8820635917bcb8c89e7d8b7",
+            "startLine": 1,
+            "endLine": 78
+          },
+          {
+            "id": "changelog-1.14.4",
+            "url": "https://github.com/coredns/coredns/blob/232d7cac38fbb8baeb900150d683e61da288ae75/notes/coredns-1.14.4.md",
+            "revision": "232d7cac38fbb8baeb900150d683e61da288ae75",
+            "contentDigest": "sha256:b182e9c2a2093a77f7885006f69bba03eb31bb5bcdfd0484904997d3f22a32cf",
+            "startLine": 1,
+            "endLine": 60
+          },
+          {
+            "id": "changelog-1.14.5",
+            "url": "https://github.com/coredns/coredns/blob/adba3b3703408ffe80bc03a7be0f6ea9c2372399/notes/coredns-1.14.5.md",
+            "revision": "adba3b3703408ffe80bc03a7be0f6ea9c2372399",
+            "contentDigest": "sha256:1e03b0a43014e57f1c6b3f25a8e620d661e448cc0477b9d0b035624e5c3cbd8b",
+            "startLine": 1,
+            "endLine": 72
+          },
+          {
+            "id": "changelog-1.14.6",
+            "url": "https://github.com/coredns/coredns/blob/424d125775cd70fa90dfc80bf0e52cc9a9aeb574/notes/coredns-1.14.6.md",
+            "revision": "424d125775cd70fa90dfc80bf0e52cc9a9aeb574",
+            "contentDigest": "sha256:df81ee50a8f455ea7254ba606896bd9fc2c2729cba6aaf2ce34506ccdd123ab9",
+            "startLine": 1,
+            "endLine": 27
+          },
+          {
+            "id": "changelog-1.14.7",
+            "url": "https://github.com/coredns/coredns/blob/427fc80ed9ca47f354585eb30a3f1332950856c4/notes/coredns-1.14.7.md",
+            "revision": "427fc80ed9ca47f354585eb30a3f1332950856c4",
+            "contentDigest": "sha256:8d7048b491278c05dc6f5d2c6897c2f9f2f11d40e0a45ab648cbacbfa6319a20",
+            "startLine": 1,
+            "endLine": 94
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/coredns/coredns",
+      "line": "1.15",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.14.0",
+            "commit": "1c964f2f68bd04a875a41479822ec3da1f1e76ef"
+          },
+          {
+            "version": "1.14.1",
+            "commit": "80527fd389841310a728cf862491129321c8a112"
+          },
+          {
+            "version": "1.14.2",
+            "commit": "dd1df4f5db93767a44e37638df44969503b320d2"
+          },
+          {
+            "version": "1.14.3",
+            "commit": "17fceec6d93fd1dde5ba6888c363f131ff6d647f"
+          },
+          {
+            "version": "1.14.4",
+            "commit": "232d7cac38fbb8baeb900150d683e61da288ae75"
+          },
+          {
+            "version": "1.14.5",
+            "commit": "adba3b3703408ffe80bc03a7be0f6ea9c2372399"
+          },
+          {
+            "version": "1.14.6",
+            "commit": "424d125775cd70fa90dfc80bf0e52cc9a9aeb574"
+          },
+          {
+            "version": "1.14.7",
+            "commit": "427fc80ed9ca47f354585eb30a3f1332950856c4"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.15.0",
+            "commit": "a6fde3fe339c6ec848447e11cc9796be8c97b4e0"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.coredns",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-12T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.15.0",
+            "url": "https://github.com/coredns/coredns/blob/a6fde3fe339c6ec848447e11cc9796be8c97b4e0/notes/coredns-1.15.0.md",
+            "revision": "a6fde3fe339c6ec848447e11cc9796be8c97b4e0",
+            "contentDigest": "sha256:6fa662bbcf027981e2dd288ba27335a751399c464c38d411403e147889ba1480",
+            "startLine": 1,
+            "endLine": 128
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/crossplane/crossplane",
       "line": "2.3",
       "factFamily": "crd.custom_resource_versions",
@@ -26056,6 +26882,1548 @@
       }
     },
     {
+      "component": "pkg:github/fluent/fluentd",
+      "line": "1.1",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.0.0",
+            "commit": "74e2b13983e510968934b4b7752a8f5a5a409ed2"
+          },
+          {
+            "version": "1.0.1",
+            "commit": "4cfd824d4269437cc929c0a42e67a53aa5d16056"
+          },
+          {
+            "version": "1.0.2",
+            "commit": "bc77372d0514964690e0e1a43c487e5cb7ef9033"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.1.0",
+            "commit": "9617919973ee528deeb84600df42af34b161eb9a"
+          },
+          {
+            "version": "1.1.1",
+            "commit": "fa35835d9a085023d7b496a81790948e7581a446"
+          },
+          {
+            "version": "1.1.2",
+            "commit": "14cab97e4460192db36946880630bd39e812c9eb"
+          },
+          {
+            "version": "1.1.3",
+            "commit": "17bec1d2d24b91992e328ae062549c21e14a3f38"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.fluentd",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-17T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.1.0",
+            "url": "https://github.com/fluent/fluentd/blob/9617919973ee528deeb84600df42af34b161eb9a/CHANGELOG.md",
+            "revision": "9617919973ee528deeb84600df42af34b161eb9a",
+            "contentDigest": "sha256:12286eba0b71b7b9bc0e8d288db0640ff3b65c7e0f9a955c8889012f8bc74c4b",
+            "startLine": 3,
+            "endLine": 27
+          },
+          {
+            "id": "changelog-1.1.1",
+            "url": "https://github.com/fluent/fluentd/blob/fa35835d9a085023d7b496a81790948e7581a446/CHANGELOG.md",
+            "revision": "fa35835d9a085023d7b496a81790948e7581a446",
+            "contentDigest": "sha256:12b36d20a7058c5beac84ffb9812f76ba434df16f7034279a590a9141b8233a3",
+            "startLine": 3,
+            "endLine": 29
+          },
+          {
+            "id": "changelog-1.1.2",
+            "url": "https://github.com/fluent/fluentd/blob/14cab97e4460192db36946880630bd39e812c9eb/CHANGELOG.md",
+            "revision": "14cab97e4460192db36946880630bd39e812c9eb",
+            "contentDigest": "sha256:a269a29c35abfcdfca66c7e0b48220b2eb30e8ae6e2d4b2ceb2d0ba4f5ce0db2",
+            "startLine": 3,
+            "endLine": 24
+          },
+          {
+            "id": "changelog-1.1.3",
+            "url": "https://github.com/fluent/fluentd/blob/17bec1d2d24b91992e328ae062549c21e14a3f38/CHANGELOG.md",
+            "revision": "17bec1d2d24b91992e328ae062549c21e14a3f38",
+            "contentDigest": "sha256:cd12e8e21d19e4cc7534efe7bb0438f8bf1c985ebe30c89a4e18fb8b24f918de",
+            "startLine": 3,
+            "endLine": 21
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/fluent/fluentd",
+      "line": "1.2",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.1.0",
+            "commit": "9617919973ee528deeb84600df42af34b161eb9a"
+          },
+          {
+            "version": "1.1.1",
+            "commit": "fa35835d9a085023d7b496a81790948e7581a446"
+          },
+          {
+            "version": "1.1.2",
+            "commit": "14cab97e4460192db36946880630bd39e812c9eb"
+          },
+          {
+            "version": "1.1.3",
+            "commit": "17bec1d2d24b91992e328ae062549c21e14a3f38"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.2.0",
+            "commit": "a9ed7bba6b5a151c600ca338398d11e03d17898e"
+          },
+          {
+            "version": "1.2.1",
+            "commit": "8b892eda6a489cdd80e02f8b1783e0986ca9e168"
+          },
+          {
+            "version": "1.2.2",
+            "commit": "c49959c87e207afb8a75a116da9af9ad86beabf1"
+          },
+          {
+            "version": "1.2.3",
+            "commit": "029bb4bfacf91feebc7fa22edf6fc39bdd810890"
+          },
+          {
+            "version": "1.2.4",
+            "commit": "27e84796ebdd7f4f74c584c0cab244c312536732"
+          },
+          {
+            "version": "1.2.5",
+            "commit": "33fe27eb5943d3f969bf0bd15115979f3ac7e7e7"
+          },
+          {
+            "version": "1.2.6",
+            "commit": "500ed50bd02e35ffe1fa1a73aa676e377c679aca"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.fluentd",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-17T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.2.0",
+            "url": "https://github.com/fluent/fluentd/blob/a9ed7bba6b5a151c600ca338398d11e03d17898e/CHANGELOG.md",
+            "revision": "a9ed7bba6b5a151c600ca338398d11e03d17898e",
+            "contentDigest": "sha256:d9a717429a63dcc60e220311bbdc7f96ad2a4d7286823a2cf6448e5b6c5bc922",
+            "startLine": 3,
+            "endLine": 29
+          },
+          {
+            "id": "changelog-1.2.1",
+            "url": "https://github.com/fluent/fluentd/blob/8b892eda6a489cdd80e02f8b1783e0986ca9e168/CHANGELOG.md",
+            "revision": "8b892eda6a489cdd80e02f8b1783e0986ca9e168",
+            "contentDigest": "sha256:fa3c4629f0f54b2e8b18b7b7bd39e988e3229c7a4ff0ff37a845b1fa15ad11ba",
+            "startLine": 3,
+            "endLine": 20
+          },
+          {
+            "id": "changelog-1.2.2",
+            "url": "https://github.com/fluent/fluentd/blob/c49959c87e207afb8a75a116da9af9ad86beabf1/CHANGELOG.md",
+            "revision": "c49959c87e207afb8a75a116da9af9ad86beabf1",
+            "contentDigest": "sha256:0b5bca78e2da97b1943a51167c9e02feed456426adb5d12c0180890863c2d5dc",
+            "startLine": 3,
+            "endLine": 17
+          },
+          {
+            "id": "changelog-1.2.3",
+            "url": "https://github.com/fluent/fluentd/blob/029bb4bfacf91feebc7fa22edf6fc39bdd810890/CHANGELOG.md",
+            "revision": "029bb4bfacf91feebc7fa22edf6fc39bdd810890",
+            "contentDigest": "sha256:2cd93c10b84382f75a46260322bd438b111b8d696c346e009dc3c92563bdfe85",
+            "startLine": 3,
+            "endLine": 27
+          },
+          {
+            "id": "changelog-1.2.4",
+            "url": "https://github.com/fluent/fluentd/blob/27e84796ebdd7f4f74c584c0cab244c312536732/CHANGELOG.md",
+            "revision": "27e84796ebdd7f4f74c584c0cab244c312536732",
+            "contentDigest": "sha256:0636ca95ed448d6f2e50f78e522e38a429e31eeef061913583ef60a275ce2872",
+            "startLine": 3,
+            "endLine": 12
+          },
+          {
+            "id": "changelog-1.2.5",
+            "url": "https://github.com/fluent/fluentd/blob/33fe27eb5943d3f969bf0bd15115979f3ac7e7e7/CHANGELOG.md",
+            "revision": "33fe27eb5943d3f969bf0bd15115979f3ac7e7e7",
+            "contentDigest": "sha256:965265cb468b9a9c09df8f0adc70864fb21453e21c508a15589c83de1e3b3a00",
+            "startLine": 3,
+            "endLine": 9
+          },
+          {
+            "id": "changelog-1.2.6",
+            "url": "https://github.com/fluent/fluentd/blob/500ed50bd02e35ffe1fa1a73aa676e377c679aca/CHANGELOG.md",
+            "revision": "500ed50bd02e35ffe1fa1a73aa676e377c679aca",
+            "contentDigest": "sha256:8df1dd6733432e3b23c1f64fbb68de1178d6683e56ab42637c09dbc596933ffa",
+            "startLine": 3,
+            "endLine": 19
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/fluent/fluentd",
+      "line": "1.3",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.2.0",
+            "commit": "a9ed7bba6b5a151c600ca338398d11e03d17898e"
+          },
+          {
+            "version": "1.2.1",
+            "commit": "8b892eda6a489cdd80e02f8b1783e0986ca9e168"
+          },
+          {
+            "version": "1.2.2",
+            "commit": "c49959c87e207afb8a75a116da9af9ad86beabf1"
+          },
+          {
+            "version": "1.2.3",
+            "commit": "029bb4bfacf91feebc7fa22edf6fc39bdd810890"
+          },
+          {
+            "version": "1.2.4",
+            "commit": "27e84796ebdd7f4f74c584c0cab244c312536732"
+          },
+          {
+            "version": "1.2.5",
+            "commit": "33fe27eb5943d3f969bf0bd15115979f3ac7e7e7"
+          },
+          {
+            "version": "1.2.6",
+            "commit": "500ed50bd02e35ffe1fa1a73aa676e377c679aca"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.3.0",
+            "commit": "23a9609f6a2c8937fc18e19ea96865bfccb2b2cd"
+          },
+          {
+            "version": "1.3.1",
+            "commit": "3dabdc5c42918049933156db7c07437346b76773"
+          },
+          {
+            "version": "1.3.2",
+            "commit": "94382d604d624d68239882d5249c0c41a02ae5d8"
+          },
+          {
+            "version": "1.3.3",
+            "commit": "bc0ff4600c428bc89e523afa0277a33a6fec57c5"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.fluentd",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-17T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.3.0",
+            "url": "https://github.com/fluent/fluentd/blob/23a9609f6a2c8937fc18e19ea96865bfccb2b2cd/CHANGELOG.md",
+            "revision": "23a9609f6a2c8937fc18e19ea96865bfccb2b2cd",
+            "contentDigest": "sha256:3ef8657f361055712f7f2fe5d0093ca882bde922488da1646b72c05d4cd08330",
+            "startLine": 3,
+            "endLine": 26
+          },
+          {
+            "id": "changelog-1.3.1",
+            "url": "https://github.com/fluent/fluentd/blob/3dabdc5c42918049933156db7c07437346b76773/CHANGELOG.md",
+            "revision": "3dabdc5c42918049933156db7c07437346b76773",
+            "contentDigest": "sha256:7e3141b65fc5d1ac5a4a5d71d75e33204b4afd4bbf2ae577dd3f3e718ee3c245",
+            "startLine": 3,
+            "endLine": 24
+          },
+          {
+            "id": "changelog-1.3.2",
+            "url": "https://github.com/fluent/fluentd/blob/94382d604d624d68239882d5249c0c41a02ae5d8/CHANGELOG.md",
+            "revision": "94382d604d624d68239882d5249c0c41a02ae5d8",
+            "contentDigest": "sha256:0fdef7a4479b5273a0fa1030dc88e3e46c3447bb237f416b2a82b2126700894d",
+            "startLine": 3,
+            "endLine": 15
+          },
+          {
+            "id": "changelog-1.3.3",
+            "url": "https://github.com/fluent/fluentd/blob/bc0ff4600c428bc89e523afa0277a33a6fec57c5/CHANGELOG.md",
+            "revision": "bc0ff4600c428bc89e523afa0277a33a6fec57c5",
+            "contentDigest": "sha256:73b8bae42bb7d7bbfa201c60239ea1d96940722b3c26129c9a67064c640e8591",
+            "startLine": 3,
+            "endLine": 17
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/fluent/fluentd",
+      "line": "1.4",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.3.0",
+            "commit": "23a9609f6a2c8937fc18e19ea96865bfccb2b2cd"
+          },
+          {
+            "version": "1.3.1",
+            "commit": "3dabdc5c42918049933156db7c07437346b76773"
+          },
+          {
+            "version": "1.3.2",
+            "commit": "94382d604d624d68239882d5249c0c41a02ae5d8"
+          },
+          {
+            "version": "1.3.3",
+            "commit": "bc0ff4600c428bc89e523afa0277a33a6fec57c5"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.4.0",
+            "commit": "f92eab67996e6390b1bf2c5224a04647d93002fe"
+          },
+          {
+            "version": "1.4.1",
+            "commit": "56a8a824f6575ed51fb5a52fa691610ca885a848"
+          },
+          {
+            "version": "1.4.2",
+            "commit": "26c458bc99acb3a8b055a5ae23fec79a59e8bade"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.fluentd",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-17T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.4.0",
+            "url": "https://github.com/fluent/fluentd/blob/f92eab67996e6390b1bf2c5224a04647d93002fe/CHANGELOG.md",
+            "revision": "f92eab67996e6390b1bf2c5224a04647d93002fe",
+            "contentDigest": "sha256:744438df6123655c771751890b367e8b061ea146e37e42b914c9bd1341daf9df",
+            "startLine": 3,
+            "endLine": 32
+          },
+          {
+            "id": "changelog-1.4.1",
+            "url": "https://github.com/fluent/fluentd/blob/56a8a824f6575ed51fb5a52fa691610ca885a848/CHANGELOG.md",
+            "revision": "56a8a824f6575ed51fb5a52fa691610ca885a848",
+            "contentDigest": "sha256:03d1a00fe44dd6a50b750db4ab69950d6826b6570444c67acd7f54852d0f55f1",
+            "startLine": 3,
+            "endLine": 17
+          },
+          {
+            "id": "changelog-1.4.2",
+            "url": "https://github.com/fluent/fluentd/blob/26c458bc99acb3a8b055a5ae23fec79a59e8bade/CHANGELOG.md",
+            "revision": "26c458bc99acb3a8b055a5ae23fec79a59e8bade",
+            "contentDigest": "sha256:cd34f5bc2ceb3b693770dc8a425aa19abe05015846ce34b828f71478629532c8",
+            "startLine": 3,
+            "endLine": 25
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/fluent/fluentd",
+      "line": "1.5",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.4.0",
+            "commit": "f92eab67996e6390b1bf2c5224a04647d93002fe"
+          },
+          {
+            "version": "1.4.1",
+            "commit": "56a8a824f6575ed51fb5a52fa691610ca885a848"
+          },
+          {
+            "version": "1.4.2",
+            "commit": "26c458bc99acb3a8b055a5ae23fec79a59e8bade"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.5.0",
+            "commit": "31cd8cab4d8581699adfb54b563c38316f8faac6"
+          },
+          {
+            "version": "1.5.1",
+            "commit": "45c7b75ba77763eaf87136864d4942c4e0c5bfcd"
+          },
+          {
+            "version": "1.5.2",
+            "commit": "ea651827782d7ec92c3cd09cb6ada65e32bfab44"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.fluentd",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-17T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.5.0",
+            "url": "https://github.com/fluent/fluentd/blob/31cd8cab4d8581699adfb54b563c38316f8faac6/CHANGELOG.md",
+            "revision": "31cd8cab4d8581699adfb54b563c38316f8faac6",
+            "contentDigest": "sha256:b6793af3c8800c4eef0963266cc410380e76d73fcce97180a1af2b48fa6a5200",
+            "startLine": 3,
+            "endLine": 34
+          },
+          {
+            "id": "changelog-1.5.1",
+            "url": "https://github.com/fluent/fluentd/blob/45c7b75ba77763eaf87136864d4942c4e0c5bfcd/CHANGELOG.md",
+            "revision": "45c7b75ba77763eaf87136864d4942c4e0c5bfcd",
+            "contentDigest": "sha256:aa025392919f77f301aa1cdf03c1325044f51c597dd502bba1924c41c0a917c6",
+            "startLine": 3,
+            "endLine": 23
+          },
+          {
+            "id": "changelog-1.5.2",
+            "url": "https://github.com/fluent/fluentd/blob/ea651827782d7ec92c3cd09cb6ada65e32bfab44/CHANGELOG.md",
+            "revision": "ea651827782d7ec92c3cd09cb6ada65e32bfab44",
+            "contentDigest": "sha256:b276ba6b0f065bc764452e6b3b617d31afae03291d9078ce51e310fad27e4154",
+            "startLine": 3,
+            "endLine": 8
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/fluent/fluentd",
+      "line": "1.6",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.5.0",
+            "commit": "31cd8cab4d8581699adfb54b563c38316f8faac6"
+          },
+          {
+            "version": "1.5.1",
+            "commit": "45c7b75ba77763eaf87136864d4942c4e0c5bfcd"
+          },
+          {
+            "version": "1.5.2",
+            "commit": "ea651827782d7ec92c3cd09cb6ada65e32bfab44"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.6.0",
+            "commit": "30905368ca860b5b21c7c0205260bcf16e768af7"
+          },
+          {
+            "version": "1.6.1",
+            "commit": "8688ebbd75aae42cc2b4c2f5ff7bb7305be13cb1"
+          },
+          {
+            "version": "1.6.2",
+            "commit": "e45146681dea922b0e473455174ca9e2c171ec43"
+          },
+          {
+            "version": "1.6.3",
+            "commit": "ab4af3499d86b582aaccb4124eaca7ba4d1c5d1a"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.fluentd",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-17T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.6.0",
+            "url": "https://github.com/fluent/fluentd/blob/30905368ca860b5b21c7c0205260bcf16e768af7/CHANGELOG.md",
+            "revision": "30905368ca860b5b21c7c0205260bcf16e768af7",
+            "contentDigest": "sha256:c4a8a1a2899a368c1767e6445d6f86405102caab77255287ae3659c37930f157",
+            "startLine": 3,
+            "endLine": 28
+          },
+          {
+            "id": "changelog-1.6.1",
+            "url": "https://github.com/fluent/fluentd/blob/8688ebbd75aae42cc2b4c2f5ff7bb7305be13cb1/CHANGELOG.md",
+            "revision": "8688ebbd75aae42cc2b4c2f5ff7bb7305be13cb1",
+            "contentDigest": "sha256:587e490420378b45b7994f50545f9c8644aca2f0ea2b5fb5df8c69ffe3a8863f",
+            "startLine": 3,
+            "endLine": 17
+          },
+          {
+            "id": "changelog-1.6.2",
+            "url": "https://github.com/fluent/fluentd/blob/e45146681dea922b0e473455174ca9e2c171ec43/CHANGELOG.md",
+            "revision": "e45146681dea922b0e473455174ca9e2c171ec43",
+            "contentDigest": "sha256:796e566df224142647da856c006ad4a121276d14f71dacc8b5aa49b607ae8db3",
+            "startLine": 3,
+            "endLine": 8
+          },
+          {
+            "id": "changelog-1.6.3",
+            "url": "https://github.com/fluent/fluentd/blob/ab4af3499d86b582aaccb4124eaca7ba4d1c5d1a/CHANGELOG.md",
+            "revision": "ab4af3499d86b582aaccb4124eaca7ba4d1c5d1a",
+            "contentDigest": "sha256:c887fe354d698b87a2e4bb874454556b561ea2fb581998705d66e016bd4f4035",
+            "startLine": 3,
+            "endLine": 17
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/fluent/fluentd",
+      "line": "1.7",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.6.0",
+            "commit": "30905368ca860b5b21c7c0205260bcf16e768af7"
+          },
+          {
+            "version": "1.6.1",
+            "commit": "8688ebbd75aae42cc2b4c2f5ff7bb7305be13cb1"
+          },
+          {
+            "version": "1.6.2",
+            "commit": "e45146681dea922b0e473455174ca9e2c171ec43"
+          },
+          {
+            "version": "1.6.3",
+            "commit": "ab4af3499d86b582aaccb4124eaca7ba4d1c5d1a"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.7.0",
+            "commit": "fc02c09d0c128df75f272466d8b7e588c1216ca4"
+          },
+          {
+            "version": "1.7.1",
+            "commit": "07d9eecf0ce1413ab7873da84462b6f8fe9fae04"
+          },
+          {
+            "version": "1.7.2",
+            "commit": "5f2974a89e6aade43bc4795df94e793a52e5e949"
+          },
+          {
+            "version": "1.7.3",
+            "commit": "f47788280d8d97829b49e460e81a854bde0840e2"
+          },
+          {
+            "version": "1.7.4",
+            "commit": "9c577a78e69fb3bc1fc1faf0ef425091b9180987"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.fluentd",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-17T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.7.0",
+            "url": "https://github.com/fluent/fluentd/blob/fc02c09d0c128df75f272466d8b7e588c1216ca4/CHANGELOG.md",
+            "revision": "fc02c09d0c128df75f272466d8b7e588c1216ca4",
+            "contentDigest": "sha256:1cac22042b0400b4835449779669e5053dcb3ee0d446072d502522935ce4e25c",
+            "startLine": 3,
+            "endLine": 57
+          },
+          {
+            "id": "changelog-1.7.1",
+            "url": "https://github.com/fluent/fluentd/blob/07d9eecf0ce1413ab7873da84462b6f8fe9fae04/CHANGELOG.md",
+            "revision": "07d9eecf0ce1413ab7873da84462b6f8fe9fae04",
+            "contentDigest": "sha256:974a477926f3771fccb2efeef8e9778fee2238706337829cca7044b5278e04a2",
+            "startLine": 3,
+            "endLine": 23
+          },
+          {
+            "id": "changelog-1.7.2",
+            "url": "https://github.com/fluent/fluentd/blob/5f2974a89e6aade43bc4795df94e793a52e5e949/CHANGELOG.md",
+            "revision": "5f2974a89e6aade43bc4795df94e793a52e5e949",
+            "contentDigest": "sha256:d48958444aad6277aefe689ec0ddb7bf29237ef2a4de529d464cefbdecc77fa0",
+            "startLine": 3,
+            "endLine": 17
+          },
+          {
+            "id": "changelog-1.7.3",
+            "url": "https://github.com/fluent/fluentd/blob/f47788280d8d97829b49e460e81a854bde0840e2/CHANGELOG.md",
+            "revision": "f47788280d8d97829b49e460e81a854bde0840e2",
+            "contentDigest": "sha256:eadeba77d5515a81076f7f0b86d73dfd91b765789785bd749e316e1a1fda47c7",
+            "startLine": 3,
+            "endLine": 15
+          },
+          {
+            "id": "changelog-1.7.4",
+            "url": "https://github.com/fluent/fluentd/blob/9c577a78e69fb3bc1fc1faf0ef425091b9180987/CHANGELOG.md",
+            "revision": "9c577a78e69fb3bc1fc1faf0ef425091b9180987",
+            "contentDigest": "sha256:9fcdf56fe165d27a1acb42beab3d8eb870082797edb3a060ee011c662c15702e",
+            "startLine": 3,
+            "endLine": 16
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/fluent/fluentd",
+      "line": "1.8",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.7.0",
+            "commit": "fc02c09d0c128df75f272466d8b7e588c1216ca4"
+          },
+          {
+            "version": "1.7.1",
+            "commit": "07d9eecf0ce1413ab7873da84462b6f8fe9fae04"
+          },
+          {
+            "version": "1.7.2",
+            "commit": "5f2974a89e6aade43bc4795df94e793a52e5e949"
+          },
+          {
+            "version": "1.7.3",
+            "commit": "f47788280d8d97829b49e460e81a854bde0840e2"
+          },
+          {
+            "version": "1.7.4",
+            "commit": "9c577a78e69fb3bc1fc1faf0ef425091b9180987"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.8.0",
+            "commit": "db3d0039ac7dac86955a02f0eda4f3991a9ef617"
+          },
+          {
+            "version": "1.8.1",
+            "commit": "8d0f413528b8f5fe8f0b532e6dde5d165b1e8a17"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.fluentd",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-17T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.8.0",
+            "url": "https://github.com/fluent/fluentd/blob/db3d0039ac7dac86955a02f0eda4f3991a9ef617/CHANGELOG.md",
+            "revision": "db3d0039ac7dac86955a02f0eda4f3991a9ef617",
+            "contentDigest": "sha256:a981d3256cb5cc3af8154ee5dcd28105390f2d3b3124ed7a8269a6b47d3b0cf0",
+            "startLine": 3,
+            "endLine": 69
+          },
+          {
+            "id": "changelog-1.8.1",
+            "url": "https://github.com/fluent/fluentd/blob/8d0f413528b8f5fe8f0b532e6dde5d165b1e8a17/CHANGELOG.md",
+            "revision": "8d0f413528b8f5fe8f0b532e6dde5d165b1e8a17",
+            "contentDigest": "sha256:c55ecde802b940a4a9f51e8437ac70a9db1cdb78165e21ff0ba8d7f3b74e2c90",
+            "startLine": 3,
+            "endLine": 17
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/fluent/fluentd",
+      "line": "1.9",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.8.0",
+            "commit": "db3d0039ac7dac86955a02f0eda4f3991a9ef617"
+          },
+          {
+            "version": "1.8.1",
+            "commit": "8d0f413528b8f5fe8f0b532e6dde5d165b1e8a17"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.9.0",
+            "commit": "2236ad45197ba336fd9faf56f442252c8b226f25"
+          },
+          {
+            "version": "1.9.1",
+            "commit": "22dcaa82f3b5b136219900797c01e5464e57dd7b"
+          },
+          {
+            "version": "1.9.2",
+            "commit": "9d113029d4550ce576d8825bfa9612aa3e55bff0"
+          },
+          {
+            "version": "1.9.3",
+            "commit": "9f856f621f7c71449fa5031b30367d41e7419188"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.fluentd",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-17T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.9.0",
+            "url": "https://github.com/fluent/fluentd/blob/2236ad45197ba336fd9faf56f442252c8b226f25/CHANGELOG.md",
+            "revision": "2236ad45197ba336fd9faf56f442252c8b226f25",
+            "contentDigest": "sha256:41b1b783a0622cd2f4454e044a397c6e36b0b5a5a9757e4d2f7e4dd76d8397a1",
+            "startLine": 3,
+            "endLine": 37
+          },
+          {
+            "id": "changelog-1.9.1",
+            "url": "https://github.com/fluent/fluentd/blob/22dcaa82f3b5b136219900797c01e5464e57dd7b/CHANGELOG.md",
+            "revision": "22dcaa82f3b5b136219900797c01e5464e57dd7b",
+            "contentDigest": "sha256:a56932dd1df9ee175f2a6351a33aede143a526150ca5a2c5fab45e2b79aab923",
+            "startLine": 3,
+            "endLine": 25
+          },
+          {
+            "id": "changelog-1.9.2",
+            "url": "https://github.com/fluent/fluentd/blob/9d113029d4550ce576d8825bfa9612aa3e55bff0/CHANGELOG.md",
+            "revision": "9d113029d4550ce576d8825bfa9612aa3e55bff0",
+            "contentDigest": "sha256:dce1c156a48677c45bf215a7d2e95476dbde0c0e9cb5a964bed56b1830b8a76d",
+            "startLine": 3,
+            "endLine": 23
+          },
+          {
+            "id": "changelog-1.9.3",
+            "url": "https://github.com/fluent/fluentd/blob/9f856f621f7c71449fa5031b30367d41e7419188/CHANGELOG.md",
+            "revision": "9f856f621f7c71449fa5031b30367d41e7419188",
+            "contentDigest": "sha256:75b3004278afc0dad4028095b6716680da947a22d669096f757e14731ff48c8c",
+            "startLine": 3,
+            "endLine": 38
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/fluent/fluentd",
+      "line": "1.10",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.9.0",
+            "commit": "2236ad45197ba336fd9faf56f442252c8b226f25"
+          },
+          {
+            "version": "1.9.1",
+            "commit": "22dcaa82f3b5b136219900797c01e5464e57dd7b"
+          },
+          {
+            "version": "1.9.2",
+            "commit": "9d113029d4550ce576d8825bfa9612aa3e55bff0"
+          },
+          {
+            "version": "1.9.3",
+            "commit": "9f856f621f7c71449fa5031b30367d41e7419188"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.10.0",
+            "commit": "7e3022efbb972d1a46fb66d1a6e2698abb46564e"
+          },
+          {
+            "version": "1.10.1",
+            "commit": "cc97aa414f918e0ae7a596cc5ccca8e5fa080ee2"
+          },
+          {
+            "version": "1.10.2",
+            "commit": "a5badcdf916bebcce25af5aac21ad13ce1c3f9a1"
+          },
+          {
+            "version": "1.10.3",
+            "commit": "d8a0ff30afd4f0ce25da4d99f8e7a7161473aae8"
+          },
+          {
+            "version": "1.10.4",
+            "commit": "5a2afdccc7fc3766f0728c29b04519784ff7ef3f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.fluentd",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-17T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.10.0",
+            "url": "https://github.com/fluent/fluentd/blob/7e3022efbb972d1a46fb66d1a6e2698abb46564e/CHANGELOG.md",
+            "revision": "7e3022efbb972d1a46fb66d1a6e2698abb46564e",
+            "contentDigest": "sha256:33d9e77f019d7ba3dab64a29cfe3cf1cc2fb71b45753bd03e18f7d55cc96ddca",
+            "startLine": 3,
+            "endLine": 46
+          },
+          {
+            "id": "changelog-1.10.1",
+            "url": "https://github.com/fluent/fluentd/blob/cc97aa414f918e0ae7a596cc5ccca8e5fa080ee2/CHANGELOG.md",
+            "revision": "cc97aa414f918e0ae7a596cc5ccca8e5fa080ee2",
+            "contentDigest": "sha256:0a9bdd167a2a6a1c613752ace2b53edcab23a6cbf6402e87cc70f915591eb738",
+            "startLine": 3,
+            "endLine": 24
+          },
+          {
+            "id": "changelog-1.10.2",
+            "url": "https://github.com/fluent/fluentd/blob/a5badcdf916bebcce25af5aac21ad13ce1c3f9a1/CHANGELOG.md",
+            "revision": "a5badcdf916bebcce25af5aac21ad13ce1c3f9a1",
+            "contentDigest": "sha256:9948274a70fad5546241bb54dc4ecd0df8c82aa4b5db00d8a7b28544bea807cf",
+            "startLine": 3,
+            "endLine": 33
+          },
+          {
+            "id": "changelog-1.10.3",
+            "url": "https://github.com/fluent/fluentd/blob/d8a0ff30afd4f0ce25da4d99f8e7a7161473aae8/CHANGELOG.md",
+            "revision": "d8a0ff30afd4f0ce25da4d99f8e7a7161473aae8",
+            "contentDigest": "sha256:e4c896692929113612f163bca92e1b4194342d00d3a17153a9c04123fee319ca",
+            "startLine": 3,
+            "endLine": 23
+          },
+          {
+            "id": "changelog-1.10.4",
+            "url": "https://github.com/fluent/fluentd/blob/5a2afdccc7fc3766f0728c29b04519784ff7ef3f/CHANGELOG.md",
+            "revision": "5a2afdccc7fc3766f0728c29b04519784ff7ef3f",
+            "contentDigest": "sha256:e72863a677dbaf380eb579b1d21c3ce2e009b7fe6eb0d05249bf3b786e571aa3",
+            "startLine": 3,
+            "endLine": 17
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/fluent/fluentd",
+      "line": "1.11",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.10.0",
+            "commit": "7e3022efbb972d1a46fb66d1a6e2698abb46564e"
+          },
+          {
+            "version": "1.10.1",
+            "commit": "cc97aa414f918e0ae7a596cc5ccca8e5fa080ee2"
+          },
+          {
+            "version": "1.10.2",
+            "commit": "a5badcdf916bebcce25af5aac21ad13ce1c3f9a1"
+          },
+          {
+            "version": "1.10.3",
+            "commit": "d8a0ff30afd4f0ce25da4d99f8e7a7161473aae8"
+          },
+          {
+            "version": "1.10.4",
+            "commit": "5a2afdccc7fc3766f0728c29b04519784ff7ef3f"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.11.0",
+            "commit": "f5cc77783b7483dd72dc039c96a3ad970daa7835"
+          },
+          {
+            "version": "1.11.1",
+            "commit": "6beca80f6467fd2e12ea25b21e0474d978007b08"
+          },
+          {
+            "version": "1.11.2",
+            "commit": "3dde9396ee30263980ad2655fc78197b41d2b3fd"
+          },
+          {
+            "version": "1.11.3",
+            "commit": "91706653523ff4b99ca3fdeb09c44eb233897c28"
+          },
+          {
+            "version": "1.11.4",
+            "commit": "5d772aa7d2ad81784aadef6264129803397db9a1"
+          },
+          {
+            "version": "1.11.5",
+            "commit": "24fe4cbc50d1ea1e053eb6d336e6fc0f797eeb12"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.fluentd",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-17T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.11.0",
+            "url": "https://github.com/fluent/fluentd/blob/f5cc77783b7483dd72dc039c96a3ad970daa7835/CHANGELOG.md",
+            "revision": "f5cc77783b7483dd72dc039c96a3ad970daa7835",
+            "contentDigest": "sha256:1c2a74190a151edd70a9fe696afd8819a40d23d8223613cad03504845fe3c5c9",
+            "startLine": 3,
+            "endLine": 22
+          },
+          {
+            "id": "changelog-1.11.1",
+            "url": "https://github.com/fluent/fluentd/blob/6beca80f6467fd2e12ea25b21e0474d978007b08/CHANGELOG.md",
+            "revision": "6beca80f6467fd2e12ea25b21e0474d978007b08",
+            "contentDigest": "sha256:95db94550823e1f1a2bcdb99b699d6913f1502babf9dc0d8ef7f6cab612f7222",
+            "startLine": 3,
+            "endLine": 19
+          },
+          {
+            "id": "changelog-1.11.2",
+            "url": "https://github.com/fluent/fluentd/blob/3dde9396ee30263980ad2655fc78197b41d2b3fd/CHANGELOG.md",
+            "revision": "3dde9396ee30263980ad2655fc78197b41d2b3fd",
+            "contentDigest": "sha256:a5cb8e8a5575314f6a160e60259825515e61f7ecfd47353e89d20f75b5d92455",
+            "startLine": 3,
+            "endLine": 23
+          },
+          {
+            "id": "changelog-1.11.3",
+            "url": "https://github.com/fluent/fluentd/blob/91706653523ff4b99ca3fdeb09c44eb233897c28/CHANGELOG.md",
+            "revision": "91706653523ff4b99ca3fdeb09c44eb233897c28",
+            "contentDigest": "sha256:3791ceba2d6e36fe36b012adc7afb31c8c4a6c73e3536f191a21fc48cda091a2",
+            "startLine": 3,
+            "endLine": 24
+          },
+          {
+            "id": "changelog-1.11.4",
+            "url": "https://github.com/fluent/fluentd/blob/5d772aa7d2ad81784aadef6264129803397db9a1/CHANGELOG.md",
+            "revision": "5d772aa7d2ad81784aadef6264129803397db9a1",
+            "contentDigest": "sha256:5e5d886d87616b1f1deb46345efc40d72d96226bf48fdb93a2e2ee54d98af700",
+            "startLine": 3,
+            "endLine": 15
+          },
+          {
+            "id": "changelog-1.11.5",
+            "url": "https://github.com/fluent/fluentd/blob/24fe4cbc50d1ea1e053eb6d336e6fc0f797eeb12/CHANGELOG.md",
+            "revision": "24fe4cbc50d1ea1e053eb6d336e6fc0f797eeb12",
+            "contentDigest": "sha256:d15fc963c54cefba543f1f7b9c09e7ec6313e4d5834a7bc4969395069c6c4244",
+            "startLine": 3,
+            "endLine": 15
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/fluent/fluentd",
+      "line": "1.12",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.11.0",
+            "commit": "f5cc77783b7483dd72dc039c96a3ad970daa7835"
+          },
+          {
+            "version": "1.11.1",
+            "commit": "6beca80f6467fd2e12ea25b21e0474d978007b08"
+          },
+          {
+            "version": "1.11.2",
+            "commit": "3dde9396ee30263980ad2655fc78197b41d2b3fd"
+          },
+          {
+            "version": "1.11.3",
+            "commit": "91706653523ff4b99ca3fdeb09c44eb233897c28"
+          },
+          {
+            "version": "1.11.4",
+            "commit": "5d772aa7d2ad81784aadef6264129803397db9a1"
+          },
+          {
+            "version": "1.11.5",
+            "commit": "24fe4cbc50d1ea1e053eb6d336e6fc0f797eeb12"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.12.0",
+            "commit": "793c9aa3a45b5e6779b7fbf4fba8b0a1c930c8af"
+          },
+          {
+            "version": "1.12.1",
+            "commit": "e3effa337593618cbd7f0f4ef071766df1ec69a0"
+          },
+          {
+            "version": "1.12.2",
+            "commit": "61623a79cfb41d9b2d6278a036f0df4949a4f56c"
+          },
+          {
+            "version": "1.12.3",
+            "commit": "b6e76c09d60ee866de6470f2bdd2551e7c8591d3"
+          },
+          {
+            "version": "1.12.4",
+            "commit": "3c6ba5caa828560f3876f4458f3a2fb5585448f2"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.fluentd",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-17T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.12.0",
+            "url": "https://github.com/fluent/fluentd/blob/793c9aa3a45b5e6779b7fbf4fba8b0a1c930c8af/CHANGELOG.md",
+            "revision": "793c9aa3a45b5e6779b7fbf4fba8b0a1c930c8af",
+            "contentDigest": "sha256:fcfcd5d1c40930b521ce18ce085b97f5a7ff363497c2098df98c5dcaae44fadf",
+            "startLine": 3,
+            "endLine": 36
+          },
+          {
+            "id": "changelog-1.12.1",
+            "url": "https://github.com/fluent/fluentd/blob/e3effa337593618cbd7f0f4ef071766df1ec69a0/CHANGELOG.md",
+            "revision": "e3effa337593618cbd7f0f4ef071766df1ec69a0",
+            "contentDigest": "sha256:4f3275361a4cda2b0b3a083a344207193da15e70a0bf15422d4efecf5b579ffa",
+            "startLine": 3,
+            "endLine": 26
+          },
+          {
+            "id": "changelog-1.12.2",
+            "url": "https://github.com/fluent/fluentd/blob/61623a79cfb41d9b2d6278a036f0df4949a4f56c/CHANGELOG.md",
+            "revision": "61623a79cfb41d9b2d6278a036f0df4949a4f56c",
+            "contentDigest": "sha256:522bbe0e6e7976f3047a5ed6005c89d1aeed0e0350e376d65049b5aea44ba71c",
+            "startLine": 3,
+            "endLine": 48
+          },
+          {
+            "id": "changelog-1.12.3",
+            "url": "https://github.com/fluent/fluentd/blob/b6e76c09d60ee866de6470f2bdd2551e7c8591d3/CHANGELOG.md",
+            "revision": "b6e76c09d60ee866de6470f2bdd2551e7c8591d3",
+            "contentDigest": "sha256:87ce2b2a4691f90991d2861ef6c84f5124267a58cc33aad9d34d71b9d564eb13",
+            "startLine": 3,
+            "endLine": 43
+          },
+          {
+            "id": "changelog-1.12.4",
+            "url": "https://github.com/fluent/fluentd/blob/3c6ba5caa828560f3876f4458f3a2fb5585448f2/CHANGELOG.md",
+            "revision": "3c6ba5caa828560f3876f4458f3a2fb5585448f2",
+            "contentDigest": "sha256:05be5bb113547dc61f0b0d6348ae25bfdb898431ce831ef94bb6aa475f666e8f",
+            "startLine": 3,
+            "endLine": 7
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/fluent/fluentd",
+      "line": "1.15",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.14.0",
+            "commit": "d6710439a4eaa268a062b6619458b5875660aba2"
+          },
+          {
+            "version": "1.14.1",
+            "commit": "6a3b2216c13b55861c8679a0c2e02436f426774f"
+          },
+          {
+            "version": "1.14.2",
+            "commit": "5126eba90ab4deb77e9deca691dfd68f835bd456"
+          },
+          {
+            "version": "1.14.3",
+            "commit": "438a82aead488a86180cd484bbc4e7e344a9032b"
+          },
+          {
+            "version": "1.14.4",
+            "commit": "d1f33da51466d13d016cf2480305e9da189ea10b"
+          },
+          {
+            "version": "1.14.5",
+            "commit": "672338f23662a264141974d1a481c25a3648f035"
+          },
+          {
+            "version": "1.14.6",
+            "commit": "c0f48a0080550eff6aa6fa19d269e480684e7a45"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.15.0",
+            "commit": "79ead40de9dec33afc2a9bf6cc25f5ec2d65a482"
+          },
+          {
+            "version": "1.15.1",
+            "commit": "cf241f0d9449a19346cc252946f14b7a79e2a4d2"
+          },
+          {
+            "version": "1.15.2",
+            "commit": "c32842297ed2c306f1b841a8f6e55bdd0f1cb27f"
+          },
+          {
+            "version": "1.15.3",
+            "commit": "e89092ce1132a933c12bb23fe8c9323c07ca81f5"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.fluentd",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-17T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.15.0",
+            "url": "https://github.com/fluent/fluentd/blob/79ead40de9dec33afc2a9bf6cc25f5ec2d65a482/CHANGELOG.md",
+            "revision": "79ead40de9dec33afc2a9bf6cc25f5ec2d65a482",
+            "contentDigest": "sha256:c5e88fd566d0c9fd5ca6fb93a672758fc35562433a9caec7f84dec7841aaca7c",
+            "startLine": 3,
+            "endLine": 51
+          },
+          {
+            "id": "changelog-1.15.1",
+            "url": "https://github.com/fluent/fluentd/blob/cf241f0d9449a19346cc252946f14b7a79e2a4d2/CHANGELOG.md",
+            "revision": "cf241f0d9449a19346cc252946f14b7a79e2a4d2",
+            "contentDigest": "sha256:b1c4c5324d3d175c889d3ab9cde3242c9203cf2f0df15f465b46d74ed939ed1c",
+            "startLine": 3,
+            "endLine": 13
+          },
+          {
+            "id": "changelog-1.15.2",
+            "url": "https://github.com/fluent/fluentd/blob/c32842297ed2c306f1b841a8f6e55bdd0f1cb27f/CHANGELOG.md",
+            "revision": "c32842297ed2c306f1b841a8f6e55bdd0f1cb27f",
+            "contentDigest": "sha256:c1b5cd91579a707b993c8b8a2544e2e4df813afb9ad2e7d90464249d13ab54c3",
+            "startLine": 3,
+            "endLine": 21
+          },
+          {
+            "id": "changelog-1.15.3",
+            "url": "https://github.com/fluent/fluentd/blob/e89092ce1132a933c12bb23fe8c9323c07ca81f5/CHANGELOG.md",
+            "revision": "e89092ce1132a933c12bb23fe8c9323c07ca81f5",
+            "contentDigest": "sha256:db7f159adf3858e4f3daf541b4f9697c3231bb79133358ed682f613113cd8347",
+            "startLine": 3,
+            "endLine": 20
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/fluent/fluentd",
+      "line": "1.17",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.16.0",
+            "commit": "206b46b91560177366371c1f05bbcf09ac006d86"
+          },
+          {
+            "version": "1.16.1",
+            "commit": "0a6d706a9cee5882d751b2cc6169696709df0134"
+          },
+          {
+            "version": "1.16.2",
+            "commit": "d5685ada81ac89a35a79965f1e94bbe5952a5d3a"
+          },
+          {
+            "version": "1.16.3",
+            "commit": "d3cf2e0f95a0ad88b9897197db6c5152310f114f"
+          },
+          {
+            "version": "1.16.4",
+            "commit": "1ffa7140143184de10d26a39f98b55d3dba9e362"
+          },
+          {
+            "version": "1.16.5",
+            "commit": "95d130aaa44fc09b14a4e9686ee8018253185fc5"
+          },
+          {
+            "version": "1.16.6",
+            "commit": "fa1cfbb0335e7751a2fd5547897ab611484ee000"
+          },
+          {
+            "version": "1.16.7",
+            "commit": "6e7d056ec21db1ca1b5dbd50ca04afeac2b8ca7b"
+          },
+          {
+            "version": "1.16.8",
+            "commit": "13014c5935a52b9d6b5bf8e40e5b3cf8a149e7f6"
+          },
+          {
+            "version": "1.16.9",
+            "commit": "daccbc6f0551611c65d3ce7efd81dfc7b693f3e3"
+          },
+          {
+            "version": "1.16.10",
+            "commit": "5114da659c360c3d7afdd2940ac129f7ffd00214"
+          },
+          {
+            "version": "1.16.11",
+            "commit": "844c1d8711d94976910cf9a70e29464fbada2862"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.17.0",
+            "commit": "e763c0761c44d9734b6aa374371387a2e8406522"
+          },
+          {
+            "version": "1.17.1",
+            "commit": "78a7972bfe6b421f08472701f04f00515ed24bee"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.fluentd",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-17T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.17.0",
+            "url": "https://github.com/fluent/fluentd/blob/e763c0761c44d9734b6aa374371387a2e8406522/CHANGELOG.md",
+            "revision": "e763c0761c44d9734b6aa374371387a2e8406522",
+            "contentDigest": "sha256:094fbb051407334786b4032ebab804db5e4625dbdf87005b80acfc151ba8570d",
+            "startLine": 3,
+            "endLine": 41
+          },
+          {
+            "id": "changelog-1.17.1",
+            "url": "https://github.com/fluent/fluentd/blob/78a7972bfe6b421f08472701f04f00515ed24bee/CHANGELOG.md",
+            "revision": "78a7972bfe6b421f08472701f04f00515ed24bee",
+            "contentDigest": "sha256:355895a9b381476b1da3d17bdc07e5cbf91b4cd93cde722d43f523c4006d7d16",
+            "startLine": 3,
+            "endLine": 47
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/fluent/fluentd",
+      "line": "1.18",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.17.0",
+            "commit": "e763c0761c44d9734b6aa374371387a2e8406522"
+          },
+          {
+            "version": "1.17.1",
+            "commit": "78a7972bfe6b421f08472701f04f00515ed24bee"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.18.0",
+            "commit": "46372ddd521870f6a203baefb5a598209486d0bc"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.fluentd",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-17T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.18.0",
+            "url": "https://github.com/fluent/fluentd/blob/46372ddd521870f6a203baefb5a598209486d0bc/CHANGELOG.md",
+            "revision": "46372ddd521870f6a203baefb5a598209486d0bc",
+            "contentDigest": "sha256:6d052ea77e3801d9311fd8d91cbd7ccd9112b48f934060f782da903222cef369",
+            "startLine": 3,
+            "endLine": 53
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/fluent/fluentd",
+      "line": "1.19",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.18.0",
+            "commit": "46372ddd521870f6a203baefb5a598209486d0bc"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.19.0",
+            "commit": "ed15edc4b7c86c1fcea3fbf326b7c42325e6fc71"
+          },
+          {
+            "version": "1.19.1",
+            "commit": "efdc4dca81c23480c9b55e13e55de6aa925b1cf5"
+          },
+          {
+            "version": "1.19.2",
+            "commit": "76841666b4e4aade23f0c100a7e048995f7d52c8"
+          },
+          {
+            "version": "1.19.3",
+            "commit": "43c860907e3d6a92c922233fd16eb2ed9ea16b69"
+          },
+          {
+            "version": "1.19.4",
+            "commit": "8729f544eebe0e8df6f79764a16a0f3f0c7fc59f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.fluentd",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-17T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.19.0",
+            "url": "https://github.com/fluent/fluentd/blob/ed15edc4b7c86c1fcea3fbf326b7c42325e6fc71/CHANGELOG.md",
+            "revision": "ed15edc4b7c86c1fcea3fbf326b7c42325e6fc71",
+            "contentDigest": "sha256:74a166c1ddf1a07abba7f3fc710de835aa3c343feab4a19c4d5b5d6534ff832b",
+            "startLine": 3,
+            "endLine": 128
+          },
+          {
+            "id": "changelog-1.19.1",
+            "url": "https://github.com/fluent/fluentd/blob/efdc4dca81c23480c9b55e13e55de6aa925b1cf5/CHANGELOG.md",
+            "revision": "efdc4dca81c23480c9b55e13e55de6aa925b1cf5",
+            "contentDigest": "sha256:4b31cfa59fc734b1233c4abb8c06e55f50b2a49ed99fcef59b15e2510c26a3d4",
+            "startLine": 3,
+            "endLine": 20
+          },
+          {
+            "id": "changelog-1.19.2",
+            "url": "https://github.com/fluent/fluentd/blob/76841666b4e4aade23f0c100a7e048995f7d52c8/CHANGELOG.md",
+            "revision": "76841666b4e4aade23f0c100a7e048995f7d52c8",
+            "contentDigest": "sha256:758f3e7d888a65689eb59ec2175faa3851792f3a327e59dddb7b82d89cecb5c6",
+            "startLine": 3,
+            "endLine": 25
+          },
+          {
+            "id": "changelog-1.19.3",
+            "url": "https://github.com/fluent/fluentd/blob/43c860907e3d6a92c922233fd16eb2ed9ea16b69/CHANGELOG.md",
+            "revision": "43c860907e3d6a92c922233fd16eb2ed9ea16b69",
+            "contentDigest": "sha256:2841745d820112476024ad7e8f2017034e44ec0e52d23cdfb8ca2adaefe86a45",
+            "startLine": 3,
+            "endLine": 37
+          },
+          {
+            "id": "changelog-1.19.4",
+            "url": "https://github.com/fluent/fluentd/blob/8729f544eebe0e8df6f79764a16a0f3f0c7fc59f/CHANGELOG.md",
+            "revision": "8729f544eebe0e8df6f79764a16a0f3f0c7fc59f",
+            "contentDigest": "sha256:c53c96ab69f15523eb0d6e0ce3ff2915123a035b99d4ed7b9986300593084014",
+            "startLine": 3,
+            "endLine": 46
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/fluent/fluentd",
+      "line": "1.20",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.19.0",
+            "commit": "ed15edc4b7c86c1fcea3fbf326b7c42325e6fc71"
+          },
+          {
+            "version": "1.19.1",
+            "commit": "efdc4dca81c23480c9b55e13e55de6aa925b1cf5"
+          },
+          {
+            "version": "1.19.2",
+            "commit": "76841666b4e4aade23f0c100a7e048995f7d52c8"
+          },
+          {
+            "version": "1.19.3",
+            "commit": "43c860907e3d6a92c922233fd16eb2ed9ea16b69"
+          },
+          {
+            "version": "1.19.4",
+            "commit": "8729f544eebe0e8df6f79764a16a0f3f0c7fc59f"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.20.0",
+            "commit": "f984d657130231c772ae588e5a74971da8b7a35a"
+          },
+          {
+            "version": "1.20.1",
+            "commit": "086fa170eb55f494289b10759cfca2a68f3ae87c"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.fluentd",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-17T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.20.0",
+            "url": "https://github.com/fluent/fluentd/blob/f984d657130231c772ae588e5a74971da8b7a35a/CHANGELOG.md",
+            "revision": "f984d657130231c772ae588e5a74971da8b7a35a",
+            "contentDigest": "sha256:56ab61661e437bcc2440c9eed15203ef31acaec681b109bfeaaf0b192b949982",
+            "startLine": 3,
+            "endLine": 74
+          },
+          {
+            "id": "changelog-1.20.1",
+            "url": "https://github.com/fluent/fluentd/blob/086fa170eb55f494289b10759cfca2a68f3ae87c/CHANGELOG.md",
+            "revision": "086fa170eb55f494289b10759cfca2a68f3ae87c",
+            "contentDigest": "sha256:759094bc8b22d2a5436a63f775e64a9a2d268dd93aa3318f99e1407d61e7bf0e",
+            "startLine": 3,
+            "endLine": 9
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/furiko-io/furiko",
       "line": "0.1",
       "factFamily": "crd.custom_resource_versions",
@@ -26463,6 +28831,410 @@
             "contentDigest": "sha256:2dbc709ed5feb6c959a108858919d22c1e6dfb31b72ab21adbe2ef845b58852c",
             "startLine": 1,
             "endLine": 428
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/in-toto/in-toto",
+      "line": "1.1",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.0.0",
+            "commit": "5ede52092c3a5878e17a67fe5a2acc5a27e19e4a"
+          },
+          {
+            "version": "1.0.1",
+            "commit": "4d2fe767f403d4fab5bd3670623003ee63bcd92f"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.1.0",
+            "commit": "cc99c9f3cf0108a49726c20f6d63e5ff235af539"
+          },
+          {
+            "version": "1.1.1",
+            "commit": "e8d180f9fbb872dd6955fcc365eb2e285838c8d5"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.in-toto",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-04T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.1.0",
+            "url": "https://github.com/in-toto/in-toto/blob/cc99c9f3cf0108a49726c20f6d63e5ff235af539/CHANGELOG.md",
+            "revision": "cc99c9f3cf0108a49726c20f6d63e5ff235af539",
+            "contentDigest": "sha256:16abf10925b455d43554612169bcfbf436e709c069d3e973519470f7f09a2b94",
+            "startLine": 3,
+            "endLine": 22
+          },
+          {
+            "id": "changelog-1.1.1",
+            "url": "https://github.com/in-toto/in-toto/blob/e8d180f9fbb872dd6955fcc365eb2e285838c8d5/CHANGELOG.md",
+            "revision": "e8d180f9fbb872dd6955fcc365eb2e285838c8d5",
+            "contentDigest": "sha256:76c82caa2dac74a2198bbf1181a2aae49a6205572b98d236df9bc51b891fb1ad",
+            "startLine": 3,
+            "endLine": 14
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/in-toto/in-toto",
+      "line": "1.2",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.1.0",
+            "commit": "cc99c9f3cf0108a49726c20f6d63e5ff235af539"
+          },
+          {
+            "version": "1.1.1",
+            "commit": "e8d180f9fbb872dd6955fcc365eb2e285838c8d5"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.2.0",
+            "commit": "9a345ad6b6a751056336f2b0e5fd8443d7f5603b"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.in-toto",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-04T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.2.0",
+            "url": "https://github.com/in-toto/in-toto/blob/9a345ad6b6a751056336f2b0e5fd8443d7f5603b/CHANGELOG.md",
+            "revision": "9a345ad6b6a751056336f2b0e5fd8443d7f5603b",
+            "contentDigest": "sha256:d7dc9ba2fc39a52fe93fe19c3cbe0e1ae5934d7824ad8380cf5f7af5b713f355",
+            "startLine": 3,
+            "endLine": 16
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/in-toto/in-toto",
+      "line": "1.3",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.2.0",
+            "commit": "9a345ad6b6a751056336f2b0e5fd8443d7f5603b"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.3.0",
+            "commit": "ea4f5f3f31e194ea044b965f22d41d51a06b41b7"
+          },
+          {
+            "version": "1.3.1",
+            "commit": "341db485bb0e0c6399dd9de61d1654d6e43a3520"
+          },
+          {
+            "version": "1.3.2",
+            "commit": "c07afeb63299681a36946d2f92bacd24d08b044c"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.in-toto",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-04T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.3.0",
+            "url": "https://github.com/in-toto/in-toto/blob/ea4f5f3f31e194ea044b965f22d41d51a06b41b7/CHANGELOG.md",
+            "revision": "ea4f5f3f31e194ea044b965f22d41d51a06b41b7",
+            "contentDigest": "sha256:92ee95b8e4f3bcd2ae577566ecf19ff78a2ee199cc324e5b8169de7f8f1a5c57",
+            "startLine": 3,
+            "endLine": 16
+          },
+          {
+            "id": "changelog-1.3.1",
+            "url": "https://github.com/in-toto/in-toto/blob/341db485bb0e0c6399dd9de61d1654d6e43a3520/CHANGELOG.md",
+            "revision": "341db485bb0e0c6399dd9de61d1654d6e43a3520",
+            "contentDigest": "sha256:fbfcdf12582ed25d7fa58068c8bb1faf151d75b1899186221e9493b63403c873",
+            "startLine": 3,
+            "endLine": 6
+          },
+          {
+            "id": "changelog-1.3.2",
+            "url": "https://github.com/in-toto/in-toto/blob/c07afeb63299681a36946d2f92bacd24d08b044c/CHANGELOG.md",
+            "revision": "c07afeb63299681a36946d2f92bacd24d08b044c",
+            "contentDigest": "sha256:394c2d57deaa22b0568d30158eb74e91c6a2e334b0229396736e80168118c8ed",
+            "startLine": 3,
+            "endLine": 13
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/in-toto/in-toto",
+      "line": "1.4",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.3.0",
+            "commit": "ea4f5f3f31e194ea044b965f22d41d51a06b41b7"
+          },
+          {
+            "version": "1.3.1",
+            "commit": "341db485bb0e0c6399dd9de61d1654d6e43a3520"
+          },
+          {
+            "version": "1.3.2",
+            "commit": "c07afeb63299681a36946d2f92bacd24d08b044c"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.4.0",
+            "commit": "978f4306e1f1efa84cab5bb2ab6eabc9da18f25c"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.in-toto",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-04T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.4.0",
+            "url": "https://github.com/in-toto/in-toto/blob/978f4306e1f1efa84cab5bb2ab6eabc9da18f25c/CHANGELOG.md",
+            "revision": "978f4306e1f1efa84cab5bb2ab6eabc9da18f25c",
+            "contentDigest": "sha256:a580178fc3aa03d68be535f2c7eed64373685b7852be7c054388f45ec090d5c2",
+            "startLine": 3,
+            "endLine": 11
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/in-toto/in-toto",
+      "line": "2.1",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.0.0",
+            "commit": "3467cd97426af937daa807bd870413782cee6235"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.1.0",
+            "commit": "0b3c3d2774626aa9a2619bfdb9d2fa46773ed9b6"
+          },
+          {
+            "version": "2.1.1",
+            "commit": "3bb4dd8070710eac7e8157581c725f23cc4adad4"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.in-toto",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-04T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-2.1.0",
+            "url": "https://github.com/in-toto/in-toto/blob/0b3c3d2774626aa9a2619bfdb9d2fa46773ed9b6/CHANGELOG.md",
+            "revision": "0b3c3d2774626aa9a2619bfdb9d2fa46773ed9b6",
+            "contentDigest": "sha256:2515a6497f65baad00489015453b26f9d5e9a279cdbd75d30cde54af03f75d61",
+            "startLine": 3,
+            "endLine": 17
+          },
+          {
+            "id": "changelog-2.1.1",
+            "url": "https://github.com/in-toto/in-toto/blob/3bb4dd8070710eac7e8157581c725f23cc4adad4/CHANGELOG.md",
+            "revision": "3bb4dd8070710eac7e8157581c725f23cc4adad4",
+            "contentDigest": "sha256:3b592667127aaac26a51dc501955f18fd8fa734ba8d0a06a03da8523ced5cef7",
+            "startLine": 3,
+            "endLine": 7
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/in-toto/in-toto",
+      "line": "2.2",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.1.0",
+            "commit": "0b3c3d2774626aa9a2619bfdb9d2fa46773ed9b6"
+          },
+          {
+            "version": "2.1.1",
+            "commit": "3bb4dd8070710eac7e8157581c725f23cc4adad4"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.2.0",
+            "commit": "0c1a97f0632659dc27a930d2dc31b69b58dd1437"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.in-toto",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-04T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-2.2.0",
+            "url": "https://github.com/in-toto/in-toto/blob/0c1a97f0632659dc27a930d2dc31b69b58dd1437/CHANGELOG.md",
+            "revision": "0c1a97f0632659dc27a930d2dc31b69b58dd1437",
+            "contentDigest": "sha256:45d309cc6ca0c02e3450aa22a45ca826490f940e78420374965cd3631f553d79",
+            "startLine": 3,
+            "endLine": 38
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/in-toto/in-toto",
+      "line": "2.3",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.2.0",
+            "commit": "0c1a97f0632659dc27a930d2dc31b69b58dd1437"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.3.0",
+            "commit": "d6e78aa90a9d3dda00cbf6143cd2c4ce35217030"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.in-toto",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-04T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-2.3.0",
+            "url": "https://github.com/in-toto/in-toto/blob/d6e78aa90a9d3dda00cbf6143cd2c4ce35217030/CHANGELOG.md",
+            "revision": "d6e78aa90a9d3dda00cbf6143cd2c4ce35217030",
+            "contentDigest": "sha256:6dbcbec5322570dc2404a6dac038143aa804423219a81695e85758f159a00138",
+            "startLine": 3,
+            "endLine": 14
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/in-toto/in-toto",
+      "line": "3.1",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "3.0.0",
+            "commit": "659942bde1cd732b0b9449445f9769b2def6aeb1"
+          }
+        ],
+        "to": [
+          {
+            "version": "3.1.0",
+            "commit": "c82fe5d21aaa61c7f1a213db20a46f10bb3f411a"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.in-toto",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-02-04T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-3.1.0",
+            "url": "https://github.com/in-toto/in-toto/blob/c82fe5d21aaa61c7f1a213db20a46f10bb3f411a/CHANGELOG.md",
+            "revision": "c82fe5d21aaa61c7f1a213db20a46f10bb3f411a",
+            "contentDigest": "sha256:b9b8c2a0690e6b1d50a8bcd09ae18e7f2c86a52056d4a862846670e887d84e2e",
+            "startLine": 3,
+            "endLine": 14
           }
         ]
       }
@@ -40367,6 +43139,1342 @@
       }
     },
     {
+      "component": "pkg:github/openfga/openfga",
+      "line": "0.1",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.0.1",
+            "commit": "b6bf4ae7c098ea21339cf0113edb02216c391be7"
+          },
+          {
+            "version": "0.0.2",
+            "commit": "61a2a19f96100a1b59c856865d36ba9f6a6e6d20"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.1.0",
+            "commit": "6702e7709794ceb486765c61d6632340c8a5fdaa"
+          },
+          {
+            "version": "0.1.1",
+            "commit": "ae567aa696aa4b80c08ed75162692feb3774f7cb"
+          },
+          {
+            "version": "0.1.2",
+            "commit": "ab4e1c54d0d49de49f7d541145a7d7bbd6b78331"
+          },
+          {
+            "version": "0.1.3",
+            "commit": "17c67ccfe33fd2e3ab59fa10a00a54f166c4d6a3"
+          },
+          {
+            "version": "0.1.4",
+            "commit": "226299f267219b7e36c3449270ee00d4b1234693"
+          },
+          {
+            "version": "0.1.5",
+            "commit": "e2f36e56a1df3af37f99705bebbc09b993bd1394"
+          },
+          {
+            "version": "0.1.6",
+            "commit": "db290083ec67a23662aca9a8f2fbd59839a5ec1c"
+          },
+          {
+            "version": "0.1.7",
+            "commit": "c4a6088a715b1df2e14502bdadbaa9ea36ddbf9b"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.openfga",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-06T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-0.1.0",
+            "url": "https://github.com/openfga/openfga/blob/6702e7709794ceb486765c61d6632340c8a5fdaa/CHANGELOG.md",
+            "revision": "6702e7709794ceb486765c61d6632340c8a5fdaa",
+            "contentDigest": "sha256:132628134364a3ad6c2c03fd6ffa81e53871348c0f48bc7a5b984c365f40d684",
+            "startLine": 9,
+            "endLine": 17
+          },
+          {
+            "id": "changelog-0.1.1",
+            "url": "https://github.com/openfga/openfga/blob/ae567aa696aa4b80c08ed75162692feb3774f7cb/CHANGELOG.md",
+            "revision": "ae567aa696aa4b80c08ed75162692feb3774f7cb",
+            "contentDigest": "sha256:e7c80ee5b673f338862a538f1b7e70c3f028cda18c948658f8130ca8b9aaa3dc",
+            "startLine": 9,
+            "endLine": 13
+          },
+          {
+            "id": "changelog-0.1.2",
+            "url": "https://github.com/openfga/openfga/blob/ab4e1c54d0d49de49f7d541145a7d7bbd6b78331/CHANGELOG.md",
+            "revision": "ab4e1c54d0d49de49f7d541145a7d7bbd6b78331",
+            "contentDigest": "sha256:f44f4f07d68a23715c882d314a702132b1424c5f80fa9f3b45f7a698214a2b68",
+            "startLine": 9,
+            "endLine": 12
+          },
+          {
+            "id": "changelog-0.1.3",
+            "url": "https://github.com/openfga/openfga/blob/17c67ccfe33fd2e3ab59fa10a00a54f166c4d6a3/CHANGELOG.md",
+            "revision": "17c67ccfe33fd2e3ab59fa10a00a54f166c4d6a3",
+            "contentDigest": "sha256:7326056da3533587f83b329d94ca7df365335c37a45d97232c68c08371aab29d",
+            "startLine": 9,
+            "endLine": 12
+          },
+          {
+            "id": "changelog-0.1.4",
+            "url": "https://github.com/openfga/openfga/blob/226299f267219b7e36c3449270ee00d4b1234693/CHANGELOG.md",
+            "revision": "226299f267219b7e36c3449270ee00d4b1234693",
+            "contentDigest": "sha256:c5033e1bb639523689a6b6f7cf8e3d117666fb02686403449f7ec822de3697d4",
+            "startLine": 9,
+            "endLine": 12
+          },
+          {
+            "id": "changelog-0.1.5",
+            "url": "https://github.com/openfga/openfga/blob/e2f36e56a1df3af37f99705bebbc09b993bd1394/CHANGELOG.md",
+            "revision": "e2f36e56a1df3af37f99705bebbc09b993bd1394",
+            "contentDigest": "sha256:0e1ab8d6cdf858c6ba18886c74759b65134bc3b0d8d23f41a3085bee59b6f0b2",
+            "startLine": 9,
+            "endLine": 52
+          },
+          {
+            "id": "changelog-0.1.6",
+            "url": "https://github.com/openfga/openfga/blob/db290083ec67a23662aca9a8f2fbd59839a5ec1c/CHANGELOG.md",
+            "revision": "db290083ec67a23662aca9a8f2fbd59839a5ec1c",
+            "contentDigest": "sha256:b76f11e32a640c1717f708d785ecee42aa257e27afff8ab23b4a8e05a96a0634",
+            "startLine": 9,
+            "endLine": 11
+          },
+          {
+            "id": "changelog-0.1.7",
+            "url": "https://github.com/openfga/openfga/blob/c4a6088a715b1df2e14502bdadbaa9ea36ddbf9b/CHANGELOG.md",
+            "revision": "c4a6088a715b1df2e14502bdadbaa9ea36ddbf9b",
+            "contentDigest": "sha256:83c8169520960983e09d15e95557c137ad088a60dcddff5e3adfeb88969e0ce3",
+            "startLine": 9,
+            "endLine": 27
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openfga/openfga",
+      "line": "1.2",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.1.0",
+            "commit": "ffc1a6cd5bcb350d72d38054e08b8dea19c868aa"
+          },
+          {
+            "version": "1.1.1",
+            "commit": "a989901713e12401af7d2b02c36235eebf24f933"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.2.0",
+            "commit": "bc6a45ade4ae02d389b2588ae3bb4676fdcf77ec"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.openfga",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-06T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.2.0",
+            "url": "https://github.com/openfga/openfga/blob/bc6a45ade4ae02d389b2588ae3bb4676fdcf77ec/CHANGELOG.md",
+            "revision": "bc6a45ade4ae02d389b2588ae3bb4676fdcf77ec",
+            "contentDigest": "sha256:99c1cc482036ebcc68aeee6244ea6bb92955f4f23760e2d07a22be8119009275",
+            "startLine": 11,
+            "endLine": 21
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openfga/openfga",
+      "line": "1.7",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.6.0",
+            "commit": "5efeccfce74c21ce7b69159be48faaa95b38f444"
+          },
+          {
+            "version": "1.6.1",
+            "commit": "b985c58e1136e92932101049a4982e440ba50514"
+          },
+          {
+            "version": "1.6.2",
+            "commit": "de050b4bba2a6bae6e59e793f8592cf27a6983e0"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.7.0",
+            "commit": "7ddcb0f996e1b720087a209d4576b0d4bfaf1620"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.openfga",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-06T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.7.0",
+            "url": "https://github.com/openfga/openfga/blob/7ddcb0f996e1b720087a209d4576b0d4bfaf1620/CHANGELOG.md",
+            "revision": "7ddcb0f996e1b720087a209d4576b0d4bfaf1620",
+            "contentDigest": "sha256:6c4ef9d758269c3135940ceed298caf83448a50820b4cf247b42afa593a0f4ba",
+            "startLine": 11,
+            "endLine": 37
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openfga/openfga",
+      "line": "1.9",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.8.0",
+            "commit": "0cc569ff4edcfda1f949316dae1e244c5be5e963"
+          },
+          {
+            "version": "1.8.1",
+            "commit": "e39192949ac80995108964f25849c0b1660a306b"
+          },
+          {
+            "version": "1.8.2",
+            "commit": "2c188cd5466c7836eff1479535f87c207be75947"
+          },
+          {
+            "version": "1.8.3",
+            "commit": "21757d53bc3e6b3cef4d4679f20d92f80e92bb84"
+          },
+          {
+            "version": "1.8.4",
+            "commit": "dc1a4803b1ae2f539a67cfa78a929923642c631b"
+          },
+          {
+            "version": "1.8.5",
+            "commit": "a77b33972c86b1c4ecb772bbcdcd4294af458469"
+          },
+          {
+            "version": "1.8.6",
+            "commit": "15a9cb838ca21370665c595c79960f7e488c207a"
+          },
+          {
+            "version": "1.8.7",
+            "commit": "662bc8e6421f2d2e3b58b7643dcafbfe8e20465e"
+          },
+          {
+            "version": "1.8.8",
+            "commit": "2b5324d6da1c8cdc1cbafde1eb328a62fa8c1bd2"
+          },
+          {
+            "version": "1.8.9",
+            "commit": "3d34d7411e10cb6a8b9dd11c16f8eecb5fdccded"
+          },
+          {
+            "version": "1.8.10",
+            "commit": "0f1cd09abd3f9d5e5d15c61dab0adc42327a2439"
+          },
+          {
+            "version": "1.8.11",
+            "commit": "244302e7a8b979d66cc1874a3899cdff7d47862f"
+          },
+          {
+            "version": "1.8.12",
+            "commit": "5f720784ae7c637bc9a9ae8a18adc230982aba50"
+          },
+          {
+            "version": "1.8.13",
+            "commit": "e5960d4eba92b723de8ff3a5346a07f50c1379ca"
+          },
+          {
+            "version": "1.8.14",
+            "commit": "4c3b88469d9d0510cd86dfc236178d6299510edc"
+          },
+          {
+            "version": "1.8.15",
+            "commit": "81b262a10e0137b47956bb871bfcf195a393d191"
+          },
+          {
+            "version": "1.8.16",
+            "commit": "71e4c765f48abe44a34927fb9937a9cc7c976772"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.9.0",
+            "commit": "d45a6e1d0f77e095d4e3ad34ac54dae19ec9e1df"
+          },
+          {
+            "version": "1.9.2",
+            "commit": "3ab5a75689378e53a49acfae2dbf039ebd62cf0a"
+          },
+          {
+            "version": "1.9.3",
+            "commit": "29a0aac987d121d37a7bd293a026b9521a8d6b24"
+          },
+          {
+            "version": "1.9.4",
+            "commit": "47593e60a3cf23136e8784c031ff09b0956601e6"
+          },
+          {
+            "version": "1.9.5",
+            "commit": "06115c523f974d385896b159a60fe6e12c41e57d"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.openfga",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-06T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.9.0",
+            "url": "https://github.com/openfga/openfga/blob/d45a6e1d0f77e095d4e3ad34ac54dae19ec9e1df/CHANGELOG.md",
+            "revision": "d45a6e1d0f77e095d4e3ad34ac54dae19ec9e1df",
+            "contentDigest": "sha256:d88595017e79ffcdf9e057d936b2a4362a2bf071f889396f0fc888b759711942",
+            "startLine": 11,
+            "endLine": 22
+          },
+          {
+            "id": "changelog-1.9.2",
+            "url": "https://github.com/openfga/openfga/blob/3ab5a75689378e53a49acfae2dbf039ebd62cf0a/CHANGELOG.md",
+            "revision": "3ab5a75689378e53a49acfae2dbf039ebd62cf0a",
+            "contentDigest": "sha256:6ed19d6c4a9d597e4c9e09ce67aa6611a26431f15c8326f487ef64bb2730563b",
+            "startLine": 11,
+            "endLine": 27
+          },
+          {
+            "id": "changelog-1.9.3",
+            "url": "https://github.com/openfga/openfga/blob/29a0aac987d121d37a7bd293a026b9521a8d6b24/CHANGELOG.md",
+            "revision": "29a0aac987d121d37a7bd293a026b9521a8d6b24",
+            "contentDigest": "sha256:1397e685d2c192dd33aeaa33c040463f94a17c0ce6ea0aa1ca52cd8c2cf3334d",
+            "startLine": 11,
+            "endLine": 31
+          },
+          {
+            "id": "changelog-1.9.4",
+            "url": "https://github.com/openfga/openfga/blob/47593e60a3cf23136e8784c031ff09b0956601e6/CHANGELOG.md",
+            "revision": "47593e60a3cf23136e8784c031ff09b0956601e6",
+            "contentDigest": "sha256:62036e97ead3b74147a68737bc249a66429042e3e1a608daa5e87574851dfdef",
+            "startLine": 11,
+            "endLine": 13
+          },
+          {
+            "id": "changelog-1.9.5",
+            "url": "https://github.com/openfga/openfga/blob/06115c523f974d385896b159a60fe6e12c41e57d/CHANGELOG.md",
+            "revision": "06115c523f974d385896b159a60fe6e12c41e57d",
+            "contentDigest": "sha256:16a8d9355eced9c5b7a205be4199bd2d31014ebdd997f37b241d7da527412181",
+            "startLine": 11,
+            "endLine": 13
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openfga/openfga",
+      "line": "1.10",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.9.0",
+            "commit": "d45a6e1d0f77e095d4e3ad34ac54dae19ec9e1df"
+          },
+          {
+            "version": "1.9.2",
+            "commit": "3ab5a75689378e53a49acfae2dbf039ebd62cf0a"
+          },
+          {
+            "version": "1.9.3",
+            "commit": "29a0aac987d121d37a7bd293a026b9521a8d6b24"
+          },
+          {
+            "version": "1.9.4",
+            "commit": "47593e60a3cf23136e8784c031ff09b0956601e6"
+          },
+          {
+            "version": "1.9.5",
+            "commit": "06115c523f974d385896b159a60fe6e12c41e57d"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.10.0",
+            "commit": "3a701df12f6dd6ea6b5e9081ca9cce5871038b2b"
+          },
+          {
+            "version": "1.10.1",
+            "commit": "cad6d2a5db3d2ea38eca92a1b45cb4a80fb228a5"
+          },
+          {
+            "version": "1.10.2",
+            "commit": "2a454e3772389af0e06f5472eb2d898c264cc732"
+          },
+          {
+            "version": "1.10.3",
+            "commit": "293893b22a53d8a130a5f7c97cab4bc8e91bcaa4"
+          },
+          {
+            "version": "1.10.4",
+            "commit": "4d8bd05e95a92f212cc6b25943ebb616ed62a4f1"
+          },
+          {
+            "version": "1.10.5",
+            "commit": "00ddd5dd18a1592655cf31cd7be996ab22cfd21b"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.openfga",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-06T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.10.0",
+            "url": "https://github.com/openfga/openfga/blob/3a701df12f6dd6ea6b5e9081ca9cce5871038b2b/CHANGELOG.md",
+            "revision": "3a701df12f6dd6ea6b5e9081ca9cce5871038b2b",
+            "contentDigest": "sha256:83e2cc3972abf73f653603ec08fc112ad921a4eb3b6e61f8cc1e6c46099926a3",
+            "startLine": 11,
+            "endLine": 37
+          },
+          {
+            "id": "changelog-1.10.1",
+            "url": "https://github.com/openfga/openfga/blob/cad6d2a5db3d2ea38eca92a1b45cb4a80fb228a5/CHANGELOG.md",
+            "revision": "cad6d2a5db3d2ea38eca92a1b45cb4a80fb228a5",
+            "contentDigest": "sha256:002e2ce06d8104e9c13c22413ea17ba8b258b668db450411de7a655cf582f5ac",
+            "startLine": 11,
+            "endLine": 13
+          },
+          {
+            "id": "changelog-1.10.2",
+            "url": "https://github.com/openfga/openfga/blob/2a454e3772389af0e06f5472eb2d898c264cc732/CHANGELOG.md",
+            "revision": "2a454e3772389af0e06f5472eb2d898c264cc732",
+            "contentDigest": "sha256:711182ef4de2fa94d1b912dd50c72e1b9786aebf460b25bebc96c183c3818876",
+            "startLine": 11,
+            "endLine": 17
+          },
+          {
+            "id": "changelog-1.10.3",
+            "url": "https://github.com/openfga/openfga/blob/293893b22a53d8a130a5f7c97cab4bc8e91bcaa4/CHANGELOG.md",
+            "revision": "293893b22a53d8a130a5f7c97cab4bc8e91bcaa4",
+            "contentDigest": "sha256:82171459865962d59a9ed356e5d84da1daafe57d08bfd53a5303d81e346c99fb",
+            "startLine": 11,
+            "endLine": 16
+          },
+          {
+            "id": "changelog-1.10.4",
+            "url": "https://github.com/openfga/openfga/blob/4d8bd05e95a92f212cc6b25943ebb616ed62a4f1/CHANGELOG.md",
+            "revision": "4d8bd05e95a92f212cc6b25943ebb616ed62a4f1",
+            "contentDigest": "sha256:5c89dbbcc0dfe41a96732d5732bd6461a34429e1c29c084949e97508bfed786a",
+            "startLine": 11,
+            "endLine": 26
+          },
+          {
+            "id": "changelog-1.10.5",
+            "url": "https://github.com/openfga/openfga/blob/00ddd5dd18a1592655cf31cd7be996ab22cfd21b/CHANGELOG.md",
+            "revision": "00ddd5dd18a1592655cf31cd7be996ab22cfd21b",
+            "contentDigest": "sha256:014356b99bab3975abb43465fa6df6acc44f5300c6e700c04d00fdda1a070be1",
+            "startLine": 11,
+            "endLine": 16
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openfga/openfga",
+      "line": "1.11",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.10.0",
+            "commit": "3a701df12f6dd6ea6b5e9081ca9cce5871038b2b"
+          },
+          {
+            "version": "1.10.1",
+            "commit": "cad6d2a5db3d2ea38eca92a1b45cb4a80fb228a5"
+          },
+          {
+            "version": "1.10.2",
+            "commit": "2a454e3772389af0e06f5472eb2d898c264cc732"
+          },
+          {
+            "version": "1.10.3",
+            "commit": "293893b22a53d8a130a5f7c97cab4bc8e91bcaa4"
+          },
+          {
+            "version": "1.10.4",
+            "commit": "4d8bd05e95a92f212cc6b25943ebb616ed62a4f1"
+          },
+          {
+            "version": "1.10.5",
+            "commit": "00ddd5dd18a1592655cf31cd7be996ab22cfd21b"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.11.0",
+            "commit": "c06a7ec061f23e4e07adfa080fe66642c243b63c"
+          },
+          {
+            "version": "1.11.1",
+            "commit": "f375f50ca602da0596212ba7f915897f2d26f1be"
+          },
+          {
+            "version": "1.11.2",
+            "commit": "0ad13d78133fcb1045f0b9f5fee11574a0d63bb2"
+          },
+          {
+            "version": "1.11.3",
+            "commit": "6e22a3e972bdb5bce1095694857a709c192b4936"
+          },
+          {
+            "version": "1.11.4",
+            "commit": "6eff0ea916ec1d708b81c6f8924809a6b139d4fe"
+          },
+          {
+            "version": "1.11.5",
+            "commit": "c9b9256ba5e84d4d4532a38ede931cbb84742463"
+          },
+          {
+            "version": "1.11.6",
+            "commit": "e04bde9ef17409e14a6a26dd243fa8ebc0f650b2"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.openfga",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-06T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.11.0",
+            "url": "https://github.com/openfga/openfga/blob/c06a7ec061f23e4e07adfa080fe66642c243b63c/CHANGELOG.md",
+            "revision": "c06a7ec061f23e4e07adfa080fe66642c243b63c",
+            "contentDigest": "sha256:d88a93a36f4b5fedc007d260917758cf0bad580a941ca7b98d9c483fea4ccdfc",
+            "startLine": 11,
+            "endLine": 13
+          },
+          {
+            "id": "changelog-1.11.1",
+            "url": "https://github.com/openfga/openfga/blob/f375f50ca602da0596212ba7f915897f2d26f1be/CHANGELOG.md",
+            "revision": "f375f50ca602da0596212ba7f915897f2d26f1be",
+            "contentDigest": "sha256:35d1a54b6b2ee86c894bd01487de74f304fb9592e4ed0e654c32594dad4e43a8",
+            "startLine": 11,
+            "endLine": 16
+          },
+          {
+            "id": "changelog-1.11.2",
+            "url": "https://github.com/openfga/openfga/blob/0ad13d78133fcb1045f0b9f5fee11574a0d63bb2/CHANGELOG.md",
+            "revision": "0ad13d78133fcb1045f0b9f5fee11574a0d63bb2",
+            "contentDigest": "sha256:c0a3fa937d3148503359cfe53e5a524f8042852cc8eb9d96bbba43ee45b3f7d9",
+            "startLine": 11,
+            "endLine": 14
+          },
+          {
+            "id": "changelog-1.11.3",
+            "url": "https://github.com/openfga/openfga/blob/6e22a3e972bdb5bce1095694857a709c192b4936/CHANGELOG.md",
+            "revision": "6e22a3e972bdb5bce1095694857a709c192b4936",
+            "contentDigest": "sha256:30dc0396e3774e8368e3795a810d843f4deb3208a0bc14574cc6561eb5ebe87d",
+            "startLine": 11,
+            "endLine": 27
+          },
+          {
+            "id": "changelog-1.11.4",
+            "url": "https://github.com/openfga/openfga/blob/6eff0ea916ec1d708b81c6f8924809a6b139d4fe/CHANGELOG.md",
+            "revision": "6eff0ea916ec1d708b81c6f8924809a6b139d4fe",
+            "contentDigest": "sha256:417953c896bcc5f72770fb8970680d4a3e3908f6bff60a76153e592f99a4821f",
+            "startLine": 11,
+            "endLine": 14
+          },
+          {
+            "id": "changelog-1.11.5",
+            "url": "https://github.com/openfga/openfga/blob/c9b9256ba5e84d4d4532a38ede931cbb84742463/CHANGELOG.md",
+            "revision": "c9b9256ba5e84d4d4532a38ede931cbb84742463",
+            "contentDigest": "sha256:16dc0486ca3e28ffaa1b06b03fa7cb3d4c61d18a482fe6dbc2e449a49a68d114",
+            "startLine": 11,
+            "endLine": 16
+          },
+          {
+            "id": "changelog-1.11.6",
+            "url": "https://github.com/openfga/openfga/blob/e04bde9ef17409e14a6a26dd243fa8ebc0f650b2/CHANGELOG.md",
+            "revision": "e04bde9ef17409e14a6a26dd243fa8ebc0f650b2",
+            "contentDigest": "sha256:7afc5bbc0bd84f1c6d1440b293489c70df9201f875d698e1056017196f8f3f8e",
+            "startLine": 11,
+            "endLine": 19
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openfga/openfga",
+      "line": "1.12",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.11.0",
+            "commit": "c06a7ec061f23e4e07adfa080fe66642c243b63c"
+          },
+          {
+            "version": "1.11.1",
+            "commit": "f375f50ca602da0596212ba7f915897f2d26f1be"
+          },
+          {
+            "version": "1.11.2",
+            "commit": "0ad13d78133fcb1045f0b9f5fee11574a0d63bb2"
+          },
+          {
+            "version": "1.11.3",
+            "commit": "6e22a3e972bdb5bce1095694857a709c192b4936"
+          },
+          {
+            "version": "1.11.4",
+            "commit": "6eff0ea916ec1d708b81c6f8924809a6b139d4fe"
+          },
+          {
+            "version": "1.11.5",
+            "commit": "c9b9256ba5e84d4d4532a38ede931cbb84742463"
+          },
+          {
+            "version": "1.11.6",
+            "commit": "e04bde9ef17409e14a6a26dd243fa8ebc0f650b2"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.12.0",
+            "commit": "7b1751d8f7b21b6dcd9456497a9eaa8504fa0f24"
+          },
+          {
+            "version": "1.12.1",
+            "commit": "8f0feeecce828644e13500f9b78c7832bfb2cece"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.openfga",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-06T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.12.0",
+            "url": "https://github.com/openfga/openfga/blob/7b1751d8f7b21b6dcd9456497a9eaa8504fa0f24/CHANGELOG.md",
+            "revision": "7b1751d8f7b21b6dcd9456497a9eaa8504fa0f24",
+            "contentDigest": "sha256:13c78b83642d94d21d28a4ab7d3ca79f889e6cc8681faec871bfe1e2b961c1b1",
+            "startLine": 11,
+            "endLine": 28
+          },
+          {
+            "id": "changelog-1.12.1",
+            "url": "https://github.com/openfga/openfga/blob/8f0feeecce828644e13500f9b78c7832bfb2cece/CHANGELOG.md",
+            "revision": "8f0feeecce828644e13500f9b78c7832bfb2cece",
+            "contentDigest": "sha256:86428b0729cf5d5ab22c852b013f8ad03f44215c2b61069e526279ad3f64e7d1",
+            "startLine": 11,
+            "endLine": 18
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openfga/openfga",
+      "line": "1.13",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.12.0",
+            "commit": "7b1751d8f7b21b6dcd9456497a9eaa8504fa0f24"
+          },
+          {
+            "version": "1.12.1",
+            "commit": "8f0feeecce828644e13500f9b78c7832bfb2cece"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.13.0",
+            "commit": "db79b31003f887741f9897ef0f24101b0861d23a"
+          },
+          {
+            "version": "1.13.1",
+            "commit": "cbb16abf8cd582012540f6d40be34b133d90ce7b"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.openfga",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-06T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.13.0",
+            "url": "https://github.com/openfga/openfga/blob/db79b31003f887741f9897ef0f24101b0861d23a/CHANGELOG.md",
+            "revision": "db79b31003f887741f9897ef0f24101b0861d23a",
+            "contentDigest": "sha256:06fe88ed9b4cad40d2540ea23ec03147c5b6b2fbfd9c6d6ddccfd8d1190b33f1",
+            "startLine": 11,
+            "endLine": 16
+          },
+          {
+            "id": "changelog-1.13.1",
+            "url": "https://github.com/openfga/openfga/blob/cbb16abf8cd582012540f6d40be34b133d90ce7b/CHANGELOG.md",
+            "revision": "cbb16abf8cd582012540f6d40be34b133d90ce7b",
+            "contentDigest": "sha256:18ef464361d468c2d3446b9dbdbd36a656945f565d46219bcb1120cf3e8be21d",
+            "startLine": 11,
+            "endLine": 13
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openfga/openfga",
+      "line": "1.14",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.13.0",
+            "commit": "db79b31003f887741f9897ef0f24101b0861d23a"
+          },
+          {
+            "version": "1.13.1",
+            "commit": "cbb16abf8cd582012540f6d40be34b133d90ce7b"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.14.0",
+            "commit": "40e6b410825813d1d394d7371c5ca31cad17f517"
+          },
+          {
+            "version": "1.14.1",
+            "commit": "fa5702405fdda60f2df05f3f1e5cffd40ade127a"
+          },
+          {
+            "version": "1.14.2",
+            "commit": "c8a0e7b553ec322edfaa88948d57ba73bcad8883"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.openfga",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-06T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.14.0",
+            "url": "https://github.com/openfga/openfga/blob/40e6b410825813d1d394d7371c5ca31cad17f517/CHANGELOG.md",
+            "revision": "40e6b410825813d1d394d7371c5ca31cad17f517",
+            "contentDigest": "sha256:f2498dc7ca1fa38b4ae5c3d3bf7be52790b72c3897904d6e0f2a67a9c1a4f6f6",
+            "startLine": 11,
+            "endLine": 26
+          },
+          {
+            "id": "changelog-1.14.1",
+            "url": "https://github.com/openfga/openfga/blob/fa5702405fdda60f2df05f3f1e5cffd40ade127a/CHANGELOG.md",
+            "revision": "fa5702405fdda60f2df05f3f1e5cffd40ade127a",
+            "contentDigest": "sha256:cde2f565b53ca0ccd439cfdddc42ba42b8e6637ce4c6ff8d2e13abd09ebb9e8f",
+            "startLine": 11,
+            "endLine": 21
+          },
+          {
+            "id": "changelog-1.14.2",
+            "url": "https://github.com/openfga/openfga/blob/c8a0e7b553ec322edfaa88948d57ba73bcad8883/CHANGELOG.md",
+            "revision": "c8a0e7b553ec322edfaa88948d57ba73bcad8883",
+            "contentDigest": "sha256:5cfb534f5a1a7addc8c2aff1a1b10f051964405f025c03c436b9e7c921d392ce",
+            "startLine": 11,
+            "endLine": 13
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openfga/openfga",
+      "line": "1.15",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.14.0",
+            "commit": "40e6b410825813d1d394d7371c5ca31cad17f517"
+          },
+          {
+            "version": "1.14.1",
+            "commit": "fa5702405fdda60f2df05f3f1e5cffd40ade127a"
+          },
+          {
+            "version": "1.14.2",
+            "commit": "c8a0e7b553ec322edfaa88948d57ba73bcad8883"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.15.0",
+            "commit": "83b2b469dcba61b57b98b0129ea36011d75e59d5"
+          },
+          {
+            "version": "1.15.1",
+            "commit": "1db35fb8b33d7512666e49e6b75cbd2cca8c4694"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.openfga",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-06T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.15.0",
+            "url": "https://github.com/openfga/openfga/blob/83b2b469dcba61b57b98b0129ea36011d75e59d5/CHANGELOG.md",
+            "revision": "83b2b469dcba61b57b98b0129ea36011d75e59d5",
+            "contentDigest": "sha256:74103255165472c618bd1701dfb8cc34e54b80987f960465d1bf7e6c1d6261c0",
+            "startLine": 11,
+            "endLine": 19
+          },
+          {
+            "id": "changelog-1.15.1",
+            "url": "https://github.com/openfga/openfga/blob/1db35fb8b33d7512666e49e6b75cbd2cca8c4694/CHANGELOG.md",
+            "revision": "1db35fb8b33d7512666e49e6b75cbd2cca8c4694",
+            "contentDigest": "sha256:45c092eb9d5e3527867c34457f0758431adba9043211e330a79b93c60bcbcd3a",
+            "startLine": 11,
+            "endLine": 20
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openfga/openfga",
+      "line": "1.16",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.15.0",
+            "commit": "83b2b469dcba61b57b98b0129ea36011d75e59d5"
+          },
+          {
+            "version": "1.15.1",
+            "commit": "1db35fb8b33d7512666e49e6b75cbd2cca8c4694"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.16.0",
+            "commit": "165291872c4577a54200b9ddc7c966d3e89d6c2d"
+          },
+          {
+            "version": "1.16.1",
+            "commit": "94cb130ab2e2e583bb5e495acb16444751ec8a9f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.openfga",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-06T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.16.0",
+            "url": "https://github.com/openfga/openfga/blob/165291872c4577a54200b9ddc7c966d3e89d6c2d/CHANGELOG.md",
+            "revision": "165291872c4577a54200b9ddc7c966d3e89d6c2d",
+            "contentDigest": "sha256:c092bf08e7a4a220f0e0bc7035193a2f486df70c244fd56cc207e74e8b383eba",
+            "startLine": 11,
+            "endLine": 24
+          },
+          {
+            "id": "changelog-1.16.1",
+            "url": "https://github.com/openfga/openfga/blob/94cb130ab2e2e583bb5e495acb16444751ec8a9f/CHANGELOG.md",
+            "revision": "94cb130ab2e2e583bb5e495acb16444751ec8a9f",
+            "contentDigest": "sha256:b41995994123de1fcc560e833d6d422d5b630d821dff7f38d974a307c33a82d3",
+            "startLine": 11,
+            "endLine": 20
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openfga/openfga",
+      "line": "1.17",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.16.0",
+            "commit": "165291872c4577a54200b9ddc7c966d3e89d6c2d"
+          },
+          {
+            "version": "1.16.1",
+            "commit": "94cb130ab2e2e583bb5e495acb16444751ec8a9f"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.17.0",
+            "commit": "14404b693084a816450afd952495416afe3e470d"
+          },
+          {
+            "version": "1.17.1",
+            "commit": "393db3f903b923a0414c96145012e527af700685"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.openfga",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-06T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.17.0",
+            "url": "https://github.com/openfga/openfga/blob/14404b693084a816450afd952495416afe3e470d/CHANGELOG.md",
+            "revision": "14404b693084a816450afd952495416afe3e470d",
+            "contentDigest": "sha256:b95c19bf1d5461201429ebd24fe2097055bbfdb00fcca1176fbb6a936b797ab2",
+            "startLine": 11,
+            "endLine": 16
+          },
+          {
+            "id": "changelog-1.17.1",
+            "url": "https://github.com/openfga/openfga/blob/393db3f903b923a0414c96145012e527af700685/CHANGELOG.md",
+            "revision": "393db3f903b923a0414c96145012e527af700685",
+            "contentDigest": "sha256:e4b2a2d7490763fb338989151aa4a53feed799bfff63b739fcdd77a372075fdf",
+            "startLine": 11,
+            "endLine": 22
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openfga/openfga",
+      "line": "1.18",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.17.0",
+            "commit": "14404b693084a816450afd952495416afe3e470d"
+          },
+          {
+            "version": "1.17.1",
+            "commit": "393db3f903b923a0414c96145012e527af700685"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.18.0",
+            "commit": "81089a31698505b4d5f01311c04e83b9adfcf383"
+          },
+          {
+            "version": "1.18.1",
+            "commit": "69efbd95b3d44afb2e2567d485dcc792c7d79e3f"
+          },
+          {
+            "version": "1.18.2",
+            "commit": "560d5d3dd46b5adda9ecfb29efeb4f4f70c96327"
+          },
+          {
+            "version": "1.18.3",
+            "commit": "81c6202153a853d90589565884a56942c3fd07be"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.openfga",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-06T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.18.0",
+            "url": "https://github.com/openfga/openfga/blob/81089a31698505b4d5f01311c04e83b9adfcf383/CHANGELOG.md",
+            "revision": "81089a31698505b4d5f01311c04e83b9adfcf383",
+            "contentDigest": "sha256:fc170f3ba0c13dd40d24ebb121aacd265b2f1a8662dc4f7b4e942ec71ea61b60",
+            "startLine": 11,
+            "endLine": 17
+          },
+          {
+            "id": "changelog-1.18.1",
+            "url": "https://github.com/openfga/openfga/blob/69efbd95b3d44afb2e2567d485dcc792c7d79e3f/CHANGELOG.md",
+            "revision": "69efbd95b3d44afb2e2567d485dcc792c7d79e3f",
+            "contentDigest": "sha256:454ae5633b2d37bcc39d6bb866b1a35eaec3a3d5945a856d1755c251be80d2a8",
+            "startLine": 11,
+            "endLine": 18
+          },
+          {
+            "id": "changelog-1.18.2",
+            "url": "https://github.com/openfga/openfga/blob/560d5d3dd46b5adda9ecfb29efeb4f4f70c96327/CHANGELOG.md",
+            "revision": "560d5d3dd46b5adda9ecfb29efeb4f4f70c96327",
+            "contentDigest": "sha256:2cafacfd3f83cb163411240a350cd8532c5fad41e279f548dbc9fb7de7b929b8",
+            "startLine": 11,
+            "endLine": 25
+          },
+          {
+            "id": "changelog-1.18.3",
+            "url": "https://github.com/openfga/openfga/blob/81c6202153a853d90589565884a56942c3fd07be/CHANGELOG.md",
+            "revision": "81c6202153a853d90589565884a56942c3fd07be",
+            "contentDigest": "sha256:c9fbaf81197b5b76e7cfa36868f6ac14681f1f7d43e56a0241882de1655039aa",
+            "startLine": 11,
+            "endLine": 13
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openfga/openfga",
+      "line": "1.19",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.18.0",
+            "commit": "81089a31698505b4d5f01311c04e83b9adfcf383"
+          },
+          {
+            "version": "1.18.1",
+            "commit": "69efbd95b3d44afb2e2567d485dcc792c7d79e3f"
+          },
+          {
+            "version": "1.18.2",
+            "commit": "560d5d3dd46b5adda9ecfb29efeb4f4f70c96327"
+          },
+          {
+            "version": "1.18.3",
+            "commit": "81c6202153a853d90589565884a56942c3fd07be"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.19.0",
+            "commit": "130c30aea5e73543e63b173dadfbd1ee519aa97a"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.openfga",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-06T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.19.0",
+            "url": "https://github.com/openfga/openfga/blob/130c30aea5e73543e63b173dadfbd1ee519aa97a/CHANGELOG.md",
+            "revision": "130c30aea5e73543e63b173dadfbd1ee519aa97a",
+            "contentDigest": "sha256:bf5069e5c9a5e4e6bcfda99ea905e5e3a364d545579edae24a619f2d6929a757",
+            "startLine": 11,
+            "endLine": 18
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openfga/openfga",
+      "line": "1.20",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.19.0",
+            "commit": "130c30aea5e73543e63b173dadfbd1ee519aa97a"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.20.0",
+            "commit": "73591ef16ce508623920d5b706286ffcdfb6841b"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.openfga",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-06T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.20.0",
+            "url": "https://github.com/openfga/openfga/blob/73591ef16ce508623920d5b706286ffcdfb6841b/CHANGELOG.md",
+            "revision": "73591ef16ce508623920d5b706286ffcdfb6841b",
+            "contentDigest": "sha256:3188a3ad225f45d3bd5da6a2787dbde3713c4a558cd4c632fe2dd244a3b77fae",
+            "startLine": 11,
+            "endLine": 20
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openfga/openfga",
+      "line": "1.21",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.20.0",
+            "commit": "73591ef16ce508623920d5b706286ffcdfb6841b"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.21.0",
+            "commit": "ab557c5592670c899de35297e7aa067015f06502"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.openfga",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-06T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.21.0",
+            "url": "https://github.com/openfga/openfga/blob/ab557c5592670c899de35297e7aa067015f06502/CHANGELOG.md",
+            "revision": "ab557c5592670c899de35297e7aa067015f06502",
+            "contentDigest": "sha256:ba4d9b128d150d2039412ebf1702072cea8285a7321a90ecaa9a39f6a34f84c9",
+            "startLine": 11,
+            "endLine": 13
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openfga/openfga",
+      "line": "1.22",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.21.0",
+            "commit": "ab557c5592670c899de35297e7aa067015f06502"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.22.0",
+            "commit": "a38d5d0f65a964b6030e0b1afd2a831f62309159"
+          },
+          {
+            "version": "1.22.1",
+            "commit": "44054f542f64e9b9589dd26a595081b3d2cfd942"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.openfga",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-06T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.22.0",
+            "url": "https://github.com/openfga/openfga/blob/a38d5d0f65a964b6030e0b1afd2a831f62309159/CHANGELOG.md",
+            "revision": "a38d5d0f65a964b6030e0b1afd2a831f62309159",
+            "contentDigest": "sha256:0b0d60565b72679aef29407e816334bb83e2f60b8782e44451b32c5d57943bb8",
+            "startLine": 11,
+            "endLine": 22
+          },
+          {
+            "id": "changelog-1.22.1",
+            "url": "https://github.com/openfga/openfga/blob/44054f542f64e9b9589dd26a595081b3d2cfd942/CHANGELOG.md",
+            "revision": "44054f542f64e9b9589dd26a595081b3d2cfd942",
+            "contentDigest": "sha256:8c2be4d0f70af7bc6a41c452c9332c1f36f9ef663b3120a11aa827f5d9c7791f",
+            "startLine": 11,
+            "endLine": 18
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/openfga/openfga",
+      "line": "1.23",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.22.0",
+            "commit": "a38d5d0f65a964b6030e0b1afd2a831f62309159"
+          },
+          {
+            "version": "1.22.1",
+            "commit": "44054f542f64e9b9589dd26a595081b3d2cfd942"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.23.0",
+            "commit": "d67ba7b1d2eaf945cffab3a9129ca1a4c7ad5251"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.openfga",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-06T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.23.0",
+            "url": "https://github.com/openfga/openfga/blob/d67ba7b1d2eaf945cffab3a9129ca1a4c7ad5251/CHANGELOG.md",
+            "revision": "d67ba7b1d2eaf945cffab3a9129ca1a4c7ad5251",
+            "contentDigest": "sha256:075318105b669f3421c11e49af048658aeeb2123aa6ddf64ba44396e8de1fab0",
+            "startLine": 11,
+            "endLine": 27
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/openkruise/kruise",
       "line": "1.5",
       "factFamily": "crd.custom_resource_versions",
@@ -43064,6 +47172,524 @@
             "contentDigest": "sha256:3d72dbef5a711344e445a20ac6ae222487126239ee9cbbebbe5d0d6cff3d7ea6",
             "startLine": 1,
             "endLine": 834
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/theupdateframework/python-tuf",
+      "line": "0.12",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.11.0",
+            "commit": "448d002fc4489643d3b3f12434130ca6cccd5c9d"
+          },
+          {
+            "version": "0.11.1",
+            "commit": "921e0f6d130fa347c0fd7cee977f6a320c089e41"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.12.0",
+            "commit": "61383951147df1dc352bdc95644f8a51c94cd12c"
+          },
+          {
+            "version": "0.12.1",
+            "commit": "25e9e77dad164116f6fefb24c026bd83484b85f3"
+          },
+          {
+            "version": "0.12.2",
+            "commit": "15414c6735516436839857732b0c260f3cc4d4f0"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.tuf",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-20T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-0.12.0",
+            "url": "https://github.com/theupdateframework/python-tuf/blob/61383951147df1dc352bdc95644f8a51c94cd12c/docs/CHANGELOG.md",
+            "revision": "61383951147df1dc352bdc95644f8a51c94cd12c",
+            "contentDigest": "sha256:2f102f2ebab5e125df56ac1cffffa05d933fd9f9b5c02f40538ff16c384e47e9",
+            "startLine": 4,
+            "endLine": 14
+          },
+          {
+            "id": "changelog-0.12.1",
+            "url": "https://github.com/theupdateframework/python-tuf/blob/25e9e77dad164116f6fefb24c026bd83484b85f3/docs/CHANGELOG.md",
+            "revision": "25e9e77dad164116f6fefb24c026bd83484b85f3",
+            "contentDigest": "sha256:87319533c3e59adca6d38a03593c4e4a10c6c653d58427c899a1817f4d5be15e",
+            "startLine": 3,
+            "endLine": 6
+          },
+          {
+            "id": "changelog-0.12.2",
+            "url": "https://github.com/theupdateframework/python-tuf/blob/15414c6735516436839857732b0c260f3cc4d4f0/docs/CHANGELOG.md",
+            "revision": "15414c6735516436839857732b0c260f3cc4d4f0",
+            "contentDigest": "sha256:e7e3851a80661176c8172c65cd977ec92641eaa4bcb2a6c6cf40b886b5f0e33d",
+            "startLine": 3,
+            "endLine": 7
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/theupdateframework/python-tuf",
+      "line": "0.14",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.13.0",
+            "commit": "7a418a219c723f5829584477989baf8678e183af"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.14.0",
+            "commit": "7cc41c6fee69bf805bfef3f5842a50f712e2fc7f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.tuf",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-20T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-0.14.0",
+            "url": "https://github.com/theupdateframework/python-tuf/blob/7cc41c6fee69bf805bfef3f5842a50f712e2fc7f/docs/CHANGELOG.md",
+            "revision": "7cc41c6fee69bf805bfef3f5842a50f712e2fc7f",
+            "contentDigest": "sha256:9a50b9ffd30df3a9f8345a7458d552e5b173729de82ef4f3db37a14d19acdb75",
+            "startLine": 3,
+            "endLine": 28
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/theupdateframework/python-tuf",
+      "line": "0.16",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.15.0",
+            "commit": "39341521bf6a0db6d1089e9b7a960acb1d2fe535"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.16.0",
+            "commit": "2302f0dc57fa18f0d4ad8b629cb4c77c6a10cc19"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.tuf",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-20T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-0.16.0",
+            "url": "https://github.com/theupdateframework/python-tuf/blob/2302f0dc57fa18f0d4ad8b629cb4c77c6a10cc19/docs/CHANGELOG.md",
+            "revision": "2302f0dc57fa18f0d4ad8b629cb4c77c6a10cc19",
+            "contentDigest": "sha256:0005270ffd75ae128f1d214238761c5ff174974924717b8af49c07ed34bfeb6e",
+            "startLine": 3,
+            "endLine": 64
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/theupdateframework/python-tuf",
+      "line": "0.17",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.16.0",
+            "commit": "2302f0dc57fa18f0d4ad8b629cb4c77c6a10cc19"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.17.0",
+            "commit": "60875f912b430785141e1691a70d7d21827fe86c"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.tuf",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-20T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-0.17.0",
+            "url": "https://github.com/theupdateframework/python-tuf/blob/60875f912b430785141e1691a70d7d21827fe86c/docs/CHANGELOG.md",
+            "revision": "60875f912b430785141e1691a70d7d21827fe86c",
+            "contentDigest": "sha256:3d389ef7af88b3db4fea3af0fa141b8601385dd25595cd0e36db19268a72e3e4",
+            "startLine": 3,
+            "endLine": 33
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/theupdateframework/python-tuf",
+      "line": "0.18",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.17.0",
+            "commit": "60875f912b430785141e1691a70d7d21827fe86c"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.18.0",
+            "commit": "62195fd0b689fed4f7105719cd1be88e204cab7e"
+          },
+          {
+            "version": "0.18.1",
+            "commit": "02d4f4234f93cd2708fc914cfea1af4005ce7752"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.tuf",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-20T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-0.18.0",
+            "url": "https://github.com/theupdateframework/python-tuf/blob/62195fd0b689fed4f7105719cd1be88e204cab7e/docs/CHANGELOG.md",
+            "revision": "62195fd0b689fed4f7105719cd1be88e204cab7e",
+            "contentDigest": "sha256:92507767359eb8f9edf7f62a9fd98579b3e6a5494dc2bf07ac14596914af29c8",
+            "startLine": 3,
+            "endLine": 63
+          },
+          {
+            "id": "changelog-0.18.1",
+            "url": "https://github.com/theupdateframework/python-tuf/blob/02d4f4234f93cd2708fc914cfea1af4005ce7752/docs/CHANGELOG.md",
+            "revision": "02d4f4234f93cd2708fc914cfea1af4005ce7752",
+            "contentDigest": "sha256:471c84645abcc2c8d5059452ae53cb968bf22ad6a4438c550e535a4d8efa0e8e",
+            "startLine": 3,
+            "endLine": 6
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/theupdateframework/python-tuf",
+      "line": "0.19",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.18.0",
+            "commit": "62195fd0b689fed4f7105719cd1be88e204cab7e"
+          },
+          {
+            "version": "0.18.1",
+            "commit": "02d4f4234f93cd2708fc914cfea1af4005ce7752"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.19.0",
+            "commit": "e86a61571c332643831a56d1c2910f2475f08998"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.tuf",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-20T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-0.19.0",
+            "url": "https://github.com/theupdateframework/python-tuf/blob/e86a61571c332643831a56d1c2910f2475f08998/docs/CHANGELOG.md",
+            "revision": "e86a61571c332643831a56d1c2910f2475f08998",
+            "contentDigest": "sha256:48e24dbd6b87efbfcdc0f2064dda4142fc15e82cf00c7743fd1fcf45d9c88677",
+            "startLine": 3,
+            "endLine": 39
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/theupdateframework/python-tuf",
+      "line": "0.20",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.19.0",
+            "commit": "e86a61571c332643831a56d1c2910f2475f08998"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.20.0",
+            "commit": "febe6c3dc30195078a5487d68d7db708e7de8479"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.tuf",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-20T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-0.20.0",
+            "url": "https://github.com/theupdateframework/python-tuf/blob/febe6c3dc30195078a5487d68d7db708e7de8479/docs/CHANGELOG.md",
+            "revision": "febe6c3dc30195078a5487d68d7db708e7de8479",
+            "contentDigest": "sha256:909bd18a5cd02361dd8cf1df136fa9ac4de61459cb57edca5ce777b625c176c8",
+            "startLine": 4,
+            "endLine": 38
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/theupdateframework/python-tuf",
+      "line": "1.1",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.0.0",
+            "commit": "03d023219bef4f8f79443fd2299aab201b4b0cac"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.1.0",
+            "commit": "3f28d406b58c23b368c5921951bd2ebd6c077557"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.tuf",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-20T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-1.1.0",
+            "url": "https://github.com/theupdateframework/python-tuf/blob/3f28d406b58c23b368c5921951bd2ebd6c077557/docs/CHANGELOG.md",
+            "revision": "3f28d406b58c23b368c5921951bd2ebd6c077557",
+            "contentDigest": "sha256:e564f3a1d4b4d75d93732ae7b5a6a00017129c639d29d143b1c27299c77b0eec",
+            "startLine": 4,
+            "endLine": 25
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/theupdateframework/python-tuf",
+      "line": "2.1",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.0.0",
+            "commit": "7ada2af384442f1c3775a4bcbd9f33270c1c8fa0"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.1.0",
+            "commit": "daa41a9bc9b51cd4449b58b9a9ae9cc6af70c443"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.tuf",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-20T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-2.1.0",
+            "url": "https://github.com/theupdateframework/python-tuf/blob/daa41a9bc9b51cd4449b58b9a9ae9cc6af70c443/docs/CHANGELOG.md",
+            "revision": "daa41a9bc9b51cd4449b58b9a9ae9cc6af70c443",
+            "contentDigest": "sha256:0a9aebe7bd60f8650077600d49cc8271b8a1126d7d7755d4c31184b6e8664e88",
+            "startLine": 2,
+            "endLine": 25
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/theupdateframework/python-tuf",
+      "line": "3.1",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "3.0.0",
+            "commit": "eff842201e7bbb3817958dc242f21031766ab2b9"
+          }
+        ],
+        "to": [
+          {
+            "version": "3.1.0",
+            "commit": "f04dc716cbed1c01b85278ada4e338b9a213c576"
+          },
+          {
+            "version": "3.1.1",
+            "commit": "e8410e1fe1957b18d25b5484e8878050013749fb"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.tuf",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-20T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-3.1.0",
+            "url": "https://github.com/theupdateframework/python-tuf/blob/f04dc716cbed1c01b85278ada4e338b9a213c576/docs/CHANGELOG.md",
+            "revision": "f04dc716cbed1c01b85278ada4e338b9a213c576",
+            "contentDigest": "sha256:b7374280dc7ea3f03807f45ef8594c121f069f554baa319b3687dffd3f1ed913",
+            "startLine": 3,
+            "endLine": 18
+          },
+          {
+            "id": "changelog-3.1.1",
+            "url": "https://github.com/theupdateframework/python-tuf/blob/e8410e1fe1957b18d25b5484e8878050013749fb/docs/CHANGELOG.md",
+            "revision": "e8410e1fe1957b18d25b5484e8878050013749fb",
+            "contentDigest": "sha256:8eb0223619547b6d48c4cb730b9181e6c282966f6b8f75b0315605237d100e25",
+            "startLine": 3,
+            "endLine": 11
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/theupdateframework/python-tuf",
+      "line": "5.1",
+      "factFamily": "changelog.listed_entries",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "5.0.0",
+            "commit": "1b0c9f7d444e037d1e9b5635b993c46053442e1b"
+          }
+        ],
+        "to": [
+          {
+            "version": "5.1.0",
+            "commit": "dd4caf439c205aa9c34494b301724f80dcc66fc3"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "changelog.listed.tuf",
+          "version": "1.0.0",
+          "codeDigest": "sha256:afe37de1ac876ce911e88db13a3bc2d3ae053dc00dd2efe99d92a47caa2d5fd0"
+        },
+        "derivedAt": "2026-11-21T02:12:12Z",
+        "reviewedAt": "2026-11-21T02:12:12Z",
+        "validUntil": "2027-01-20T02:12:12Z",
+        "sources": [
+          {
+            "id": "changelog-5.1.0",
+            "url": "https://github.com/theupdateframework/python-tuf/blob/dd4caf439c205aa9c34494b301724f80dcc66fc3/docs/CHANGELOG.md",
+            "revision": "dd4caf439c205aa9c34494b301724f80dcc66fc3",
+            "contentDigest": "sha256:5797140467f9480cb1daf77be485505482e487eafa362b9b3605c3330ee6377e",
+            "startLine": 3,
+            "endLine": 13
           }
         ]
       }

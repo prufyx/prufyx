@@ -7,7 +7,7 @@ Prufyx checks a planned upgrade against upstream evidence and returns
 file, and line range it relies on, and says how it was established.
 
 <!-- basis-counts:begin -->
-Of the 304 active rules shipped today, 260 with basis `reviewed`, 44 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 237 release-line attestations and served-API lists are separate records: 237 with basis `mechanical`.
+Of the 304 active rules shipped today, 260 with basis `reviewed`, 44 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 300 release-line attestations and served-API lists are separate records: 300 with basis `mechanical`.
 <!-- basis-counts:end -->
 
 Each rule states which way it was established, and
@@ -324,7 +324,7 @@ community projects that hold CRD knowledge.
 ## Coverage
 
 <!-- coverage:begin -->
-Generated on 2026-11-20 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the date clock of the block is 2026-11-10 (the later of the snapshot's evaluation date and every capture date). The block is evaluated at 2026-11-20T20:14:28Z, the time of the newest line attestation or rule review, which is later than the date clock above.
+Generated on 2026-11-21 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the date clock of the block is 2026-11-10 (the later of the snapshot's evaluation date and every capture date). The block is evaluated at 2026-11-21T02:12:12Z, the time of the newest line attestation or rule review, which is later than the date clock above.
 
 | Executable rules | Count |
 | --- | --- |
@@ -338,7 +338,7 @@ Generated on 2026-11-20 by `scripts/readme-coverage.sh` (do not edit this block 
 
 Version-coverage by form, over the last five minor upgrades of each of the 79 CNCF-catalog projects of the snapshot (395 upgrades between consecutive release lines). Each upgrade is counted once, under its strongest form, in this order: A/B decided, then k8s served-API, then S, then L, then G. Only A/B is called decided: a valid rule or attestation covers every version of both release lines. k8s served-API is an answer from the Kubernetes served-API family alone. S is a rule for one exact version pair only. L is listed, not judged: the change is listed, the answer is ATTENTION, never PASS. G is a gap, with its reason. There is no total over the forms.
 
-Projects with an answer of any form (A/B, k8s served-API, S or L): 53 of 79 in the fleet; 10 of 18 in the community group, which is marked in the table and outside the release-line fleet.
+Projects with an answer of any form (A/B, k8s served-API, S or L): 54 of 79 in the fleet; 10 of 18 in the community group, which is marked in the table and outside the release-line fleet.
 
 <details>
 <summary>Per project: A/B decided, k8s served-API, S, L listed not judged, G gap with reason</summary>
@@ -358,7 +358,7 @@ Projects with an answer of any form (A/B, k8s served-API, S or L): 53 of 79 in t
 | container-network-interface-cni | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
 | containerd | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
 | contour | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
-| coredns | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| coredns | release-line fleet | 5 | 0 | 0 | 1 | 4 | 0 | - |
 | cortex | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
 | cri-o | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
 | crossplane | release-line fleet | 5 | 3 | 0 | 0 | 0 | 2 | NOT_DECIDED_FOR_THIS_PAIR |
@@ -375,12 +375,12 @@ Projects with an answer of any form (A/B, k8s served-API, S or L): 53 of 79 in t
 | external-secrets | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
 | falco | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
 | fluent-bit | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
-| fluentd | release-line fleet | 5 | 0 | 0 | 3 | 0 | 2 | NOT_DECIDED_FOR_THIS_PAIR |
+| fluentd | release-line fleet | 5 | 0 | 0 | 3 | 1 | 1 | NOT_DECIDED_FOR_THIS_PAIR |
 | flux | release-line fleet | 5 | 0 | 0 | 2 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
 | grafana | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
 | harbor | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
 | helm | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
-| in-toto | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
+| in-toto | release-line fleet | 5 | 0 | 0 | 0 | 4 | 1 | NOT_DECIDED_FOR_THIS_PAIR |
 | ingress-nginx | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
 | istio | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
 | jaeger | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
@@ -408,7 +408,7 @@ Projects with an answer of any form (A/B, k8s served-API, S or L): 53 of 79 in t
 | nats | release-line fleet | 5 | 0 | 0 | 2 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
 | opa | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
 | opencost | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
-| openfga | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| openfga | release-line fleet | 5 | 0 | 0 | 1 | 4 | 0 | - |
 | openkruise | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
 | opentelemetry | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
 | openyurt | release-line fleet | 5 | 3 | 0 | 0 | 0 | 2 | NOT_DECIDED_FOR_THIS_PAIR |
@@ -419,7 +419,7 @@ Projects with an answer of any form (A/B, k8s served-API, S or L): 53 of 79 in t
 | submariner | release-line fleet | 5 | 2 | 0 | 0 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
 | tekton | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
 | thanos | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
-| the-update-framework-tuf | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| the-update-framework-tuf | release-line fleet | 5 | 0 | 0 | 1 | 1 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
 | traefik | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
 | velero | release-line fleet | 5 | 5 | 0 | 0 | 0 | 0 | - |
 | vitess | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
@@ -447,7 +447,7 @@ Projects with an answer of any form (A/B, k8s served-API, S or L): 53 of 79 in t
 
 Kubernetes: 63 valid rules, but 19 fall in its window 1.32 to 1.37; 0 of 5 upgrades in that window are gaps.
 
-Changelog-listed (`changelog.listed_entries`): 0 upgrades where every final release of the line has a listed entry at its own release commit; listed, not judged; never a pass; not counted as decided; no scan reads it yet, 29 gap over 35 upgrades of its member projects (0 more decided by a source family or a rule, 6 by a rule for one exact version pair only). 13 projects have a changelog target; that is catalogue coverage, not the number of upgrades decided. Gap reasons: MIXED_MEMBER 5, NO_ATTESTATION 24.
+Changelog-listed (`changelog.listed_entries`): 13 upgrades where every final release of the line has a listed entry at its own release commit; listed, not judged; never a pass; not counted as decided; no scan reads it yet, 16 gap over 35 upgrades of its member projects (0 more decided by a source family or a rule, 6 by a rule for one exact version pair only). 13 projects have a changelog target; that is catalogue coverage, not the number of upgrades decided. Gap reasons: MIXED_MEMBER 5, NO_ATTESTATION 11.
 
 Decided means a valid rule or attestation covers every version of both release lines. It never means a whole-upgrade PASS. Some decided upgrades are decided only by line attestations that list no rule (`crd.custom_resource_versions`): for them an attestation can only give a family-scoped PASS (`scan` prints "PASS within <family> only"), never BLOCKED. An exact-pair rule decides only the versions it names. The metric is defined in the [coverage report guide](cli/docs/coverage-report.md); it is not a statement that any upgrade is safe.
 <!-- coverage:end -->
