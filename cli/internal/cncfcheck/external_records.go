@@ -124,15 +124,13 @@ func admitExternalRecords(base bundle, packRaw json.RawMessage, pack rulePack) e
 func recordOwners(projects []projectIdentity) map[string]string {
 	owners := map[string]string{}
 	for _, project := range projects {
-		component := subjectComponent(project.Slug, project.RepositoryURL)
-		if component == "" {
-			continue
+		for _, component := range projectComponents(project) {
+			if _, seen := owners[component]; seen {
+				owners[component] = ""
+				continue
+			}
+			owners[component] = project.Slug
 		}
-		if _, seen := owners[component]; seen {
-			owners[component] = ""
-			continue
-		}
-		owners[component] = project.Slug
 	}
 	return owners
 }

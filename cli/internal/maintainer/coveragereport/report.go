@@ -67,6 +67,12 @@ type Input struct {
 	// target to the component of that target. Empty or nil: no project is a
 	// changelog-attested member and the report is unchanged.
 	ChangelogTargetComponents map[string]string
+	// ExtraComponents maps a reviewed extra component of a catalog project
+	// (cncfcheck.CatalogExtraComponents) to its owning project. A pair of
+	// such a component is attributed to the owner; it never adds a project
+	// row and never overrides a component another source already owns.
+	// Empty or nil changes nothing.
+	ExtraComponents map[string]string
 	// CommunityPack is the community rule pack, or nil. Only the count of
 	// published CRD projects reads it: a valid crd.custom_resource_versions
 	// rule or a current line attestation in it counts a target project
@@ -522,6 +528,17 @@ func Compute(in Input) (Report, error) {
 	}
 	for project, set := range components {
 		for c := range set {
+			componentProject[c] = project
+		}
+	}
+	// Reviewed extra components of a catalog project attribute to it, only
+	// where no other source already names the component and only for a
+	// project the report knows (no new rows).
+	for c, project := range in.ExtraComponents {
+		if _, taken := componentProject[c]; taken || project == "" || c == "" {
+			continue
+		}
+		if _, known := linesFile.Projects[project]; known || len(components[project]) > 0 {
 			componentProject[c] = project
 		}
 	}

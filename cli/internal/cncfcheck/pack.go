@@ -26,7 +26,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/upgradepath"
 )
 
-//go:embed data/landscape-projects.json data/priority-portfolio.json data/rules.json
+//go:embed data/landscape-projects.json data/landscape-components.json data/priority-portfolio.json data/rules.json
 var packagedFiles embed.FS
 
 var (
@@ -47,6 +47,10 @@ type projectIdentity struct {
 	Name          string `json:"name"`
 	RepositoryURL string `json:"repositoryURL"`
 	CNCFStage     string `json:"cncfStage"`
+	// Components are the reviewed extra components the project owns beside
+	// its repository (components.go). They come from a separate file, never
+	// from the Landscape reduction, so they have no JSON name here.
+	Components []string `json:"-"`
 }
 
 type landscapeDocument struct {
@@ -143,6 +147,10 @@ func loadUncached() (bundle, error) {
 	if err != nil {
 		return bundle{}, ErrIntegrity
 	}
+	componentsRaw, err := packagedFiles.ReadFile("data/landscape-components.json")
+	if err != nil {
+		return bundle{}, ErrIntegrity
+	}
 	priorityRaw, err := packagedFiles.ReadFile("data/priority-portfolio.json")
 	if err != nil {
 		return bundle{}, ErrIntegrity
@@ -151,19 +159,25 @@ func loadUncached() (bundle, error) {
 	if err != nil {
 		return bundle{}, ErrIntegrity
 	}
-	return assemble(landscapeRaw, priorityRaw, packRaw, compiledDefinitions())
+	return assembleWithComponents(landscapeRaw, componentsRaw, priorityRaw, packRaw, compiledDefinitions(), customresources.Projects())
 }
 
 // assemble admits the landscape, priority list and rule pack against a fact
 // registry built from definitions. Every check of the packaged knowledge is
 // here, so tests can hold synthetic knowledge to exactly the same rules.
 func assemble(landscapeRaw, priorityRaw, packRaw []byte, factDefinitions []constraintengine.FactDefinition) (bundle, error) {
-	return assembleWithCommunity(landscapeRaw, priorityRaw, packRaw, factDefinitions, customresources.Projects())
+	return assembleWithComponents(landscapeRaw, nil, priorityRaw, packRaw, factDefinitions, customresources.Projects())
 }
 
 // assembleWithCommunity is assemble over an explicit reviewed table, so
 // tests can hold a table with an overlap to the same refusal.
 func assembleWithCommunity(landscapeRaw, priorityRaw, packRaw []byte, factDefinitions []constraintengine.FactDefinition, table []customresources.Project) (bundle, error) {
+	return assembleWithComponents(landscapeRaw, nil, priorityRaw, packRaw, factDefinitions, table)
+}
+
+// assembleWithComponents is assembleWithCommunity with the reviewed extra
+// components file (components.go); nil means the file is absent.
+func assembleWithComponents(landscapeRaw, componentsRaw, priorityRaw, packRaw []byte, factDefinitions []constraintengine.FactDefinition, table []customresources.Project) (bundle, error) {
 	var result bundle
 	// Pack member names are checked exactly before decoding, and the
 	// attestation section is taken from the same function every other
@@ -186,10 +200,15 @@ func assembleWithCommunity(landscapeRaw, priorityRaw, packRaw []byte, factDefini
 	if err != nil {
 		return bundle{}, ErrIntegrity
 	}
-	result.packDigest, result.catalogueDigest = digest(packRaw), digest(landscapeRaw)
+	result.packDigest = digest(packRaw)
 	if result.landscape.Schema != "prufyx.io/cncf-landscape/v1" || len(result.landscape.Projects) != 255 || !digestPattern.MatchString(result.landscape.LandscapeFileDigest) || result.priority.Schema != "prufyx.io/cncf-priority/v1" || len(result.priority.Priority) != 30 || result.priority.LandscapeFileDigest != result.landscape.LandscapeFileDigest || !validPackSchema(result.pack) || result.pack.LandscapeFileDigest != result.landscape.LandscapeFileDigest || result.pack.RegistryDigest != result.registry.Digest() {
 		return bundle{}, ErrIntegrity
 	}
+	extras := 0
+	if result.landscape.Projects, extras, err = attachComponents(componentsRaw, result.landscape.LandscapeFileDigest, result.landscape.Projects); err != nil {
+		return bundle{}, ErrIntegrity
+	}
+	result.catalogueDigest = catalogueDigestFor(landscapeRaw, componentsRaw, extras)
 	identities := map[string]projectIdentity{}
 	for index, project := range result.landscape.Projects {
 		parsed, err := url.Parse(project.RepositoryURL)
