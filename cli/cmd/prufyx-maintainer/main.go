@@ -121,6 +121,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runQAReport(args[1:])
 	case "release-notes":
 		return runReleaseNotes(args[1:], stdout)
+	case "subprojects":
+		return runSubprojects(args[1:], stdout)
 	case "release-docs":
 		return runReleaseDocs(args[1:], stdout)
 	case "release-gate":
