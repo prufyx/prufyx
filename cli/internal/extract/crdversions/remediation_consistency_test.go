@@ -163,7 +163,13 @@ func checkPublished(r publishedRule, row adviceRow, hasRow bool, pending map[str
 	p, listed := pending[r.ID]
 	switch {
 	case cur == r.Next && listed:
-		return fmt.Errorf("%s: advice is current but the rule is still on the pending list: remove its entry from remediationAllowList and raise RemediationAllowListVersion", r.ID)
+		// A renewed rule whose stale pending entry has not been removed yet
+		// is accepted: the entry is cleaned up by a code change (remove it
+		// from remediationAllowList and raise RemediationAllowListVersion),
+		// which must not have to land in the same step as the renewed data.
+		// The entry is still required to name a published rule (checked by
+		// the caller), and the advice is still required to be current.
+		return nil
 	case cur != r.Next && !listed:
 		return fmt.Errorf("%s: published advice %q differs from the current extractor output %q. The extractor change that altered nextAction must be followed by renewing this rule; until then add it to the pending list (remediationAllowList in extractpack/remediation.go, regenerate with PRUFYX_PRINT_REMEDIATION_ALLOWLIST=1). If instead this rule's advice or sources were edited by hand, revert that", r.ID, r.Next, cur)
 	case cur != r.Next && (p.OldSHA256 != sum(r.Next) || p.NewSHA256 != sum(cur)):
