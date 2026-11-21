@@ -54,7 +54,7 @@ type componentEntry struct {
 	Slug string `json:"slug"`
 	// Purl is the exact component identity the project additionally owns.
 	Purl string `json:"purl"`
-	// Source is the reviewed https URL showing that the repository ships
+	// Source is the reviewed https URL (host github.com only) showing that the repository ships
 	// under the project. The pinned Landscape reduction carries no list of
 	// repositories per project, so every entry needs one.
 	Source string `json:"source"`
@@ -112,7 +112,7 @@ func attachComponents(raw []byte, landscapeDigest string, projects []projectIden
 			return nil, 0, ErrIntegrity
 		}
 		source, err := url.Parse(entry.Source)
-		if err != nil || source.Scheme != "https" || source.Host == "" || source.User != nil || source.Fragment != "" || len(entry.Source) > 512 {
+		if err != nil || source.Scheme != "https" || source.Host == "" || source.User != nil || source.Fragment != "" || source.Host != "github.com" || len(entry.Source) > 512 {
 			return nil, 0, ErrIntegrity
 		}
 		if _, clash := claimed[entry.Purl]; clash {
