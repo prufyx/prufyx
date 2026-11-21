@@ -260,11 +260,31 @@ func TestChangeListJumpNotForOtherUpgrades(t *testing.T) {
 	_, paths := files(t, map[string]string{"cm.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: m}\n"})
 	for _, versions := range [][2]string{{"3.5.0", "3.6.0"}, {"3.5.0", "3.5.1"}} {
 		result := mustScan(t, k, args(paths, "--from", "etcd="+versions[0], "--to", "etcd="+versions[1])...)
-		if path, jump := clJump(t, result.Report); jump != nil || len(path.Hops) != 0 {
+		// The undecided single hop is the not-covered path of any component;
+		// it carries no change-list entries or attestation.
+		path, jump := clJump(t, result.Report)
+		if jump != nil && (len(path.Hops) != 1 || jump.Hops[0].Status != scanreport.JumpHopUndecided || len(jump.Hops[0].Entries) != 0 || jump.Hops[0].Attestation != nil) {
 			t.Fatalf("%v: %+v", versions, jump)
 		}
 	}
 	if family, _ := lineattest.LookupFamily(lineattest.FamilyCustomResourceVersions); family.Admits(clComponent) {
 		t.Fatal("etcd is a custom-resource component")
+	}
+}
+
+// A multi-minor jump of a change-list component has one path, not the
+// change-list path and the not-covered path side by side.
+func TestChangeListJumpOnePathPerComponent(t *testing.T) {
+	t.Parallel()
+	r35, r36 := clRecords()
+	result := clScan(t, r35, r36)
+	count := 0
+	for _, path := range result.Report.Paths {
+		if path.Component == clSlug {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("%d paths for %s", count, clSlug)
 	}
 }
