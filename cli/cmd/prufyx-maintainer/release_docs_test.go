@@ -49,3 +49,26 @@ func TestReleaseDocsFailsClosedOnAnEmptyRoot(t *testing.T) {
 		t.Fatalf("an empty root passed: %d %s", code, msg)
 	}
 }
+
+func TestReleaseDocsRegenRefusesBadUsage(t *testing.T) {
+	cases := [][]string{
+		{"regen"},
+		{"regen", "--root", "."},
+		{"regen", "--root", ".", "--mode", "release"},
+		{"regen", "--root", ".", "--mode", "unreleased", "extra"},
+		{"regen", "--root", ".", "--mode", "unreleased", "--tag", "v1.0.0"},
+	}
+	for _, args := range cases {
+		code, msg := docsExit(t, args...)
+		if code != 2 {
+			t.Errorf("%v: exit %d (%s), want 2", args, code, msg)
+		}
+	}
+}
+
+func TestReleaseDocsRegenRefusesOutsideAGitRepository(t *testing.T) {
+	code, msg := docsExit(t, "regen", "--root", t.TempDir(), "--mode", "unreleased")
+	if code != 19 || !strings.Contains(msg, "git work tree") {
+		t.Fatalf("exit %d: %s", code, msg)
+	}
+}

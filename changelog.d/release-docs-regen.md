@@ -1,0 +1,3 @@
+### Added
+
+- `prufyx-maintainer release-docs regen --root DIR --mode unreleased`: the inverse of `release-docs check --mode unreleased`. It regenerates the README coverage regions, the preview counts, `cli/docs/generated/coverage-counts.json` and the generated blocks of the unreleased notes file and CHANGELOG entry, with the same code the check uses, so a data change needs no hand commit. It is deterministic and idempotent, writes only inside the generated blocks and the counts file, restores everything on failure, reads no network, and refuses a root that is not the top level of a git work tree holding the previous tag.
