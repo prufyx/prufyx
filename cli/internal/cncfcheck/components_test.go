@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -395,5 +396,50 @@ func TestExtraComponentsFromFiles(t *testing.T) {
 	}
 	if _, err := ExtraComponentsFromFiles([]byte("{}"), good); err == nil {
 		t.Error("an invalid landscape was accepted")
+	}
+}
+
+// A zero-entry components file gives the same admit report, attestation and
+// catalogue digest as the absent (nil) entry points.
+func TestZeroEntryComponentsEqualsAbsent(t *testing.T) {
+	landscape, _ := packagedFiles.ReadFile("data/landscape-projects.json")
+	components, _ := packagedFiles.ReadFile("data/landscape-components.json")
+	priority, _ := packagedFiles.ReadFile("data/priority-portfolio.json")
+	rules, err := packagedRulePack()
+	if err != nil {
+		t.Fatal(err)
+	}
+	withFile, err := CheckPackFilesFullComponents(landscape, components, priority, rules, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	absent, err := CheckPackFilesFull(landscape, priority, rules, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(withFile, absent) {
+		t.Fatal("admit report differs")
+	}
+	a1, err := BuildAttestationFromFilesFullComponents(landscape, components, priority, rules, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a2, err := BuildAttestationFromFilesFull(landscape, priority, rules, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(a1, a2) {
+		t.Fatal("attestation differs")
+	}
+	b1, _, err := assembleFullComponents(landscape, components, priority, rules, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b2, _, err := assembleFull(landscape, priority, rules, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b1.catalogueDigest != b2.catalogueDigest || b1.catalogueDigest != digest(landscape) {
+		t.Fatal("catalogue digest differs")
 	}
 }

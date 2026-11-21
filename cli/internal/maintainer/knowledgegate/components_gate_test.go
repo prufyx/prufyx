@@ -83,9 +83,59 @@ func TestComponentsMissingRefused(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.sign(t, "pr-42")
-	r := f.run(t, "pr-42")
-	if r.Passed() {
-		t.Fatal("gate passed without the components file")
+	requireFail(t, f.run(t, "pr-42"), "admit/cncf")
+}
+
+// The file moved elsewhere is a delete and an add: refused, even approved.
+func TestComponentsRenameRefused(t *testing.T) {
+	t.Parallel()
+	f := newComponentsFixture(t, componentsEntryFile(t))
+	moved := filepath.Join(f.head.Root, "cli/internal/cncfcheck/data/landscape-components-moved.json")
+	if err := os.Rename(filepath.Join(f.head.Root, filepath.FromSlash(cncfComponentsPath)), moved); err != nil {
+		t.Fatal(err)
+	}
+	requireGatePathFail(t, f.run(t, "pr-42"))
+	f.sign(t, "pr-42")
+	requireFail(t, f.run(t, "pr-42"), "admit/cncf")
+}
+
+// A symlink in place of the components file is refused, even approved.
+func TestComponentsSymlinkRefused(t *testing.T) {
+	t.Parallel()
+	f := newComponentsFixture(t, componentsEntryFile(t))
+	p := filepath.Join(f.head.Root, filepath.FromSlash(cncfComponentsPath))
+	other := filepath.Join(f.head.Root, "elsewhere.json")
+	if err := os.WriteFile(other, componentsEntryFile(t), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(p); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(other, p); err != nil {
+		t.Skip("symlinks unavailable")
+	}
+	// The owner tool refuses to sign a non-regular file, and the gate
+	// refuses the change without an approval.
+	args := append(f.gateArgs("sign", "pr-42"), "--identity", "airstand", "--output", f.approvalFile("pr-42"))
+	requireCode(t, runApproval(t, f.key.pemKey(t), signNow, append(args, "--key-stdin")...), 2, "not a regular file")
+	if f.run(t, "pr-42").Passed() {
+		t.Fatal("gate passed with a symlinked components file")
+	}
+}
+
+// A directory in place of the components file is refused.
+func TestComponentsDirectoryRefused(t *testing.T) {
+	t.Parallel()
+	f := newComponentsFixture(t, componentsEntryFile(t))
+	p := filepath.Join(f.head.Root, filepath.FromSlash(cncfComponentsPath))
+	if err := os.Remove(p); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(p, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if f.run(t, "pr-42").Passed() {
+		t.Fatal("gate passed with a directory as the components file")
 	}
 }
 
