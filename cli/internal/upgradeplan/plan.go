@@ -238,6 +238,7 @@ type UnknownComponent struct {
 	Component string
 	Reason    string
 	Detail    string
+	Action    string
 }
 
 // BuildWithUnknown is Build plus the components set aside by the scan.
@@ -253,6 +254,9 @@ func BuildWithUnknown(report scanreport.Report, latest []string, unknown []Unkno
 		action := "check the spelling against `prufyx catalog cncf`, or plan it once the catalog names it"
 		if u.Reason == scanreport.ReasonComponentNotCovered {
 			action = "scan reads no knowledge about this project yet; verify its upgrade by hand and plan it once knowledge covers it"
+		}
+		if u.Action != "" {
+			action = u.Action
 		}
 		plan.Gaps = append(plan.Gaps, Gap{Component: u.Component, Reason: u.Reason, Detail: u.Detail, Action: action})
 	}

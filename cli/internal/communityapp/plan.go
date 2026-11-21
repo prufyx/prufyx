@@ -85,7 +85,7 @@ func (r runtime) plan(args []string, stdin io.Reader) int {
 	}
 	unknown := make([]upgradeplan.UnknownComponent, 0, len(result.Unknown))
 	for _, u := range result.Unknown {
-		unknown = append(unknown, upgradeplan.UnknownComponent{Component: u.Component, Reason: u.Reason, Detail: u.Detail})
+		unknown = append(unknown, upgradeplan.UnknownComponent{Component: u.Component, Reason: u.Reason, Detail: u.Detail, Action: u.Action})
 	}
 	plan := upgradeplan.BuildWithUnknown(result.Report, latest, unknown, upgradeplan.Capabilities{})
 	return r.writePlan(plan, request.Format)

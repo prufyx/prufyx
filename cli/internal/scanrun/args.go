@@ -464,7 +464,7 @@ func addVersion(target *map[string]string, flagName, value string) error {
 		return usage(scanreport.UsageComponentVersion, flagName)
 	}
 	// Only Kubernetes takes a pre-release X.Y.0-(alpha|beta|rc).N.
-	if !validVersion(version) && !(component == kubernetesSlug && k8sPreRelease(version)) {
+	if !validVersion(version) && !(component == kubernetesSlug && k8sPreRelease(version)) && !(component != kubernetesSlug && scanconfig.SchemeToken(version)) {
 		return usage(scanreport.UsageVersion, quote(version), quote(component))
 	}
 	if *target == nil {

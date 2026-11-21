@@ -1,0 +1,2 @@
+### Fixed
+- `prufyx plan` and `prufyx scan` no longer exit 2 when a project is given a well-formed version that is not `X.Y.Z`, such as `--to linkerd=edge-24.11.8`. The project becomes a `VERSION_SCHEME_UNSUPPORTED` gap (not compared, with the next action), the other projects are evaluated, and the verdict is at most UNKNOWN (exit 11, or 10 if another stage is blocked). Empty, over-long or malformed versions still exit 2.

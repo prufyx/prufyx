@@ -61,7 +61,7 @@ Kubernetes). `BLOCKED` is fully decided: a blocker is a blocker.
 Reason codes: `ORDER_INFERRED`, `HOP_ACTIONS_NOT_CHECKED`,
 `NODE_ROLLS_NOT_PLANNED`, `HOP_NOT_COVERED`, `BLOCKED_BY_EARLIER_FINDING`,
 `COMPONENT_GAP`, `LATEST_NOT_RESOLVED`, `PATH_NOT_PLANNED`,
-`COMPONENT_NOT_IN_CATALOG`, `COMPONENT_NOT_COVERED`.
+`COMPONENT_NOT_IN_CATALOG`, `COMPONENT_NOT_COVERED`, `VERSION_SCHEME_UNSUPPORTED`.
 
 ## Example: a long route (1.29 to 1.36)
 
@@ -149,6 +149,13 @@ A component the catalog does not name (`COMPONENT_NOT_IN_CATALOG`) or that scan
 has no knowledge for yet (`COMPONENT_NOT_COVERED`) does not stop the plan: the
 other components are planned, the unknown one is a plan gap with its reason and
 next action, and the verdict is at most UNKNOWN. Malformed input still exits 2.
+
+A version that is not `X.Y.Z` but is a well-formed token (1 to 64 characters of
+`A-Z a-z 0-9 . _ -`, starting with a letter), such as `linkerd=edge-24.11.8`,
+does not stop the plan either: the component is a `VERSION_SCHEME_UNSUPPORTED`
+gap (edge releases are not compared yet; name the stable `X.Y.Z` if you run
+one, or check the component by hand) and the rest is planned. Kubernetes stays
+strict `X.Y.Z`. An empty, over-long or malformed version exits 2.
 
 ## Output and exit codes
 
