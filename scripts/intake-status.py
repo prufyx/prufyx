@@ -46,10 +46,11 @@ REASONS = {
              "group-absent-at-later-release", "helm-target-shape", "incomplete-tree", "invalid-target", "landscape-subject",
              "licence", "no-crds", "no-final-tags", "no-path-set", "other", "reserved-group", "shared-group", "tag-prefix",
              "templated-crds", "tree-too-large", "unreadable-crd"),
-    "refused": ("account-too-young", "body-invalid", "body-malformed", "cap-login", "known-project", "other", "record-malformed",
-                "repo-archived", "repo-is-fork", "repo-moved", "repo-not-public", "slug-collision", "slug-invalid"),
-    "parked": ("already-known", "author-changed", "changed", "issue-closed", "issue-gone", "issue-is-pr", "malformed", "other",
-               "repo-archived", "repo-moved", "repo-not-public", "slug-invalid", "stale"),
+    "refused": ("account-too-young", "body-invalid", "body-malformed", "cap-login", "known-project", "no-invite", "other",
+                "proof-ambiguous", "record-malformed", "repo-archived", "repo-is-fork", "repo-moved", "repo-not-public",
+                "slug-collision", "slug-invalid"),
+    "parked": ("already-known", "author-changed", "changed", "issue-closed", "issue-gone", "issue-is-pr", "maintainer-changed",
+               "malformed", "other", "proof-expired", "repo-archived", "repo-moved", "repo-not-public", "slug-invalid", "stale"),
 }
 ITEM_KEYS = frozenset(("issueNumber", "issueId", "authorId", "project", "state", "reason", "updatedAt"))
 TOP_KEYS = frozenset(("schema", "version", "generatedAt", "items"))

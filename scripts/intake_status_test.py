@@ -107,6 +107,17 @@ class ValidateFeed(unittest.TestCase):
         self.assertEqual([i["issueNumber"] for i in got], [3, 5, 7])
         self.assertEqual(self.ok(feed([])), [])
 
+    def test_admission_reasons(self):
+        for state, reason in (("refused", "no-invite"), ("refused", "proof-ambiguous"),
+                              ("parked", "maintainer-changed"), ("parked", "proof-expired")):
+            got = self.ok(feed([item(3, 30, 300, state, reason)]))
+            self.assertEqual(got[0]["reason"], reason)
+            self.assertIn("Reason code: " + reason, S.comment_body(got[0]))
+        self.bad(feed([item(3, 30, 300, "held", "no-invite")]))        # a reason of another state
+        self.bad(feed([item(3, 30, 300, "refused", "proof-expired")]))
+        self.bad(feed([item(3, 30, 300, "parked", "no-invite")]))
+        self.bad(feed([item(3, 30, 300, "refused", "proof-unknown")]))  # unknown stays refused
+
     def test_bad_schema(self):
         base = [item(3, 30, 300)]
         self.bad(feed(base, schema="prufyx.io/other"))
