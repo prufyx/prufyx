@@ -1,0 +1,11 @@
+{
+  "schema": "prufyx.io/cncf-landscape-components/v1",
+  "landscapeFileDigest": "sha256:8ee4c10af7d58ddda752ff91c20bf6a5f328bfa5aa288f93801d0ca9d2b0c0ef",
+  "components": [
+    {
+      "slug": "prometheus",
+      "purl": "pkg:github/prometheus/alertmanager",
+      "source": "https://github.com/prometheus/alertmanager"
+    }
+  ]
+}

@@ -34,7 +34,7 @@ func admitPathPolicies(section json.RawMessage, present bool, projects []project
 func subjectComponents(projects []projectIdentity) map[string]bool {
 	out := make(map[string]bool, len(projects))
 	for _, project := range projects {
-		if component := subjectComponent(project.Slug, project.RepositoryURL); component != "" {
+		for _, component := range projectComponents(project) {
 			out[component] = true
 		}
 	}
