@@ -13,6 +13,8 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/derivefloor"
 )
 
 // Expected is an independent account of CRD version removals to compare a
@@ -25,6 +27,29 @@ type Expected struct {
 	Rules          []ExpectedRule    `json:"rules"`
 	StorageChanges []ExpectedStorage `json:"storageChanges"`
 	Pairs          []ExpectedPair    `json:"pairs"`
+	// Floor, when present, is the claimed floor of the target the run was
+	// made for. It is checked by derivefloor.Verify, the one derivation the
+	// verify-pr recompute uses too; a claim that Verify refuses makes the
+	// oracle fail (an error, not a difference line).
+	Floor *ExpectedFloor `json:"floor,omitempty"`
+}
+
+// ExpectedFloor is a claimed floor: minFrom and derivedFrom as major.minor
+// lines, the bound of the derivation (1..derivefloor.MaxDepth) and the
+// recorded final stops of the pairs below minFrom.
+type ExpectedFloor struct {
+	MinFrom     string         `json:"minFrom"`
+	DerivedFrom string         `json:"derivedFrom"`
+	Depth       int            `json:"depth"`
+	Stops       []ExpectedStop `json:"stops"`
+}
+
+// ExpectedStop is one recorded hop-stop: the pair's from and to lines and
+// the final stop code.
+type ExpectedStop struct {
+	FromLine string `json:"fromLine"`
+	ToLine   string `json:"toLine"`
+	Code     string `json:"code"`
 }
 
 // ExpectedPair is the outcome of one pair. Status is "derived" or
@@ -100,6 +125,11 @@ func Oracle(outDir string, expectedRaw []byte) ([]string, error) {
 			}
 		}
 		return out
+	}
+	if exp.Floor != nil {
+		if err := checkFloor(m.Pairs, *exp.Floor); err != nil {
+			return nil, fmt.Errorf("floor refused: %w", err)
+		}
 	}
 	pairs := map[string]*pairInfo{}
 	key := func(from, to string) string { return from + "->" + to }
@@ -261,4 +291,70 @@ func sourceDiffs(invs []*Inventory) []string {
 		}
 	}
 	return diffs
+}
+
+func parseFloorLine(s string) (derivefloor.Line, error) {
+	if !lineattest.ValidLine(s) {
+		return derivefloor.Line{}, fmt.Errorf("%q is not major.minor", s)
+	}
+	var l derivefloor.Line
+	if _, err := fmt.Sscanf(s, "%d.%d", &l[0], &l[1]); err != nil {
+		return l, err
+	}
+	return l, nil
+}
+
+// checkFloor builds the per-pair facts of the run (a pair attests when the
+// run recorded an attestation for it; a stop is one the claim lists) and
+// asks derivefloor.Verify, the shared derivation, whether the claimed floor
+// is exactly what the facts give. Any problem refuses, fail closed.
+func checkFloor(pairs []extract.PairRecord, ef ExpectedFloor) error {
+	claim := derivefloor.Claim{}
+	var err error
+	if claim.MinFrom, err = parseFloorLine(ef.MinFrom); err != nil {
+		return fmt.Errorf("minFrom: %w", err)
+	}
+	if claim.DerivedFrom, err = parseFloorLine(ef.DerivedFrom); err != nil {
+		return fmt.Errorf("derivedFrom: %w", err)
+	}
+	stopOf := map[[2]derivefloor.Line]string{}
+	for _, st := range ef.Stops {
+		from, err := parseFloorLine(st.FromLine)
+		if err != nil {
+			return fmt.Errorf("stop: %w", err)
+		}
+		to, err := parseFloorLine(st.ToLine)
+		if err != nil {
+			return fmt.Errorf("stop: %w", err)
+		}
+		k := [2]derivefloor.Line{from, to}
+		if _, dup := stopOf[k]; dup {
+			return fmt.Errorf("stop %s -> %s is listed twice", st.FromLine, st.ToLine)
+		}
+		stopOf[k] = st.Code
+		claim.Stops = append(claim.Stops, derivefloor.Stop{From: from, To: to, Code: st.Code})
+	}
+	facts := derivefloor.Facts{Depth: ef.Depth}
+	for _, p := range pairs {
+		fl, ok1 := lineattest.LineOf(p.From)
+		tl, ok2 := lineattest.LineOf(p.To)
+		if !ok1 || !ok2 {
+			return fmt.Errorf("pair %s -> %s has no release line", p.From, p.To)
+		}
+		from, err1 := parseFloorLine(fl)
+		to, err2 := parseFloorLine(tl)
+		if err1 != nil || err2 != nil {
+			return fmt.Errorf("pair %s -> %s has an unreadable line", p.From, p.To)
+		}
+		pf := derivefloor.PairFact{From: from, To: to, Attested: p.Attestation != nil && p.Attestation.Status == extract.PairAttested}
+		if code, ok := stopOf[[2]derivefloor.Line{from, to}]; ok && !pf.Attested {
+			pf.Stop = code
+		}
+		facts.Pairs = append(facts.Pairs, pf)
+	}
+	sort.Slice(facts.Pairs, func(i, j int) bool {
+		a, b := facts.Pairs[i].From, facts.Pairs[j].From
+		return a[0] < b[0] || (a[0] == b[0] && a[1] < b[1])
+	})
+	return derivefloor.Verify(facts, claim)
 }

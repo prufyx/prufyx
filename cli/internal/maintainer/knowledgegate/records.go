@@ -578,7 +578,7 @@ func (b *baseApprovals) load() ([]baseApproval, error) {
 		return b.list, b.err
 	}
 	b.loaded = true
-	dirs := []string{repinbaselines.ApprovalPack}
+	dirs := []string{repinbaselines.ApprovalPack, TargetFloorApprovalPack}
 	for _, spec := range b.opts.Layout.Packs {
 		dirs = append(dirs, spec.Name)
 	}

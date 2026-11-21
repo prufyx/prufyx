@@ -388,3 +388,18 @@ error.
 Installing or upgrading the CRDs themselves, stored objects and their storage
 version, conversion webhooks, schema or field changes inside a version,
 operators, and anything about objects of groups the table does not list.
+
+## Target floors: minFrom and derivedFrom
+
+A CRD version target carries `minFrom` (the lowest line from which every pair up
+to the newest attests) and an optional `derivedFrom` (the lowest line whose pairs
+the pipeline derived: every pair in `[derivedFrom, minFrom)` carries an
+attestation or a recorded hop-stop). `derivedFrom` defaults to `minFrom`, may not
+be above it and is never evidence of anything: a line at or above it is not
+thereby attested. Both are computed by the one pure function
+`derivefloor.DeriveFloor`; the verify-pr recompute and the QA oracle call the
+same `derivefloor.Verify` and refuse any difference. Lowering either number adds
+claims, so the knowledge gate refuses it unless an owner approval for exactly
+that floor (`approvals/target-floors/<slug>.json`, subject `targetFloor`) is in
+the change, whoever authors it. Raising a floor is narrowing and stays with the
+target guard.
