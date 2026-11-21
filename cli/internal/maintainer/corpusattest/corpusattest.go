@@ -192,6 +192,10 @@ func documentFromFiles(pack string, readFile func(rel string) ([]byte, error), o
 		if err != nil {
 			return nil, err
 		}
+		components, err := read("internal/cncfcheck/data/landscape-components.json")
+		if err != nil {
+			return nil, err
+		}
 		priority, err := read("internal/cncfcheck/data/priority-portfolio.json")
 		if err != nil {
 			return nil, err
@@ -200,7 +204,7 @@ func documentFromFiles(pack string, readFile func(rel string) ([]byte, error), o
 		if err != nil {
 			return nil, err
 		}
-		attestation, err := cncfcheck.BuildAttestationFromFilesFull(landscape, priority, rules, opts.Definitions, opts.TableRaw)
+		attestation, err := cncfcheck.BuildAttestationFromFilesFullComponents(landscape, components, priority, rules, opts.Definitions, opts.TableRaw)
 		if err != nil {
 			return nil, err
 		}
@@ -386,7 +390,7 @@ var treeLayout = struct{ dirs, files []string }{
 	dirs: []string{"internal/projectcheck/data", "internal/cncfcheck/data"},
 	files: []string{
 		"internal/projectcheck/data/projects.json", "internal/projectcheck/data/rules.json",
-		"internal/cncfcheck/data/landscape-projects.json", "internal/cncfcheck/data/priority-portfolio.json", "internal/cncfcheck/data/rules.json",
+		"internal/cncfcheck/data/landscape-projects.json", "internal/cncfcheck/data/landscape-components.json", "internal/cncfcheck/data/priority-portfolio.json", "internal/cncfcheck/data/rules.json",
 	},
 }
 

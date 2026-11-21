@@ -61,4 +61,21 @@ func TestExtraComponentAttribution(t *testing.T) {
 	if c.ExtraComponents != 1 || len(c.Projects) != 1 {
 		t.Fatalf("component count %d rows %d", c.ExtraComponents, len(c.Projects))
 	}
+	// Only entries actually attributed are counted: an owner without a row
+	// or lines, and a component another source already owns, are not.
+	base.ExtraComponents = map[string]string{strimzi: "strimzi", other: "unknown-project"}
+	d, _ := Compute(base)
+	if d.ExtraComponents != 1 {
+		t.Fatalf("unattributed entry counted: %d", d.ExtraComponents)
+	}
+	base.ExtraComponents = map[string]string{other: "unknown-project"}
+	e, _ := Compute(base)
+	if e.ExtraComponents != 0 {
+		t.Fatalf("component count %d for an unattributed entry", e.ExtraComponents)
+	}
+	own := Input{Pack: pack(nil, atts), Lines: []byte(owned), Now: baselineNow, ExtraComponents: map[string]string{strimzi: "dup"}}
+	f, _ := Compute(own)
+	if f.ExtraComponents != 0 {
+		t.Fatalf("component owned by another source counted: %d", f.ExtraComponents)
+	}
 }

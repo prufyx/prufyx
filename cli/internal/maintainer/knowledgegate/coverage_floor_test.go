@@ -321,7 +321,7 @@ func shippedSlice(t *testing.T) Tree {
 	t.Helper()
 	tr := Tree{Root: t.TempDir()}
 	ol := DefaultLayout().Onboarding
-	rels := []string{cncfRulesPath, commRulesPath, coveragereport.PinnedLinesPath, inventoryJSON, ol.TablePath}
+	rels := []string{cncfRulesPath, cncfComponentsPath, "cli/internal/cncfcheck/data/landscape-projects.json", commRulesPath, coveragereport.PinnedLinesPath, inventoryJSON, ol.TablePath}
 	names, err := filepath.Glob(filepath.Join(repoRoot, filepath.FromSlash(ol.TargetsDir), "target-*.json"))
 	if err != nil || len(names) == 0 {
 		t.Fatalf("targets: %v", err)

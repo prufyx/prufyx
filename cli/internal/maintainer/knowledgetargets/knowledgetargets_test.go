@@ -224,7 +224,7 @@ func TestCheckSizeTreeRefusesLinksAndNamesTheSingleTarget(t *testing.T) {
 	}
 	for _, rel := range []string{
 		"internal/projectcheck/data/projects.json", "internal/projectcheck/data/rules.json",
-		"internal/cncfcheck/data/landscape-projects.json", "internal/cncfcheck/data/priority-portfolio.json", "internal/cncfcheck/data/rules.json",
+		"internal/cncfcheck/data/landscape-projects.json", "internal/cncfcheck/data/landscape-components.json", "internal/cncfcheck/data/priority-portfolio.json", "internal/cncfcheck/data/rules.json",
 	} {
 		raw, err := os.ReadFile(filepath.Join(cli, filepath.FromSlash(rel)))
 		if err != nil {

@@ -65,6 +65,10 @@ func defaultGatePaths() []string {
 		"cli/internal/maintainer/releasedocs/",
 		"cli/internal/maintainer/verifyprworkflow/",
 		"cli/internal/maintainer/targetdraft/classify.go",
+		// The reviewed extra components of a catalog project grant a
+		// project's published scope and coverage: owner data, bound by
+		// the exact bytes.
+		cncfComponentsPath,
 		"cli/cmd/prufyx-maintainer/gate.go",
 		"cli/cmd/prufyx-maintainer/release_docs.go",
 	}

@@ -367,3 +367,33 @@ func TestComponentsRecordWithoutOwnerThroughTargetBuilder(t *testing.T) {
 		t.Fatalf("listed record still without owner: %v", err)
 	}
 }
+
+func TestExtraComponentsFromFiles(t *testing.T) {
+	landscape, err := packagedFiles.ReadFile("data/landscape-projects.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	good, err := os.ReadFile("testdata/landscape-components-alertmanager.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ExtraComponentsFromFiles(landscape, good)
+	if err != nil || len(got) != 1 || got["pkg:github/prometheus/alertmanager"] != "prometheus" {
+		t.Fatalf("got %v, %v", got, err)
+	}
+	if got, err := ExtraComponentsFromFiles(landscape, nil); err != nil || len(got) != 0 {
+		t.Fatalf("absent file: %v, %v", got, err)
+	}
+	for name, raw := range map[string][]byte{
+		"not json": []byte("{}x"),
+		"source":   []byte(strings.Replace(string(good), "https://github.com", "https://example.com", 1)),
+		"project":  []byte(strings.Replace(string(good), `"prometheus"`, `"nope"`, 1)),
+	} {
+		if _, err := ExtraComponentsFromFiles(landscape, raw); err == nil {
+			t.Errorf("%s accepted", name)
+		}
+	}
+	if _, err := ExtraComponentsFromFiles([]byte("{}"), good); err == nil {
+		t.Error("an invalid landscape was accepted")
+	}
+}

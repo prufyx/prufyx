@@ -539,12 +539,14 @@ func Compute(in Input) (Report, error) {
 	// Reviewed extra components of a catalog project attribute to it, only
 	// where no other source already names the component and only for a
 	// project the report knows (no new rows).
+	attributedExtras := 0
 	for c, project := range in.ExtraComponents {
 		if _, taken := componentProject[c]; taken || project == "" || c == "" {
 			continue
 		}
 		if _, known := linesFile.Projects[project]; known || len(components[project]) > 0 {
 			componentProject[c] = project
+			attributedExtras++
 		}
 	}
 	// A project that owns no component through the snapshot or its rules
@@ -629,11 +631,7 @@ func Compute(in Input) (Report, error) {
 
 	var report Report
 	report.CRDVersionProjects = in.CRDVersionProjects
-	for component, project := range in.ExtraComponents {
-		if component != "" && project != "" {
-			report.ExtraComponents++
-		}
-	}
+	report.ExtraComponents = attributedExtras
 	report.Schema = Schema
 	report.Now = now.Format(time.RFC3339)
 	report.Window = window

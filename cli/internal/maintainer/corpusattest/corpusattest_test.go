@@ -284,7 +284,7 @@ func treeCopy(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	for _, rel := range []string{
-		"internal/cncfcheck/data/landscape-projects.json", "internal/cncfcheck/data/priority-portfolio.json", "internal/cncfcheck/data/rules.json", "internal/cncfcheck/data/corpus-attestation.json",
+		"internal/cncfcheck/data/landscape-projects.json", "internal/cncfcheck/data/landscape-components.json", "internal/cncfcheck/data/priority-portfolio.json", "internal/cncfcheck/data/rules.json", "internal/cncfcheck/data/corpus-attestation.json",
 		"internal/projectcheck/data/projects.json", "internal/projectcheck/data/rules.json", "internal/projectcheck/data/corpus-attestation.json",
 	} {
 		raw, err := os.ReadFile(filepath.Join(cliRoot(t), filepath.FromSlash(rel)))
@@ -515,6 +515,15 @@ func TestResolveTreeCLI(t *testing.T) {
 	}
 	if _, err := ResolveTreeCLI(partial); err == nil {
 		t.Fatal("a tree without a pack input resolved")
+	}
+
+	// The reviewed extra components file is a pack input too.
+	noComponents := treeCopy(t)
+	if err := os.Remove(filepath.Join(noComponents, "cli", "internal", "cncfcheck", "data", "landscape-components.json")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ResolveTreeCLI(noComponents); err == nil {
+		t.Fatal("a tree without the components file resolved")
 	}
 
 	// A symlinked cli/ is refused, even when its target holds the layout.

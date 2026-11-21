@@ -11,6 +11,7 @@ import (
 	"testing/fstest"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/extract/changelogentries"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/coveragereport"
@@ -266,7 +267,21 @@ func coverageReportOf(t Tree, tablePath string) (coveragereport.Report, []byte, 
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, err
 	}
-	report, err := coveragereport.Compute(coveragereport.Input{Pack: pack, Lines: linesRaw, Additions: additionsRaw, Now: now, CRDVersionProjects: len(crd), CRDTargetComponents: crd, ChangelogTargetComponents: changelog, CommunityPack: community, V2: true, Catalog: coveragereport.NewCatalogSet(table.projects)})
+	// The reviewed extra components of the tree's catalog, read and checked
+	// from the tree's own files (never the gate binary's embedded ones).
+	landscapeRaw, err := t.Read("cli/internal/cncfcheck/data/landscape-projects.json", MaxFileBytes)
+	if err != nil {
+		return coveragereport.Report{}, nil, time.Time{}, err
+	}
+	componentsRaw, err := t.Read(cncfComponentsPath, MaxFileBytes)
+	if err != nil {
+		return coveragereport.Report{}, nil, time.Time{}, err
+	}
+	extra, err := cncfcheck.ExtraComponentsFromFiles(landscapeRaw, componentsRaw)
+	if err != nil {
+		return coveragereport.Report{}, nil, time.Time{}, fmt.Errorf("the reviewed extra components: %w", err)
+	}
+	report, err := coveragereport.Compute(coveragereport.Input{ExtraComponents: extra, Pack: pack, Lines: linesRaw, Additions: additionsRaw, Now: now, CRDVersionProjects: len(crd), CRDTargetComponents: crd, ChangelogTargetComponents: changelog, CommunityPack: community, V2: true, Catalog: coveragereport.NewCatalogSet(table.projects)})
 	if err != nil {
 		return coveragereport.Report{}, nil, time.Time{}, err
 	}
