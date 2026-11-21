@@ -2,12 +2,12 @@
   "schema": "prufyx.io/coverage-readme-counts/v2",
   "report": {
     "schema": "prufyx.io/coverage-report/v1",
-    "now": "2026-11-21T02:12:12Z",
+    "now": "2026-11-21T07:35:25Z",
     "window": 6,
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
-      "digest": "sha256:70a4f1b8aa9a3d0e7b149b62f33023d0ea02f34b8c6b84d63b783e8bc5a8ad28"
+      "digest": "sha256:18f59e0fb09214bf7204dc1d02b33ed50c02b109651b2906efdaea68f436f9a8"
     },
     "lines": {
       "capturedOn": "2026-10-31",
@@ -19,7 +19,7 @@
       "entries": 9,
       "clockOn": "2026-11-10"
     },
-    "clockAttestedAt": "2026-11-21T02:12:12Z",
+    "clockAttestedAt": "2026-11-21T07:35:25Z",
     "packProjectsCovered": 73,
     "crdVersionProjects": 87,
     "crdPublishedProjects": 42,
@@ -30,7 +30,7 @@
       "b": 3,
       "s": 39,
       "g": 256,
-      "listedChangelog": 14,
+      "listedChangelog": 18,
       "c1": 63,
       "c3": 20,
       "c5": 14,
@@ -46,7 +46,7 @@
       "b": 2,
       "s": 22,
       "g": 89,
-      "listedChangelog": 5,
+      "listedChangelog": 9,
       "c1": 29,
       "c3": 8,
       "c5": 5,
@@ -5061,17 +5061,20 @@
           {
             "from": "3.10",
             "to": "3.11",
-            "status": "G"
+            "status": "G",
+            "changelog": true
           },
           {
             "from": "3.11",
             "to": "3.12",
-            "status": "G"
+            "status": "G",
+            "changelog": true
           },
           {
             "from": "3.12",
             "to": "3.13",
-            "status": "G"
+            "status": "G",
+            "changelog": true
           },
           {
             "from": "3.13",
@@ -5092,6 +5095,7 @@
             "from": "3.14",
             "to": "3.15",
             "status": "G",
+            "changelog": true,
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
@@ -5108,6 +5112,7 @@
         "b": 0,
         "s": 1,
         "g": 4,
+        "listedChangelog": 4,
         "vc": 0,
         "vcA": 0,
         "covered": true,
@@ -6891,9 +6896,8 @@
         "ab": 0,
         "k8s": 0,
         "s": 1,
-        "l": 0,
-        "g": 4,
-        "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
+        "l": 4,
+        "g": 0
       },
       {
         "project": "prometheus-operator",
@@ -7043,8 +7047,8 @@
       "ab": 95,
       "k8s": 5,
       "s": 39,
-      "l": 14,
-      "g": 242
+      "l": 18,
+      "g": 238
     },
     "community": {
       "projects": 18,
@@ -7057,5 +7061,5 @@
       "g": 41
     }
   },
-  "readmeBlockSha256": "9014135eba7c9e2a8211b8318c578c0e10417a252ed0b23f1260dbd65e65d71e"
+  "readmeBlockSha256": "1be35f914f1abeffc944e5d02712720aba18e39ee5eb325491774160a11e9018"
 }
