@@ -205,8 +205,8 @@ func changeListItems(id, component, slug, line string, statuses []lineattest.Sta
 			return nil, fmt.Errorf(invalid)
 		}
 		if inside {
-			items = append(items, fmt.Sprintf("the change list of %s lists changes for %s; read them before upgrading (%s, commit %s, digest %s, lines %d-%d)",
-				version, slug, source.URL, source.Revision, source.ContentDigest, source.StartLine, source.EndLine))
+			items = append(items, fmt.Sprintf("the change list of %s lists changes for %s; read them before upgrading (record %s %s line %s, %s, commit %s, digest %s, lines %d-%d); next: read that change list in full and compare each listed change with your configuration",
+				version, slug, id, component, line, source.URL, source.Revision, source.ContentDigest, source.StartLine, source.EndLine))
 		}
 	}
 	if len(seen) != len(pinned) {

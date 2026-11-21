@@ -116,8 +116,8 @@ func TestChangeListJumpAttention(t *testing.T) {
 		t.Fatalf("releases %+v", jump.Releases)
 	}
 	// The exact wording and citation; the release after the hop's end is not cited.
-	want := "the change list of 3.6.0 lists changes for etcd; read them before upgrading (https://github.com/etcd-io/etcd/blob/" + clCommit("3.6.0") +
-		"/CHANGELOG/CHANGELOG-3.6.md, commit " + clCommit("3.6.0") + ", digest sha256:" + strings.Repeat("0", 63) + "1, lines 10-20)"
+	want := "the change list of 3.6.0 lists changes for etcd; read them before upgrading (record changelog.listed_entries " + clComponent + " line 3.6, https://github.com/etcd-io/etcd/blob/" + clCommit("3.6.0") +
+		"/CHANGELOG/CHANGELOG-3.6.md, commit " + clCommit("3.6.0") + ", digest sha256:" + strings.Repeat("0", 63) + "1, lines 10-20); next: read that change list in full and compare each listed change with your configuration"
 	if jump.Hops[1].Entries[0] != want {
 		t.Fatalf("entry %q", jump.Hops[1].Entries[0])
 	}
@@ -286,5 +286,87 @@ func TestChangeListJumpOnePathPerComponent(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("%d paths for %s", count, clSlug)
+	}
+}
+
+// A major crossing keeps main's answer whatever record exists: the hop is
+// the not-covered hop, no change-list entry is cited, nothing passes. The
+// record here lists the entered line of a 3.x -> 4.0 jump.
+func TestChangeListJumpMajorCrossingKeepsMainAnswer(t *testing.T) {
+	t.Parallel()
+	r35, r36 := clRecords()
+	// A record of line 4.0 cannot exist (it has no previous line); the lines
+	// around the major crossing are listed.
+	r40 := clRecord(lineattest.FamilyChangelogListedEntries, "4.1", []string{"4.0.0", "4.0.1"}, []string{"4.1.0", "4.1.1"})
+	k := clKnowledge{Knowledge: newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"}), index: lineattest.NewIndex([]lineattest.LineAttestation{r35, r36, r40})}
+	_, paths := files(t, map[string]string{"cm.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: m}\n"})
+	for _, versions := range [][2]string{{"3.6.1", "4.0.0"}, {"3.5.0", "4.1.0"}} {
+		result := mustScan(t, k, args(paths, "--from", "etcd="+versions[0], "--to", "etcd="+versions[1])...)
+		requireClUnchanged(t, result)
+		count := 0
+		for _, path := range result.Report.Paths {
+			if path.Component != clSlug {
+				continue
+			}
+			count++
+			if path.Jump == nil || path.Jump.Status == scanreport.JumpStepwisePass {
+				t.Fatalf("%v: jump %+v", versions, path.Jump)
+			}
+			for _, hop := range path.Jump.Hops {
+				if len(hop.Entries) != 0 || hop.Status == scanreport.JumpHopAttention || hop.Status == scanreport.JumpHopPass {
+					t.Fatalf("%v: hop %+v", versions, hop)
+				}
+			}
+		}
+		if count != 1 {
+			t.Fatalf("%v: %d paths", versions, count)
+		}
+		text := string(scanreport.Human(result.Report, scanreport.HumanOptions{Verbose: true}))
+		if strings.Contains(text, "lists changes for etcd") || strings.Contains(text, "STEPWISE_PASS") {
+			t.Fatalf("%v: text:\n%s", versions, text)
+		}
+	}
+}
+
+// A component with listed records for some lines and none for others: the
+// listed hops cite their change lists, the others are undecided with a named
+// gap, one path, never a pass, verdict and exit as without records.
+func TestChangeListJumpMixedHops(t *testing.T) {
+	t.Parallel()
+	r35, _ := clRecords()
+	r37 := clRecord(lineattest.FamilyChangelogListedEntries, "3.7", []string{"3.6.0", "3.6.1"}, []string{"3.7.0", "3.7.1"})
+	k := clKnowledge{Knowledge: newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"}), index: lineattest.NewIndex([]lineattest.LineAttestation{r35, r37})}
+	_, paths := files(t, map[string]string{"cm.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: m}\n"})
+	result := mustScan(t, k, args(paths, "--from", "etcd=3.4.0", "--to", "etcd=3.7.0")...)
+	requireClUnchanged(t, result)
+	without := mustScan(t, clKnowledge{Knowledge: k.Knowledge, index: lineattest.NewIndex(nil)}, args(paths, "--from", "etcd=3.4.0", "--to", "etcd=3.7.0")...)
+	if result.Exit != without.Exit || result.Report.Verdict != without.Report.Verdict {
+		t.Fatalf("exit %d/%d verdict %s/%s", result.Exit, without.Exit, result.Report.Verdict, without.Report.Verdict)
+	}
+	count := 0
+	var jump *scanreport.Jump
+	for _, path := range result.Report.Paths {
+		if path.Component == clSlug {
+			count++
+			jump = path.Jump
+		}
+	}
+	if count != 1 || jump == nil || len(jump.Hops) != 3 || jump.Status == scanreport.JumpStepwisePass {
+		t.Fatalf("%d paths, jump %+v", count, jump)
+	}
+	want := []string{scanreport.JumpHopAttention, scanreport.JumpHopUndecided, scanreport.JumpHopAttention}
+	for i, hop := range jump.Hops {
+		if hop.Status != want[i] {
+			t.Fatalf("hop %d %+v", i+1, hop)
+		}
+		if hop.Status == scanreport.JumpHopAttention && (len(hop.Entries) == 0 || !strings.Contains(hop.Entries[0], "record changelog.listed_entries")) {
+			t.Fatalf("hop %d entries %+v", i+1, hop.Entries)
+		}
+		if hop.Status == scanreport.JumpHopUndecided && (len(hop.Entries) != 0 || len(hop.Reasons) == 0) {
+			t.Fatalf("hop %d %+v", i+1, hop)
+		}
+	}
+	if len(jump.Missing) != 1 || jump.Missing[0].Hop != 2 || jump.Missing[0].Action == "" {
+		t.Fatalf("missing %+v", jump.Missing)
 	}
 }
