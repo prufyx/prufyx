@@ -60,7 +60,7 @@ func communityIdentities(projects []customresources.Project, landscape []project
 	out := map[string]projectIdentity{}
 	subjects := map[string]string{}
 	for _, project := range landscape {
-		if component := subjectComponent(project.Slug, project.RepositoryURL); component != "" {
+		for _, component := range projectComponents(project) {
 			subjects[component] = project.Slug
 		}
 	}

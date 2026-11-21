@@ -67,6 +67,12 @@ type Input struct {
 	// target to the component of that target. Empty or nil: no project is a
 	// changelog-attested member and the report is unchanged.
 	ChangelogTargetComponents map[string]string
+	// ExtraComponents maps a reviewed extra component of a catalog project
+	// (cncfcheck.CatalogExtraComponents) to its owning project. A pair of
+	// such a component is attributed to the owner; it never adds a project
+	// row and never overrides a component another source already owns.
+	// Empty or nil changes nothing.
+	ExtraComponents map[string]string
 	// CommunityPack is the community rule pack, or nil. Only the count of
 	// published CRD projects reads it: a valid crd.custom_resource_versions
 	// rule or a current line attestation in it counts a target project
@@ -212,6 +218,11 @@ type Report struct {
 	// crd.custom_resource_versions target: the projects whose CRD version
 	// knowledge exists, whether or not lines are known for them.
 	CRDVersionProjects int `json:"crdVersionProjects,omitempty"`
+	// ExtraComponents counts the reviewed extra components attributed to a
+	// project (Input.ExtraComponents), separately from the project and pair
+	// counts. Emitted only when it is non-zero, so a report without extras
+	// is byte-identical.
+	ExtraComponents int `json:"extraComponents,omitempty"`
 	// CRDPublishedProjects is the number of those target projects that
 	// also have a valid rule or a current line attestation of the
 	// crd.custom_resource_versions family in the pack. A target alone
@@ -525,6 +536,17 @@ func Compute(in Input) (Report, error) {
 			componentProject[c] = project
 		}
 	}
+	// Reviewed extra components of a catalog project attribute to it, only
+	// where no other source already names the component and only for a
+	// project the report knows (no new rows).
+	for c, project := range in.ExtraComponents {
+		if _, taken := componentProject[c]; taken || project == "" || c == "" {
+			continue
+		}
+		if _, known := linesFile.Projects[project]; known || len(components[project]) > 0 {
+			componentProject[c] = project
+		}
+	}
 	// A project that owns no component through the snapshot or its rules
 	// takes the component of its reviewed CRD target. Fail closed: a project
 	// that already owns a component, a component that another project owns
@@ -607,6 +629,11 @@ func Compute(in Input) (Report, error) {
 
 	var report Report
 	report.CRDVersionProjects = in.CRDVersionProjects
+	for component, project := range in.ExtraComponents {
+		if component != "" && project != "" {
+			report.ExtraComponents++
+		}
+	}
 	report.Schema = Schema
 	report.Now = now.Format(time.RFC3339)
 	report.Window = window
