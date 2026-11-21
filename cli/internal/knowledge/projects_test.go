@@ -41,7 +41,23 @@ func newProjectsFixture(t *testing.T) *projectsFixture {
 // keyed by TUF target path.
 func projectsTargets(t *testing.T, revision string, projectRevisions map[string]string) map[string][]byte {
 	t.Helper()
-	index, projects, err := cncfcheck.BuildEmbeddedExternalTargets(revision, projectRevisions)
+	var (
+		index    cncfcheck.ExternalTarget
+		projects []cncfcheck.ExternalTarget
+		err      error
+	)
+	if projectRevisions == nil {
+		// The publisher path while the oldest supported client is below the
+		// listed-family floor: the real exclusion runs.
+		index, projects, _, err = cncfcheck.BuildEmbeddedExternalTargetsPinned(revision, nil, "v0.1.0-beta.0")
+	} else {
+		// Upgrade tests with per-project revisions run under the test binary's
+		// own (development) client version, which is at or above the
+		// listed-family floor, so a pack carrying the family imports as is;
+		// the pinned builder has no per-project revision input. These callers
+		// pass with and without listed records in the embedded pack.
+		index, projects, err = cncfcheck.BuildEmbeddedExternalTargets(revision, projectRevisions)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}

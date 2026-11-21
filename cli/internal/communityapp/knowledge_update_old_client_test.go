@@ -62,7 +62,7 @@ func TestKnowledgeUpdateOldClientNewCapabilityPackage(t *testing.T) {
 
 	build := func(t *testing.T, env defaultUpdateEnv, mutate func(index []byte) []byte) []byte {
 		t.Helper()
-		index, projects, err := cncfcheck.BuildEmbeddedExternalTargets("5", nil)
+		index, projects, err := buildEmbeddedForOldClient("5")
 		if err != nil {
 			t.Fatal(err)
 		}

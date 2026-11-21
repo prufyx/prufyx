@@ -146,6 +146,11 @@ func TestEmbeddedPackLineAttestations(t *testing.T) {
 				gotRules[a.Line] = len(a.RuleIDs)
 				continue
 			}
+			if a.FactFamily == lineattest.FamilyChangelogListedEntries {
+				// Listed attestations come from the changelog rows, not
+				// from the custom-resource batch.
+				continue
+			}
 			atts = append(atts, a)
 		}
 		if !reflect.DeepEqual(gotRules, publishedKubernetesRules) {

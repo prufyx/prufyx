@@ -117,7 +117,7 @@ type rotatedTarget struct {
 
 func exportedRotatedTarget(t *testing.T, revision string) rotatedTarget {
 	t.Helper()
-	index, targets, err := cncfcheck.BuildEmbeddedExternalTargets(revision, nil)
+	index, targets, err := buildEmbeddedForOldClient(revision)
 	if err != nil {
 		t.Fatal(err)
 	}

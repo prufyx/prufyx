@@ -302,7 +302,7 @@ func TestKnowledgeUpdateTooNewForThisClient(t *testing.T) {
 	if code, _, stderr := runDefaultUpdate(t, perProjectPackage(t, env.repo, 1, "4")); code != ExitOK {
 		t.Fatal(code, stderr)
 	}
-	index, projects, err := cncfcheck.BuildEmbeddedExternalTargets("5", nil)
+	index, projects, err := buildEmbeddedForOldClient("5")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,7 +336,7 @@ func TestKnowledgeUpdateCapabilityMismatch(t *testing.T) {
 	if code, _, stderr := runDefaultUpdate(t, perProjectPackage(t, env.repo, 1, "4")); code != ExitOK {
 		t.Fatal(code, stderr)
 	}
-	index, projects, err := cncfcheck.BuildEmbeddedExternalTargets("5", nil)
+	index, projects, err := buildEmbeddedForOldClient("5")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -382,7 +382,7 @@ func TestKnowledgeUpdateProviderFactsFloorIsTooNewNotIntegrity(t *testing.T) {
 	if code, _, stderr := runDefaultUpdate(t, perProjectPackage(t, env.repo, 1, "4")); code != ExitOK {
 		t.Fatal(code, stderr)
 	}
-	index, projects, err := cncfcheck.BuildEmbeddedExternalTargets("5", nil)
+	index, projects, err := buildEmbeddedForOldClient("5")
 	if err != nil {
 		t.Fatal(err)
 	}

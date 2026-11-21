@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
-	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledgefixture"
 )
@@ -30,7 +29,7 @@ func tooNewExplicitStore(t *testing.T) string {
 		t.Fatal(err)
 	}
 	t.Cleanup(repo.Close)
-	index, projects, err := cncfcheck.BuildEmbeddedExternalTargets("5", nil)
+	index, projects, err := buildEmbeddedForOldClient("5")
 	if err != nil {
 		t.Fatal(err)
 	}
