@@ -503,9 +503,13 @@ func Run(request Request, options Options) (Result, error) {
 			continue
 		}
 		if slug != kubernetesSlug {
+			changeListPath, changeListed := changeListJump(knowledge, now, &report, slug, component.Component, component.Current, component.Target, request.TrustPolicy)
+			if changeListed {
+				report.Paths = append(report.Paths, changeListPath)
+			}
 			report.Gaps = append(report.Gaps, scanreport.NewGap(slug, nil, scanreport.GapComponentNotCovered, slug))
 			report.Inventory = append(report.Inventory, *component)
-			if path, ok := notCoveredPath(slug, component.Component, component.Current, component.Target); ok {
+			if path, ok := notCoveredPath(slug, component.Component, component.Current, component.Target); ok && !changeListed {
 				report.Paths = append(report.Paths, path)
 			}
 			continue
