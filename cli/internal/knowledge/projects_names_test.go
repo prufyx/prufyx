@@ -3,10 +3,12 @@
 package knowledge
 
 import (
+	"archive/tar"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -86,25 +88,63 @@ func TestConstraintsProjectsRejectOddMemberNamesInThePackage(t *testing.T) {
 // TestConstraintsProjectsRejectPackageOverTheMemberTotalBeforeStoreUse builds
 // a package between the 7 MiB member total and the 8 MiB file bound, so only
 // the member total can reject it.
+// packageMemberBytes sums member sizes exactly as readImportPackageForProfile does.
+func packageMemberBytes(t *testing.T, path string) int64 {
+	t.Helper()
+	fh, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fh.Close()
+	r := tar.NewReader(fh)
+	var total int64
+	for {
+		h, err := r.Next()
+		if err == io.EOF {
+			return total
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		total += h.Size
+	}
+}
+
 func TestConstraintsProjectsRejectPackageOverTheMemberTotalBeforeStoreUse(t *testing.T) {
 	f := newProjectsFixture(t)
 	base := projectsTargets(t, "5", nil)
-	// The base targets grow with the embedded data, so fillers are added in
-	// steps smaller than the 1 MiB window until the package passes 7 MiB.
-	extra := map[string][]byte{}
-	var path string
-	var info os.FileInfo
-	var err error
-	for i := 0; i < 32; i++ {
-		name := "targets/knowledge/cncf/projects/" + hexOf(strings.Repeat("m", i+1)) + ".filler.v1.json"
-		extra[name] = []byte(strings.Repeat(" ", 440000))
-		path = f.write(t, knowledgefixture.ProjectsPackage{Targets: base, Extra: extra})
-		if info, err = os.Stat(path); err != nil || info.Size() > 7<<20 {
-			break
-		}
+	// The limit counts member bytes (no tar headers, padding or trailer), so the
+	// fillers are sized from the member bytes of the real base package.
+	_, maxFiles, limitTotal := constraintsProjectsProfile().packageLimits()
+	maxFileBytes, _, _ := constraintsProjectsProfile().packageLimits()
+	const margin = 64 << 10
+	const step = 440000
+	baseMembers := packageMemberBytes(t, f.write(t, knowledgefixture.ProjectsPackage{Targets: base}))
+	need := limitTotal + margin - baseMembers
+	if need <= 0 {
+		t.Fatalf("base members %d already exceed the member total %d", baseMembers, limitTotal)
 	}
-	if err != nil || info.Size() <= 7<<20 || info.Size() >= 8<<20 {
-		t.Fatalf("test package size %v is not between the member total and the file bound: %v", info, err)
+	extra := map[string][]byte{}
+	for i, left := 0, need; left > 0; i++ {
+		n := int64(step)
+		if left < n {
+			n = left
+		}
+		name := "targets/knowledge/cncf/projects/" + hexOf(strings.Repeat("m", i+1)) + ".filler.v1.json"
+		extra[name] = []byte(strings.Repeat(" ", int(n)))
+		left -= n
+	}
+	if len(extra)+len(base)+8 > maxFiles {
+		t.Fatalf("test package needs %d members, over the file-count limit %d", len(extra)+len(base)+8, maxFiles)
+	}
+	path := f.write(t, knowledgefixture.ProjectsPackage{Targets: base, Extra: extra})
+	members := packageMemberBytes(t, path)
+	if members < limitTotal+margin {
+		t.Fatalf("precondition: member bytes %d are not at least %d above the member total %d", members, margin, limitTotal)
+	}
+	info, err := os.Stat(path)
+	if err != nil || info.Size() >= int64(maxFileBytes) {
+		t.Fatalf("precondition: package file %v must stay below the file bound %d so only the member total can reject it: %v", info, maxFileBytes, err)
 	}
 	_, err = f.importPackage(path)
 	if !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), "package total size") {
