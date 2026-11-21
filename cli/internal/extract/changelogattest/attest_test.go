@@ -464,3 +464,16 @@ func TestSourceSetCoversTheReader(t *testing.T) {
 		t.Fatalf("own %t reader %t", own, reader)
 	}
 }
+
+// A window of more than the engine's source limit is withheld with its own
+// code before anything is read or attested.
+func TestAttestOverCapWindowIsWithheld(t *testing.T) {
+	r, tgs := manyReader([]int{1, 5, 6}) // window = 4 patches of 3.4 + 6 finals of 3.5 = 10
+	p := extract.VersionPair{Repo: repo, From: "3.4.0", FromTag: "v3.4.0", FromCommit: bigCommit(1),
+		To: "3.5.0", ToTag: "v3.5.0", ToCommit: bigCommit(6)}
+	res, err := Attest(r, Config{Target: target, Dispositions: dispositions(nil)}, tgs, p)
+	if res != nil {
+		t.Fatal("an over-cap window was attested")
+	}
+	wantCode(t, err, ce.LineTooManyFinals)
+}

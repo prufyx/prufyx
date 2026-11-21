@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"sync"
 
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	ce "github.com/prufyx/prufyx/cli/internal/extract/changelogentries"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
@@ -20,6 +21,11 @@ const (
 	// ListedVersion is bumped on any output change.
 	ListedVersion = "1.0.0"
 )
+
+// maxListedSources is the most sources one record may cite (one per final
+// release of the to-line): the engine limit. A line over it is withheld on its
+// own, never allowed to abort the run.
+const maxListedSources = constraintengine.MaxSources
 
 // ListedProof is the account of one listed-entries derivation.
 type ListedProof struct {
@@ -87,6 +93,9 @@ func AttestListed(r extract.PinnedReader, t ce.Target, tags []extract.Tag, pair 
 	}
 	if len(lf) == 0 || len(lt) == 0 || len(lf) > lineattest.MaxReleases || len(lt) > lineattest.MaxReleases {
 		return nil, failf(ce.NotPreviousMinor, "a line has no final release or more than %d", lineattest.MaxReleases)
+	}
+	if len(lt) > maxListedSources {
+		return nil, failf(ce.LineTooManyFinals, "line %s has %d final releases; a record cites at most %d sources", line, len(lt), maxListedSources)
 	}
 	if lt[0].pat != 0 {
 		return nil, failf(ce.EntryMissing, "line %s has no final tag for %d.%d.0", line, to.maj, to.min)

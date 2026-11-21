@@ -439,8 +439,8 @@ func TestCodesClosedList(t *testing.T) {
 		}
 		seen[c] = true
 	}
-	if len(seen) != 21 {
-		t.Fatalf("design lists 21 codes, have %d", len(seen))
+	if len(seen) != 22 {
+		t.Fatalf("design lists 22 codes, have %d", len(seen))
 	}
 	if _, ok := CodeOf(errors.New("x")); ok {
 		t.Fatal("plain error has a code")

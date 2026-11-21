@@ -237,6 +237,9 @@ func Attest(r extract.PinnedReader, cfg Config, tags []extract.Tag, pair extract
 		}
 	}
 	window = append(window, lt...)
+	if len(window) > constraintengine.MaxSources {
+		return nil, failf(ce.LineTooManyFinals, "line %s has a window of %d final releases; a record cites at most %d sources", line, len(window), constraintengine.MaxSources)
+	}
 	newest := all[len(all)-1]
 
 	// Rules of the component on the line: every one is listed and must be

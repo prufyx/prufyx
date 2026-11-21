@@ -4,6 +4,7 @@ package changelogattest
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -340,4 +341,110 @@ func TestListedUnpinnableFromLineAttestsNothing(t *testing.T) {
 	if res != nil || err == nil {
 		t.Fatal("an attestation was made without pinning the previous line")
 	}
+}
+
+// manyReader serves a prometheus-shaped changelog whose lines hold the given
+// number of final releases each: line 3.(i+3) has counts[i] finals (x.y.0 ..).
+// bigCommit is a 40-hex commit id for any n (commit() overflows past 9).
+func bigCommit(n int) string { return fmt.Sprintf("%040x", n+1) }
+
+func manyReader(counts []int) (listing, []extract.Tag) {
+	m := &memReader{files: map[string]string{}}
+	var tgs []extract.Tag
+	var vers []string
+	n := 0
+	for i, c := range counts {
+		for p := 0; p < c; p++ {
+			vers = append(vers, fmt.Sprintf("3.%d.%d", i+3, p))
+		}
+	}
+	for _, v := range vers {
+		tgs = append(tgs, extract.Tag{Name: "v" + v, Commit: bigCommit(n)})
+		n++
+	}
+	for i := range vers {
+		var b strings.Builder
+		b.WriteString("# Changelog\n\n## main / unreleased\n\n")
+		for j := i; j >= 0; j-- {
+			fmt.Fprintf(&b, "## %s / 2025-01-01\n\n* [BUGFIX] Fix %s. #%d\n\n", vers[j], vers[j], j+1)
+		}
+		m.files[bigCommit(i)+":CHANGELOG.md"] = b.String()
+	}
+	return listing{m}, tgs
+}
+
+type taggedListing struct {
+	listing
+	tg []extract.Tag
+}
+
+func (l taggedListing) Tags(extract.RepoRef) ([]extract.Tag, error) { return l.tg, nil }
+
+func runMany(t *testing.T, counts []int) *extract.Output {
+	t.Helper()
+	r, tgs := manyReader(counts)
+	tl := taggedListing{r, tgs}
+	x, _ := NewListed(reviewed(t))
+	out, err := extract.Run(context.Background(), x, tl, tl, extract.Options{Repo: repo, DerivedAt: mustTime()})
+	if err != nil {
+		t.Fatalf("a line over the cap aborted the run: %v", err)
+	}
+	return out
+}
+
+func TestListedOverCapLineIsWithheldOthersProceed(t *testing.T) {
+	// lines 3.3 (1), 3.4 (2), 3.5 (9 finals, over the cap of 8)
+	out := runMany(t, []int{1, 2, 9})
+	if len(out.Attestations) != 1 || out.Attestations[0].Line != "3.4" {
+		t.Fatalf("want exactly the 3.4 attestation, got %d", len(out.Attestations))
+	}
+	if err := out.Attestations[0].Validate(); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, p := range out.Manifest.Pairs {
+		if p.To == "3.5.0" {
+			found = p.Status == extract.PairWithheld && proofCode(p.Proof) == string(ce.LineTooManyFinals) && strings.Contains(p.Reason, "9 final")
+		}
+	}
+	if !found {
+		t.Fatal("the over-cap line is not withheld with LINE_TOO_MANY_FINALS")
+	}
+}
+
+func TestListedExactlyAtCapIsAttested(t *testing.T) {
+	out := runMany(t, []int{1, 8})
+	if len(out.Attestations) != 1 || out.Attestations[0].Line != "3.4" || len(out.Attestations[0].Releases.To) != 8 {
+		t.Fatalf("a line of exactly %d finals must attest", maxListedSources)
+	}
+	if err := out.Attestations[0].Validate(); err != nil {
+		t.Fatalf("the local cap drifted from the record limit: %v", err)
+	}
+}
+
+func TestListedEveryLineOverCapProducesNothing(t *testing.T) {
+	out := runMany(t, []int{9, 9, 9})
+	if len(out.Attestations) != 0 {
+		t.Fatalf("%d attestations from over-cap lines: %+v %+v", len(out.Attestations), out.Attestations[0].Line, len(out.Manifest.Pairs))
+	}
+	w := 0
+	for _, p := range out.Manifest.Pairs {
+		if p.Status == extract.PairWithheld && proofCode(p.Proof) == string(ce.LineTooManyFinals) {
+			w++
+		}
+	}
+	if w != 2 {
+		t.Fatalf("withheld %d pairs, want 2", w)
+	}
+}
+
+func proofCode(p any) string {
+	if m, ok := p.(map[string]string); ok {
+		return m["code"]
+	}
+	if m, ok := p.(map[string]any); ok {
+		s, _ := m["code"].(string)
+		return s
+	}
+	return ""
 }

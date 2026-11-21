@@ -29,6 +29,9 @@ const (
 	RuleNotLineWide           Code = "RULE_NOT_LINE_WIDE"
 	FlagRemovedNotInChangelog Code = "FLAG_REMOVED_NOT_IN_CHANGELOG"
 	NotPreviousMinor          Code = "NOT_PREVIOUS_MINOR"
+	// LineTooManyFinals: the to-line has more final releases than one record
+	// can cite as sources; only that pair is withheld.
+	LineTooManyFinals Code = "LINE_TOO_MANY_FINALS"
 )
 
 // Codes is the closed list of typed reasons, in design order.
@@ -39,7 +42,7 @@ func Codes() []Code {
 		EntryRefersElsewhere, EntryBoundaryUnproven, EntryOverBound,
 		EntryParseResidue, EntryAmended, MonorepoEntryAmbiguous, TagMoved,
 		ItemUnresolved, ItemRuleShapeUnsupported, RuleNotLineWide,
-		FlagRemovedNotInChangelog, NotPreviousMinor,
+		FlagRemovedNotInChangelog, NotPreviousMinor, LineTooManyFinals,
 	}
 }
 
