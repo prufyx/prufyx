@@ -220,8 +220,8 @@ func digestOf(t *testing.T, id string) string {
 // record that carries the old digest is re-derived.
 func TestKubernetesCodeDigestsArePinned(t *testing.T) {
 	for id, want := range map[string]string{
-		"k8s.served-api-removal":   "sha256:6fa8b4d7bf3df4a4cda88efcc21dea34451b23cd22e07b434ef176e253c6a718",
-		"k8s.feature-gate-removal": "sha256:f2bafb2fb95c3a5cecf34875918af11934b7e1eaf296c8572bd7b0e6a8ee8819",
+		"k8s.served-api-removal":   "sha256:8fb021c8fc80e6943e15cbd9561f5b4a7012d0d7be298fa91959859ced4ff312",
+		"k8s.feature-gate-removal": "sha256:9f2bbe4c94f6a22407a86660709af368b54afbd7910b09fef96c87b2bd8e1df5",
 	} {
 		if got := digestOf(t, id); got != want {
 			t.Errorf("%s: code digest %s, pinned %s", id, got, want)
