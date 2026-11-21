@@ -700,7 +700,7 @@ jobs:
           gitleaks version
 
       - name: Scan working tree for secrets
-        run: gitleaks dir .
+        run: gitleaks dir . --config .gitleaks.toml
 
   runner-watchdog:
     # Only when CI_RUNNER_LABELS is set. A job that waits for a self-hosted
