@@ -5,6 +5,7 @@ package scanrun
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -172,17 +173,17 @@ func changeListItems(id, component, slug, line string, statuses []lineattest.Sta
 	)
 	family, ok := lineattest.LookupFamily(id)
 	if !ok || !family.Admits(component) || len(statuses) != 1 {
-		return nil, fmt.Errorf(invalid)
+		return nil, errors.New(invalid)
 	}
 	a := statuses[0].Attestation
 	if a.Line != line || a.FactFamily != id || a.Component != component || a.Releases == nil || len(a.Evidence.Sources) == 0 || a.Validate() != nil {
-		return nil, fmt.Errorf(invalid)
+		return nil, errors.New(invalid)
 	}
 	if !statuses[0].Current() {
-		return nil, fmt.Errorf(stale)
+		return nil, errors.New(stale)
 	}
 	if !trust.Admits(a.Evidence.Basis) {
-		return nil, fmt.Errorf(basis)
+		return nil, errors.New(basis)
 	}
 	pinned := map[string]string{}
 	for _, release := range a.Releases.To {
@@ -196,13 +197,13 @@ func changeListItems(id, component, slug, line string, statuses []lineattest.Sta
 		version, ok := strings.CutPrefix(source.ID, changeListSourcePrefix)
 		commit, isRelease := pinned[version]
 		if !ok || !isRelease || seen[version] || source.URL == "" || source.Revision != commit || !strings.HasPrefix(source.ContentDigest, "sha256:") || source.StartLine < 1 || source.EndLine < source.StartLine {
-			return nil, fmt.Errorf(invalid)
+			return nil, errors.New(invalid)
 		}
 		seen[version] = true
 		fmt.Fprintf(digest, "%s|%s|%s|%s|%s|%d|%d\n", id, line, source.ID, source.Revision, source.ContentDigest, source.StartLine, source.EndLine)
 		inside, ok := inHopWindow(hop, version)
 		if !ok {
-			return nil, fmt.Errorf(invalid)
+			return nil, errors.New(invalid)
 		}
 		if inside {
 			items = append(items, fmt.Sprintf("the change list of %s lists changes for %s; read them before upgrading (record %s %s line %s, %s, commit %s, digest %s, lines %d-%d); next: read that change list in full and compare each listed change with your configuration",
@@ -210,7 +211,7 @@ func changeListItems(id, component, slug, line string, statuses []lineattest.Sta
 		}
 	}
 	if len(seen) != len(pinned) {
-		return nil, fmt.Errorf(invalid)
+		return nil, errors.New(invalid)
 	}
 	return items, nil
 }
