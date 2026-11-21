@@ -30,7 +30,7 @@ Changes from `v0.1.0-beta.0` (70f67cac4a3b) to `v0.1.0-beta.1` (912f60db50dd), c
 | CNCF projects with a rule | 53 | 54 | +1 |
 | Rules for non-CNCF projects | 42 | 51 | +9 |
 | Non-CNCF projects with a rule | 10 | 10 | 0 |
-| Line attestations | 104 | 213 | +109 |
+| Line attestations | 104 | 218 | +114 |
 | Kubernetes minors with a line attestation | 18 | 18 | 0 |
 | Projects with a release-line snapshot (README coverage block) | 78 | 79 | +1 |
 | Upgrades between consecutive release lines | 390 | 395 | +5 |
@@ -46,7 +46,7 @@ The figures for `v0.1.0-beta.0` in this section are approximate: that release ha
 
 #### Coverage since the previous release
 
-previous = tag `v0.1.0-beta.0`, commit 70f67cac4a3b, counts sha256 `db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3`; current counts sha256 `d28ce109e66171164cf1051b3d1cf02182a94a17bd500f30890e7dc7d84bdde5`.
+previous = tag `v0.1.0-beta.0`, commit 70f67cac4a3b, counts sha256 `db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3`; current counts sha256 `541ca1b80e2d722bb5751c714e855ea46f628ce2f680cf04eb312fc37ad151a4`.
 
 The counts carry the number of valid rules per project, not rule ids, so rules added are the per-project change of that number.
 
@@ -165,7 +165,7 @@ Counts include rules that are withdrawn; withdrawn rules are not used and are li
 
 None.
 
-#### Line attestations by project (26)
+#### Line attestations by project (27)
 
 - `antrea-io/antrea`: 5 now; new lines 2.3, 2.4, 2.5, 2.6, 2.7
 - `cert-manager/cert-manager`: 5 now; new lines 1.17, 1.18, 1.19
@@ -183,6 +183,7 @@ None.
 - `kubean-io/kubean`: 6 now; new lines 0.35, 0.36, 0.37, 0.38, 0.39, 0.40
 - `kubemod/kubemod`: 5 now; new lines 0.17, 0.18, 0.19, 0.20, 0.21
 - `kubernetes-sigs/gateway-api`: 6 now; new lines 1.2, 1.3, 1.4, 1.5, 1.6, 1.7
+- `kubeswift-io/kubeswift`: 23 now; new lines 0.22, 0.23, 0.24, 0.25, 0.26
 - `longhorn/longhorn`: 3 now; new lines 1.11, 1.12, 1.13
 - `movetokube/postgres-operator`: 4 now; new lines 2.1, 2.2, 2.3, 2.4
 - `nekomeowww/ollama-operator`: 5 now; new lines 0.6, 0.7, 0.8, 0.9, 0.10
@@ -194,7 +195,7 @@ None.
 - `rook/rook`: 1 now; new lines 1.17
 - `submariner-io/submariner`: 3 now; new lines 0.23, 0.24, 0.25
 
-#### Versions newly covered by attestations (including new lines) (27)
+#### Versions newly covered by attestations (including new lines) (28)
 
 Versions listed in line attestations; not an upgrade verdict.
 
@@ -215,6 +216,7 @@ Versions listed in line attestations; not an upgrade verdict.
 - `kubean-io/kubean`: 16 newly covered versions: 0.34.0, 0.34.1, 0.34.2, 0.35.0, 0.35.1, 0.36.0, 0.37.0, 0.38.0, 0.39.0, 0.39.1, 0.39.2, 0.39.3, 0.39.4, 0.39.5, 0.40.0, 0.40.1
 - `kubemod/kubemod`: 9 newly covered versions: 0.16.0, 0.17.0, 0.17.1, 0.18.0, 0.18.1, 0.19.0, 0.19.1, 0.20.0, 0.21.0
 - `kubernetes-sigs/gateway-api`: 14 newly covered versions: 1.1.0, 1.1.1, 1.2.0, 1.2.1, 1.3.0, 1.4.0, 1.4.1, 1.5.0, 1.5.1, 1.6.0, 1.6.1, 1.6.2, 1.6.3, 1.7.0
+- `kubeswift-io/kubeswift`: 8 newly covered versions: 0.21.3, 0.22.0, 0.23.0, 0.24.0, 0.24.1, 0.25.0, 0.25.1, 0.26.0
 - `longhorn/longhorn`: 11 newly covered versions: 1.10.0, 1.10.1, 1.10.2, 1.11.0, 1.11.1, 1.11.2, 1.11.3, 1.12.0, 1.12.1, 1.12.2, 1.13.0
 - `movetokube/postgres-operator`: 6 newly covered versions: 2.0.0, 2.1.0, 2.2.0, 2.3.0, 2.3.1, 2.4.0
 - `nekomeowww/ollama-operator`: 21 newly covered versions: 0.5.0, 0.5.1, 0.5.2, 0.5.3, 0.5.4, 0.6.0, 0.7.0, 0.7.1, 0.8.0, 0.9.1, 0.10.0, 0.10.1, 0.10.2, 0.10.3, 0.10.4, 0.10.5, 0.10.6, 0.10.7, 0.10.8, 0.10.9, 0.10.10
@@ -226,10 +228,11 @@ Versions listed in line attestations; not an upgrade verdict.
 - `rook/rook`: 20 newly covered versions: 1.16.0, 1.16.1, 1.16.2, 1.16.3, 1.16.4, 1.16.5, 1.16.6, 1.16.7, 1.16.8, 1.16.9, 1.17.0, 1.17.1, 1.17.2, 1.17.3, 1.17.4, 1.17.5, 1.17.6, 1.17.7, 1.17.8, 1.17.9
 - `submariner-io/submariner`: 11 newly covered versions: 0.22.0, 0.22.1, 0.22.2, 0.23.1, 0.23.2, 0.23.3, 0.23.4, 0.24.0, 0.24.1, 0.24.2, 0.25.0
 
-#### Re-derived line attestations (3)
+#### Re-derived line attestations (4)
 
 - `cert-manager/cert-manager`: lines 1.20, 1.21; extractor 2.7.0 -> 2.16.0
 - `dapr/dapr`: lines 1.14, 1.15, 1.16, 1.17, 1.18, 1.19; extractor 2.7.0 -> 2.8.0
+- `kubeswift-io/kubeswift`: lines 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.10, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.20, 0.21; extractor 2.7.0 -> 2.16.0
 - `openkruise/kruise`: lines 1.8, 1.9; extractor 2.7.0 -> 2.15.0
 
 #### Kubernetes minors
