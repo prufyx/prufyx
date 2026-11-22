@@ -129,10 +129,14 @@ func TestChangeListMajorSuffixSubsequentJoin(t *testing.T) {
 			k := clKnowledge{Knowledge: base, index: lineattest.NewIndex(records)}
 			var report scanreport.Report
 			path, ok := changeListJump(k, now, &report, clSlug, clComponent, "3.4.0", "4.2.0", cncfcheck.DefaultTrustPolicy())
-			if name == "conflicting commit" {
+			if name != "same commit" {
 				if ok {
-					t.Fatalf("conflict expanded: %+v", path)
+					t.Fatalf("unbound subsequent join expanded: %+v", path)
 				}
+				if len(report.Gaps) != 0 {
+					t.Fatalf("refusal leaked partial gaps: %+v", report.Gaps)
+				}
+				requireMajorSuffixFallback(t, k, now)
 				return
 			}
 			if !ok || path.Jump == nil || len(path.Jump.Hops) != 3 {
@@ -142,10 +146,50 @@ func TestChangeListMajorSuffixSubsequentJoin(t *testing.T) {
 				if len(path.Jump.Releases) != 2 || path.Jump.Releases[1].Version != "4.1.0" || path.Jump.Releases[1].Commit != clCommit("4.1.0") {
 					t.Fatalf("join=%+v", path.Jump.Releases)
 				}
-			} else if len(path.Jump.Releases) != 1 || path.Jump.Hops[1].To != "4.1" || path.Jump.Hops[2].From != "4.1" {
-				t.Fatalf("unreviewed join invented: %+v", path.Jump)
 			}
 		})
+	}
+}
+
+func requireMajorSuffixFallback(t *testing.T, knowledge Knowledge, now time.Time) {
+	t.Helper()
+	_, paths := files(t, map[string]string{"input.yaml": templatedConfigMap})
+	request, err := ParseArgs(append(paths, "--from", clSlug+"=3.4.0", "--to", clSlug+"=4.2.0", "--now", now.Format(time.RFC3339)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := Run(request, Options{Knowledge: knowledge, Build: &testBuild, Clock: func() time.Time { return now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Exit != 11 || result.Report.Verdict != scanreport.VerdictUnknown || len(result.Report.Paths) != 1 {
+		t.Fatalf("fallback result=%+v", result)
+	}
+	path := result.Report.Paths[0]
+	if path.From != "3.4.0" || path.To != "4.2.0" || path.Jump == nil || path.Jump.Status != scanreport.JumpUnknown || len(path.Jump.Releases) != 0 || len(path.Jump.Hops) != 1 || len(path.Jump.Hops[0].Entries) != 0 || len(path.Jump.Missing) != 1 || path.Jump.Missing[0].Evidence == "" || path.Jump.Missing[0].Action == "" {
+		t.Fatalf("false cited fallback: %+v", path)
+	}
+	for _, format := range []string{"human", "json", "markdown", "csv", "sarif"} {
+		raw, err := scanreport.Render(result.Report, format, scanreport.RenderOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(raw), "lists changes for etcd") || strings.Contains(string(raw), clCommit("4.0.0")) || !strings.Contains(string(raw), "by hand") {
+			t.Fatalf("%s lost fallback boundary: %s", format, raw)
+		}
+	}
+	plan := upgradeplan.Build(result.Report, nil, upgradeplan.Capabilities{})
+	if plan.ExitCode != 11 || len(plan.Routes) != 1 || len(plan.Routes[0].Stops) != 0 {
+		t.Fatalf("fallback plan=%+v", plan)
+	}
+	for _, format := range upgradeplan.Formats() {
+		raw, err := upgradeplan.Render(plan, format)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(raw), "lists changes for etcd") || strings.Contains(string(raw), clCommit("4.0.0")) || !strings.Contains(string(raw), "by hand") {
+			t.Fatalf("plan %s lost fallback boundary: %s", format, raw)
+		}
 	}
 }
 

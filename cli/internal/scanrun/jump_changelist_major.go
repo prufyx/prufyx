@@ -103,6 +103,13 @@ func changeListMajorSuffix(knowledge Knowledge, now time.Time, report *scanrepor
 	if !ok || path.Jump == nil {
 		return scanreport.Path{}, false
 	}
+	// The first anchor exception cannot make later line-bounded windows
+	// composable. Every subsequent join must be an exact shared release.
+	for i := 1; i < len(path.Hops); i++ {
+		if path.Hops[i-1].To.Version == "" || path.Hops[i-1].To.Version != path.Hops[i].From.Version {
+			return scanreport.Path{}, false
+		}
+	}
 	ref := scanreport.HopRef{Index: 1, From: from, To: anchor.Version}
 	lineGap := scanreport.NewGap(slug, &ref, scanreport.GapLinesNotListed, fromLine, major)
 	majorGap := scanreport.NewGap(slug, &ref, scanreport.GapMajorHopNotCovered, from, anchor.Version)
