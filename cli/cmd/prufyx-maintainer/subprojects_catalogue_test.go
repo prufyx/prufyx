@@ -8,11 +8,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"golang.org/x/sys/unix"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 )
@@ -358,5 +361,148 @@ func TestSubprojectsCatalogueUsage(t *testing.T) {
 		if !errors.As(err, &ce) || ce.code != 2 || out.Len() != 0 {
 			t.Fatalf("args=%v err=%v stdout=%s", args, err, out.String())
 		}
+	}
+}
+
+func TestSubprojectsCatalogueRejectsRepositoryAliases(t *testing.T) {
+	for _, alias := range []string{"https://github.com/argoproj/argo-workflows.git", "https://github.com/argoproj/argo-workflows/", "https://github.com/argoproj/argo%2Dworkflows", "https://github.com:443/argoproj/argo-workflows", "https://github.com/argoproj/argo-workflows?ref=main"} {
+		t.Run(alias, func(t *testing.T) {
+			root := catalogueFixture(t)
+			catalogueEdit(t, root, catalogueLandscapeFile, func(v map[string]any) { v["projects"].([]any)[0].(map[string]any)["repositoryURL"] = alias })
+			var out bytes.Buffer
+			if err := runSubprojects([]string{"catalogue", "--root", root}, &out); err == nil || out.Len() != 0 {
+				t.Fatalf("aliased overlay repo under another slug accepted: err=%v stdoutBytes=%d", err, out.Len())
+			}
+		})
+	}
+	for _, repo := range []string{"argoproj/argo-workflows.git", "argoproj/argo-workflows/", "argoproj/argo%2Dworkflows", "argoproj/../argo-workflows", "argoproj/ARGO-workflows"} {
+		t.Run("table-"+repo, func(t *testing.T) {
+			root := catalogueFixture(t)
+			catalogueEdit(t, root, catalogueTableFile, func(v map[string]any) {
+				v["projects"] = append(v["projects"].([]any), map[string]any{"slug": "zz-overlay-alias", "catalog": "cncf", "factProject": "zz_overlay_alias", "component": "pkg:github/" + repo, "groups": []any{map[string]any{"name": "alias.example.io", "source": "https://github.com/argoproj/argo-workflows/blob/0123456789abcdef0123456789abcdef01234567/crds/alias.yaml"}}})
+			})
+			var out bytes.Buffer
+			if err := runSubprojects([]string{"catalogue", "--root", root}, &out); err == nil || out.Len() != 0 {
+				t.Fatalf("noncanonical table identity accepted: err=%v stdoutBytes=%d", err, out.Len())
+			}
+		})
+	}
+}
+func TestSubprojectsCatalogueFIFOReplacementDoesNotBlock(t *testing.T) {
+	dir := t.TempDir()
+	name := "input.json"
+	p := filepath.Join(dir, name)
+	if err := os.WriteFile(p, []byte(`{}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	before, err := root.Lstat(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Reproduce the exact race window after the regular-file precheck.
+	if err := os.Remove(p); err != nil {
+		t.Fatal(err)
+	}
+	if err := unix.Mkfifo(p, 0600); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { _, err := catalogueReadCheckedFile(root, name, before); done <- err }()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("FIFO replacement accepted")
+		}
+	case <-time.After(500 * time.Millisecond):
+		// Release the old blocking reader so a regression fails without leaving
+		// a stuck goroutine or a fixture that cannot be removed.
+		fd, err := unix.Open(p, unix.O_WRONLY|unix.O_NONBLOCK, 0)
+		if err == nil {
+			unix.Close(fd)
+		}
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Fatal("reader remained blocked after FIFO release")
+		}
+		t.Fatal("FIFO replacement blocked descriptor acquisition")
+	}
+	fixture := catalogueFixture(t)
+	overlay := filepath.Join(fixture, cncfcheck.SubprojectsFile)
+	if err := os.Remove(overlay); err != nil {
+		t.Fatal(err)
+	}
+	if err := unix.Mkfifo(overlay, 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := runSubprojects([]string{"catalogue", "--root", fixture}, &out); err == nil || out.Len() != 0 {
+		t.Fatalf("FIFO emitted output: err=%v bytes=%d", err, out.Len())
+	}
+}
+
+func TestSubprojectsCatalogueDescriptorRejectsReplacementLinks(t *testing.T) {
+	for _, parent := range []bool{false, true} {
+		t.Run(fmt.Sprintf("parent=%t", parent), func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.Mkdir(filepath.Join(dir, "parent"), 0700); err != nil {
+				t.Fatal(err)
+			}
+			name := "parent/input.json"
+			original := filepath.Join(dir, name)
+			if err := os.WriteFile(original, []byte(`{}`), 0600); err != nil {
+				t.Fatal(err)
+			}
+			root, err := os.OpenRoot(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer root.Close()
+			before, err := root.Lstat(name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if parent {
+				if err := os.Rename(filepath.Join(dir, "parent"), filepath.Join(dir, "moved")); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink("moved", filepath.Join(dir, "parent")); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				if err := os.Rename(original, filepath.Join(dir, "parent/kept.json")); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink("kept.json", original); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if _, err := catalogueReadCheckedFile(root, name, before); err == nil {
+				t.Fatal("link replacement accepted despite held original inode")
+			}
+		})
+	}
+}
+func TestSubprojectsCataloguePreservesTypedLandscapeURLs(t *testing.T) {
+	// The real fixture also includes CoHDI's organization URL, mixed-case
+	// GitHub paths and an archived null repository; none grants an alias.
+	for _, repo := range []string{"https://github.com/ExampleOrg/ExampleRepo", "https://github.com/ExampleOrg", "https://gitlab.com/example/project"} {
+		t.Run(repo, func(t *testing.T) {
+			root := catalogueFixture(t)
+			catalogueEdit(t, root, catalogueLandscapeFile, func(v map[string]any) { v["projects"].([]any)[0].(map[string]any)["repositoryURL"] = repo })
+			var out bytes.Buffer
+			if err := runSubprojects([]string{"catalogue", "--root", root}, &out); err != nil {
+				t.Fatal(err)
+			}
+			var result subprojectCatalogue
+			if err := json.Unmarshal(out.Bytes(), &result); err != nil || len(result.Rows) != 3 {
+				t.Fatalf("typed landscape changed: %+v %v", result, err)
+			}
+		})
 	}
 }

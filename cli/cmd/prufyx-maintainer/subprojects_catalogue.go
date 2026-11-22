@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/url"
 	"os"
 	"path"
@@ -22,6 +23,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/customresources"
 	"github.com/prufyx/prufyx/cli/internal/extract/crdversions"
 	"github.com/prufyx/prufyx/cli/internal/strictjson"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -107,6 +109,15 @@ func buildSubprojectsCatalogue(dir string) (subprojectCatalogue, error) {
 		return result, errors.New("cannot open root")
 	}
 	defer root.Close()
+	anchor, err := root.Open(".")
+	if err != nil {
+		return result, errors.New("cannot open root anchor")
+	}
+	actual, statErr := anchor.Stat()
+	closeErr := anchor.Close()
+	if statErr != nil || closeErr != nil || !actual.IsDir() || !os.SameFile(info, actual) {
+		return result, errors.New("root changed while opening")
+	}
 	used := 0
 	read := func(name string) ([]byte, error) {
 		b, e := catalogueReadFile(root, name)
@@ -175,19 +186,23 @@ func buildSubprojectsCatalogue(dir string) (subprojectCatalogue, error) {
 		if strings.HasPrefix(p.Component, "pkg:github/") {
 			repo = "https://github.com/" + strings.TrimPrefix(p.Component, "pkg:github/")
 		}
+		if !catalogueGitHubIdentity(repo, false) || repo != strings.ToLower(repo) {
+			return result, errors.New("noncanonical table repository identity")
+		}
 		identities = append(identities, catalogueIdentity{p.Slug, repo})
 	}
 	if err = catalogueDirectory(root, catalogueTargetsDir); err != nil {
 		return result, err
 	}
-	d, err := root.Open(catalogueTargetsDir)
+	d, stable, err := catalogueOpenReadOnly(root, catalogueTargetsDir, true)
 	if err != nil {
 		return result, errors.New("cannot open target directory")
 	}
 	// Bound all directory entries, including non-target source files, before filtering.
 	entries, err := d.ReadDir(4097)
-	closeErr := d.Close()
-	if (err != nil && err != io.EOF) || closeErr != nil || len(entries) > 4096 {
+	unchanged := stable()
+	closeErr = d.Close()
+	if (err != nil && err != io.EOF) || closeErr != nil || !unchanged || len(entries) > 4096 {
 		return result, errors.New("cannot enumerate complete target directory")
 	}
 	names := []string{}
@@ -263,20 +278,33 @@ func buildSubprojectsCatalogue(dir string) (subprojectCatalogue, error) {
 		return result, err
 	}
 	result.InputDigests.Targets = catalogueHash(memberRaw)
-	// Prove absence only after validating every required neighbour and the parent.
-	if err = catalogueDirectory(root, path.Dir(cncfcheck.SubprojectsFile)); err != nil {
+	// Prove absence through a complete readable parent listing, with the
+	// same descriptor and ancestry checks as present-file acquisition.
+	parent, parentStable, err := catalogueOpenReadOnly(root, path.Dir(cncfcheck.SubprojectsFile), true)
+	if err != nil {
 		return result, err
 	}
-	_, err = root.Lstat(cncfcheck.SubprojectsFile)
-	if errors.Is(err, os.ErrNotExist) {
-		return result, nil
+	parentEntries, listErr := parent.ReadDir(4097)
+	unchanged = parentStable()
+	closeErr = parent.Close()
+	if (listErr != nil && listErr != io.EOF) || closeErr != nil || len(parentEntries) > 4096 || !unchanged {
+		return result, errors.New("cannot establish overlay presence")
 	}
-	if err != nil {
-		return result, errors.New("cannot inspect overlay")
+	present := false
+	for _, entry := range parentEntries {
+		if entry.Name() == path.Base(cncfcheck.SubprojectsFile) {
+			present = true
+		}
+	}
+	if !present {
+		return result, nil
 	}
 	overlayRaw, err := read(cncfcheck.SubprojectsFile)
 	if err != nil {
 		return result, err
+	}
+	if !parentStable() {
+		return result, errors.New("overlay parent changed during read")
 	}
 	if err = strictjson.Check(overlayRaw); err != nil {
 		return result, errors.New("ambiguous overlay JSON")
@@ -328,10 +356,39 @@ func catalogueHash(raw []byte) string {
 	sum := sha256.Sum256(raw)
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
+
+// The pinned landscape includes mixed-case paths and organization URLs.
+// Preserve those shapes without accepting repository aliases as new identities.
 func catalogueRepository(raw string) bool {
 	u, e := url.Parse(raw)
-	return e == nil && u.Scheme == "https" && u.Host != "" && u.User == nil && u.RawQuery == "" && u.Fragment == "" && u.Path != ""
+	if e != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Path == "" {
+		return false
+	}
+	host := strings.ToLower(strings.TrimSuffix(u.Hostname(), "."))
+	if host == "github.com" || host == "www.github.com" {
+		return catalogueGitHubIdentity(raw, true)
+	}
+	return true
 }
+func catalogueGitHubIdentity(raw string, allowOrganization bool) bool {
+	tail, ok := strings.CutPrefix(raw, "https://github.com/")
+	if !ok {
+		return false
+	}
+	parts := strings.Split(tail, "/")
+	if len(parts) != 2 && !(allowOrganization && len(parts) == 1) {
+		return false
+	}
+	for _, part := range parts {
+		if !catalogueGitHubPart.MatchString(part) {
+			return false
+		}
+	}
+	return !strings.HasSuffix(strings.ToLower(tail), ".git")
+}
+
+var catalogueGitHubPart = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
+
 func catalogueDecode(raw []byte, v any) error {
 	if e := strictjson.Check(raw); e != nil {
 		return errors.New("ambiguous snapshot JSON")
@@ -375,19 +432,86 @@ func catalogueReadFile(root *os.Root, name string) ([]byte, error) {
 	if e != nil || !info.Mode().IsRegular() || info.Size() > catalogueMaxFile {
 		return nil, errors.New("snapshot member missing, nonregular or oversized")
 	}
-	f, e := root.Open(name)
+	return catalogueReadCheckedFile(root, name, info)
+}
+
+func catalogueReadCheckedFile(root *os.Root, name string, info os.FileInfo) ([]byte, error) {
+	f, stable, e := catalogueOpenReadOnly(root, name, false)
 	if e != nil {
 		return nil, errors.New("cannot open snapshot member")
 	}
 	defer f.Close()
 	before, e := f.Stat()
-	if e != nil || !os.SameFile(info, before) {
+	if e != nil || !before.Mode().IsRegular() || before.Size() > catalogueMaxFile || !os.SameFile(info, before) || !stable() {
 		return nil, errors.New("snapshot member changed while opening")
 	}
 	raw, e := io.ReadAll(io.LimitReader(f, catalogueMaxFile+1))
 	after, se := f.Stat()
-	if e != nil || se != nil || len(raw) > catalogueMaxFile || int64(len(raw)) != before.Size() || before.Size() != after.Size() || !before.ModTime().Equal(after.ModTime()) {
+	if e != nil || se != nil || len(raw) > catalogueMaxFile || int64(len(raw)) != before.Size() || before.Size() != after.Size() || !before.ModTime().Equal(after.ModTime()) || !stable() {
 		return nil, errors.New("snapshot member unreadable, changed or oversized")
 	}
 	return raw, nil
+}
+
+// Walk from the held root descriptor. Each parent must be a directory opened
+// without following links. Final acquisition is nonblocking, and descriptor
+// types are checked before any reads.
+func catalogueOpenReadOnly(root *os.Root, name string, directory bool) (*os.File, func() bool, error) {
+	if !fs.ValidPath(name) || name == "." {
+		return nil, nil, errors.New("invalid snapshot path")
+	}
+	current, err := root.Open(".")
+	if err != nil {
+		return nil, nil, errors.New("cannot open root descriptor")
+	}
+	type ancestor struct {
+		name string
+		info os.FileInfo
+	}
+	parents := []ancestor{}
+	prefix := ""
+	parts := strings.Split(name, "/")
+	for i, part := range parts {
+		parentInfo, e := current.Stat()
+		if e != nil || !parentInfo.IsDir() {
+			current.Close()
+			return nil, nil, errors.New("invalid snapshot parent descriptor")
+		}
+		parentName := prefix
+		if parentName == "" {
+			parentName = "."
+		}
+		parents = append(parents, ancestor{parentName, parentInfo})
+		flags := unix.O_RDONLY | unix.O_NONBLOCK | unix.O_NOFOLLOW | unix.O_CLOEXEC
+		if i < len(parts)-1 || directory {
+			flags |= unix.O_DIRECTORY
+		}
+		fd, e := unix.Openat(int(current.Fd()), part, flags, 0)
+		current.Close()
+		if e != nil {
+			return nil, nil, errors.New("cannot acquire snapshot descriptor")
+		}
+		prefix = path.Join(prefix, part)
+		current = os.NewFile(uintptr(fd), prefix)
+	}
+	actual, err := current.Stat()
+	if err != nil || (directory && !actual.IsDir()) || (!directory && !actual.Mode().IsRegular()) {
+		current.Close()
+		return nil, nil, errors.New("snapshot descriptor has wrong type")
+	}
+	stable := func() bool {
+		for _, parent := range parents {
+			now, e := root.Lstat(parent.name)
+			if e != nil || !now.IsDir() || !os.SameFile(parent.info, now) || !parent.info.ModTime().Equal(now.ModTime()) {
+				return false
+			}
+		}
+		now, e := root.Lstat(name)
+		return e == nil && now.Mode().Type() == actual.Mode().Type() && os.SameFile(actual, now) && actual.Size() == now.Size() && actual.ModTime().Equal(now.ModTime())
+	}
+	if !stable() {
+		current.Close()
+		return nil, nil, errors.New("snapshot ancestry changed during open")
+	}
+	return current, stable, nil
 }
