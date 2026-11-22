@@ -37,7 +37,7 @@ const (
 	sarifSrcRoot    = "%SRCROOT%"
 	sarifMessageMax = 1024
 	// SARIFMaxResults is the number of results code scanning accepts in one
-	// run. A scan with more keeps the first ones in report order and says so
+	// run. A scan with more keeps the most severe ones (errors first) and says so
 	// in a notification.
 	SARIFMaxResults = 25000
 	// redactedDir holds the digest names that stand in for redacted paths.
@@ -228,6 +228,50 @@ type sarifRunProps struct {
 	// CustomResources lists every custom resource with its state (BLOCKED,
 	// NO_FINDING or NOT_EVALUATED, never a pass); absent when there are none.
 	CustomResources []sarifCustomResource `json:"customResources,omitempty"`
+	// OmittedResults counts the results the size limit dropped, by level;
+	// absent when none were dropped. Omitted results are never passes.
+	OmittedResults map[string]int `json:"omittedResults,omitempty"`
+}
+
+// levelRank orders result levels for the size limit: errors are kept first.
+func levelRank(level string) int {
+	switch level {
+	case sarifError:
+		return 0
+	case sarifWarning:
+		return 1
+	}
+	return 2
+}
+
+// capByLevel keeps at most SARIFMaxResults results by severity (error before
+// warning before note), the first ones in order within a level, and returns
+// them in their original order with the count omitted per level. No error is
+// dropped while a lower level remains.
+func capByLevel(results []sarifResult) ([]sarifResult, map[string]int) {
+	if len(results) <= SARIFMaxResults {
+		return results, nil
+	}
+	keep := make([]bool, len(results))
+	room := SARIFMaxResults
+	for rank := 0; rank <= 2 && room > 0; rank++ {
+		for i, r := range results {
+			if room > 0 && levelRank(r.Level) == rank {
+				keep[i] = true
+				room--
+			}
+		}
+	}
+	kept := make([]sarifResult, 0, SARIFMaxResults)
+	omitted := map[string]int{}
+	for i, r := range results {
+		if keep[i] {
+			kept = append(kept, r)
+		} else {
+			omitted[r.Level]++
+		}
+	}
+	return kept, omitted
 }
 
 // preReleaseComponents lists, in inventory order, the components with a
@@ -262,7 +306,12 @@ func SARIF(report Report) ([]byte, error) {
 	rules, index := sarifRules(report)
 	results, dropped := sarifResults(report, index)
 	results, dropped = appendGapResults(report, index, results, dropped)
-	results, dropped = sarifCustomResourceResults(report, index, results, dropped)
+	results, _ = sarifCustomResourceResults(report, index, results, dropped)
+	results, omitted := capByLevel(results)
+	dropped = 0
+	for _, n := range omitted {
+		dropped += n
+	}
 	notifications := sarifNotifications(report, index)
 	if dropped > 0 {
 		notifications = append(notifications, sarifNotification{
@@ -292,7 +341,7 @@ func SARIF(report Report) ([]byte, error) {
 			Omissions: omissions, TrustPolicy: report.TrustPolicy, KnowledgeStore: p.KnowledgeStore,
 			CommunityCatalog: communityCatalogComponents(report), HelmValues: p.HelmValues,
 			PreRelease: preReleaseComponents(report), KubeletVersions: p.KubeletVersions,
-			CustomResources: sarifCustomResourceList(report),
+			CustomResources: sarifCustomResourceList(report), OmittedResults: omitted,
 		},
 	}}}
 	var out bytes.Buffer
@@ -410,10 +459,6 @@ func sarifResults(report Report, index map[string]int) ([]sarifResult, int) {
 		return a.item < b.item
 	})
 	dropped := 0
-	if len(rows) > SARIFMaxResults {
-		dropped = len(rows) - SARIFMaxResults
-		rows = rows[:SARIFMaxResults]
-	}
 	results := make([]sarifResult, 0, len(rows))
 	for _, row := range rows {
 		results = append(results, row.result)
@@ -435,10 +480,6 @@ func appendGapResults(report Report, index map[string]int, results []sarifResult
 	}
 	seen := map[string]int{}
 	for _, g := range report.Gaps {
-		if len(results) >= SARIFMaxResults {
-			dropped++
-			continue
-		}
 		hop := ""
 		if g.Hop != nil {
 			hop = hopLabel(*g.Hop)
