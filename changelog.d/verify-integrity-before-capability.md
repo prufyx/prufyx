@@ -1,0 +1,2 @@
+### Fixed
+- `db verify`, `db import` and `db update` now check package integrity (size and format bounds, archive digest, signature under the pinned root, signed digest of every project target) before reading the engine capability or any other manifest field. A package altered after signing is reported as an integrity failure instead of a capability mismatch; a correctly signed package this build cannot read still exits `15`.
