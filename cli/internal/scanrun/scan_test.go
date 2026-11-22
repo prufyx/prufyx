@@ -457,8 +457,12 @@ func TestScanSlugs(t *testing.T) {
 		t.Fatalf("suggestions are not deterministic: %v", err2)
 	}
 	result := mustScan(t, knowledge, args(paths, "--from", "etcd=3.5.17", "--to", "etcd=3.6.0")...)
-	if result.Exit != scanreport.ExitUnknown || !reflect.DeepEqual(gapReasons(result.Report), []string{"COMPONENT_NOT_COVERED"}) || !strings.Contains(result.Report.Gaps[0].Action, "check cncf --project etcd") {
-		t.Fatalf("other component: exit %d gaps %+v", result.Exit, result.Report.Gaps)
+	wantGaps := []scanreport.Gap{
+		scanreport.NewGap("etcd", nil, scanreport.GapComponentNotCovered, "etcd"),
+		scanreport.NewGap("etcd", &scanreport.HopRef{Index: 1, From: "3.5.17", To: "3.6.0"}, scanreport.GapChangeListJumpNoRecord, "3.6", "etcd"),
+	}
+	if result.Exit != scanreport.ExitUnknown || result.Report.Verdict != scanreport.VerdictUnknown || !reflect.DeepEqual(result.Report.Gaps, wantGaps) {
+		t.Fatalf("other component: exit %d verdict %s gaps %+v", result.Exit, result.Report.Verdict, result.Report.Gaps)
 	}
 	if _, err := scan(t, knowledge, args(paths, "--from", "kubernetes=1.24.17")...); !isUsage(err) {
 		t.Fatalf("no target: %v", err)
