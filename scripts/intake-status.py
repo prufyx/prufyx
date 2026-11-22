@@ -258,8 +258,10 @@ class Api:
 def check_issue(api, item):
     """Return None when the live issue is the one the entry names, else a closed reason code. Only ids and flags are read."""
     st, obj = api.request("GET", "/repos/%s/issues/%d" % (REPO, item["issueNumber"]))
-    if st != 200 or not isinstance(obj, dict):
+    if st == 404:
         return "issue-unreadable"
+    if st != 200 or not isinstance(obj, dict):
+        raise OSError("issue unreadable")
     user = obj.get("user")
     if "pull_request" in obj:
         return "is-pull-request"

@@ -17,6 +17,17 @@ spec = importlib.util.spec_from_file_location("intake_status", os.path.join(HERE
 S = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(S)
 
+NO_NETWORK = mock.patch.object(S, "_opener", side_effect=AssertionError("network disabled in tests"))
+
+
+def setUpModule():
+    NO_NETWORK.start()
+
+
+def tearDownModule():
+    NO_NETWORK.stop()
+
+
 NOW = datetime.datetime(2026, 11, 20, 12, 0, 0, tzinfo=datetime.timezone.utc)
 GEN = "2026-11-20T11:50:00Z"
 HOSTILE = "PWNED @everyone <script>alert(1)</script> $(touch /tmp/x) https://evil.example/x"
@@ -412,6 +423,31 @@ class Process(unittest.TestCase):
         api.add_issue(3, 30, 300)
         self.assertEqual(run_main(raw(feed(self.items)), api), 1)
 
+    def test_issue_read_status_errors_and_absence(self):
+        for status in (401, 403, 429, 500, 503, 404):
+            with self.subTest(status=status), \
+                    mock.patch.object(self.api, "request", return_value=(status, None)) as request, \
+                    mock.patch("builtins.print") as printed:
+                self.assertEqual(run_main(raw(feed(self.items)), self.api), 0 if status == 404 else 1)
+                request.assert_called_once_with("GET", "/repos/prufyx/prufyx/issues/3")
+                logs = "\n".join(c.args[0] for c in printed.call_args_list)
+                counts = "errors=0 same=0 skipped=1" if status == 404 else "errors=1 same=0 skipped=0"
+                self.assertIn("created=0 edited=0 " + counts, logs)
+
+    def test_issue_read_operational_failure_is_an_error(self):
+        with mock.patch.object(self.api, "request", side_effect=OSError(HOSTILE)) as request, \
+                mock.patch("builtins.print") as printed:
+            self.assertEqual(run_main(raw(feed(self.items)), self.api), 1)
+            request.assert_called_once_with("GET", "/repos/prufyx/prufyx/issues/3")
+            logs = "\n".join(c.args[0] for c in printed.call_args_list)
+            self.assertIn("created=0 edited=0 errors=1 same=0 skipped=0", logs)
+            self.assertNotIn(HOSTILE, logs)
+
+    def test_malformed_issue_response_is_an_error(self):
+        with mock.patch.object(self.api, "request", return_value=(200, [])) as request:
+            self.assertEqual(run_main(raw(feed(self.items)), self.api), 1)
+            request.assert_called_once_with("GET", "/repos/prufyx/prufyx/issues/3")
+
 
 class Transport(unittest.TestCase):
     def test_api_paths_with_terminal_newlines_are_refused(self):
@@ -419,8 +455,11 @@ class Transport(unittest.TestCase):
                              ("GET", "/repos/prufyx/prufyx/issues/3/comments?per_page=100&page=1"),
                              ("POST", "/repos/prufyx/prufyx/issues/3/comments"),
                              ("PATCH", "/repos/prufyx/prufyx/issues/comments/9001")):
-            with self.subTest(method=method, path=path), self.assertRaises(PermissionError):
-                S.Api("t").request(method, path + "\n")
+            with self.subTest(method=method, path=path), \
+                    mock.patch.object(S, "_opener", side_effect=AssertionError("network disabled in tests")) as opener:
+                with self.assertRaises(PermissionError):
+                    S.Api("t").request(method, path + "\n")
+                opener.assert_not_called()
 
     def test_feed_url_is_fixed_https(self):
         self.assertTrue(S.FEED_URL.startswith("https://"))
