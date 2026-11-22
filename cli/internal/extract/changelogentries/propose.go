@@ -44,6 +44,7 @@ var candidatePaths = []struct{ Form, Path string }{
 	{FormPerLineFile, "changelogs/CHANGELOG-{line}.md"},
 	{FormPerLineFile, "docs/changelog/{line}.md"},
 	{FormPerLineFile, "docs/releases/{line}.md"},
+	{FormPerLineFile, "CHANGELOG/{line}-CHANGELOG.md"},
 	{FormPerVersionFile, "docs/releases/v{version}.md"},
 	{FormPerVersionFile, "docs/releases/{version}.md"},
 	{FormPerVersionFile, "releases/v{version}.md"},
