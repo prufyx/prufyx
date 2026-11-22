@@ -45,6 +45,41 @@ func ReplaceBlock(doc, block string) (string, error) {
 	return strings.Join(out, "\n"), nil
 }
 
+// ReplaceChangelogSection replaces the generated block in one named section.
+func ReplaceChangelogSection(doc, section, block string) (string, error) {
+	if section == "" || strings.ContainsAny(section, "[]\r\n") {
+		return "", fmt.Errorf("invalid changelog section %q", section)
+	}
+	start, end, offset := -1, -1, 0
+	for _, line := range strings.SplitAfter(doc, "\n") {
+		heading := strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r")
+		if strings.HasPrefix(heading, "## ") {
+			if start >= 0 && end < 0 {
+				end = offset
+			}
+			name := "## [" + section + "]"
+			if heading == name || strings.HasPrefix(heading, name+" ") {
+				if start >= 0 {
+					return "", fmt.Errorf("duplicate changelog section %q", section)
+				}
+				start = offset
+			}
+		}
+		offset += len(line)
+	}
+	if start < 0 {
+		return "", fmt.Errorf("missing changelog section %q", section)
+	}
+	if end < 0 {
+		end = len(doc)
+	}
+	updated, err := ReplaceBlock(doc[start:end], block)
+	if err != nil {
+		return "", err
+	}
+	return doc[:start] + updated + doc[end:], nil
+}
+
 // Commit resolves a revision to a short commit hash.
 func Commit(repo, rev string) (string, error) {
 	if rev == "" || strings.HasPrefix(rev, "-") {
