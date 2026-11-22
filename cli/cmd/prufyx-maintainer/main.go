@@ -540,7 +540,7 @@ func runEvidenceRepin(args []string, stdout, stderr io.Writer) int {
 	if token == "" {
 		token = os.Getenv("GH_TOKEN")
 	}
-	apiFetcher := evidencerepin.GitHubAPIFetcher{Token: token}
+	apiFetcher := evidencerepin.GitHubAPIFetcher{Token: token, OnRefusal: evidencerepin.NewHTTPRefusalReporter(stderr)}
 	return evidencerepin.RunWith(context.Background(), args, stdout, stderr, evidencerepin.Deps{
 		API: apiFetcher, Blobs: sourcecapture.FixedHTTPSFetcher{}, Now: time.Now, DefaultRulePacks: defaultRulePacks,
 		OpenMirror: factorymirror.OpenRepinSource, Refs: evidencerepin.GitHubRefFetcher{},

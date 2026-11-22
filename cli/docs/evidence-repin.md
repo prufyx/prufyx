@@ -15,6 +15,11 @@ Set `GITHUB_TOKEN` (or `GH_TOKEN`) to raise GitHub's API rate limit; the token
 is never logged or written. Re-run with the same `--state` to resume after a
 rate limit.
 
+On the first API HTTP 403 or 429 response, stderr reports its numeric status and
+bounded, normalized rate-limit metadata when available. Missing or invalid
+metadata is `UNKNOWN`. This diagnostic contains no URLs, credentials or response
+bodies and does not change classification, retry or stop behavior.
+
 ## Sources: `--source http|mirror`
 
 By default repin asks GitHub (`--source http`). With `--source mirror` it reads
