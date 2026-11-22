@@ -101,7 +101,7 @@ def _is_int(v):
 
 
 def _parse_time(s):
-    if not isinstance(s, str) or not TIME_RE.match(s):
+    if not isinstance(s, str) or not TIME_RE.fullmatch(s):
         raise FeedError("time form")
     try:
         return datetime.datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
@@ -133,7 +133,7 @@ def validate_feed(raw, now):
         n, i, a = it["issueNumber"], it["issueId"], it["authorId"]
         if not (_is_int(n) and 1 <= n <= 2147483647 and _is_int(i) and 1 <= i <= MAX_ID and _is_int(a) and 1 <= a <= MAX_ID):
             raise FeedError("ids")
-        if not isinstance(it["project"], str) or (it["project"] != "" and not SLUG_RE.match(it["project"])):
+        if not isinstance(it["project"], str) or (it["project"] != "" and not SLUG_RE.fullmatch(it["project"])):
             raise FeedError("project")
         state, reason = it["state"], it["reason"]
         if not isinstance(state, str) or state not in STATES or not isinstance(reason, str):
@@ -148,14 +148,22 @@ def validate_feed(raw, now):
             raise FeedError("order or duplicate")
         prev = n
         ids.add(i)
-    age = (now - generated).total_seconds()
-    if age > MAX_AGE_SECONDS or age < -300:
-        raise FeedStale(age)
+    check_freshness(generated, now)
     return items
 
 
 class FeedStale(Exception):
     """The feed is older than an hour (or from the future): nothing is acted on."""
+
+
+def utc_now():
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
+def check_freshness(generated, now):
+    age = (now - generated).total_seconds()
+    if age > MAX_AGE_SECONDS or age < -300:
+        raise FeedStale(age)
 
 
 def comment_body(item):
@@ -228,7 +236,7 @@ class Api:
         self.token = token
 
     def request(self, method, path, body=None):
-        if not any(m == method and rx.match(path) for m, rx in _ALLOWED):
+        if not any(m == method and rx.fullmatch(path) for m, rx in _ALLOWED):
             raise PermissionError("request outside the allow-list")
         data = None
         headers = {"Authorization": "Bearer " + self.token, "Accept": "application/vnd.github+json",
@@ -284,10 +292,10 @@ def own_comments(api, number):
     raise OSError("too many comments")
 
 
-def process(items, api, max_writes=MAX_WRITES):
+def process(items, api, generated, clock, max_writes=MAX_WRITES):
     res = {"created": 0, "edited": 0, "same": 0, "skipped": 0, "errors": 0}
     writes = 0
-    for it in items:
+    for index, it in enumerate(items):
         n = it["issueNumber"]
         try:
             why = check_issue(api, it)
@@ -304,6 +312,7 @@ def process(items, api, max_writes=MAX_WRITES):
                 log("notice", "write-cap", issue=n)
                 res["skipped"] += 1
                 continue
+            check_freshness(generated, clock())
             writes += 1
             if mine:
                 st, _ = api.request("PATCH", "/repos/%s/issues/comments/%d" % (REPO, mine[0][0]), {"body": body})
@@ -316,18 +325,22 @@ def process(items, api, max_writes=MAX_WRITES):
             else:
                 log("error", "write-failed", issue=n, http=st)
                 res["errors"] += 1
+        except FeedStale as e:
+            log("warning", "feed-stale", age=int(e.args[0]))
+            res["skipped"] += len(items) - index
+            break
         except (OSError, PermissionError, FeedError) as e:
             log("error", "api-error", issue=n, kind=type(e).__name__)
             res["errors"] += 1
     return res
 
 
-def main(env=None, fetch=fetch_feed, api_factory=Api, now=None):
+def main(env=None, fetch=fetch_feed, api_factory=Api, clock=None):
     env = os.environ if env is None else env
     if env.get("GITHUB_REPOSITORY") != REPO:
         log("error", "wrong-repository")
         return 1
-    now = now or datetime.datetime.now(datetime.timezone.utc)
+    clock = utc_now if clock is None else clock
     try:
         raw = fetch()
     except OSError as e:
@@ -337,7 +350,7 @@ def main(env=None, fetch=fetch_feed, api_factory=Api, now=None):
         log("notice", "no-feed-yet")
         return 0
     try:
-        items = validate_feed(raw, now)
+        items = validate_feed(raw, clock())
     except FeedStale as e:
         log("warning", "feed-stale", age=int(e.args[0]))
         return 0
@@ -349,7 +362,8 @@ def main(env=None, fetch=fetch_feed, api_factory=Api, now=None):
     except OSError:
         log("error", "no-token")
         return 1
-    res = process(items, api)
+    generated = _parse_time(json.loads(raw)["generatedAt"])
+    res = process(items, api, generated, clock)
     log("notice", "done", **res)
     return 1 if res["errors"] else 0
 
