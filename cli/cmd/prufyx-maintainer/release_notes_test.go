@@ -177,6 +177,67 @@ func TestReleaseNotesDirectories(t *testing.T) {
 	if b2, _ := os.ReadFile(cl); string(b2) != stale {
 		t.Error("--check wrote the file")
 	}
+	history := "## [1.0.0] - 2026-01-01\n<!-- release-notes:begin -->\nhistory\n<!-- release-notes:end -->\n"
+	if err := os.WriteFile(cl, []byte(stale+history), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sectionArgs := []string{"release-notes", "--from-dir", from, "--to-dir", to, "--into", cl, "--level", "4", "--changelog-section", "Unreleased"}
+	actual, err := os.ReadFile("../../../CHANGELOG.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	actualFile := filepath.Join(t.TempDir(), "CHANGELOG.md")
+	if err := os.WriteFile(actualFile, actual, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	actualArgs := []string{"release-notes", "--from-dir", from, "--to-dir", to, "--into", actualFile, "--level", "4", "--changelog-section", "Unreleased"}
+	if err := run(actualArgs, &out, &errOut); err != nil {
+		t.Fatalf("current multi-release changelog: %v", err)
+	}
+	actualResult, err := os.ReadFile(actualFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldHistory := strings.Index(string(actual), "## [0.1.0-beta.1]")
+	newHistory := strings.Index(string(actualResult), "## [0.1.0-beta.1]")
+	if oldHistory < 0 || newHistory < 0 || string(actual[oldHistory:]) != string(actualResult[newHistory:]) {
+		t.Fatal("historical release sections changed")
+	}
+	if err := run(sectionArgs, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(cl); !strings.HasSuffix(string(b), history) || strings.Contains(string(b), "Sumary") {
+		t.Fatalf("section update damaged history or retained stale content: %q", b)
+	}
+	if err := run(append(sectionArgs, "--check"), &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	bad := stale + history + "## [Unreleased]\n<!-- release-notes:begin -->\n<!-- release-notes:end -->\n"
+	if err := os.WriteFile(cl, []byte(bad), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := run(sectionArgs, &out, &errOut); err == nil {
+		t.Fatal("duplicate section accepted")
+	}
+	if b, _ := os.ReadFile(cl); string(b) != bad {
+		t.Fatal("refused update modified the file")
+	}
+	for name, content := range map[string]string{
+		"missing section":  history,
+		"missing markers":  "## [Unreleased]\n" + history,
+		"orphan marker":    "## [Unreleased]\n<!-- release-notes:begin -->\n" + history,
+		"duplicate marker": "## [Unreleased]\n<!-- release-notes:begin -->\n<!-- release-notes:begin -->\n<!-- release-notes:end -->\n" + history,
+	} {
+		if err := os.WriteFile(cl, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := run(sectionArgs, &out, &errOut); err == nil {
+			t.Errorf("%s accepted", name)
+		}
+		if b, _ := os.ReadFile(cl); string(b) != content {
+			t.Errorf("%s modified the file", name)
+		}
+	}
 	outFile := filepath.Join(t.TempDir(), "notes.md")
 	if err := run([]string{"release-notes", "--from-dir", from, "--to-dir", to, "--out", outFile}, &out, &errOut); err != nil {
 		t.Fatal(err)
@@ -197,6 +258,7 @@ func TestReleaseNotesUsageErrors(t *testing.T) {
 		{"release-notes", "--from-dir", "x", "--to-dir", "y", "--level", "5"},
 		{"release-notes", "--from-dir", "x", "--to-dir", "y", "--out", "a", "--into", "b"},
 		{"release-notes", "--from-dir", "x", "--to-dir", "y", "--check"},
+		{"release-notes", "--from-dir", "x", "--to-dir", "y", "--changelog-section", "Unreleased"},
 	} {
 		var out, errOut bytes.Buffer
 		if err := run(args, &out, &errOut); err == nil {

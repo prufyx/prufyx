@@ -52,7 +52,7 @@ attestation and the `SHA256SUMS` of a version must stay one-to-one.
 
    ```sh
    cd cli
-   go run ./cmd/prufyx-maintainer release-notes --repo .. --from <prev> --previous-counts-sha256 <prev-sha> --to <head> --to-label <tag> --level 4 --into ../CHANGELOG.md
+   go run ./cmd/prufyx-maintainer release-notes --repo .. --from <prev> --previous-counts-sha256 <prev-sha> --to <head> --to-label <tag> --level 4 --into ../CHANGELOG.md --changelog-section Unreleased
    go run ./cmd/prufyx-maintainer release-notes --repo .. --from <prev> --previous-counts-sha256 <prev-sha> --to <head> --to-label <tag> --into docs/release-notes-<tag>.md
    ```
 
@@ -79,7 +79,8 @@ attestation and the `SHA256SUMS` of a version must stay one-to-one.
    file, a wrong sha256 or an unknown schema stops it.
 
    After the pull request merges, tag the merge commit. Before the tag push,
-   run both commands again with `--to <tagged commit>` and the same `--to-label`; `git diff` must show
+   run both commands again with `--to <tagged commit>` and the same `--to-label` (using
+   `--changelog-section <version>` for the renamed CHANGELOG section); `git diff` must show
    only the commit hash in the first line of each generated block. Any other
    difference means a data file changed after the freeze: commit the
    regenerated files in a new pull request and tag after it.
