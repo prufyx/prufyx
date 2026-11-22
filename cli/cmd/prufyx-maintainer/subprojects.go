@@ -21,17 +21,19 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 )
 
-const subprojectsUsage = "subprojects: usage: prufyx-maintainer subprojects verify --root DIR   (needs network; maintainer review step, not CI)"
+const subprojectsUsage = "subprojects: usage: prufyx-maintainer subprojects {catalogue|verify} --root DIR (catalogue is offline; verify needs network)"
 
 const (
 	subprojectsRawHost = "raw.githubusercontent.com"
 	subprojectsMaxBody = 8 << 20
 )
 
-// runSubprojects is the CNCF sub-project overlay verification: it re-fetches
-// every cited file at its pinned commit and re-checks the committed claims.
-// It writes nothing. Any miss refuses the row and the file (exit 1).
+// runSubprojects dispatches offline catalogue validation or the networked
+// verification of cited upstream files. Neither command changes the export.
 func runSubprojects(args []string, stdout io.Writer) error {
+	if len(args) > 0 && args[0] == "catalogue" {
+		return runSubprojectsCatalogue(args[1:], stdout)
+	}
 	if len(args) == 0 || args[0] != "verify" {
 		return &commandError{code: 2, message: subprojectsUsage}
 	}
