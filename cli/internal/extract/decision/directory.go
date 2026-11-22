@@ -13,6 +13,10 @@ import (
 // ReadDirectory reads a bounded regular-file snapshot, without following
 // symbolic links or permitting resolution outside the opened directory.
 func ReadDirectory(dir string) ([]File, error) {
+	return readDirectory(dir, maxBytes)
+}
+
+func readDirectory(dir string, limit int) ([]File, error) {
 	fi, e := os.Lstat(dir)
 	if e != nil {
 		return nil, e
@@ -87,7 +91,7 @@ func ReadDirectory(dir string) ([]File, error) {
 			f.Close()
 			return nil, errors.New("input identity changed")
 		}
-		b, e := io.ReadAll(io.LimitReader(f, maxBytes+1))
+		b, e := io.ReadAll(io.LimitReader(f, int64(limit-total)+1))
 		after, se := f.Stat()
 		ce := f.Close()
 		if e != nil {
@@ -100,7 +104,7 @@ func ReadDirectory(dir string) ([]File, error) {
 			return nil, e
 		}
 		total += len(b)
-		if total > maxBytes {
+		if total > limit {
 			return nil, errors.New("input size limit")
 		}
 		files = append(files, File{Path: name, Mode: uint32(st.Mode().Perm()), Data: b})
@@ -108,7 +112,7 @@ func ReadDirectory(dir string) ([]File, error) {
 	return files, nil
 }
 func ReadPair(dir string) (Pair, error) {
-	files, e := ReadDirectory(dir)
+	files, e := readDirectory(dir, maxPairBytes)
 	if e != nil {
 		return Pair{}, e
 	}

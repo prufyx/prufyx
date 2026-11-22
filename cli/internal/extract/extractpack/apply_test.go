@@ -170,6 +170,12 @@ func TestApplyGoldenPerExtractor(t *testing.T) {
 			}
 			have, err := os.ReadFile(golden)
 			if err != nil || !bytes.Equal(have, want) {
+				var before, after any
+				if err == nil && json.Unmarshal(have, &before) == nil && json.Unmarshal(want, &after) == nil {
+					if logGoldenDifferences(t, "", before, after) == 0 {
+						t.Log("GOLDEN_CHANGE serialization differs with identical decoded values")
+					}
+				}
 				t.Fatalf("the added entries differ from %s (UPDATE_GOLDEN=1 rewrites it)", golden)
 			}
 			// Idempotent.
@@ -182,6 +188,57 @@ func TestApplyGoldenPerExtractor(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Report every differing field without weakening the exact-byte assertion.
+func logGoldenDifferences(t *testing.T, pointer string, before, after any) int {
+	t.Helper()
+	if reflect.DeepEqual(before, after) {
+		return 0
+	}
+	if a, ok := before.(map[string]any); ok {
+		if b, ok := after.(map[string]any); ok {
+			keys := map[string]bool{}
+			for key := range a {
+				keys[key] = true
+			}
+			for key := range b {
+				keys[key] = true
+			}
+			ordered := make([]string, 0, len(keys))
+			for key := range keys {
+				ordered = append(ordered, key)
+			}
+			sort.Strings(ordered)
+			count := 0
+			for _, key := range ordered {
+				name := strings.ReplaceAll(strings.ReplaceAll(key, "~", "~0"), "/", "~1")
+				av, ap := a[key]
+				bv, bp := b[key]
+				if ap != bp {
+					t.Logf("GOLDEN_CHANGE %s/%s presence old=%v new=%v", pointer, name, ap, bp)
+					count++
+				} else {
+					count += logGoldenDifferences(t, pointer+"/"+name, av, bv)
+				}
+			}
+			return count
+		}
+	}
+	if a, ok := before.([]any); ok {
+		if b, ok := after.([]any); ok && len(a) == len(b) {
+			count := 0
+			for i := range a {
+				index, _ := json.Marshal(i)
+				count += logGoldenDifferences(t, pointer+"/"+string(index), a[i], b[i])
+			}
+			return count
+		}
+	}
+	a, _ := json.Marshal(before)
+	b, _ := json.Marshal(after)
+	t.Logf("GOLDEN_CHANGE %s old=%s new=%s", pointer, a, b)
+	return 1
 }
 
 func compactRaw(raw []byte) ([]byte, error) {

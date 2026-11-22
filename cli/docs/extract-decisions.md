@@ -5,10 +5,10 @@
 The decision document preserves the complete run inventory and exact file bytes, replacing only these execution origins with JSON `null`:
 
 - Extractor `version` and `codeDigest` in each candidate's `rule.evidence`, each attestation's `evidence`, each draft, and the manifest.
-- The manifest's `codeFiles` array, after validating each record has exactly `path` and `sha256`, safe unique ordered paths and valid digests.
+- The standard framework manifest's `codeFiles` array, after validating each record has exactly `path` and `sha256`, safe unique ordered relative paths and valid digests. Chart producer inputs are rejected.
 - Each digest value in the manifest's `outputs` map. Output names remain in the decision document.
 
-All other content remains, including extractor IDs, derivation/review/expiry times, source evidence, conditions, proof, withholding reasons, vectors, read inventories and unknown fields. Whitespace, object member order and array order outside origin slots remain significant. File modes must be `0644`; the input is limited to 10,000 files and 64 MiB in total. Symbolic links, duplicate JSON keys, unsupported schemas, unsafe paths and incomplete file/hash inventories are rejected.
+All other content remains, including extractor IDs, derivation/review/expiry times, source evidence, conditions, proof, withholding reasons, vectors, read inventories and unknown fields. Whitespace, object member order and array order outside origin slots remain significant. File modes must be `0644`; raw input is limited to 10,000 files and 64 MiB in total. Encoded decision/receipt pairs are limited to 128 MiB in total, enforced by both writer and reader. Symbolic links, duplicate JSON keys, unsupported schemas, unsafe paths, noncanonical extractor identities and incomplete file/hash inventories are rejected.
 
 Each receipt retains the full original bytes, their hashes, and disjoint origin slots. Verification reconstructs every original from decision bytes plus those slots, checks the originals, then independently projects them again. It does not claim that full outputs with different build stamps are identical.
 

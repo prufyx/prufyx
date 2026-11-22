@@ -14,7 +14,7 @@ import (
 func fixture(t *testing.T, version, code string) []File {
 	t.Helper()
 	codeHash := strings.TrimPrefix(digest([]byte(code)), "sha256:")
-	codeDigest := digest([]byte("extract/example.go\x00" + codeHash + "\n"))
+	codeDigest := digest([]byte("extract/run.go\x00" + codeHash + "\n"))
 	ex := map[string]any{"id": "example", "version": version, "codeDigest": codeDigest}
 	evidence := map[string]any{"extractor": ex, "basis": "mechanical", "derivedAt": "2026-11-22T00:00:00Z", "reviewedAt": "2026-11-22T00:00:00Z", "validUntil": "2026-12-22T00:00:00Z", "sources": []any{map[string]any{"contentDigest": "retained", "revision": "pinned"}}, "extension": map[string]any{"version": "semantic", "codeDigest": "semantic"}}
 	raw := func(v any) []byte {
@@ -29,7 +29,7 @@ func fixture(t *testing.T, version, code string) []File {
 	for _, f := range files {
 		outputs[f.Path] = digest(f.Data)
 	}
-	files = append(files, File{Path: "manifest.json", Mode: 0o644, Data: raw(map[string]any{"schema": "prufyx.io/extractor-run-manifest/v2", "extractor": ex, "codeFiles": []any{map[string]any{"path": "extract/example.go", "sha256": codeHash}}, "outputs": outputs, "pairs": []any{map[string]any{"proof": map[string]any{"unknown": "keep"}}}, "derivedAt": "2026-11-22T00:00:00Z"})})
+	files = append(files, File{Path: "manifest.json", Mode: 0o644, Data: raw(map[string]any{"schema": "prufyx.io/extractor-run-manifest/v2", "extractor": ex, "codeFiles": []any{map[string]any{"path": "extract/run.go", "sha256": codeHash}}, "outputs": outputs, "pairs": []any{map[string]any{"proof": map[string]any{"unknown": "keep"}}}, "derivedAt": "2026-11-22T00:00:00Z"})})
 	return files
 }
 func bridge(t *testing.T, f []File) Pair {
@@ -64,8 +64,8 @@ func rehash(t *testing.T, files []File) {
 	}
 }
 func TestBridgeTruthfulBuildChangeAndRawReconstruction(t *testing.T) {
-	aFiles := fixture(t, "1.0", "old code")
-	bFiles := fixture(t, "2.0", "new code")
+	aFiles := fixture(t, "1.0.0", "old code")
+	bFiles := fixture(t, "2.0.0", "new code")
 	a, b := bridge(t, aFiles), bridge(t, bFiles)
 	same, e := Equal(a, b)
 	if e != nil || !same {
@@ -96,7 +96,7 @@ func TestDecisionMutationsNeverDisappear(t *testing.T) {
 		{"unknown member", "candidates.json", "kept", "changed"}, {"unknown nested stamp-like member", "candidates.json", "semantic", "changed"}, {"time", "candidates.json", "2026-11-22", "2026-11-23"}, {"validity", "attestations.json", "2026-12-22", "2026-12-23"}, {"source", "candidates.json", "pinned", "other"}, {"array order", "candidates.json", "\"a\",\n              \"b\"", "\"b\",\n              \"a\""}, {"proof", "manifest.json", "keep", "changed"}, {"vectors", "vectors.json", "PASS", "UNKNOWN"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			files := fixture(t, "1", "code")
+			files := fixture(t, "1.0.0", "code")
 			a := bridge(t, files)
 			changed := false
 			for i := range files {
@@ -134,10 +134,10 @@ func TestDecisionMutationsNeverDisappear(t *testing.T) {
 }
 func TestCodeFileClosedShapeAndInventory(t *testing.T) {
 	for _, tt := range []struct{ name, old, new string }{
-		{"extra", "\"sha256\":", "\"extra\":true,\"sha256\":"}, {"unknown nested", "\"sha256\":", "\"extra\":{},\"sha256\":"}, {"duplicate key", "\"sha256\":", "\"path\":\"other\",\"sha256\":"}, {"unsafe path", "extract/example.go", "../example.go"}, {"wrong type", "\"path\": \"extract/example.go\"", "\"path\": {}"},
+		{"extra", "\"sha256\":", "\"extra\":true,\"sha256\":"}, {"unknown nested", "\"sha256\":", "\"extra\":{},\"sha256\":"}, {"duplicate key", "\"sha256\":", "\"path\":\"other\",\"sha256\":"}, {"unsafe path", "extract/run.go", "../run.go"}, {"wrong type", "\"path\": \"extract/run.go\"", "\"path\": {}"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			files := fixture(t, "1", "code")
+			files := fixture(t, "1.0.0", "code")
 			for i := range files {
 				if files[i].Path == "manifest.json" {
 					old := files[i].Data
@@ -154,7 +154,7 @@ func TestCodeFileClosedShapeAndInventory(t *testing.T) {
 	}
 	for _, tt := range []string{"missing", "extra", "duplicate", "mode", "invalid UTF8", "trailing", "schema", "output digest", "record identity"} {
 		t.Run(tt, func(t *testing.T) {
-			f := fixture(t, "1", "code")
+			f := fixture(t, "1.0.0", "code")
 			switch tt {
 			case "missing":
 				f = f[1:]
@@ -183,7 +183,7 @@ func TestCodeFileClosedShapeAndInventory(t *testing.T) {
 	}
 }
 func TestReceiptCannotHideChangedDecisionOrSlot(t *testing.T) {
-	p := bridge(t, fixture(t, "1", "code"))
+	p := bridge(t, fixture(t, "1.0.0", "code"))
 	for _, which := range []string{"original", "offset", "extra slot", "schema", "unknown envelope"} {
 		t.Run(which, func(t *testing.T) {
 			var r Receipt
@@ -221,7 +221,7 @@ func TestDirectoryRefusesLinksAndPairExtras(t *testing.T) {
 	if _, e := ReadDirectory(dir); e == nil {
 		t.Fatal("symlink accepted")
 	}
-	p := bridge(t, fixture(t, "1", "code"))
+	p := bridge(t, fixture(t, "1.0.0", "code"))
 	files, e := p.Files()
 	if e != nil {
 		t.Fatal(e)
@@ -241,5 +241,119 @@ func TestDirectoryRefusesLinksAndPairExtras(t *testing.T) {
 	}
 	if _, e := ReadPair(dir); e == nil {
 		t.Fatal("extra pair file accepted")
+	}
+}
+
+// Rewrite every identity and its hashes together: a refusal must not merely
+// come from an inconsistent manifest/output digest left by the mutation.
+func consistentIdentity(t *testing.T, files []File, id, version string, paths []string) {
+	t.Helper()
+	var manifest map[string]any
+	for _, f := range files {
+		if f.Path == "manifest.json" {
+			if err := json.Unmarshal(f.Data, &manifest); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	hash := manifest["codeFiles"].([]any)[0].(map[string]any)["sha256"].(string)
+	var codeFiles []any
+	var lines strings.Builder
+	for _, path := range paths {
+		codeFiles = append(codeFiles, map[string]any{"path": path, "sha256": hash})
+		lines.WriteString(path + "\x00" + hash + "\n")
+	}
+	identity := map[string]any{"id": id, "version": version, "codeDigest": digest([]byte(lines.String()))}
+	manifest["codeFiles"], manifest["extractor"] = codeFiles, identity
+	for i := range files {
+		var value any
+		switch files[i].Path {
+		case "manifest.json":
+			value = manifest
+		case "candidates.json", "attestations.json":
+			var records []map[string]any
+			if err := json.Unmarshal(files[i].Data, &records); err != nil {
+				t.Fatal(err)
+			}
+			for _, record := range records {
+				holder := record
+				if files[i].Path == "candidates.json" {
+					holder = record["rule"].(map[string]any)
+				}
+				holder["evidence"].(map[string]any)["extractor"] = identity
+			}
+			value = records
+		default:
+			continue
+		}
+		var err error
+		files[i].Data, err = canonical(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	rehash(t, files)
+}
+
+func TestBridgeRefusesConsistentUnsafeOrigins(t *testing.T) {
+	for _, tc := range []struct {
+		name, id, version, errorText string
+		paths                        []string
+	}{
+		{"dotdot", "example", "1.0.0", "codeFile", []string{"..", "extract/run.go"}},
+		{"parent", "example", "1.0.0", "codeFile", []string{"../source.go", "extract/run.go"}},
+		{"unclean", "example", "1.0.0", "codeFile", []string{"extract/../other.go", "extract/run.go"}},
+		{"chart", "example", "1.0.0", "chart producer", []string{"extract/chartrun/run.go", "extract/run.go"}},
+		{"other producer", "example", "1.0.0", "unsupported producer", []string{"other/run.go"}},
+		{"uppercase id", "Upper", "1.0.0", "extractor identity", []string{"extract/run.go"}},
+		{"space id", "bad id", "1.0.0", "extractor identity", []string{"extract/run.go"}},
+		{"short version", "example", "1.0", "extractor identity", []string{"extract/run.go"}},
+		{"prefixed version", "example", "v1.0.0", "extractor identity", []string{"extract/run.go"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			files := fixture(t, "1.0.0", "code")
+			consistentIdentity(t, files, tc.id, tc.version, tc.paths)
+			if _, err := Bridge(files); err == nil || !strings.Contains(err.Error(), tc.errorText) {
+				t.Fatalf("consistent invalid origin accepted or wrong refusal: %v", err)
+			}
+		})
+	}
+}
+
+func addReadPayload(t *testing.T, files []File, size int) []File {
+	t.Helper()
+	name := "reads/" + strings.Repeat("a", 40) + ".tsv"
+	files = append(files, File{Path: name, Mode: 0o644, Data: bytes.Repeat([]byte("x"), size)})
+	rehash(t, files)
+	return files
+}
+
+func TestExpandedPairRoundTripExceedsRawLimit(t *testing.T) {
+	files := addReadPayload(t, fixture(t, "1.0.0", "code"), 30<<20)
+	p := bridge(t, files)
+	wireBytes := len(p.Decision) + len(p.Receipt)
+	if wireBytes <= 64<<20 || wireBytes > 128<<20 {
+		t.Fatalf("expected valid expanded pair between raw and wire budgets: %d", wireBytes)
+	}
+	dir := t.TempDir()
+	for name, data := range map[string][]byte{DecisionFile: p.Decision, ReceiptFile: p.Receipt} {
+		if err := os.WriteFile(filepath.Join(dir, name), data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := ReadPair(dir)
+	if err != nil || !bytes.Equal(got.Decision, p.Decision) || !bytes.Equal(got.Receipt, p.Receipt) {
+		t.Fatalf("writer output cannot round-trip through pair reader: %v", err)
+	}
+	t.Logf("rawPayload=%d encodedPair=%d", 30<<20, wireBytes)
+}
+
+func TestEncodedPairBudgetRefusesBeforePublication(t *testing.T) {
+	// Base64 in both documents expands this otherwise-valid raw input just
+	// beyond the 128 MiB wire boundary once framing and receipts are added.
+	files := addReadPayload(t, fixture(t, "1.0.0", "code"), 48<<20)
+	p, err := Bridge(files)
+	if err == nil || !strings.Contains(err.Error(), "encoded pair size limit") {
+		t.Fatalf("oversized writer output accepted: wire=%d err=%v", len(p.Decision)+len(p.Receipt), err)
 	}
 }

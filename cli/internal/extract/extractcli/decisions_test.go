@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/extract/decision"
@@ -109,5 +110,29 @@ func TestDecisionResultProtocol(t *testing.T) {
 		if got.Left == nil || *got.Left != *hashes(p) || (got.Right != nil) != tt.right {
 			t.Fatalf("digest binding %+v", got)
 		}
+	}
+}
+
+func TestDecisionBridgeRejectsRealChartRun(t *testing.T) {
+	const id, fixture = "helm.values.keda.keda", "../helmvalues/testdata/fixture"
+	root := t.TempDir()
+	legacy := filepath.Join(root, "chart-v1")
+	if code, out, errs := run("run", "--extractor", id, "--fixture", fixture, "--out", legacy, "--derived-at", "2026-10-11T00:00:00Z"); code != 0 {
+		t.Fatalf("real chart fixture failed before bridge: %d %s %s", code, out, errs)
+	}
+	bridged := filepath.Join(root, "bridge")
+	code, out, errs := run("decisions", "--from", legacy, "--out", bridged)
+	if code != 2 || !strings.Contains(errs, "chart producer") {
+		t.Fatalf("unsupported actual chart producer accepted: %d %s %s", code, out, errs)
+	}
+	var result decisionCheck
+	if err := json.Unmarshal([]byte(out), &result); err != nil || result.Result != "INVALID" || result.Left != nil {
+		t.Fatalf("chart refusal result: %s %v", out, err)
+	}
+	if _, err := os.Stat(bridged); !os.IsNotExist(err) {
+		t.Fatal("refused chart bridge published output")
+	}
+	if code, _, _ := run("run", "--extractor", id, "--fixture", fixture, "--out", filepath.Join(root, "chart-v2"), "--derived-at", "2026-10-11T00:00:00Z", "--output-format", "v2"); code != 2 {
+		t.Fatal("chart run-v2 no longer refuses")
 	}
 }

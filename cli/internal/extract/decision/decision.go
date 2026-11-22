@@ -13,6 +13,8 @@ import (
 	"path"
 	"sort"
 	"strings"
+
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
 
 const (
@@ -21,6 +23,7 @@ const (
 	DecisionFile  = "decision-output.json"
 	ReceiptFile   = "execution-receipt.json"
 	maxBytes      = 64 << 20
+	maxPairBytes  = 128 << 20
 	maxFiles      = 10000
 )
 
@@ -63,7 +66,7 @@ func canonical(v any) ([]byte, error) {
 	return append(b, '\n'), nil
 }
 func safePath(s string) bool {
-	return s != "" && s != "." && path.Clean(s) == s && !strings.HasPrefix(s, "/") && !strings.HasPrefix(s, "../") && !strings.ContainsAny(s, "\\\x00\r\n")
+	return s != "" && s != "." && s != ".." && path.Clean(s) == s && !strings.HasPrefix(s, "/") && !strings.HasPrefix(s, "../") && !strings.ContainsAny(s, "\\\x00\r\n")
 }
 func isHex(s string) bool {
 	if len(s) != 64 {
@@ -236,7 +239,13 @@ func Bridge(input []File) (Pair, error) {
 	}
 	rec.DecisionSHA256 = digest(db)
 	rb, e := canonical(rec)
-	return Pair{Decision: db, Receipt: rb}, e
+	if e != nil {
+		return Pair{}, e
+	}
+	if len(db)+len(rb) > maxPairBytes {
+		return Pair{}, errors.New("encoded pair size limit")
+	}
+	return Pair{Decision: db, Receipt: rb}, nil
 }
 func extractor(n *node) ([3]string, error) {
 	var id [3]string
@@ -250,8 +259,8 @@ func extractor(n *node) ([3]string, error) {
 			return id, e
 		}
 	}
-	if !strings.HasPrefix(id[2], "sha256:") || !isHex(strings.TrimPrefix(id[2], "sha256:")) {
-		return id, errors.New("invalid extractor digest")
+	if err := constraintengine.ValidateBasis(constraintengine.BasisMechanical, &constraintengine.Extractor{ID: id[0], Version: id[1], CodeDigest: id[2]}, "2000-01-01T00:00:00Z"); err != nil {
+		return id, fmt.Errorf("invalid extractor identity: %w", err)
 	}
 	return id, nil
 }
@@ -262,6 +271,7 @@ func codeFiles(n *node, want string) error {
 	seen := map[string]bool{}
 	var b strings.Builder
 	last := ""
+	standard := false
 	for _, v := range n.array {
 		if v.object == nil || len(v.object) != 2 {
 			return errors.New("codeFile must contain only path and sha256")
@@ -277,9 +287,18 @@ func codeFiles(n *node, want string) error {
 		if !safePath(p) || seen[p] || p <= last || !isHex(s) {
 			return errors.New("invalid, duplicate or unordered codeFile")
 		}
+		if strings.HasPrefix(p, "extract/chartrun/") {
+			return errors.New("chart producer is unsupported")
+		}
+		if p == "extract/run.go" {
+			standard = true
+		}
 		seen[p] = true
 		last = p
 		b.WriteString(p + "\x00" + s + "\n")
+	}
+	if !standard {
+		return errors.New("unsupported producer: extract/run.go not present")
 	}
 	if digest([]byte(b.String())) != want {
 		return errors.New("codeFiles digest differs from extractor")
@@ -287,7 +306,7 @@ func codeFiles(n *node, want string) error {
 	return nil
 }
 func decodeStrict(raw []byte, out any) error {
-	if len(raw) > 4*maxBytes {
+	if len(raw) > maxPairBytes {
 		return errors.New("pair size limit")
 	}
 	if _, e := parse(raw); e != nil {
@@ -301,6 +320,9 @@ func decodeStrict(raw []byte, out any) error {
 // Reconstruct assembles every original from decisions plus disjoint origin
 // slots, checks full originals, then independently reprojects the exact bytes.
 func Reconstruct(p Pair) ([]File, error) {
+	if len(p.Decision)+len(p.Receipt) > maxPairBytes {
+		return nil, errors.New("encoded pair size limit")
+	}
 	var d Document
 	var r Receipt
 	if e := decodeStrict(p.Decision, &d); e != nil {
