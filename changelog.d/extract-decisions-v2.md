@@ -1,0 +1,1 @@
+Added an opt-in extraction decision format with separate execution receipts, lossless reconstruction of original run files, and strict comparison commands. Existing extraction output remains the default.

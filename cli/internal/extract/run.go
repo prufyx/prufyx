@@ -128,6 +128,8 @@ type Totals struct {
 
 // Output is a complete run result, rendered to files by Files.
 type Output struct {
+	beforeStamp map[string][][]byte
+
 	Entries []Entry
 	// Drafts are the stamped leads (drafts.json). They are never pack
 	// entries and are written only when there is at least one.
@@ -187,7 +189,7 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 	}
 
 	rec := NewRecorder(reader)
-	out := &Output{reads: map[string][]ReadRecord{}}
+	out := &Output{reads: map[string][]ReadRecord{}, beforeStamp: map[string][][]byte{}}
 	m := &out.Manifest
 	*m = Manifest{Schema: ManifestSchema, Extractor: identity, CodeFiles: files, Repo: opts.Repo.Key, DerivedAt: derivedAt, ValidUntil: validUntil, Pairs: []PairRecord{}, Outputs: map[string]string{}}
 	passByRule := map[string][]string{}
@@ -271,7 +273,7 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 				if attests {
 					return nil, fmt.Errorf("pair %s: extractor %s attests lines and may not emit drafts", pair.Key(), ex.ID())
 				}
-				d, err := stampDraft(c, basis, pair, rec, identity)
+				d, err := stampDraft(c, basis, pair, rec, identity, out.capture("drafts.json", "draft"))
 				if err != nil {
 					return nil, fmt.Errorf("pair %s: %w", pair.Key(), err)
 				}
@@ -285,7 +287,7 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 			if err := checkMechanicalCandidate(ex.ID(), mechFamilies, c); err != nil {
 				return nil, fmt.Errorf("pair %s: %w", pair.Key(), err)
 			}
-			entry, err := stamp(c, rec, identity, derivedAt, validUntil)
+			entry, err := stamp(c, rec, identity, derivedAt, validUntil, out.capture("candidates.json", "candidate"))
 			if err != nil {
 				return nil, fmt.Errorf("pair %s: %w", pair.Key(), err)
 			}
@@ -321,7 +323,7 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 				if component != "" && c.Component != component {
 					return nil, fmt.Errorf("pair %s: attestation for component %q, the extractor attests %q", pair.Key(), c.Component, component)
 				}
-				a, err := stampAttestation(c, rec, opts.Repo, tagList, identity, derivedAt, validUntil)
+				a, err := stampAttestation(c, rec, opts.Repo, tagList, identity, derivedAt, validUntil, out.capture("attestations.json", "attestation"))
 				if err != nil {
 					return nil, fmt.Errorf("pair %s: %w", pair.Key(), err)
 				}
@@ -388,7 +390,7 @@ func Run(ctx context.Context, ex Extractor, tags TagSource, reader PinnedReader,
 // stamp turns an extractor candidate into a pack entry with mechanical
 // provenance. Source digests and line counts come from the recorder, so a
 // candidate can only cite bytes the extractor actually read.
-func stamp(c Candidate, rec *Recorder, id constraintengine.Extractor, derivedAt, validUntil string) (Entry, error) {
+func stamp(c Candidate, rec *Recorder, id constraintengine.Extractor, derivedAt, validUntil string, before ...func(any) error) (Entry, error) {
 	if c.Basis != BasisMechanical {
 		return Entry{}, fmt.Errorf("rule %s: only an explicit mechanical Candidate is stamped as a rule", c.Rule.ID)
 	}
@@ -400,13 +402,19 @@ func stamp(c Candidate, rec *Recorder, id constraintengine.Extractor, derivedAt,
 	e := Entry{Project: c.Project, Description: c.Description, RequiredFacts: append([]Fact(nil), c.RequiredFacts...), Rule: RuleJSON{
 		ID: c.Rule.ID, Operator: c.Rule.Operator, Subject: c.Rule.Subject, SetCondition: c.Rule.SetCondition, Range: c.Rule.Range, Condition: c.Rule.Condition,
 		ReasonCode: c.Rule.ReasonCode, NextAction: c.Rule.NextAction,
-		Evidence: Evidence{State: "active", Basis: BasisMechanical, Extractor: id, DerivedAt: derivedAt, ReviewedAt: derivedAt, ValidUntil: validUntil},
+		Evidence: Evidence{State: "active", Basis: BasisMechanical, Extractor: constraintengine.Extractor{ID: id.ID}, DerivedAt: derivedAt, ReviewedAt: derivedAt, ValidUntil: validUntil},
 	}}
 	sources, err := stampSources("rule "+c.Rule.ID, c.Sources, rec)
 	if err != nil {
 		return Entry{}, err
 	}
 	e.Rule.Evidence.Sources = sources
+	for _, emit := range before {
+		if err := emit(e); err != nil {
+			return Entry{}, err
+		}
+	}
+	e.Rule.Evidence.Extractor = id
 	return e, nil
 }
 
@@ -439,8 +447,8 @@ func stampSources(what string, refs []SourceRef, rec *Recorder) ([]constrainteng
 // stampAttestation turns an attestation candidate into a line attestation
 // with mechanical provenance: reviewedAt is derivedAt, the lease is the
 // rules' lease.
-func stampAttestation(c AttestationCandidate, rec *Recorder, repo RepoRef, tags []Tag, id constraintengine.Extractor, derivedAt, validUntil string) (lineattest.LineAttestation, error) {
-	extractor := id
+func stampAttestation(c AttestationCandidate, rec *Recorder, repo RepoRef, tags []Tag, id constraintengine.Extractor, derivedAt, validUntil string, before ...func(any) error) (lineattest.LineAttestation, error) {
+	extractor := constraintengine.Extractor{ID: id.ID}
 	if c.Basis != BasisMechanical {
 		return lineattest.LineAttestation{}, fmt.Errorf("attestation of %s: only an explicit mechanical attestation is stamped", c.Component)
 	}
@@ -483,6 +491,12 @@ func stampAttestation(c AttestationCandidate, rec *Recorder, repo RepoRef, tags 
 			f.Source = stamped[0]
 		}
 	}
+	for _, emit := range before {
+		if err := emit(a); err != nil {
+			return lineattest.LineAttestation{}, err
+		}
+	}
+	extractor = id
 	if err := a.Validate(); err != nil {
 		return lineattest.LineAttestation{}, fmt.Errorf("attestation %s: %w", a.Key(), err)
 	}

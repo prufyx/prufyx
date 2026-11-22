@@ -149,7 +149,7 @@ func sanitizeDraftText(s string, max int) string {
 
 // stampDraft turns a draft or needs_review Candidate into a DraftEntry. It
 // cites only bytes the extractor read (the recorder checks every source).
-func stampDraft(c Candidate, basis string, pair VersionPair, rec *Recorder, id constraintengine.Extractor) (DraftEntry, error) {
+func stampDraft(c Candidate, basis string, pair VersionPair, rec *Recorder, id constraintengine.Extractor, before ...func(any) error) (DraftEntry, error) {
 	if basis != BasisDraft && basis != BasisNeedsReview {
 		return DraftEntry{}, fmt.Errorf("stampDraft: basis %q is not a draft basis", basis)
 	}
@@ -162,7 +162,14 @@ func stampDraft(c Candidate, basis string, pair VersionPair, rec *Recorder, id c
 	if err != nil {
 		return DraftEntry{}, err
 	}
-	return DraftEntry{Draft: true, Basis: basis, Extractor: id, Project: c.Project, From: pair.From, To: pair.To, Reason: reason, Quote: quote, Sources: sources}, nil
+	d := DraftEntry{Draft: true, Basis: basis, Extractor: constraintengine.Extractor{ID: id.ID}, Project: c.Project, From: pair.From, To: pair.To, Reason: reason, Quote: quote, Sources: sources}
+	for _, emit := range before {
+		if err := emit(d); err != nil {
+			return DraftEntry{}, err
+		}
+	}
+	d.Extractor = id
+	return d, nil
 }
 
 // sortDrafts puts drafts in a canonical order.

@@ -147,6 +147,8 @@ func Main(args []string, existingRules []string, now func() time.Time, stdout, s
 	var code int
 	var err error
 	switch args[0] {
+	case "decisions":
+		code, err = cmdDecisions(args[1:], stdout)
 	case "run":
 		code, err = cmdRun(args[1:], existingRules, now, stdout)
 	case "verify":
@@ -245,10 +247,15 @@ func cmdRun(args []string, existing []string, now func() time.Time, stdout io.Wr
 	f.StringVar(&derivedAt, "derived-at", "", "derivation time, RFC 3339 UTC (default now)")
 	var leaseDays int
 	f.IntVar(&leaseDays, "lease-days", 0, "validity window in days, 1-365 (default 90)")
+	var outputFormat string
+	f.StringVar(&outputFormat, "output-format", "v1", "output format: v1 or v2")
 	var wantsOut string
 	f.StringVar(&wantsOut, "wants-out", "", "write the pinned files the mirror does not hold here (exit 3) instead of deriving")
 	if err := f.Parse(args); err != nil || f.NArg() != 0 || c.extractor == "" || c.out == "" {
 		return 2, errors.New("command rejected\n" + usage)
+	}
+	if outputFormat != "v1" && outputFormat != "v2" {
+		return 2, errors.New("unsupported output format")
 	}
 	leaseSet := false
 	f.Visit(func(fl *flag.Flag) { leaseSet = leaseSet || fl.Name == "lease-days" })
@@ -307,6 +314,15 @@ func cmdRun(args []string, existing []string, now func() time.Time, stdout io.Wr
 	files, err := out.Files()
 	if err != nil {
 		return 2, err
+	}
+	if outputFormat == "v2" {
+		if out.Output == nil {
+			return 2, errors.New("v2 output is unsupported for chart extractors")
+		}
+		files, err = out.Output.DecisionFiles()
+		if err != nil {
+			return 2, err
+		}
 	}
 	if err := safefs.WriteTree(c.out, files); err != nil {
 		return 2, err
