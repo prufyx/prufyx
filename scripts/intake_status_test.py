@@ -469,6 +469,38 @@ class Process(unittest.TestCase):
                 logs = "\n".join(c.args[0] for c in printed.call_args_list)
                 self.assertIn("created=0 edited=0 errors=0 same=0 skipped=1", logs)
 
+    def assert_issue_response(self, obj, error):
+        with mock.patch.object(self.api, "request", return_value=(200, obj)) as request, \
+                mock.patch("builtins.print") as printed:
+            self.assertEqual(run_main(raw(feed(self.items)), self.api), int(error))
+            request.assert_called_once_with("GET", "/repos/prufyx/prufyx/issues/3")
+            logs = "\n".join(c.args[0] for c in printed.call_args_list)
+            counts = "errors=1 same=0 skipped=0" if error else "errors=0 same=0 skipped=1"
+            self.assertIn("created=0 edited=0 " + counts, logs)
+            self.assertNotIn(HOSTILE, logs)
+
+    def test_malformed_issue_eligibility_fields_are_errors(self):
+        base = self.api.issues[3]
+        changes = (("user", None), ("user", {}), ("user", {"id": 300}),
+                   ("user", {"type": "User"}), ("user", {"id": True, "type": "User"}),
+                   ("user", {"id": "300", "type": "User"}), ("user", {"id": 300, "type": None}),
+                   ("state", None), ("state", 1), ("locked", None), ("locked", 0),
+                   ("labels", None), ("labels", {}), ("labels", [None]), ("labels", [{}]),
+                   ("labels", [{"name": True}]), ("labels", [{"name": S.LABEL}, {}]))
+        responses = [{**base, key: value} for key, value in changes]
+        responses.extend({k: v for k, v in base.items() if k != key}
+                         for key in ("user", "state", "locked", "labels"))
+        for index, obj in enumerate(responses):
+            with self.subTest(index=index):
+                self.assert_issue_response(obj, error=True)
+
+    def test_valid_ineligible_issue_fields_are_skipped(self):
+        for index, change in enumerate(({"state": "closed"}, {"locked": True}, {"labels": []},
+                                        {"labels": [{"name": "bug"}]}, {"user": {"id": 301, "type": "User"}},
+                                        {"user": {"id": 300, "type": "Bot"}}, {"pull_request": {}})):
+            with self.subTest(index=index):
+                self.assert_issue_response({**self.api.issues[3], **change}, error=False)
+
 
 class Transport(unittest.TestCase):
     def test_api_paths_with_terminal_newlines_are_refused(self):

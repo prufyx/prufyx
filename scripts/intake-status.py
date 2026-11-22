@@ -263,17 +263,21 @@ def check_issue(api, item):
     if (st != 200 or not isinstance(obj, dict)
             or not _is_int(obj.get("number")) or not _is_int(obj.get("id"))):
         raise OSError("issue unreadable")
-    user = obj.get("user")
     if "pull_request" in obj:
         return "is-pull-request"
     if obj["number"] != item["issueNumber"] or obj["id"] != item["issueId"]:
         return "issue-id-mismatch"
-    if not isinstance(user, dict) or not _is_int(user.get("id")) or user.get("id") != item["authorId"] or user.get("type") != "User":
+    user, labels = obj.get("user"), obj.get("labels")
+    if (not isinstance(user, dict) or not _is_int(user.get("id")) or not isinstance(user.get("type"), str)
+            or not isinstance(obj.get("state"), str) or not isinstance(obj.get("locked"), bool)
+            or not isinstance(labels, list)
+            or not all(isinstance(label, dict) and isinstance(label.get("name"), str) for label in labels)):
+        raise OSError("issue unreadable")
+    if user["id"] != item["authorId"] or user["type"] != "User":
         return "author-id-mismatch"
     if obj.get("state") != "open" or obj.get("locked") is not False:
         return "not-open"
-    labels = obj.get("labels")
-    if not isinstance(labels, list) or not any(isinstance(l, dict) and l.get("name") == LABEL for l in labels):
+    if not any(label["name"] == LABEL for label in labels):
         return "no-intake-label"
     return None
 
