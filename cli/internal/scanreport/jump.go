@@ -33,6 +33,10 @@ const JumpScope = "composed from the hops of the stepwise path through the named
 	"a direct skip of a release line, stored versions and conversion, hooks and data migrations, other patch releases of an intermediate line, " +
 	"and a retagged or withdrawn release (not detectable offline) are not evaluated"
 
+// ChangeListPartialScope describes source-bound suffix entries after an
+// unresolved prefix; named identities never establish upgrade ordering.
+const ChangeListPartialScope = "partial listed-entry explanation: unresolved prefix includes unknown release lines and an unreviewed major transition; named suffix identities only bound cited minor entries, not a complete release-line snapshot or required upgrade ordering; compatibility and runtime behavior are not evaluated"
+
 // Jump is the answer for an upgrade of several minor lines, composed from the
 // decided hops of the stepwise path. It is informational: Verdict and Exit
 // never read it.
@@ -199,6 +203,9 @@ func JumpLines(component, from, to string, j Jump) []string {
 	default:
 		out = append(out, fmt.Sprintf(labelJumpUnknown, component, from, to))
 	}
+	if j.Scope == ChangeListPartialScope {
+		out[0] = fmt.Sprintf("%s %s -> %s: %s in a partial listed-entry explanation; unresolved prefix remains UNKNOWN; never a pass", component, from, to, j.Status)
+	}
 	for _, hop := range j.Hops {
 		text := fmt.Sprintf(labelJumpHop, hop.Index, hop.From, hop.To, hop.Status)
 		switch {
@@ -219,7 +226,11 @@ func JumpLines(component, from, to string, j Jump) []string {
 		for _, r := range j.Releases {
 			via = append(via, r.Version+" (commit "+r.Commit+")")
 		}
-		out = append(out, fmt.Sprintf(labelJumpVia, strings.Join(via, ", ")))
+		if j.Scope == ChangeListPartialScope {
+			out = append(out, "  cited suffix identities: "+strings.Join(via, ", ")+"; required stops are not established")
+		} else {
+			out = append(out, fmt.Sprintf(labelJumpVia, strings.Join(via, ", ")))
+		}
 	}
 	if len(j.DecidedBy) > 0 {
 		out = append(out, fmt.Sprintf(labelJumpDecidedBy, joinInts(j.DecidedBy)))

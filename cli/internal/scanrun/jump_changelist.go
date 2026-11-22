@@ -54,7 +54,7 @@ func changeListJump(knowledge Knowledge, now time.Time, report *scanreport.Repor
 	}
 	plan := upgradepath.PlanPath(component, from, to, &upgradepath.PathPolicy{Component: component, Policy: upgradepath.PolicySequentialMinor})
 	if plan.Gap != upgradepath.GapNone || len(plan.Hops) < 1 || plan.Component != component {
-		return scanreport.Path{}, false
+		return changeListMajorSuffix(knowledge, now, report, slug, component, from, to, trust)
 	}
 	previous, ok := endpointLine(plan.Hops[0].From)
 	if !ok {
