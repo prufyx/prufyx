@@ -260,12 +260,13 @@ def check_issue(api, item):
     st, obj = api.request("GET", "/repos/%s/issues/%d" % (REPO, item["issueNumber"]))
     if st == 404:
         return "issue-unreadable"
-    if st != 200 or not isinstance(obj, dict):
+    if (st != 200 or not isinstance(obj, dict)
+            or not _is_int(obj.get("number")) or not _is_int(obj.get("id"))):
         raise OSError("issue unreadable")
     user = obj.get("user")
     if "pull_request" in obj:
         return "is-pull-request"
-    if obj.get("number") != item["issueNumber"] or not _is_int(obj.get("id")) or obj.get("id") != item["issueId"]:
+    if obj["number"] != item["issueNumber"] or obj["id"] != item["issueId"]:
         return "issue-id-mismatch"
     if not isinstance(user, dict) or not _is_int(user.get("id")) or user.get("id") != item["authorId"] or user.get("type") != "User":
         return "author-id-mismatch"

@@ -444,9 +444,30 @@ class Process(unittest.TestCase):
             self.assertNotIn(HOSTILE, logs)
 
     def test_malformed_issue_response_is_an_error(self):
-        with mock.patch.object(self.api, "request", return_value=(200, [])) as request:
-            self.assertEqual(run_main(raw(feed(self.items)), self.api), 1)
-            request.assert_called_once_with("GET", "/repos/prufyx/prufyx/issues/3")
+        responses = [[], {}, {"number": 3}, {"id": 30}]
+        for key in ("number", "id"):
+            for value in (None, True, "3", 3.0):
+                obj = copy.deepcopy(self.api.issues[3])
+                obj[key] = value
+                responses.append(obj)
+        for index, obj in enumerate(responses):
+            with self.subTest(index=index), mock.patch.object(self.api, "request", return_value=(200, obj)) as request, \
+                    mock.patch("builtins.print") as printed:
+                self.assertEqual(run_main(raw(feed(self.items)), self.api), 1)
+                request.assert_called_once_with("GET", "/repos/prufyx/prufyx/issues/3")
+                logs = "\n".join(c.args[0] for c in printed.call_args_list)
+                self.assertIn("created=0 edited=0 errors=1 same=0 skipped=0", logs)
+
+    def test_different_issue_identity_is_skipped(self):
+        for key, value in (("number", 4), ("id", 31)):
+            obj = copy.deepcopy(self.api.issues[3])
+            obj[key] = value
+            with self.subTest(key=key), mock.patch.object(self.api, "request", return_value=(200, obj)) as request, \
+                    mock.patch("builtins.print") as printed:
+                self.assertEqual(run_main(raw(feed(self.items)), self.api), 0)
+                request.assert_called_once_with("GET", "/repos/prufyx/prufyx/issues/3")
+                logs = "\n".join(c.args[0] for c in printed.call_args_list)
+                self.assertIn("created=0 edited=0 errors=0 same=0 skipped=1", logs)
 
 
 class Transport(unittest.TestCase):
