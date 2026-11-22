@@ -26,7 +26,7 @@ var changeListFamilies = []string{lineattest.FamilyChangelogListedEntries, linea
 // entry.
 const changeListSourcePrefix = "changelog-"
 
-// changeListJump returns the path of a multi-minor upgrade of a component of
+// changeListJump returns the path of a minor-line upgrade of a component of
 // the change-list families, with its jump, or false. The component is
 // otherwise not covered: this only adds the per-hop table. A hop is never
 // PASS: it is ATTENTION when a valid current record of its line cites change
@@ -53,7 +53,7 @@ func changeListJump(knowledge Knowledge, now time.Time, report *scanreport.Repor
 		return scanreport.Path{}, false
 	}
 	plan := upgradepath.PlanPath(component, from, to, &upgradepath.PathPolicy{Component: component, Policy: upgradepath.PolicySequentialMinor})
-	if plan.Gap != upgradepath.GapNone || len(plan.Hops) < 2 || plan.Component != component {
+	if plan.Gap != upgradepath.GapNone || len(plan.Hops) < 1 || plan.Component != component {
 		return scanreport.Path{}, false
 	}
 	previous, ok := endpointLine(plan.Hops[0].From)

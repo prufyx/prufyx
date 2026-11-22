@@ -78,7 +78,12 @@ table and from nothing else:
 What the record means: the list is in the pack. It is not a verdict. The
 coverage report marks such a pair with `changelog: true` (status stays `G`),
 counts it in the changelog row only, and never in A, B or decided. The answer a
-user gets is a list to read, never a pass; no scan reads the family yet.
+user gets is a list to read, never a pass. For an adjacent minor-line hop or
+a multi-hop path, scan and plan show `ATTENTION` for each hop with a valid,
+current, admitted record that lists releases in the hop, and cite those change
+lists. Missing records remain
+undecided, and a major-version crossing is not satisfied by these records.
+The overall verdict and exit code remain unchanged.
 
 ## Reviewed target table
 

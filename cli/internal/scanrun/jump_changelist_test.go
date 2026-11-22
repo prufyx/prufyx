@@ -96,6 +96,48 @@ func requireClUnchanged(t *testing.T, result Result) {
 	}
 }
 
+func TestChangeListSingleHopAttention(t *testing.T) {
+	r35, r36 := clRecords()
+	k := clKnowledge{Knowledge: newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"}), index: lineattest.NewIndex([]lineattest.LineAttestation{r35, r36})}
+	_, paths := files(t, map[string]string{"cm.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: m}\n"})
+	result := mustScan(t, k, args(paths, "--from", "etcd=3.5.0", "--to", "etcd=3.6.0")...)
+	requireClUnchanged(t, result)
+	_, jump := clJump(t, result.Report)
+	if jump == nil || jump.Status != scanreport.JumpAttention || len(jump.Hops) != 1 || jump.Hops[0].Status != scanreport.JumpHopAttention || len(jump.Hops[0].Entries) != 1 {
+		t.Fatalf("single hop: %+v", jump)
+	}
+	want := "record changelog.listed_entries " + clComponent + " line 3.6, https://github.com/etcd-io/etcd/blob/" + clCommit("3.6.0") + "/CHANGELOG/CHANGELOG-3.6.md, commit " + clCommit("3.6.0") + ", digest sha256:" + strings.Repeat("0", 63) + "1, lines 10-20"
+	if !strings.Contains(jump.Hops[0].Entries[0], want) {
+		t.Fatalf("citation: %s", jump.Hops[0].Entries[0])
+	}
+}
+
+func TestChangeListSingleHopBoundaries(t *testing.T) {
+	r41 := clRecord(lineattest.FamilyChangelogListedEntries, "4.1", []string{"4.0.0", "4.0.1"}, []string{"4.1.0", "4.1.1"})
+	k := clKnowledge{Knowledge: newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"}), index: lineattest.NewIndex([]lineattest.LineAttestation{r41})}
+	_, paths := files(t, map[string]string{"cm.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: m}\n"})
+	for _, tc := range []struct{ from, to, status string }{
+		{"4.0.0", "4.1.0", scanreport.JumpHopAttention},
+		{"3.5.0", "3.6.0", scanreport.JumpHopUndecided},
+		{"3.6.1", "4.0.0", scanreport.JumpHopUndecided},
+	} {
+		t.Run(tc.from+"-"+tc.to, func(t *testing.T) {
+			result := mustScan(t, k, args(paths, "--from", "etcd="+tc.from, "--to", "etcd="+tc.to)...)
+			requireClUnchanged(t, result)
+			_, jump := clJump(t, result.Report)
+			if jump == nil || len(jump.Hops) != 1 || jump.Hops[0].Status != tc.status {
+				t.Fatalf("jump: %+v", jump)
+			}
+			if tc.status == scanreport.JumpHopAttention && (jump.Status != scanreport.JumpAttention || len(jump.Hops[0].Entries) != 1) {
+				t.Fatalf("jump: %+v", jump)
+			}
+			if tc.status == scanreport.JumpHopUndecided && (jump.Status != scanreport.JumpUnknown || len(jump.Hops[0].Entries) != 0) {
+				t.Fatalf("jump: %+v", jump)
+			}
+		})
+	}
+}
+
 func TestChangeListJumpAttention(t *testing.T) {
 	t.Parallel()
 	r35, r36 := clRecords()
@@ -251,14 +293,13 @@ func TestChangeListJumpVerdictAndExitUnchanged(t *testing.T) {
 	}
 }
 
-// A hop of one line, or of adjacent lines, and a custom-resource component
-// get no change-list jump.
+// A hop within one line and a custom-resource component get no change-list jump.
 func TestChangeListJumpNotForOtherUpgrades(t *testing.T) {
 	t.Parallel()
 	r35, r36 := clRecords()
 	k := clKnowledge{Knowledge: newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current"}), index: lineattest.NewIndex([]lineattest.LineAttestation{r35, r36})}
 	_, paths := files(t, map[string]string{"cm.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata: {name: m}\n"})
-	for _, versions := range [][2]string{{"3.5.0", "3.6.0"}, {"3.5.0", "3.5.1"}} {
+	for _, versions := range [][2]string{{"3.5.0", "3.5.1"}} {
 		result := mustScan(t, k, args(paths, "--from", "etcd="+versions[0], "--to", "etcd="+versions[1])...)
 		// The undecided single hop is the not-covered path of any component;
 		// it carries no change-list entries or attestation.
