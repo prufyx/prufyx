@@ -294,7 +294,7 @@ func BuildWithUnknown(report scanreport.Report, latest []string, unknown []Unkno
 			route.Jump = &jump
 		}
 		for i, hop := range path.Hops {
-			if i < len(path.Hops)-1 {
+			if i < len(path.Hops)-1 && (path.Jump == nil || path.Jump.Scope != scanreport.ChangeListPartialScope) {
 				route.Stops = append(route.Stops, hop.To.String())
 			}
 		}

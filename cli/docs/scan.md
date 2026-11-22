@@ -448,6 +448,9 @@ but its hop is not decided.
 The jump (`paths[].jump` in JSON) lists every hop with its own status, never
 one bare answer:
 
+For change-list components, a source-bound minor suffix after an unresolved
+major prefix has explicitly partial scope; see [cited major-upgrade suffixes](change-list-major.md).
+
 | Hop status | Meaning |
 | --- | --- |
 | `BLOCKED` | A rule that blocks the hop, with its sources (as a finding). |
