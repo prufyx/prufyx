@@ -3,6 +3,7 @@
 package scanrun
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -56,7 +57,34 @@ func TestJumpAcceptanceShapes(t *testing.T) {
 		if !crdbatchids.Shipped() {
 			t.Skip("the embedded knowledge holds no custom-resource rule yet")
 		}
-		result := crdScan(t, newKnowledge(t, knowledgeOptions{}), []string{kyvernoUpdateRequestV1beta1}, "--from", "kyverno=1.14.5", "--to", "kyverno=1.16.0", "--resource-scope-complete")
+		scanAt := func(t *testing.T, at string) Result {
+			t.Helper()
+			_, paths := files(t, map[string]string{"request.yaml": kyvernoUpdateRequestV1beta1})
+			return mustScan(t, newKnowledge(t, knowledgeOptions{}), append(paths, "--now", at, "--from", "kyverno=1.14.5", "--to", "kyverno=1.16.0", "--resource-scope-complete")...)
+		}
+		const ruleID = "kyverno.crd-version-removal.updaterequests-kyverno-io.1-15-0-to-1-16-0"
+		var reviewed, derived, until time.Time
+		for _, raw := range packRules(t) {
+			var rule struct {
+				ID       string                                                `json:"id"`
+				Evidence struct{ ReviewedAt, DerivedAt, ValidUntil time.Time } `json:"evidence"`
+			}
+			if err := json.Unmarshal(raw, &rule); err != nil {
+				t.Fatal(err)
+			}
+			if rule.ID == ruleID {
+				reviewed, derived, until = rule.Evidence.ReviewedAt, rule.Evidence.DerivedAt, rule.Evidence.ValidUntil
+				break
+			}
+		}
+		start := reviewed
+		if derived.After(start) {
+			start = derived
+		}
+		if reviewed.IsZero() || derived.IsZero() || !start.Before(until) {
+			t.Fatalf("invalid evidence interval: %v %v %v", reviewed, derived, until)
+		}
+		result := scanAt(t, start.Format(time.RFC3339))
 		var path scanreport.Path
 		for _, p := range result.Report.Paths {
 			if p.Component == "kyverno" {
@@ -71,6 +99,22 @@ func TestJumpAcceptanceShapes(t *testing.T) {
 		}
 		if len(result.Report.Findings) != 1 || result.Report.Findings[0].Hop.Index != 2 || len(result.Report.Findings[0].Citations) == 0 {
 			t.Fatalf("findings %+v", result.Report.Findings)
+		}
+		for _, at := range []string{reviewed.Add(-time.Second).Format(time.RFC3339), until.Format(time.RFC3339)} {
+			t.Run(at, func(t *testing.T) {
+				result := scanAt(t, at)
+				var path scanreport.Path
+				for _, p := range result.Report.Paths {
+					if p.Component == "kyverno" {
+						path = p
+					}
+				}
+				requireNeverBare(t, "kyverno outside evidence window", path.Jump, 2)
+				hop := path.Jump.Hops[1]
+				if result.Exit != 11 || path.Jump.Status != scanreport.JumpUnknown || hop.Status != scanreport.JumpHopUndecided || !contains(hop.Reasons, "EVIDENCE_EXPIRED") || len(result.Report.Findings) != 0 {
+					t.Fatalf("at %s: exit %d jump %+v findings %+v", at, result.Exit, path.Jump, result.Report.Findings)
+				}
+			})
 		}
 	})
 	t.Run("an application jump with an undecided hop is UNKNOWN with the table", func(t *testing.T) {
