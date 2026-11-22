@@ -1158,13 +1158,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-10-28T06:10:52Z",
+          "derivedAt": "2026-11-22T07:42:28Z",
           "extractor": {
-            "codeDigest": "sha256:82611e957f5828752600540eb0bceda3cafb7c88f6b26ea5b236ab49d8b42290",
+            "codeDigest": "sha256:e7dc98ed612fefc0dd2ed2beec53dfdeca7864c9f9204a759c3d686142113167",
             "id": "crd.version-removal.cilium",
-            "version": "2.7.0"
+            "version": "2.16.0"
           },
-          "reviewedAt": "2026-10-28T06:10:52Z",
+          "reviewedAt": "2026-11-22T07:42:28Z",
           "sources": [
             {
               "contentDigest": "sha256:c7e3558ed06e8d87ce75a007bd3b0f0fb2c28080a6c52ee9184f6d3b887f1aff",
@@ -1184,10 +1184,10 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-26T06:10:52Z"
+          "validUntil": "2027-02-06T07:42:28Z"
         },
         "id": "cilium.crd-version-removal.ciliumnodeconfigs-cilium-io.1-19-0-to-1-20-0",
-        "nextAction": "change apiVersion of CiliumNodeConfig to cilium.io/v2 before upgrading to 1.20.0",
+        "nextAction": "migrate CiliumNodeConfig manifests/clients to cilium.io/v2; for managed objects, follow supported controller migration or investigate before upgrade to 1.20.0",
         "operator": "forbid_set_member",
         "reasonCode": "CRD_VERSION_NOT_SERVED",
         "setCondition": {
@@ -23877,12 +23877,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.cilium",
-          "version": "2.7.0",
-          "codeDigest": "sha256:82611e957f5828752600540eb0bceda3cafb7c88f6b26ea5b236ab49d8b42290"
+          "version": "2.16.0",
+          "codeDigest": "sha256:e7dc98ed612fefc0dd2ed2beec53dfdeca7864c9f9204a759c3d686142113167"
         },
-        "derivedAt": "2026-10-28T06:10:52Z",
-        "reviewedAt": "2026-10-28T06:10:52Z",
-        "validUntil": "2027-01-26T06:10:52Z",
+        "derivedAt": "2026-11-22T07:42:28Z",
+        "reviewedAt": "2026-11-22T07:42:28Z",
+        "validUntil": "2027-02-06T07:42:28Z",
         "sources": [
           {
             "id": "crds-1-15-0",
@@ -24075,12 +24075,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.cilium",
-          "version": "2.7.0",
-          "codeDigest": "sha256:82611e957f5828752600540eb0bceda3cafb7c88f6b26ea5b236ab49d8b42290"
+          "version": "2.16.0",
+          "codeDigest": "sha256:e7dc98ed612fefc0dd2ed2beec53dfdeca7864c9f9204a759c3d686142113167"
         },
-        "derivedAt": "2026-10-28T06:10:52Z",
-        "reviewedAt": "2026-10-28T06:10:52Z",
-        "validUntil": "2027-01-26T06:10:52Z",
+        "derivedAt": "2026-11-22T07:42:28Z",
+        "reviewedAt": "2026-11-22T07:42:28Z",
+        "validUntil": "2027-02-06T07:42:28Z",
         "sources": [
           {
             "id": "crds-1-16-0",
