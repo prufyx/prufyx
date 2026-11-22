@@ -77,13 +77,17 @@ func TestGatePathsDefaultList(t *testing.T) {
 		"cli/internal/maintainer/targetdraft/classify.go", "cli/cmd/prufyx-maintainer/gate.go",
 		"cli/go.mod", "cli/go.sum", "go.mod", "go.sum", "testdata/synthetic-cluster-scenarios/v4/go.mod", "testdata/x/y/go.sum",
 		"cli/vendor/golang.org/x/text/a.go", ".github/actions/setup/action.yml", "action.yml", "sub/dir/action.yaml",
+		"cli/internal/cncfcheck/data/cncf-subprojects.json", "cli/internal/cncfcheck/subprojects.go",
+		"cli/internal/cncfcheck/subprojects_test.go", "cli/cmd/prufyx-maintainer/subprojects_test.go",
+		"cli/cmd/prufyx-maintainer/subprojects.go", "cli/internal/maintainer/knowledgepacket/classify.go",
 		"scripts/readme-coverage.sh", "scripts/publish-verify.sh", "scripts/action/run.sh", "scripts/brand-new.sh",
 	} {
 		if !l.gatePath(p) {
 			t.Errorf("%s is not a gate path", p)
 		}
 	}
-	for _, p := range []string{"README.md", "cli/knowledge/approvals/cncf/x.json", ".github/ISSUE_TEMPLATE/a.md", ".github/workflowsx", "scriptsx/a.sh", "cli/gomod", "docs/action.md"} {
+	for _, p := range []string{"README.md", "cli/knowledge/approvals/cncf/x.json", ".github/ISSUE_TEMPLATE/a.md", ".github/workflowsx", "scriptsx/a.sh", "cli/gomod", "docs/action.md",
+		"cli/internal/cncfcheck/data/landscape-projects.json", "cli/internal/cncfcheck/data/cncf-subprojects.json.bak"} {
 		if l.gatePath(p) {
 			t.Errorf("%s is a gate path", p)
 		}
@@ -105,6 +109,8 @@ func TestGatePathsNeedOwnerApproval(t *testing.T) {
 		"scripts/merge-policy-queue.sh", ".github/CODEOWNERS", "cli/internal/maintainer/knowledgegate/gate.go",
 		"cli/go.mod", "cli/go.sum", "testdata/synthetic-cluster-scenarios/v4/go.mod", ".github/actions/setup/action.yml",
 		"action.yml", "scripts/readme-coverage.sh", "scripts/not-listed-before.sh", "cli/vendor/modules.txt",
+		"cli/internal/cncfcheck/data/cncf-subprojects.json", "cli/cmd/prufyx-maintainer/subprojects.go",
+		"cli/internal/cncfcheck/subprojects.go", "cli/internal/cncfcheck/subprojects_test.go",
 	} {
 		t.Run(file, func(t *testing.T) {
 			f := newGatePathFixture(t, file)

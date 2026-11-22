@@ -1,0 +1,73 @@
+{
+  "schema": "prufyx.io/cncf-subprojects/v1",
+  "rows": [
+    {
+      "slug": "argo-workflows",
+      "name": "Argo Workflows",
+      "repositoryURL": "https://github.com/argoproj/argo-workflows",
+      "parent": "argo-cd",
+      "governance": {
+        "url": "https://raw.githubusercontent.com/argoproj/argoproj/6a5737d01413e953831398ff298dc98ebc29cff3/README.md",
+        "commit": "6a5737d01413e953831398ff298dc98ebc29cff3",
+        "file": "README.md",
+        "line": 8,
+        "lineEnd": 10,
+        "lineSha256": "abb58eff8ed05bcd37f49aad683774e45d32747687f7a164336532c9ea9387cd",
+        "entryMarker": "* [Argo Workflows](https://github.com/argoproj/argo-workflows) - Container-native Workflow Engine",
+        "sourceKind": "readme"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "source": "https://raw.githubusercontent.com/argoproj/argo-workflows/e651c727ae02dcbf955ec1269fb9d64ed94e4918/LICENSE",
+        "blobSha": "67e99b065bcd6ac93d93c8fe8e0a72c6296a5614"
+      },
+      "licenseCommit": "e651c727ae02dcbf955ec1269fb9d64ed94e4918"
+    },
+    {
+      "slug": "cluster-autoscaler",
+      "name": "Cluster Autoscaler",
+      "repositoryURL": "https://github.com/kubernetes/autoscaler",
+      "repoPath": "cluster-autoscaler",
+      "parent": "kubernetes",
+      "governance": {
+        "url": "https://raw.githubusercontent.com/kubernetes/community/e5a0e974e6a15c8f2099eaa65b4529e94a281815/sigs.yaml",
+        "commit": "e5a0e974e6a15c8f2099eaa65b4529e94a281815",
+        "file": "sigs.yaml",
+        "line": 777,
+        "lineEnd": 780,
+        "lineSha256": "5f2a3ba7e358f09d5be3d874e32a452dc53299e76a8580c64e8313f8e136f976",
+        "entryMarker": "- name: cluster-autoscaler",
+        "sourceKind": "governance"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "source": "https://raw.githubusercontent.com/kubernetes/autoscaler/63cccd2e708e75b3b92aa96c822725d4b4684f82/LICENSE",
+        "blobSha": "d645695673349e3947e8e5ae42332d0ac3164cd7"
+      },
+      "licenseCommit": "63cccd2e708e75b3b92aa96c822725d4b4684f82"
+    },
+    {
+      "slug": "external-dns",
+      "name": "ExternalDNS",
+      "repositoryURL": "https://github.com/kubernetes-sigs/external-dns",
+      "parent": "kubernetes",
+      "governance": {
+        "url": "https://raw.githubusercontent.com/kubernetes/community/e5a0e974e6a15c8f2099eaa65b4529e94a281815/sigs.yaml",
+        "commit": "e5a0e974e6a15c8f2099eaa65b4529e94a281815",
+        "file": "sigs.yaml",
+        "line": 2440,
+        "lineEnd": 2444,
+        "lineSha256": "d2161c435ff0167e690c35ab01b4d4b13ed759267f32bef142ec79ca3cfa1def",
+        "entryMarker": "- name: external-dns",
+        "sourceKind": "governance"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "source": "https://raw.githubusercontent.com/kubernetes-sigs/external-dns/fcb24158b0af22c32299d8123eadece67f82df84/LICENSE.md",
+        "blobSha": "8dada3edaf50dbc082c9a125058f25def75e625a"
+      },
+      "licenseCommit": "fcb24158b0af22c32299d8123eadece67f82df84"
+    }
+  ],
+  "rowsDigest": "sha256:d2f37f315ac5b0f925ba08cc1cc5e8482bfdd3b7300621c848c6498f2f7dc14c"
+}
