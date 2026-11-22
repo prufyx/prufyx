@@ -311,9 +311,24 @@ type APIFetcher interface {
 type GitHubAPIFetcher struct {
 	// Token is an optional GitHub token. Empty means unauthenticated.
 	Token string
+	// OnRefusal optionally observes minimized 403/429 response metadata.
+	OnRefusal func(HTTPRefusal)
 }
 
 func (f GitHubAPIFetcher) Fetch(ctx context.Context, path string) ([]byte, int, error) {
+	client := &http.Client{
+		Timeout:       20 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+		Transport: &http.Transport{
+			Proxy: nil, DisableCompression: true, DisableKeepAlives: true,
+			MaxResponseHeaderBytes: 16 << 10,
+			TLSClientConfig:        &tls.Config{ServerName: "api.github.com", MinVersion: tls.VersionTLS12},
+		},
+	}
+	return f.fetch(ctx, path, client)
+}
+
+func (f GitHubAPIFetcher) fetch(ctx context.Context, path string, client *http.Client) ([]byte, int, error) {
 	if !strings.HasPrefix(path, "/") || strings.ContainsAny(path, "#\\") {
 		return nil, 0, errRejected
 	}
@@ -328,20 +343,14 @@ func (f GitHubAPIFetcher) Fetch(ctx context.Context, path string) ([]byte, int, 
 	if f.Token != "" {
 		request.Header.Set("Authorization", "Bearer "+f.Token)
 	}
-	client := &http.Client{
-		Timeout:       20 * time.Second,
-		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
-		Transport: &http.Transport{
-			Proxy: nil, DisableCompression: true, DisableKeepAlives: true,
-			MaxResponseHeaderBytes: 16 << 10,
-			TLSClientConfig:        &tls.Config{ServerName: "api.github.com", MinVersion: tls.VersionTLS12},
-		},
-	}
 	response, err := client.Do(request)
 	if err != nil {
 		return nil, 0, fmt.Errorf("%w: transport: %v", errRejected, err)
 	}
 	defer response.Body.Close()
+	if f.OnRefusal != nil && (response.StatusCode == 403 || response.StatusCode == 429) {
+		f.OnRefusal(parseHTTPRefusal(response.StatusCode, response.Header))
+	}
 	data, err := io.ReadAll(io.LimitReader(response.Body, maxAPIBytes+1))
 	if err != nil || int64(len(data)) > maxAPIBytes {
 		return nil, 0, errRejected
