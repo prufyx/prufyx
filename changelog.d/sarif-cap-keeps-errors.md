@@ -1,1 +1,3 @@
-SARIF output no longer drops a BLOCKED result at the result cap: results are kept by severity (errors, then warnings, then notes), and the run properties list how many results were omitted per level.
+### Fixed
+
+- SARIF result limits keep errors before warnings and notes, preserving their report order and counting omitted results by level.
