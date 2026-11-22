@@ -151,10 +151,93 @@ func TestChangeListMajorSuffixSubsequentJoin(t *testing.T) {
 	}
 }
 
+func TestChangeListMajorSuffixNonfinalRecords(t *testing.T) {
+	base, err := LoadEmbedded()
+	if err != nil {
+		t.Fatal(err)
+	}
+	now, _ := time.Parse(time.RFC3339, "2026-11-22T08:05:00Z")
+	// The prerelease parser admits only major 1, and release-list ordering
+	// rejects every multi-entry list containing a prerelease. Use singleton
+	// nonfinal sides: To retains the final H4 join; From is defensive refusal.
+	first := clRecord(lineattest.FamilyChangelogListedEntries, "1.1", []string{"1.0.0"}, []string{"1.1.0"})
+	for _, side := range []string{"from", "to"} {
+		t.Run(side, func(t *testing.T) {
+			from, to := []string{"1.1.0"}, []string{"1.2.0"}
+			if side == "from" {
+				from = []string{"1.1.0-rc.1"}
+			} else {
+				to = []string{"1.2.0-rc.1"}
+			}
+			second := clRecord(lineattest.FamilyChangelogListedEntries, "1.2", from, to)
+			if err := second.Validate(); err != nil {
+				t.Fatalf("fixture must otherwise validate: %v", err)
+			}
+			k := clKnowledge{Knowledge: base, index: lineattest.NewIndex([]lineattest.LineAttestation{first, second})}
+			var report scanreport.Report
+			if path, ok := changeListJump(k, now, &report, clSlug, clComponent, "0.4.0", "1.2.0", cncfcheck.DefaultTrustPolicy()); ok {
+				t.Fatalf("nonfinal record expanded: %+v", path)
+			}
+			if len(report.Gaps) != 0 {
+				t.Fatalf("refusal leaked partial gaps: %+v", report.Gaps)
+			}
+			requireMajorSuffixFallbackFor(t, k, now, "0.4.0", "1.2.0")
+		})
+	}
+}
+
+func TestChangeListMajorSuffixDigestBindsAnchor(t *testing.T) {
+	base, err := LoadEmbedded()
+	if err != nil {
+		t.Fatal(err)
+	}
+	now, _ := time.Parse(time.RFC3339, "2026-11-22T08:05:00Z")
+	var original *scanreport.Jump
+	seen := map[string]bool{}
+	for _, anchor := range []lineattest.Release{{Version: "4.0.0", Commit: clCommit("4.0.0")}, {Version: "4.0.0", Commit: strings.Repeat("e", 40)}, {Version: "4.0.1", Commit: clCommit("4.0.0")}} {
+		record := clRecord(lineattest.FamilyChangelogListedEntries, "4.1", []string{"4.0.0"}, []string{"4.1.0"})
+		record.Releases.From[0] = anchor
+		if err := record.Validate(); err != nil {
+			t.Fatalf("fixture must otherwise validate: %v", err)
+		}
+		k := clKnowledge{Knowledge: base, index: lineattest.NewIndex([]lineattest.LineAttestation{record})}
+		var report scanreport.Report
+		path, ok := changeListJump(k, now, &report, clSlug, clComponent, "3.4.0", "4.1.0", cncfcheck.DefaultTrustPolicy())
+		if !ok || path.Jump == nil || len(path.Jump.Releases) != 1 || path.Jump.Releases[0].Version != anchor.Version || path.Jump.Releases[0].Commit != anchor.Commit {
+			t.Fatalf("anchor not preserved: %+v", path)
+		}
+		jump := path.Jump
+		if seen[jump.ObjectSetDigest] {
+			t.Fatalf("different anchor retained digest %s", jump.ObjectSetDigest)
+		}
+		seen[jump.ObjectSetDigest] = true
+		for _, hop := range jump.Hops {
+			if hop.ObjectSetDigest != jump.ObjectSetDigest {
+				t.Fatalf("hop digest not rebound: %+v", hop)
+			}
+		}
+		if status, _ := scanreport.ComposeJump(jump.Hops, jump.ObjectSetDigest); status != scanreport.JumpAttention {
+			t.Fatalf("new set not composable: %s", status)
+		}
+		if original != nil {
+			if status, _ := scanreport.ComposeJump(original.Hops, jump.ObjectSetDigest); status != scanreport.JumpUnknown {
+				t.Fatalf("old hops counted against new anchor: %s", status)
+			}
+		} else {
+			original = jump
+		}
+	}
+}
+
 func requireMajorSuffixFallback(t *testing.T, knowledge Knowledge, now time.Time) {
 	t.Helper()
+	requireMajorSuffixFallbackFor(t, knowledge, now, "3.4.0", "4.2.0")
+}
+
+func requireMajorSuffixFallbackFor(t *testing.T, knowledge Knowledge, now time.Time, from, to string) {
+	t.Helper()
 	_, paths := files(t, map[string]string{"input.yaml": templatedConfigMap})
-	request, err := ParseArgs(append(paths, "--from", clSlug+"=3.4.0", "--to", clSlug+"=4.2.0", "--now", now.Format(time.RFC3339)))
+	request, err := ParseArgs(append(paths, "--from", clSlug+"="+from, "--to", clSlug+"="+to, "--now", now.Format(time.RFC3339)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +249,7 @@ func requireMajorSuffixFallback(t *testing.T, knowledge Knowledge, now time.Time
 		t.Fatalf("fallback result=%+v", result)
 	}
 	path := result.Report.Paths[0]
-	if path.From != "3.4.0" || path.To != "4.2.0" || path.Jump == nil || path.Jump.Status != scanreport.JumpUnknown || len(path.Jump.Releases) != 0 || len(path.Jump.Hops) != 1 || len(path.Jump.Hops[0].Entries) != 0 || len(path.Jump.Missing) != 1 || path.Jump.Missing[0].Evidence == "" || path.Jump.Missing[0].Action == "" {
+	if path.From != from || path.To != to || path.Jump == nil || path.Jump.Status != scanreport.JumpUnknown || len(path.Jump.Releases) != 0 || len(path.Jump.Hops) != 1 || len(path.Jump.Hops[0].Entries) != 0 || len(path.Jump.Missing) != 1 || path.Jump.Missing[0].Evidence == "" || path.Jump.Missing[0].Action == "" {
 		t.Fatalf("false cited fallback: %+v", path)
 	}
 	for _, format := range []string{"human", "json", "markdown", "csv", "sarif"} {

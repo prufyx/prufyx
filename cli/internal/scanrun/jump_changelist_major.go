@@ -3,6 +3,8 @@
 package scanrun
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
 	"strconv"
 	"strings"
@@ -89,6 +91,9 @@ func changeListMajorSuffix(knowledge Knowledge, now time.Time, report *scanrepor
 					return scanreport.Path{}, false
 				}
 				for _, release := range append(append([]lineattest.Release{}, a.Releases.From...), a.Releases.To...) {
+					if constraintengine.PreRelease(release.Version) {
+						return scanreport.Path{}, false
+					}
 					if old, ok := commits[release.Version]; ok && old != release.Commit {
 						return scanreport.Path{}, false
 					}
@@ -117,11 +122,16 @@ func changeListMajorSuffix(knowledge Knowledge, now time.Time, report *scanrepor
 	// Jump.Scope, without adding result kinds or changing notification caps.
 	lineGap.Detail = lineGap.Reason + ": " + lineGap.Detail + "; scope: " + scanreport.ChangeListPartialScope
 	majorGap.Detail = majorGap.Reason + ": " + majorGap.Detail + "; scope: " + scanreport.ChangeListPartialScope
+	// Bind the partial explanation to its exact first anchor as well as the
+	// existing suffix record set. Validated versions and commits contain no NUL.
+	digest := sha256.Sum256([]byte("prufyx.change-list-major-suffix.v1\x00" + path.Jump.ObjectSetDigest + "\x00" + anchor.Version + "\x00" + anchor.Commit))
+	setDigest := "sha256:" + hex.EncodeToString(digest[:])
 	for i := range path.Hops {
 		path.Hops[i].Index++
 	}
 	for i := range path.Jump.Hops {
 		path.Jump.Hops[i].Index++
+		path.Jump.Hops[i].ObjectSetDigest = setDigest
 	}
 	for i := range suffixReport.Gaps {
 		if suffixReport.Gaps[i].Hop != nil {
@@ -130,7 +140,7 @@ func changeListMajorSuffix(knowledge Knowledge, now time.Time, report *scanrepor
 	}
 	reasons := []string{lineGap.Reason, majorGap.Reason}
 	path.Hops = append([]scanreport.Hop{{Index: 1, From: scanreport.Endpoint{Version: from}, To: scanreport.Endpoint{Version: anchor.Version}, Status: scanreport.HopNoData, Reasons: reasons}}, path.Hops...)
-	jumpHops := append([]scanreport.JumpHop{{Index: 1, From: from, To: anchor.Version, Status: scanreport.JumpHopUndecided, ObjectSetDigest: path.Jump.ObjectSetDigest, Reasons: reasons}}, path.Jump.Hops...)
+	jumpHops := append([]scanreport.JumpHop{{Index: 1, From: from, To: anchor.Version, Status: scanreport.JumpHopUndecided, ObjectSetDigest: setDigest, Reasons: reasons}}, path.Jump.Hops...)
 	actions := map[int]string{1: lineGap.Action + "; " + majorGap.Action}
 	for _, gap := range suffixReport.Gaps {
 		if gap.Hop != nil {
@@ -138,7 +148,7 @@ func changeListMajorSuffix(knowledge Knowledge, now time.Time, report *scanrepor
 		}
 	}
 	releases := append([]scanreport.JumpRelease{{Line: major + ".0", Version: anchor.Version, Commit: anchor.Commit}}, path.Jump.Releases...)
-	jump := scanreport.NewJump(jumpHops, path.Jump.ObjectSetDigest, releases, actions)
+	jump := scanreport.NewJump(jumpHops, setDigest, releases, actions)
 	jump.Scope = scanreport.ChangeListPartialScope
 	path.From, path.Jump = from, &jump
 	// A policy used inside the minor suffix does not review the major prefix.
