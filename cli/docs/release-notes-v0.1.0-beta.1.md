@@ -24,17 +24,17 @@ that a whole upgrade is safe.
 
 <!-- release-notes:begin -->
 
-Changes from `v0.1.0-beta.0` (70f67cac4a3b) to `v0.1.0-beta.1` (912f60db50dd), computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.
+Changes from `v0.1.0-beta.0` (70f67cac4a3b) to `v0.1.0-beta.1` (8083627d9d62), computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.
 
 ### Summary
 
 | Measure | v0.1.0-beta.0 | v0.1.0-beta.1 | Change |
 | --- | --- | --- | --- |
 | Projects catalogued with retained public sources | 58 | 58 | 0 |
-|   of them source-only, no check | 11 | 11 | 0 |
-| Projects with at least one executable check | 67 | 68 | +1 |
-| CNCF source rules, active | 252 | 253 | +1 |
-| CNCF projects with a rule | 53 | 54 | +1 |
+|   of them source-only, no check | 11 | 10 | -1 |
+| Projects with at least one executable check | 67 | 69 | +2 |
+| CNCF source rules, active | 252 | 257 | +5 |
+| CNCF projects with a rule | 53 | 55 | +2 |
 | Rules for non-CNCF projects | 42 | 51 | +9 |
 | Non-CNCF projects with a rule | 10 | 10 | 0 |
 | Line attestations | 104 | 371 | +267 |
@@ -53,7 +53,7 @@ The figures for `v0.1.0-beta.0` in this section are approximate: that release ha
 
 ### Coverage since the previous release
 
-previous = tag `v0.1.0-beta.0`, commit 70f67cac4a3b, counts sha256 `db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3`; current counts sha256 `87636bc52136d7c57effda1a1ec55b7f3e28aed1d8ff2fffba6fed43f1b500ce`.
+previous = tag `v0.1.0-beta.0`, commit 70f67cac4a3b, counts sha256 `db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3`; current counts sha256 `a0189b3344afc40fb5addb448001425eff05c989aa3606e258f53c5f60f32ee1`.
 
 The counts carry the number of valid rules per project, not rule ids, so rules added are the per-project change of that number.
 
@@ -147,9 +147,9 @@ In projects present in both releases: upgrade pairs added 0, removed 0, decided 
 
 - `openyurt` (OpenYurt): executable check
 
-### Catalogued projects that gained their first executable check (0)
+### Catalogued projects that gained their first executable check (1)
 
-None.
+- `kubevela` (KubeVela)
 
 ### Onboarding batches (0 approved, 0 project entries)
 
@@ -159,10 +159,11 @@ No onboarding batch was added.
 
 No project was added or removed.
 
-### Rules by project (10 added, 0 removed)
+### Rules by project (14 added, 0 removed)
 
 | Catalogue | Project | Added | Removed | Rules now |
 | --- | --- | --- | --- | --- |
+| CNCF | `kubevela` | 4 | 0 | 4 |
 | CNCF | `openyurt` | 1 | 0 | 1 |
 | community-project | `mariadb-operator` | 9 | 0 | 10 |
 
@@ -247,12 +248,14 @@ Versions listed in line attestations; not an upgrade verdict.
 - `submariner-io/submariner`: 11 newly covered versions: 0.22.0, 0.22.1, 0.22.2, 0.23.1, 0.23.2, 0.23.3, 0.23.4, 0.24.0, 0.24.1, 0.24.2, 0.25.0
 - `theupdateframework/python-tuf`: 23 newly covered versions: 0.11.0, 0.11.1, 0.12.0, 0.12.1, 0.12.2, 0.13.0, 0.14.0, 0.15.0, 0.16.0, 0.17.0, 0.18.0, 0.18.1, 0.19.0, 0.20.0, 1.0.0, 1.1.0, 2.0.0, 2.1.0, 3.0.0, 3.1.0, 3.1.1, 5.0.0, 5.1.0
 
-### Re-derived line attestations (4)
+### Re-derived line attestations (6)
 
 - `cert-manager/cert-manager`: lines 1.20, 1.21; extractor 2.7.0 -> 2.16.0
+- `cilium/cilium`: lines 1.16, 1.17; extractor 2.7.0 -> 2.16.0
 - `dapr/dapr`: lines 1.14, 1.15, 1.16, 1.17, 1.18, 1.19; extractor 2.7.0 -> 2.8.0
 - `kubeswift-io/kubeswift`: lines 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.10, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.20, 0.21; extractor 2.7.0 -> 2.16.0
 - `openkruise/kruise`: lines 1.8, 1.9; extractor 2.7.0 -> 2.15.0
+- `tektoncd/pipeline`: lines 1.13, 1.14, 1.15, 1.16, 1.17, 1.18; extractor 2.7.0 -> 2.16.0
 
 ### Kubernetes minors
 
