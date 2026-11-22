@@ -306,7 +306,7 @@ func SARIF(report Report) ([]byte, error) {
 	rules, index := sarifRules(report)
 	results, dropped := sarifResults(report, index)
 	results, dropped = appendGapResults(report, index, results, dropped)
-	results, dropped = sarifCustomResourceResults(report, index, results, dropped)
+	results, _ = sarifCustomResourceResults(report, index, results, dropped)
 	results, omitted := capByLevel(results)
 	dropped = 0
 	for _, n := range omitted {
