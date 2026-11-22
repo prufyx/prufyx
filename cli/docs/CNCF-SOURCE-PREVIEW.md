@@ -157,6 +157,15 @@ paths are discarded. This is an operator-declared local witness only: it does
 not execute etcd, inspect a cluster, evaluate config precedence, or prove data
 migration, quorum, runtime, or whole-upgrade compatibility.
 
+The source rule for the eight removed v2/proxy options covers declared etcd
+3.5.x to 3.6.x transitions, following the versioned 3.6 upgrade policy. Generic
+`check cncf --project etcd --input FILE` declarations can supply the existing
+`component.etcd.removed_v2_proxy_flags_present` boolean for that range. This
+does not extend the preparation adapter's documented version pair or resolve
+wrappers and indirect argument sources. The separate requirement to update
+members to 3.5.32 or later and the storage migration checks still need review;
+this named-options constraint does not establish whole-upgrade compatibility.
+
 For a private source file and declaration output:
 
 ```sh

@@ -2,12 +2,12 @@
   "schema": "prufyx.io/coverage-readme-counts/v2",
   "report": {
     "schema": "prufyx.io/coverage-report/v1",
-    "now": "2026-11-21T07:35:25Z",
+    "now": "2026-11-22T20:46:53Z",
     "window": 6,
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
-      "digest": "sha256:18f59e0fb09214bf7204dc1d02b33ed50c02b109651b2906efdaea68f436f9a8"
+      "digest": "sha256:b0fc71fc4214d1f185d832f20c72c4f013a41078f0b1d1a971a6cf458878cd88"
     },
     "lines": {
       "capturedOn": "2026-10-31",
@@ -19,7 +19,7 @@
       "entries": 9,
       "clockOn": "2026-11-10"
     },
-    "clockAttestedAt": "2026-11-21T07:35:25Z",
+    "clockAttestedAt": "2026-11-22T20:46:53Z",
     "packProjectsCovered": 73,
     "crdVersionProjects": 87,
     "crdPublishedProjects": 42,
@@ -27,32 +27,32 @@
       "projects": 79,
       "pairs": 395,
       "a": 97,
-      "b": 3,
-      "s": 39,
+      "b": 4,
+      "s": 38,
       "g": 256,
       "listedChangelog": 18,
       "c1": 63,
       "c3": 20,
       "c5": 14,
-      "vcPairs": 0.2532,
-      "vcMean": 0.2532,
-      "sPairs": 0.0987,
+      "vcPairs": 0.2557,
+      "vcMean": 0.2557,
+      "sPairs": 0.0962,
       "rulesInWindow": 155
     },
     "priorityProjects": {
       "projects": 30,
       "pairs": 150,
       "a": 37,
-      "b": 2,
-      "s": 22,
+      "b": 3,
+      "s": 21,
       "g": 89,
       "listedChangelog": 9,
       "c1": 29,
       "c3": 8,
       "c5": 5,
-      "vcPairs": 0.26,
-      "vcMean": 0.26,
-      "sPairs": 0.1467,
+      "vcPairs": 0.2667,
+      "vcMean": 0.2667,
+      "sPairs": 0.14,
       "rulesInWindow": 112
     },
     "communityCatalog": {
@@ -80,6 +80,11 @@
         "family": "kubernetes.removed_served_gvk",
         "a": 5,
         "b": 0
+      },
+      {
+        "family": "other",
+        "a": 0,
+        "b": 1
       }
     ],
     "projects": [
@@ -1858,7 +1863,10 @@
           {
             "from": "3.5",
             "to": "3.6",
-            "status": "S",
+            "status": "B",
+            "families": [
+              "other"
+            ],
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
@@ -1887,10 +1895,10 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 2,
+        "b": 1,
+        "s": 1,
         "g": 3,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 10,
@@ -6313,9 +6321,9 @@
         "project": "etcd",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 2,
+        "s": 1,
         "l": 0,
         "g": 3,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -7044,9 +7052,9 @@
       "projects": 79,
       "pairs": 395,
       "projectsWithAnswer": 54,
-      "ab": 95,
+      "ab": 96,
       "k8s": 5,
-      "s": 39,
+      "s": 38,
       "l": 18,
       "g": 238
     },
@@ -7061,5 +7069,5 @@
       "g": 41
     }
   },
-  "readmeBlockSha256": "1be35f914f1abeffc944e5d02712720aba18e39ee5eb325491774160a11e9018"
+  "readmeBlockSha256": "6c5642403231de9e0db64b1ed174123e2c702f42894b111fb4b8672d38269c05"
 }

@@ -324,7 +324,7 @@ community projects that hold CRD knowledge.
 ## Coverage
 
 <!-- coverage:begin -->
-Generated on 2026-11-21 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the date clock of the block is 2026-11-10 (the later of the snapshot's evaluation date and every capture date). The block is evaluated at 2026-11-21T07:35:25Z, the time of the newest line attestation or rule review, which is later than the date clock above.
+Generated on 2026-11-22 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the date clock of the block is 2026-11-10 (the later of the snapshot's evaluation date and every capture date). The block is evaluated at 2026-11-22T20:46:53Z, the time of the newest line attestation or rule review, which is later than the date clock above.
 
 | Executable rules | Count |
 | --- | --- |
@@ -370,7 +370,7 @@ Projects with an answer of any form (A/B, k8s served-API, S or L): 54 of 79 in t
 | elasticsearch | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
 | emissary-ingress | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
 | envoy | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
-| etcd | release-line fleet | 5 | 0 | 0 | 2 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
+| etcd | release-line fleet | 5 | 1 | 0 | 1 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
 | external-dns | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
 | external-secrets | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
 | falco | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
@@ -486,7 +486,7 @@ Velero and others.
 Every rule in the CNCF and community-project packs is time-limited.
 
 <!-- validity-window:begin -->
-The 304 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-02-12 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 199 of the 304 stop being valid on or before 2026-12-12, in the 6 days starting on the earliest.
+The 304 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-02-20 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 198 of the 304 stop being valid on or before 2026-12-12, in the 6 days starting on the earliest.
 <!-- validity-window:end -->
 
 The named cert-manager and Prometheus checks are pinned to

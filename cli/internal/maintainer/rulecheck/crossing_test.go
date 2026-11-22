@@ -101,7 +101,10 @@ func TestRulecheckCrossingGate(t *testing.T) {
 		"infinite horizon: wildcard":      {func(_ *testing.T, e map[string]any) { sub(e, "horizon")["lt"] = "*" }, "open-ended horizon is rejected", true},
 		"infinite horizon: pre-release":   {func(_ *testing.T, e map[string]any) { sub(e, "horizon")["lt"] = "99.0.0-rc.1" }, "open-ended horizon is rejected", true},
 		"horizon 999.0.0":                 {func(_ *testing.T, e map[string]any) { sub(e, "horizon")["lt"] = "999.0.0" }, "at most 12 minor lines", true},
-		"horizon in the next major line":  {func(_ *testing.T, e map[string]any) { sub(e, "horizon")["lt"] = "2.0.0" }, "at most 12 minor lines", true},
+		"horizon in the next major line": {func(t *testing.T, e map[string]any) {
+			major, _ := minorOf(t, e)
+			sub(e, "horizon")["lt"] = fmt.Sprintf("%d.0.0", major+1)
+		}, "at most 12 minor lines", true},
 		"horizon past the limit": {func(t *testing.T, e map[string]any) {
 			sub(e, "horizon")["lt"] = minorAbove(t, e, 13)
 		}, "at most 12 minor lines", true},

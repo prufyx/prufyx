@@ -152,6 +152,13 @@ func TestPrepareEtcdLatestExperimentalFlagPair(t *testing.T) {
 }
 
 func TestPrepareEtcdLatestAllExactOriginsAndHopPrecedence(t *testing.T) {
+	removedRuleIDs := map[string]string{
+		"3.6.14": "etcd.experimental-flags-unsupported.3-6-14-to-3-7-1",
+		"3.5.33": "etcd.experimental-flags-unsupported.3-5-33-to-3-7-1",
+		"3.4.45": "etcd.experimental-flags-unsupported.3-4-45-to-3-7-1",
+		"3.3.27": "etcd.experimental-flags-unsupported.3-3-27-to-3-7-1",
+		"3.2.32": "etcd.experimental-flags-unsupported.3-2-32-to-3-7-1",
+	}
 	for _, from := range []string{"3.6.14", "3.5.33", "3.4.45", "3.3.27", "3.2.32"} {
 		t.Run(from+"/removed", func(t *testing.T) {
 			prepared, err := PrepareEtcd(etcdArguments(t, true, "--name=node", "--experimental-compact-hash-check-enabled=true"), from, EtcdLatestTo)
@@ -162,10 +169,22 @@ func TestPrepareEtcdLatestAllExactOriginsAndHopPrecedence(t *testing.T) {
 			if err != nil || len(report.Check.Claims) == 0 {
 				t.Fatalf("report=%+v err=%v", report, err)
 			}
+			sawRemoval, sawV2Boundary := false, false
 			for _, claim := range report.Check.Claims {
+				if claim.RuleID == "etcd.v2-proxy-flags-removed.3-6" {
+					if from == "3.6.14" || claim.Status != "UNKNOWN" || claim.ReasonCode != "RULE_RELEASE_BOUNDARY_NOT_REVIEWED" {
+						t.Fatalf("boundary claim=%+v", claim)
+					}
+					sawV2Boundary = true
+					continue
+				}
 				if claim.Status != "BLOCKED" {
 					t.Fatalf("claim=%+v", claim)
 				}
+				sawRemoval = sawRemoval || claim.RuleID == removedRuleIDs[from]
+			}
+			if !sawRemoval || sawV2Boundary != (from != "3.6.14") {
+				t.Fatalf("removal=%v boundary=%v claims=%+v", sawRemoval, sawV2Boundary, report.Check.Claims)
 			}
 		})
 		t.Run(from+"/replacement", func(t *testing.T) {

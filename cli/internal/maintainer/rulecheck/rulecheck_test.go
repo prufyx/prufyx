@@ -326,35 +326,29 @@ func releaseBoundaryRange(body map[string]any) bool {
 	return false
 }
 
-// firstRangedEntry returns the first entry in the cncfcheck pack that
-// carries a release-boundary rule.range, so tests exercise a genuine range rather than a
-// hand-built approximation. Once the shipped ranged rules are all mechanical
-// (which a community contribution cannot be), the first is returned as the
-// reviewed rule it would be if a person had written it: the mechanical
-// derivation members removed.
+// firstRangedEntry uses a stable published 1.21-to-1.22 release-boundary
+// fixture, independent of pack ordering. Mechanical derivation members are
+// removed so community-range tests exercise a manually reviewed contribution.
 func firstRangedEntry(t *testing.T) map[string]any {
 	t.Helper()
-	var mechanical map[string]any
+	const fixtureID = "kubernetes.served-api-removal.admissionregistration-k8s-io-v1beta1.1-21-0-to-1-22-0"
 	for _, entry := range realEntries(t, filepath.Join("..", "..", "cncfcheck", "data", "rules.json")) {
-		if !releaseBoundaryRange(rule(entry)) {
+		if rule(entry)["id"] != fixtureID {
 			continue
 		}
-		evidence, _ := rule(entry)["evidence"].(map[string]any)
-		if evidence["basis"] != "mechanical" {
-			return clone(t, entry)
+		fixture := clone(t, entry)
+		subject := rule(fixture)["subject"].(map[string]any)
+		if !releaseBoundaryRange(rule(fixture)) || subject["from"] != "1.21.0" || subject["to"] != "1.22.0" {
+			t.Fatalf("range fixture %s no longer has the required 1.21-to-1.22 boundary", fixtureID)
 		}
-		if mechanical == nil {
-			mechanical = clone(t, entry)
-		}
+		evidence := rule(fixture)["evidence"].(map[string]any)
+		delete(evidence, "basis")
+		delete(evidence, "extractor")
+		delete(evidence, "derivedAt")
+		return fixture
 	}
-	if mechanical == nil {
-		t.Fatal("cncfcheck rules.json has no entry with a range")
-	}
-	evidence := rule(mechanical)["evidence"].(map[string]any)
-	delete(evidence, "basis")
-	delete(evidence, "extractor")
-	delete(evidence, "derivedAt")
-	return mechanical
+	t.Fatalf("cncfcheck rules.json is missing range fixture %s", fixtureID)
+	return nil
 }
 
 // A community contribution may carry a range only in the validated

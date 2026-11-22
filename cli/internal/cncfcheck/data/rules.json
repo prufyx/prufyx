@@ -5301,9 +5301,17 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-09T01:45:37Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-22T20:46:53Z",
+          "validUntil": "2027-02-20T20:46:53Z",
           "sources": [
+            {
+              "id": "etcd-3-6-series-removal-policy",
+              "url": "https://github.com/etcd-io/website/blob/e60635a46b57b7d74ca80c52c59aa0d37bed01a8/content/en/docs/v3.6/upgrades/upgrade_3_6.md",
+              "revision": "e60635a46b57b7d74ca80c52c59aa0d37bed01a8",
+              "contentDigest": "sha256:4a00c6df573001ff0dbd8c5988e38b4930759020a425bc0164e06328201489f2",
+              "startLine": 1,
+              "endLine": 107
+            },
             {
               "contentDigest": "sha256:be26b5ae5bdc89450da840ca42621f0dac915be749b0c63932f353ac112b05ed",
               "endLine": 220,
@@ -5331,7 +5339,39 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Remove the documented v2/proxy flags from the proposed effective arguments; plan storage and quorum migration separately."
+        "nextAction": "Remove the documented v2/proxy flags from the proposed effective arguments; plan storage and quorum migration separately.",
+        "range": {
+          "from": {
+            "gte": "3.5.0",
+            "lt": "3.6.0"
+          },
+          "to": {
+            "gte": "3.6.0",
+            "lt": "3.7.0"
+          },
+          "bounds": [
+            {
+              "bound": "from.gte",
+              "basis": "UPGRADE_FROM_SERIES",
+              "sourceId": "etcd-3-6-series-removal-policy"
+            },
+            {
+              "bound": "from.lt",
+              "basis": "REMOVED_IN_RELEASE",
+              "sourceId": "etcd-3-6-series-removal-policy"
+            },
+            {
+              "bound": "to.gte",
+              "basis": "REMOVED_IN_RELEASE",
+              "sourceId": "etcd-3-6-series-removal-policy"
+            },
+            {
+              "bound": "to.lt",
+              "basis": "TARGET_SERIES",
+              "sourceId": "etcd-3-6-series-removal-policy"
+            }
+          ]
+        }
       }
     },
     {
