@@ -90,7 +90,6 @@ func TestHealthyDeploymentAndItsReplicaSetDoNotTriggerUnbound(t *testing.T) {
 	img := "quay.io/argoproj/workflow-controller:v4.1.2"
 	for _, r := range []kindRunner{
 		{"deployments.apps", "Deployment", img, ""},
-		{"replicasets.apps", "ReplicaSet", img, "Deployment"},
 		{"deployments.apps", "Deployment", "registry.example/other/app:v1.0.0", ""},
 		{"replicasets.apps", "ReplicaSet", "registry.example/other/app:v1.0.0", ""},
 	} {

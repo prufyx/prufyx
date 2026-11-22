@@ -74,9 +74,9 @@ func TestOwnerMustBeControllerWithExactAPIVersion(t *testing.T) {
 			t.Fatalf("%s: omissions=%q", name, got)
 		}
 	}
-	// The legitimate chain stays exempt.
-	if got := collectOmissions(t, rs(owner("Deployment", "apps/v1", true)), true); strings.Contains(got, OmissionComponentVersionUnbound) {
-		t.Fatalf("controller-owned ReplicaSet: unexpected %q", got)
+	// A valid owner reference alone does not prove its image was represented.
+	if got := collectOmissions(t, rs(owner("Deployment", "apps/v1", true)), true); !strings.Contains(got, OmissionComponentVersionUnbound) {
+		t.Fatalf("unread Deployment: omissions=%q", got)
 	}
 }
 
@@ -117,6 +117,37 @@ func TestInjectedSidecarInOwnedPodIsNotAbsent(t *testing.T) {
 	pod := map[string]any{"kind": "Pod", "metadata": podMeta(), "spec": map[string]any{"containers": ctr(presenceImage)}}
 	if got := collectOmissions(t, multiRunner{"pods": pod}, true); strings.Count(got, OmissionComponentVersionUnbound) != 1 {
 		t.Fatalf("unread owner: omissions=%q", got)
+	}
+}
+
+func TestOwnedReplicaSetRolloutDoesNotHideUnrepresentedImage(t *testing.T) {
+	for _, components := range []bool{false, true} {
+		for _, parent := range []string{"different image", "missing parent", "matching image"} {
+			t.Run(parent+"/components="+map[bool]string{false: "off", true: "on"}[components], func(t *testing.T) {
+				dep := deployment(map[string]any{"containers": ctr("registry.example/other/app:v1.0.0")})
+				dep["metadata"] = map[string]any{"name": "dep", "namespace": "ns"}
+				if parent == "matching image" {
+					dep["spec"] = map[string]any{"template": map[string]any{"spec": map[string]any{"containers": ctr(presenceImage)}}}
+				}
+				rs := map[string]any{"kind": "ReplicaSet", "metadata": map[string]any{
+					"name": "rs", "namespace": "ns", "ownerReferences": []any{
+						map[string]any{"kind": "Deployment", "apiVersion": "apps/v1", "name": "dep", "controller": true}}},
+					"spec": map[string]any{"template": map[string]any{"spec": map[string]any{"containers": ctr(presenceImage)}}}}
+				pod := map[string]any{"kind": "Pod", "metadata": map[string]any{
+					"name": "pod", "namespace": "ns", "ownerReferences": []any{
+						map[string]any{"kind": "ReplicaSet", "apiVersion": "apps/v1", "name": "rs", "controller": true}}},
+					"spec": map[string]any{"containers": ctr(presenceImage)}}
+				r := multiRunner{"deployments.apps": dep, "replicasets.apps": rs, "pods": pod}
+				if parent == "missing parent" {
+					delete(r, "deployments.apps")
+				}
+				got := collectOmissions(t, r, components)
+				unbound := strings.Contains(got, OmissionComponentVersionUnbound)
+				if want := parent != "matching image"; unbound != want {
+					t.Fatalf("unbound=%v want %v: omissions=%q", unbound, want, got)
+				}
+			})
+		}
 	}
 }
 
