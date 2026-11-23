@@ -115,7 +115,7 @@ def _changed_keys(a, b):
     return [k for k in set(a) | set(b) if (_canon(a[k]) if k in a else None) != (_canon(b[k]) if k in b else None)]
 
 
-def aggregate_projects(path, old_raw, new_raw, slugs, rules_pair=None, trusted=None):
+def aggregate_projects(path, old_raw, new_raw, slugs, rules_pair=None, trusted=None, untargeted=None):
     """Projects whose entries differ between old and new aggregate data file; raises Unattributable (=> full)."""
     old, new = _load(old_raw), _load(new_raw)
     _need(isinstance(old, dict) and isinstance(new, dict) and set(old) == set(new), "top-level shape differs")
@@ -167,10 +167,12 @@ def aggregate_projects(path, old_raw, new_raw, slugs, rules_pair=None, trusted=N
         _need(all(isinstance(c, str) for c in oc + nc) and len(set(oc)) == len(oc) and len(set(nc)) == len(nc), "components shape")
         for c in set(oc) ^ set(nc):
             found |= _attribute(c, cmap, known, trusted)
+    if untargeted is not None:
+        untargeted.update(found - set(slugs))
     return found & set(slugs)
 
 
-def approval_projects(path, new_raw, rules_pair, slugs):
+def approval_projects(path, new_raw, rules_pair, slugs, untargeted=None):
     """Project of one added/updated community approval record, via the rule id it names; raises Unattributable (=> full)."""
     _need(new_raw is not None, "approval absent at head")
     doc = _load(new_raw)
@@ -186,12 +188,15 @@ def approval_projects(path, new_raw, rules_pair, slugs):
         if e is not None:
             found.add(e["project"])
     _need(found, "approval names no known project")
+    if untargeted is not None:
+        untargeted.update(found - set(slugs))
     return found & set(slugs)  # a rule project without a crd target has nothing to run, like aggregate rule changes
 
 
 def selection(changed, slugs, reader=None, trusted=None):
     """reader(path) -> (base_bytes|None, head_bytes|None); without one, aggregate data files stay full."""
     projects, reasons, full, db = set(), [], False, False
+    untargeted, renewal = set(), False
     DBRE = re.compile(r"^cli/(internal/)?(knowledge|[a-z]*db[a-z]*)")
     for p in changed:
         if not p:
@@ -203,12 +208,16 @@ def selection(changed, slugs, reader=None, trusted=None):
             projects.add(m.group(1)); reasons.append("target " + m.group(1)); continue
         if re.search(r"coveragereport/testdata/lines-.*\.json$", p) or re.search(r"(^|/)(knowledge|data)/", p):
             hit = [s for s in slugs if s in p]
+            if p.startswith("cli/knowledge/approvals/") and not APPROVAL.fullmatch(p):
+                full = True; reasons.append("approval path outside the community pattern " + p); continue
+            if APPROVAL.fullmatch(p) or p in (PRULES, PATTEST):
+                renewal = True  # the deterministic renewal check must run and be present (qa_batch_scope.validate)
             if APPROVAL.fullmatch(p):
                 if reader is None:
                     full = True; reasons.append("approval, no diff objects " + p); continue
                 try:
                     r_old, r_new = reader(PRULES)
-                    got = approval_projects(p, reader(p)[1], (_load(r_old), _load(r_new)), slugs)
+                    got = approval_projects(p, reader(p)[1], (_load(r_old), _load(r_new)), slugs, untargeted)
                 except (Unattributable, OSError, ValueError, KeyError, TypeError, AttributeError, subprocess.SubprocessError) as e:
                     full = True; reasons.append("approval unattributable (%s) %s" % (e, p)); continue
                 projects.update(got); reasons.append("approval %s -> %s" % (p, sorted(got))); continue
@@ -223,7 +232,7 @@ def selection(changed, slugs, reader=None, trusted=None):
                         pair = (_load(r_old), _load(r_new))
                         if p == PATTEST:  # a digest moves only with the rule set it digests
                             _need(_canon(pair[0]) != _canon(pair[1]), "attestation digest without a rule change")
-                    got = aggregate_projects(p, old, new, slugs, pair, trusted)
+                    got = aggregate_projects(p, old, new, slugs, pair, trusted, untargeted)
                 except (Unattributable, OSError, ValueError, KeyError, TypeError, AttributeError, subprocess.SubprocessError) as e:
                     full = True; reasons.append("data aggregate unattributable (%s) %s" % (e, p)); continue
                 projects.update(got); reasons.append("data aggregate %s -> %s" % (p, sorted(got))); continue
@@ -239,7 +248,9 @@ def selection(changed, slugs, reader=None, trusted=None):
         if p.startswith("cli/") or p.startswith("scripts/qa-auto/"):
             full = True; reasons.append("code/tooling " + p)
     mode = "full" if full else ("incremental" if projects else "none")
-    return {"mode": mode, "projects": sorted(projects), "relevant": mode != "none", "db": db, "reasons": reasons[:20]}
+    if untargeted:
+        reasons.insert(0, "attributed projects without a crd target (no crd/k8s case): " + ", ".join(sorted(untargeted)))
+    return {"renewal_check": renewal, "mode": mode, "projects": sorted(projects), "relevant": mode != "none", "db": db, "reasons": reasons[:20]}
 
 
 if __name__ == "__main__":
