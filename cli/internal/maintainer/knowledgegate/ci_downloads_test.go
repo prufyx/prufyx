@@ -50,7 +50,7 @@ func ciDownloadProblems(raw []byte) []string {
 					sawGitleaksInstall = true
 				}
 			}
-			if strings.TrimSpace(st.Run) == "gitleaks dir ." {
+			if strings.TrimSpace(st.Run) == "gitleaks dir . --config .gitleaks.toml" {
 				sawScan = true
 				if ciSoftFail(st.ContinueOnError) {
 					problems = append(problems, jobID+": the secret scan is soft-fail")
@@ -90,22 +90,24 @@ func TestCIDownloadGuardRejectsWeakening(t *testing.T) {
 	curl := "curl " + flags + " -o gitleaks_x.tgz https://example.invalid/x"
 	verify := `echo "${D}  gitleaks_x.tgz" | sha256sum -c -`
 	extract := "tar -xzf gitleaks_x.tgz gitleaks"
-	if got := ciDownloadProblems(build(curl, verify, extract, "gitleaks dir .", "")); len(got) != 0 {
+	if got := ciDownloadProblems(build(curl, verify, extract, "gitleaks dir . --config .gitleaks.toml", "")); len(got) != 0 {
 		t.Fatalf("good shape rejected: %v", got)
 	}
 	cases := map[string][]byte{
-		"curl without --fail":   build(strings.Replace(curl, "--fail ", "", 1), verify, extract, "gitleaks dir .", ""),
-		"curl -sSLO form":       build("curl -sSLO https://example.invalid/x", verify, extract, "gitleaks dir .", ""),
-		"no retry":              build(strings.Replace(curl, "--retry-all-errors ", "", 1), verify, extract, "gitleaks dir .", ""),
-		"no max-time":           build(strings.Replace(curl, "--max-time 180", "", 1), verify, extract, "gitleaks dir .", ""),
-		"no digest check":       build(curl, "true", extract, "gitleaks dir .", ""),
-		"extract before verify": build(curl, extract, verify, "gitleaks dir .", ""),
+		"curl without --fail":   build(strings.Replace(curl, "--fail ", "", 1), verify, extract, "gitleaks dir . --config .gitleaks.toml", ""),
+		"curl -sSLO form":       build("curl -sSLO https://example.invalid/x", verify, extract, "gitleaks dir . --config .gitleaks.toml", ""),
+		"no retry":              build(strings.Replace(curl, "--retry-all-errors ", "", 1), verify, extract, "gitleaks dir . --config .gitleaks.toml", ""),
+		"no max-time":           build(strings.Replace(curl, "--max-time 180", "", 1), verify, extract, "gitleaks dir . --config .gitleaks.toml", ""),
+		"no digest check":       build(curl, "true", extract, "gitleaks dir . --config .gitleaks.toml", ""),
+		"extract before verify": build(curl, extract, verify, "gitleaks dir . --config .gitleaks.toml", ""),
+		"scan config missing":   build(curl, verify, extract, "gitleaks dir .", ""),
+		"scan config wrong":     build(curl, verify, extract, "gitleaks dir . --config other.toml", ""),
 		"scan step removed":     build(curl, verify, extract, "true", ""),
-		"scan step soft-fail":   build(curl, verify, extract, "gitleaks dir .", ""),
+		"scan step soft-fail":   build(curl, verify, extract, "gitleaks dir . --config .gitleaks.toml", ""),
 		"scan job soft-fail":    nil,
 	}
-	cases["scan step soft-fail"] = []byte(strings.Replace(string(build(curl, verify, extract, "gitleaks dir .", "")), "      - run: gitleaks dir .\n", "      - run: gitleaks dir .\n        continue-on-error: true\n", 1))
-	cases["scan job soft-fail"] = []byte(strings.Replace(string(build(curl, verify, extract, "gitleaks dir .", "")), "    name: Secret scan (gitleaks)\n", "    name: Secret scan (gitleaks)\n    continue-on-error: true\n", 1))
+	cases["scan step soft-fail"] = []byte(strings.Replace(string(build(curl, verify, extract, "gitleaks dir . --config .gitleaks.toml", "")), "      - run: gitleaks dir . --config .gitleaks.toml\n", "      - run: gitleaks dir . --config .gitleaks.toml\n        continue-on-error: true\n", 1))
+	cases["scan job soft-fail"] = []byte(strings.Replace(string(build(curl, verify, extract, "gitleaks dir . --config .gitleaks.toml", "")), "    name: Secret scan (gitleaks)\n", "    name: Secret scan (gitleaks)\n    continue-on-error: true\n", 1))
 	for name, raw := range cases {
 		if len(ciDownloadProblems(raw)) == 0 {
 			t.Errorf("%s: guard accepted a weakened workflow", name)
