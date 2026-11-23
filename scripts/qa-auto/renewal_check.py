@@ -14,14 +14,17 @@ existing rules. For every changed rule id this checks, with the repository's own
      (packDigest and ruleSetDigest recomputed from the head rules).
 Result cases (suite "rules", key "renewal|..."): a failed check is a mismatch, a check that could not run is an error;
 "renewal|summary" is always written exactly once. Exit 0 whenever the cases were written.
-MAINTAINER is a head-built binary: it is only trusted because a renewal diff carries no code (select_projects.py
-keeps any cli/** change full); any other change fails check 1.
+MAINTAINER must be built from the BASE tree (run.sh does that), and the diff base..head may only touch the project-check
+rules, its attestation, community approval records and documentation: any other changed path is a mismatch.
 """
-import argparse, copy, datetime, json, os, shlex, subprocess, sys, tempfile
+import argparse, copy, datetime, json, os, re, shlex, subprocess, sys, tempfile
 
 RULES = "cli/internal/projectcheck/data/rules.json"
 KEYS = "cli/knowledge/trust/web-approval-keys.json"
 APPROVALS = "cli/knowledge/approvals/community/"
+ATTEST = "cli/internal/projectcheck/data/corpus-attestation.json"
+ALLOWED = re.compile(r"cli/knowledge/approvals/community/[^/]+\.json|[^/]+\.md|cli/docs/.+|changelog\.d/.+")
+ALLOWED_EXACT = {RULES, ATTEST}
 MAX_WINDOW = datetime.timedelta(days=90)  # projectcheck.go: validUntil - reviewedAt <= 90 days
 TIMEOUT = 300
 
@@ -138,6 +141,14 @@ def main():
         now = when(a.now, "--now") if a.now else None
         base_raw, head_raw = show(a.src, a.base, RULES), show(a.src, a.head, RULES)
         base, head = parse(base_raw), parse(head_raw)
+        r = subprocess.run(["git", "-C", a.src, "diff", "--name-only", "--no-renames", "-z", a.base, a.head],
+                           capture_output=True, timeout=TIMEOUT)
+        if r.returncode:
+            raise Broken("cannot list the changed paths")
+        paths = [x.decode("utf-8", "replace") for x in r.stdout.split(b"\0") if x]
+        outside = [x for x in paths if x not in ALLOWED_EXACT and not ALLOWED.fullmatch(x)]
+        if outside:
+            raise Fail("diff touches paths beyond a renewal: " + ", ".join(sorted(outside)[:3]))
         be, he = entries(base), entries(head)
         changed = sorted(i for i in set(be) | set(he) if canon(be.get(i)) != canon(he.get(i)))
         attest_changed = show(a.src, a.base, "cli/internal/projectcheck/data/corpus-attestation.json") != \

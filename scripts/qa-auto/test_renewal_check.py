@@ -74,9 +74,10 @@ class RenewalCheck(unittest.TestCase):
         git(self.repo, "commit", "-q", "-m", msg)
         return git(self.repo, "rev-parse", "HEAD")
 
-    def check(self, new_rules, approvals=IDS, env=None, att=("a", "b"), now="2026-11-24T00:00:00Z"):
+    def check(self, new_rules, approvals=IDS, env=None, att=("a", "b"), now="2026-11-24T00:00:00Z", extra=None):
         base = self.commit({RULES: rules(), ATT: {"packDigest": "x"}, KEYS: {"keys": []}}, "base")
         files = {RULES: new_rules, ATT: {"packDigest": att[0], "ruleSetDigest": att[1]}}
+        files.update(extra or {})
         for i in approvals:
             files[APPR + i + ".json"] = {"schema": "prufyx.io/knowledge-approval/v2", "record": {"ruleId": i}}
         head = self.commit(files, "head")
@@ -99,6 +100,18 @@ class RenewalCheck(unittest.TestCase):
         self.assertEqual(len(cases), len(IDS) + 2)
         self.assertFalse(any(c["mismatch"] or c["error"] or c["wrongpass"] for c in cases.values()), cases)
         self.assertTrue(all(c["suite"] == "rules" for c in cases.values()))
+
+    def test_mixed_code_and_renewal_is_mismatch(self):
+        for path in ("cli/internal/maintainer/knowledgegate/approval.go", "cli/cmd/prufyx-maintainer/main.go",
+                     "cli/vendor/modules.txt", "scripts/qa-auto/renewal_check.py", "cli/knowledge/trust/web-approval-keys.json",
+                     "cli/knowledge/approvals/cncf/x.json", "cli/internal/projectcheck/data/projects.json"):
+            cases = self.check(self.renewed(), extra={path: "x"})
+            self.assertTrue(cases["renewal|input"]["mismatch"], path)
+            self.assertTrue(cases["renewal|summary"]["mismatch"], path)
+
+    def test_docs_beside_renewal_are_allowed(self):
+        cases = self.check(self.renewed(), extra={"README.md": "x", "cli/docs/generated/inv.json": "{}"})
+        self.assertFalse(any(c["mismatch"] or c["error"] for c in cases.values()), cases)
 
     def test_extra_field_changed(self):
         def mut(es): es[0]["description"] = "changed"
