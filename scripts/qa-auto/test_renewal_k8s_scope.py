@@ -65,6 +65,30 @@ class RenewalK8sScope(unittest.TestCase):
         files = pr691({("head", PC_RULES): rules({"kube.r": "b"})})
         self.assertEqual(run(CHANGED, files), EVERY)
 
+    def test_kubernetes_component_in_required_facts_requires_all(self):
+        kube = [{"component": "pkg:github/kubernetes/kubernetes"}]
+        def with_facts(doc, facts):
+            doc["entries"][0]["requiredFacts"] = facts
+            return doc
+        # head only: the changed rule now requires a Kubernetes component
+        head = with_facts(rules({"ceph.r": "b"}), kube)
+        self.assertEqual(run(CHANGED, pr691({("head", PC_RULES): head})), EVERY)
+        # base only: the changed rule used to require one
+        base = with_facts(rules(), kube)
+        self.assertEqual(run(CHANGED, pr691({("base", PC_RULES): base})), EVERY)
+
+    def test_odd_required_facts_require_all(self):
+        for facts in ("x", [1], [{"component": 5}]):
+            doc = rules({"ceph.r": "b"})
+            doc["entries"][0]["requiredFacts"] = facts
+            self.assertEqual(run(CHANGED, pr691({("head", PC_RULES): doc})), EVERY, facts)
+
+    def test_non_kubernetes_required_facts_stay_narrowed(self):
+        base, head = rules(), rules({"ceph.r": "b"})
+        for doc in (base, head):
+            doc["entries"][0]["requiredFacts"] = [{"component": "pkg:github/ceph/ceph"}]
+        self.assertEqual(run(CHANGED, pr691({("base", PC_RULES): base, ("head", PC_RULES): head})), set())
+
     def test_pack_metadata_change_requires_all(self):
         files = pr691({("head", PC_RULES): rules({"ceph.r": "b"}, revision="r2")})
         self.assertEqual(run(CHANGED, files), EVERY)

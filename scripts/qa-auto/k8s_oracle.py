@@ -243,8 +243,15 @@ def project_check_change_is_non_kubernetes(path):
         oe, ne = sp._entries(old), sp._entries(new)
         for rule_id in sp._changed_keys(oe, ne):
             for side in (oe, ne):
-                if rule_id in side and _kubernetes_like(side[rule_id]["project"]):
+                if rule_id not in side:
+                    continue
+                if _kubernetes_like(side[rule_id]["project"]):
                     raise ValueError("changed project-check rule is Kubernetes-related")
+                facts = side[rule_id].get("requiredFacts", [])
+                sp._need(isinstance(facts, list) and all(isinstance(f, dict) and isinstance(f.get("component"), str) for f in facts),
+                         "requiredFacts shape")
+                if any(_kubernetes_like(f["component"]) for f in facts):
+                    raise ValueError("changed project-check rule requires a Kubernetes component")
     elif path == PC_ATTEST:
         for rev in (base, head):
             components = sp._load(show(rev, path)).get("components")
