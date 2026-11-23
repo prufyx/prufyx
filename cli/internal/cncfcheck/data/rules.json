@@ -1158,13 +1158,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-10-28T06:10:52Z",
+          "derivedAt": "2026-11-22T07:42:28Z",
           "extractor": {
-            "codeDigest": "sha256:82611e957f5828752600540eb0bceda3cafb7c88f6b26ea5b236ab49d8b42290",
+            "codeDigest": "sha256:e7dc98ed612fefc0dd2ed2beec53dfdeca7864c9f9204a759c3d686142113167",
             "id": "crd.version-removal.cilium",
-            "version": "2.7.0"
+            "version": "2.16.0"
           },
-          "reviewedAt": "2026-10-28T06:10:52Z",
+          "reviewedAt": "2026-11-22T07:42:28Z",
           "sources": [
             {
               "contentDigest": "sha256:c7e3558ed06e8d87ce75a007bd3b0f0fb2c28080a6c52ee9184f6d3b887f1aff",
@@ -1184,10 +1184,10 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-26T06:10:52Z"
+          "validUntil": "2027-02-06T07:42:28Z"
         },
         "id": "cilium.crd-version-removal.ciliumnodeconfigs-cilium-io.1-19-0-to-1-20-0",
-        "nextAction": "change apiVersion of CiliumNodeConfig to cilium.io/v2 before upgrading to 1.20.0",
+        "nextAction": "migrate CiliumNodeConfig manifests/clients to cilium.io/v2; for managed objects, follow supported controller migration or investigate before upgrade to 1.20.0",
         "operator": "forbid_set_member",
         "reasonCode": "CRD_VERSION_NOT_SERVED",
         "setCondition": {
@@ -3631,13 +3631,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-11-20T09:40:49Z",
+          "derivedAt": "2026-11-22T07:21:10Z",
           "extractor": {
-            "codeDigest": "sha256:e6ec0e0e1e6f58d6534b7d48779667d38a46e3a97ae4d976e1240858c3c73136",
+            "codeDigest": "sha256:c3b95035b183cf5743ef432ca3ca79bc726688051a9d6a3ec6dd5b9adec67be2",
             "id": "crd.version-removal.crossplane",
             "version": "2.16.0"
           },
-          "reviewedAt": "2026-11-20T09:40:49Z",
+          "reviewedAt": "2026-11-22T07:21:10Z",
           "sources": [
             {
               "contentDigest": "sha256:0866ed25ba43e0606272bf9b8255e907d674c348a6297cf73dac99103b433569",
@@ -3657,7 +3657,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-28T09:40:49Z"
+          "validUntil": "2027-01-23T07:21:10Z"
         },
         "id": "crossplane.crd-version-removal.compositionrevisions-apiextensions-crossplane-io.1-20-0-to-2-0-0",
         "nextAction": "migrate CompositionRevision manifests/clients to apiextensions.crossplane.io/v1; for managed objects, follow supported controller migration or investigate before upgrade to 2.0.0",
@@ -3726,13 +3726,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-11-20T09:40:49Z",
+          "derivedAt": "2026-11-22T07:21:10Z",
           "extractor": {
-            "codeDigest": "sha256:e6ec0e0e1e6f58d6534b7d48779667d38a46e3a97ae4d976e1240858c3c73136",
+            "codeDigest": "sha256:c3b95035b183cf5743ef432ca3ca79bc726688051a9d6a3ec6dd5b9adec67be2",
             "id": "crd.version-removal.crossplane",
             "version": "2.16.0"
           },
-          "reviewedAt": "2026-11-20T09:40:49Z",
+          "reviewedAt": "2026-11-22T07:21:10Z",
           "sources": [
             {
               "contentDigest": "sha256:04279e2d7254b06c456916cb02a3d3a1100e9b279deabcecd4f903e17e74bebd",
@@ -3752,7 +3752,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-28T09:40:49Z"
+          "validUntil": "2027-01-23T07:21:10Z"
         },
         "id": "crossplane.crd-version-removal.environmentconfigs-apiextensions-crossplane-io.1-20-0-to-2-0-0",
         "nextAction": "migrate EnvironmentConfig manifests/clients to apiextensions.crossplane.io/v1beta1; for managed objects, follow supported controller migration or investigate before upgrade to 2.0.0",
@@ -13717,6 +13717,386 @@
       }
     },
     {
+      "description": "KubeVela 1.9.0 no longer serves version v1alpha2 of ApplicationRevision (CustomResourceDefinition applicationrevisions.core.oam.dev), which 1.8.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 1.8 and 1.9, with a scan of the whole repository at each; it holds for upgrades from any 1.8 release to any 1.9 release. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "kubevela",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/kubevela/kubevela",
+          "description": "Custom-resource versions (group/version/Kind) of the KubeVela custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.kubevela.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-11-22T07:23:14Z",
+          "extractor": {
+            "codeDigest": "sha256:04187071aea99a4c763cb05a1b19a7b263bf18ba5507568718c1a655642faff7",
+            "id": "crd.version-removal.kubevela",
+            "version": "2.16.0"
+          },
+          "reviewedAt": "2026-11-22T07:23:14Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:3917648c7612ad69ef80d7bb9ecac42a215896c7e1c6a2d685bdcef7cb6b7bd1",
+              "endLine": 2566,
+              "id": "crd-1-9-0",
+              "revision": "da3618ad2743713f38508fe28fef1b2d34810034",
+              "startLine": 1,
+              "url": "https://github.com/kubevela/kubevela/blob/da3618ad2743713f38508fe28fef1b2d34810034/charts/vela-core/crds/core.oam.dev_applicationrevisions.yaml"
+            },
+            {
+              "contentDigest": "sha256:23bb40045d74afa3b87aff4d45d6d6061808280b180e2fbfd7c40d0c5d312ae1",
+              "endLine": 2080,
+              "id": "crd-versions-1-8-0",
+              "revision": "fcd721ffed6013777962befb68fff96424b67b06",
+              "startLine": 21,
+              "url": "https://github.com/kubevela/kubevela/blob/fcd721ffed6013777962befb68fff96424b67b06/charts/vela-core/crds/core.oam.dev_applicationrevisions.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-30T07:23:14Z"
+        },
+        "id": "kubevela.crd-version-removal.applicationrevisions-core-oam-dev.1-8-0-to-1-9-0",
+        "nextAction": "migrate ApplicationRevision manifests/clients to core.oam.dev/v1beta1; for managed objects, follow supported controller migration or investigate before upgrade to 1.9.0",
+        "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-1-8-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-1-8-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "crd-1-9-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-1-9-0"
+            }
+          ],
+          "from": {
+            "gte": "1.8.0",
+            "lt": "1.9.0"
+          },
+          "to": {
+            "gte": "1.9.0",
+            "lt": "1.10.0"
+          }
+        },
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/kubevela/kubevela",
+          "factId": "component.kubevela.custom_resource_versions_set",
+          "members": [
+            "core.oam.dev/v1alpha2/ApplicationRevision"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/kubevela/kubevela",
+          "from": "1.8.0",
+          "to": "1.9.0"
+        }
+      }
+    },
+    {
+      "description": "KubeVela 1.9.0 no longer serves version v1alpha2 of Application (CustomResourceDefinition applications.core.oam.dev), which 1.8.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 1.8 and 1.9, with a scan of the whole repository at each; it holds for upgrades from any 1.8 release to any 1.9 release. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "kubevela",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/kubevela/kubevela",
+          "description": "Custom-resource versions (group/version/Kind) of the KubeVela custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.kubevela.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-11-22T07:23:14Z",
+          "extractor": {
+            "codeDigest": "sha256:04187071aea99a4c763cb05a1b19a7b263bf18ba5507568718c1a655642faff7",
+            "id": "crd.version-removal.kubevela",
+            "version": "2.16.0"
+          },
+          "reviewedAt": "2026-11-22T07:23:14Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:e09af0ca32e40cea9c7c1015e475d0e8c66b2ec037dc5207e1e9c9ccd947932a",
+              "endLine": 797,
+              "id": "crd-1-9-0",
+              "revision": "da3618ad2743713f38508fe28fef1b2d34810034",
+              "startLine": 1,
+              "url": "https://github.com/kubevela/kubevela/blob/da3618ad2743713f38508fe28fef1b2d34810034/charts/vela-core/crds/core.oam.dev_applications.yaml"
+            },
+            {
+              "contentDigest": "sha256:3d21ad13e43d7aa459e627458e0650476832740b536c508c8e43f9383a9fee90",
+              "endLine": 883,
+              "id": "crd-versions-1-8-0",
+              "revision": "fcd721ffed6013777962befb68fff96424b67b06",
+              "startLine": 22,
+              "url": "https://github.com/kubevela/kubevela/blob/fcd721ffed6013777962befb68fff96424b67b06/charts/vela-core/crds/core.oam.dev_applications.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-30T07:23:14Z"
+        },
+        "id": "kubevela.crd-version-removal.applications-core-oam-dev.1-8-0-to-1-9-0",
+        "nextAction": "migrate Application manifests/clients to core.oam.dev/v1beta1; for managed objects, follow supported controller migration or investigate before upgrade to 1.9.0",
+        "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-1-8-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-1-8-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "crd-1-9-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-1-9-0"
+            }
+          ],
+          "from": {
+            "gte": "1.8.0",
+            "lt": "1.9.0"
+          },
+          "to": {
+            "gte": "1.9.0",
+            "lt": "1.10.0"
+          }
+        },
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/kubevela/kubevela",
+          "factId": "component.kubevela.custom_resource_versions_set",
+          "members": [
+            "core.oam.dev/v1alpha2/Application"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/kubevela/kubevela",
+          "from": "1.8.0",
+          "to": "1.9.0"
+        }
+      }
+    },
+    {
+      "description": "KubeVela 1.9.0 no longer serves version v1alpha2 of ComponentDefinition (CustomResourceDefinition componentdefinitions.core.oam.dev), which 1.8.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 1.8 and 1.9, with a scan of the whole repository at each; it holds for upgrades from any 1.8 release to any 1.9 release. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "kubevela",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/kubevela/kubevela",
+          "description": "Custom-resource versions (group/version/Kind) of the KubeVela custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.kubevela.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-11-22T07:23:14Z",
+          "extractor": {
+            "codeDigest": "sha256:04187071aea99a4c763cb05a1b19a7b263bf18ba5507568718c1a655642faff7",
+            "id": "crd.version-removal.kubevela",
+            "version": "2.16.0"
+          },
+          "reviewedAt": "2026-11-22T07:23:14Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:af69e13fa295ce06381c0e189ae680f8a4194fa39d76a798cafb963b336cd350",
+              "endLine": 277,
+              "id": "crd-1-9-0",
+              "revision": "da3618ad2743713f38508fe28fef1b2d34810034",
+              "startLine": 1,
+              "url": "https://github.com/kubevela/kubevela/blob/da3618ad2743713f38508fe28fef1b2d34810034/charts/vela-core/crds/core.oam.dev_componentdefinitions.yaml"
+            },
+            {
+              "contentDigest": "sha256:aac4346388aec6a86580e2ac86271f8559165f0ac9493b79136410372ce16c5c",
+              "endLine": 347,
+              "id": "crd-versions-1-8-0",
+              "revision": "fcd721ffed6013777962befb68fff96424b67b06",
+              "startLine": 21,
+              "url": "https://github.com/kubevela/kubevela/blob/fcd721ffed6013777962befb68fff96424b67b06/charts/vela-core/crds/core.oam.dev_componentdefinitions.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-30T07:23:14Z"
+        },
+        "id": "kubevela.crd-version-removal.componentdefinitions-core-oam-dev.1-8-0-to-1-9-0",
+        "nextAction": "migrate ComponentDefinition manifests/clients to core.oam.dev/v1beta1; for managed objects, follow supported controller migration or investigate before upgrade to 1.9.0",
+        "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-1-8-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-1-8-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "crd-1-9-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-1-9-0"
+            }
+          ],
+          "from": {
+            "gte": "1.8.0",
+            "lt": "1.9.0"
+          },
+          "to": {
+            "gte": "1.9.0",
+            "lt": "1.10.0"
+          }
+        },
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/kubevela/kubevela",
+          "factId": "component.kubevela.custom_resource_versions_set",
+          "members": [
+            "core.oam.dev/v1alpha2/ComponentDefinition"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/kubevela/kubevela",
+          "from": "1.8.0",
+          "to": "1.9.0"
+        }
+      }
+    },
+    {
+      "description": "KubeVela 1.9.0 no longer serves version v1alpha2 of TraitDefinition (CustomResourceDefinition traitdefinitions.core.oam.dev), which 1.8.0 served. Derived from the complete CustomResourceDefinition manifests at every release of 1.8 and 1.9, with a scan of the whole repository at each; it holds for upgrades from any 1.8 release to any 1.9 release. Storage versions, stored objects, conversion and schema changes are not checked.",
+      "project": "kubevela",
+      "requiredFacts": [
+        {
+          "component": "pkg:github/kubevela/kubevela",
+          "description": "Custom-resource versions (group/version/Kind) of the KubeVela custom resources in the complete target apply set.",
+          "enumTokens": null,
+          "id": "component.kubevela.custom_resource_versions_set",
+          "side": "proposed",
+          "type": "set"
+        }
+      ],
+      "rule": {
+        "evidence": {
+          "basis": "mechanical",
+          "derivedAt": "2026-11-22T07:23:14Z",
+          "extractor": {
+            "codeDigest": "sha256:04187071aea99a4c763cb05a1b19a7b263bf18ba5507568718c1a655642faff7",
+            "id": "crd.version-removal.kubevela",
+            "version": "2.16.0"
+          },
+          "reviewedAt": "2026-11-22T07:23:14Z",
+          "sources": [
+            {
+              "contentDigest": "sha256:407d566d33a268d1644b6cf4507422bb4d115bab0bcac872c39401aa5cf8d25a",
+              "endLine": 284,
+              "id": "crd-1-9-0",
+              "revision": "da3618ad2743713f38508fe28fef1b2d34810034",
+              "startLine": 1,
+              "url": "https://github.com/kubevela/kubevela/blob/da3618ad2743713f38508fe28fef1b2d34810034/charts/vela-core/crds/core.oam.dev_traitdefinitions.yaml"
+            },
+            {
+              "contentDigest": "sha256:7594ad9c959e0b34af66a2faa68edc3cec1f22335852de6ada5bf9c80a6c8439",
+              "endLine": 339,
+              "id": "crd-versions-1-8-0",
+              "revision": "fcd721ffed6013777962befb68fff96424b67b06",
+              "startLine": 21,
+              "url": "https://github.com/kubevela/kubevela/blob/fcd721ffed6013777962befb68fff96424b67b06/charts/vela-core/crds/core.oam.dev_traitdefinitions.yaml"
+            }
+          ],
+          "state": "active",
+          "validUntil": "2027-01-30T07:23:14Z"
+        },
+        "id": "kubevela.crd-version-removal.traitdefinitions-core-oam-dev.1-8-0-to-1-9-0",
+        "nextAction": "migrate TraitDefinition manifests/clients to core.oam.dev/v1beta1; for managed objects, follow supported controller migration or investigate before upgrade to 1.9.0",
+        "operator": "forbid_set_member",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "crd-versions-1-8-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "crd-versions-1-8-0"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "crd-1-9-0"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "crd-1-9-0"
+            }
+          ],
+          "from": {
+            "gte": "1.8.0",
+            "lt": "1.9.0"
+          },
+          "to": {
+            "gte": "1.9.0",
+            "lt": "1.10.0"
+          }
+        },
+        "reasonCode": "CRD_VERSION_NOT_SERVED",
+        "setCondition": {
+          "component": "pkg:github/kubevela/kubevela",
+          "factId": "component.kubevela.custom_resource_versions_set",
+          "members": [
+            "core.oam.dev/v1alpha2/TraitDefinition"
+          ],
+          "side": "proposed"
+        },
+        "subject": {
+          "component": "pkg:github/kubevela/kubevela",
+          "from": "1.8.0",
+          "to": "1.9.0"
+        }
+      }
+    },
+    {
       "project": "kubevirt",
       "description": "KubeVirt 1.9.0 requires each supplied VM or VMI interface to have exactly one binding method or binding plugin; this resource-local check does not inspect admission, feature gates, plugins, or runtime behavior.",
       "requiredFacts": [
@@ -13909,13 +14289,13 @@
       "rule": {
         "evidence": {
           "basis": "mechanical",
-          "derivedAt": "2026-10-30T17:32:02Z",
+          "derivedAt": "2026-11-22T07:31:34Z",
           "extractor": {
-            "codeDigest": "sha256:aeb5bf110acf16b31c149cf8ee98abc685f5755daf03cbe562ee92fded9549e8",
+            "codeDigest": "sha256:bb46bdca6c6fbaa426ce428291a1fb63b161ae6ea423294e7d29c8a3ec3c74e7",
             "id": "crd.version-removal.kyverno",
-            "version": "2.7.0"
+            "version": "2.16.0"
           },
-          "reviewedAt": "2026-10-30T17:32:02Z",
+          "reviewedAt": "2026-11-22T07:31:34Z",
           "sources": [
             {
               "contentDigest": "sha256:4da606b34b772d8d846bdec3927c35e712571299f2e50f7996ca095e25447e87",
@@ -13935,10 +14315,10 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-28T17:32:02Z"
+          "validUntil": "2027-02-13T07:31:34Z"
         },
         "id": "kyverno.crd-version-removal.updaterequests-kyverno-io.1-15-0-to-1-16-0",
-        "nextAction": "change apiVersion of UpdateRequest to kyverno.io/v2 before upgrading to 1.16.0",
+        "nextAction": "migrate UpdateRequest manifests/clients to kyverno.io/v2; for managed objects, follow supported controller migration or investigate before upgrade to 1.16.0",
         "operator": "forbid_set_member",
         "range": {
           "bounds": [
@@ -23497,12 +23877,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.cilium",
-          "version": "2.7.0",
-          "codeDigest": "sha256:82611e957f5828752600540eb0bceda3cafb7c88f6b26ea5b236ab49d8b42290"
+          "version": "2.16.0",
+          "codeDigest": "sha256:e7dc98ed612fefc0dd2ed2beec53dfdeca7864c9f9204a759c3d686142113167"
         },
-        "derivedAt": "2026-10-28T06:10:52Z",
-        "reviewedAt": "2026-10-28T06:10:52Z",
-        "validUntil": "2027-01-26T06:10:52Z",
+        "derivedAt": "2026-11-22T07:42:28Z",
+        "reviewedAt": "2026-11-22T07:42:28Z",
+        "validUntil": "2027-02-06T07:42:28Z",
         "sources": [
           {
             "id": "crds-1-15-0",
@@ -23695,12 +24075,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.cilium",
-          "version": "2.7.0",
-          "codeDigest": "sha256:82611e957f5828752600540eb0bceda3cafb7c88f6b26ea5b236ab49d8b42290"
+          "version": "2.16.0",
+          "codeDigest": "sha256:e7dc98ed612fefc0dd2ed2beec53dfdeca7864c9f9204a759c3d686142113167"
         },
-        "derivedAt": "2026-10-28T06:10:52Z",
-        "reviewedAt": "2026-10-28T06:10:52Z",
-        "validUntil": "2027-01-26T06:10:52Z",
+        "derivedAt": "2026-11-22T07:42:28Z",
+        "reviewedAt": "2026-11-22T07:42:28Z",
+        "validUntil": "2027-02-06T07:42:28Z",
         "sources": [
           {
             "id": "crds-1-16-0",
@@ -25010,11 +25390,11 @@
         "extractor": {
           "id": "crd.version-removal.crossplane",
           "version": "2.16.0",
-          "codeDigest": "sha256:e6ec0e0e1e6f58d6534b7d48779667d38a46e3a97ae4d976e1240858c3c73136"
+          "codeDigest": "sha256:c3b95035b183cf5743ef432ca3ca79bc726688051a9d6a3ec6dd5b9adec67be2"
         },
-        "derivedAt": "2026-11-20T09:40:49Z",
-        "reviewedAt": "2026-11-20T09:40:49Z",
-        "validUntil": "2027-01-28T09:40:49Z",
+        "derivedAt": "2026-11-22T07:21:10Z",
+        "reviewedAt": "2026-11-22T07:21:10Z",
+        "validUntil": "2027-01-23T07:21:10Z",
         "sources": [
           {
             "id": "crds-2-2-0",
@@ -25100,11 +25480,11 @@
         "extractor": {
           "id": "crd.version-removal.crossplane",
           "version": "2.16.0",
-          "codeDigest": "sha256:e6ec0e0e1e6f58d6534b7d48779667d38a46e3a97ae4d976e1240858c3c73136"
+          "codeDigest": "sha256:c3b95035b183cf5743ef432ca3ca79bc726688051a9d6a3ec6dd5b9adec67be2"
         },
-        "derivedAt": "2026-11-20T09:40:49Z",
-        "reviewedAt": "2026-11-20T09:40:49Z",
-        "validUntil": "2027-01-28T09:40:49Z",
+        "derivedAt": "2026-11-22T07:21:10Z",
+        "reviewedAt": "2026-11-22T07:21:10Z",
+        "validUntil": "2027-01-23T07:21:10Z",
         "sources": [
           {
             "id": "crds-2-3-0",
@@ -52588,12 +52968,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.tekton",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1d985aee3b33546d16062e794e9515ddf11030605ce68b3cae51a0b401b0fc29"
+          "version": "2.16.0",
+          "codeDigest": "sha256:78cd31737f141f48fd79f159f6fdba7a85341ac29c3601987dc642a4ca79033d"
         },
-        "derivedAt": "2026-10-30T08:52:32Z",
-        "reviewedAt": "2026-10-30T08:52:32Z",
-        "validUntil": "2027-01-28T08:52:32Z",
+        "derivedAt": "2026-11-22T07:25:16Z",
+        "reviewedAt": "2026-11-22T07:25:16Z",
+        "validUntil": "2027-02-13T07:25:16Z",
         "sources": [
           {
             "id": "crds-1-12-0",
@@ -52646,12 +53026,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.tekton",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1d985aee3b33546d16062e794e9515ddf11030605ce68b3cae51a0b401b0fc29"
+          "version": "2.16.0",
+          "codeDigest": "sha256:78cd31737f141f48fd79f159f6fdba7a85341ac29c3601987dc642a4ca79033d"
         },
-        "derivedAt": "2026-10-30T08:52:32Z",
-        "reviewedAt": "2026-10-30T08:52:32Z",
-        "validUntil": "2027-01-28T08:52:32Z",
+        "derivedAt": "2026-11-22T07:25:16Z",
+        "reviewedAt": "2026-11-22T07:25:16Z",
+        "validUntil": "2027-02-13T07:25:16Z",
         "sources": [
           {
             "id": "crds-1-13-0",
@@ -52720,12 +53100,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.tekton",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1d985aee3b33546d16062e794e9515ddf11030605ce68b3cae51a0b401b0fc29"
+          "version": "2.16.0",
+          "codeDigest": "sha256:78cd31737f141f48fd79f159f6fdba7a85341ac29c3601987dc642a4ca79033d"
         },
-        "derivedAt": "2026-10-30T08:52:32Z",
-        "reviewedAt": "2026-10-30T08:52:32Z",
-        "validUntil": "2027-01-28T08:52:32Z",
+        "derivedAt": "2026-11-22T07:25:16Z",
+        "reviewedAt": "2026-11-22T07:25:16Z",
+        "validUntil": "2027-02-13T07:25:16Z",
         "sources": [
           {
             "id": "crds-1-14-0",
@@ -52790,12 +53170,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.tekton",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1d985aee3b33546d16062e794e9515ddf11030605ce68b3cae51a0b401b0fc29"
+          "version": "2.16.0",
+          "codeDigest": "sha256:78cd31737f141f48fd79f159f6fdba7a85341ac29c3601987dc642a4ca79033d"
         },
-        "derivedAt": "2026-10-30T08:52:32Z",
-        "reviewedAt": "2026-10-30T08:52:32Z",
-        "validUntil": "2027-01-28T08:52:32Z",
+        "derivedAt": "2026-11-22T07:25:16Z",
+        "reviewedAt": "2026-11-22T07:25:16Z",
+        "validUntil": "2027-02-13T07:25:16Z",
         "sources": [
           {
             "id": "crds-1-15-0",
@@ -52844,12 +53224,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.tekton",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1d985aee3b33546d16062e794e9515ddf11030605ce68b3cae51a0b401b0fc29"
+          "version": "2.16.0",
+          "codeDigest": "sha256:78cd31737f141f48fd79f159f6fdba7a85341ac29c3601987dc642a4ca79033d"
         },
-        "derivedAt": "2026-10-30T08:52:32Z",
-        "reviewedAt": "2026-10-30T08:52:32Z",
-        "validUntil": "2027-01-28T08:52:32Z",
+        "derivedAt": "2026-11-22T07:25:16Z",
+        "reviewedAt": "2026-11-22T07:25:16Z",
+        "validUntil": "2027-02-13T07:25:16Z",
         "sources": [
           {
             "id": "crds-1-16-0",
@@ -52898,12 +53278,12 @@
         "basis": "mechanical",
         "extractor": {
           "id": "crd.version-removal.tekton",
-          "version": "2.7.0",
-          "codeDigest": "sha256:1d985aee3b33546d16062e794e9515ddf11030605ce68b3cae51a0b401b0fc29"
+          "version": "2.16.0",
+          "codeDigest": "sha256:78cd31737f141f48fd79f159f6fdba7a85341ac29c3601987dc642a4ca79033d"
         },
-        "derivedAt": "2026-10-30T08:52:32Z",
-        "reviewedAt": "2026-10-30T08:52:32Z",
-        "validUntil": "2027-01-28T08:52:32Z",
+        "derivedAt": "2026-11-22T07:25:16Z",
+        "reviewedAt": "2026-11-22T07:25:16Z",
+        "validUntil": "2027-02-13T07:25:16Z",
         "sources": [
           {
             "id": "crds-1-17-0",

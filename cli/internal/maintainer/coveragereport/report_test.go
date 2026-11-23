@@ -167,7 +167,7 @@ func TestEmbeddedPackBaseline(t *testing.T) {
 		// 2026-10-08 window, so the figures equal the pack without them.
 		// That snapshot lists no releases, so the release-scoped attestations
 		// decide nothing in it (24 A pairs fall back to B, S or G).
-		now, want = supersedeids.Clock(), fleetFigures{Projects: 55, Pairs: 275, A: 5, B: 2, S: 44, G: 224, C1: 53, C3: 1}
+		now, want = supersedeids.Clock(), fleetFigures{Projects: 55, Pairs: 275, A: 5, B: 1, S: 44, G: 225, C1: 53, C3: 1}
 	} else if head.Revision != baseline {
 		// Only the reviewed generation is tied to the baseline revision: a
 		// bumped revision means a new baseline, which this file records.
@@ -180,6 +180,84 @@ func TestEmbeddedPackBaseline(t *testing.T) {
 	if got := fleetOf(report.Fleet); got != want {
 		t.Fatalf("fleet at %s = %+v, want %+v", now.Format(time.RFC3339), got, want)
 	}
+	if !supersedeids.Superseded() {
+		return
+	}
+	// The refreshed rules must not contribute before their reviews. Select a
+	// second instant within both actual evidence windows for the current view.
+	ids := map[string]bool{
+		"kyverno.crd-version-removal.updaterequests-kyverno-io.1-15-0-to-1-16-0":                          false,
+		"crossplane.crd-version-removal.compositionrevisions-apiextensions-crossplane-io.1-20-0-to-2-0-0": false,
+	}
+	var doc struct {
+		Entries []struct {
+			Rule struct {
+				ID       string                                                `json:"id"`
+				Evidence struct{ ReviewedAt, DerivedAt, ValidUntil time.Time } `json:"evidence"`
+			} `json:"rule"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(pack, &doc); err != nil {
+		t.Fatal(err)
+	}
+	current := now
+	var end time.Time
+	for _, entry := range doc.Entries {
+		r := entry.Rule
+		if _, ok := ids[r.ID]; !ok {
+			continue
+		}
+		if ids[r.ID] || r.Evidence.ReviewedAt.IsZero() || r.Evidence.DerivedAt.IsZero() || r.Evidence.ValidUntil.IsZero() {
+			t.Fatalf("invalid evidence for %s", r.ID)
+		}
+		ids[r.ID] = true
+		if r.ID == "kyverno.crd-version-removal.updaterequests-kyverno-io.1-15-0-to-1-16-0" && !now.Before(r.Evidence.ReviewedAt) {
+			t.Fatalf("historical clock %s is not before Kyverno review %s", now, r.Evidence.ReviewedAt)
+		}
+		for _, start := range []time.Time{r.Evidence.ReviewedAt, r.Evidence.DerivedAt} {
+			if start.After(current) {
+				current = start
+			}
+		}
+		if end.IsZero() || r.Evidence.ValidUntil.Before(end) {
+			end = r.Evidence.ValidUntil
+		}
+	}
+	for id, found := range ids {
+		if !found {
+			t.Fatalf("missing %s", id)
+		}
+	}
+	if !current.Before(end) {
+		t.Fatalf("no shared evidence window: %s to %s", current, end)
+	}
+	checkPair := func(r Report, project, from, to, status string, canBlock bool) {
+		t.Helper()
+		for _, p := range r.Projects {
+			if p.Project == project {
+				for _, pair := range p.Pairs {
+					if pair.From == from && pair.To == to {
+						if pair.Status != status || pair.canBlock != canBlock {
+							t.Fatalf("%s %s->%s = %+v", project, from, to, pair)
+						}
+						return
+					}
+				}
+			}
+		}
+		t.Fatalf("missing pair %s %s->%s", project, from, to)
+	}
+	checkPair(report, "kyverno", "1.15", "1.16", StatusG, false)
+	checkPair(report, "crossplane", "1.20", "2.0", StatusS, false)
+	fresh, err := Compute(Input{Pack: pack, Lines: read(t, "testdata/lines-2026-10-08.json"), Now: current})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := fleetOf(fresh.Fleet), (fleetFigures{Projects: 55, Pairs: 275, A: 5, B: 3, S: 43, G: 224, C1: 53, C3: 1}); got != want {
+		t.Fatalf("fleet at %s = %+v, want %+v", current, got, want)
+	}
+	checkPair(fresh, "kyverno", "1.15", "1.16", StatusB, true)
+	checkPair(fresh, "crossplane", "1.20", "2.0", StatusB, true)
 }
 
 func TestDeterministic(t *testing.T) {
