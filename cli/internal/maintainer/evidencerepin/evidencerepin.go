@@ -325,16 +325,34 @@ func (f GitHubAPIFetcher) Fetch(ctx context.Context, path string) ([]byte, int, 
 			TLSClientConfig:        &tls.Config{ServerName: "api.github.com", MinVersion: tls.VersionTLS12},
 		},
 	}
-	return f.fetch(ctx, path, client)
+	return f.fetchClassified(ctx, path, client)
+}
+
+// fetchClassified is fetch with the rate-limit classification of a 403
+// applied (see forbiddenIsNotQuota).
+func (f GitHubAPIFetcher) fetchClassified(ctx context.Context, path string, client *http.Client) ([]byte, int, error) {
+	data, status, header, err := f.fetchRaw(ctx, path, client)
+	if err == nil && status == http.StatusForbidden && !forbiddenIsNotQuota(header, data) {
+		// A 403 is a per-repository refusal only when the response itself
+		// proves quota is not the cause. Anything else is reported as a rate
+		// limit, which stops the run.
+		status = http.StatusTooManyRequests
+	}
+	return data, status, err
 }
 
 func (f GitHubAPIFetcher) fetch(ctx context.Context, path string, client *http.Client) ([]byte, int, error) {
+	data, status, _, err := f.fetchRaw(ctx, path, client)
+	return data, status, err
+}
+
+func (f GitHubAPIFetcher) fetchRaw(ctx context.Context, path string, client *http.Client) ([]byte, int, http.Header, error) {
 	if !strings.HasPrefix(path, "/") || strings.ContainsAny(path, "#\\") {
-		return nil, 0, errRejected
+		return nil, 0, nil, errRejected
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com"+path, nil)
 	if err != nil {
-		return nil, 0, errRejected
+		return nil, 0, nil, errRejected
 	}
 	request.Header.Set("Accept", "application/vnd.github+json")
 	request.Header.Set("Accept-Encoding", "identity")
@@ -345,7 +363,7 @@ func (f GitHubAPIFetcher) fetch(ctx context.Context, path string, client *http.C
 	}
 	response, err := client.Do(request)
 	if err != nil {
-		return nil, 0, fmt.Errorf("%w: transport: %v", errRejected, err)
+		return nil, 0, nil, fmt.Errorf("%w: transport: %v", errRejected, err)
 	}
 	defer response.Body.Close()
 	if f.OnRefusal != nil && (response.StatusCode == 403 || response.StatusCode == 429) {
@@ -353,9 +371,54 @@ func (f GitHubAPIFetcher) fetch(ctx context.Context, path string, client *http.C
 	}
 	data, err := io.ReadAll(io.LimitReader(response.Body, maxAPIBytes+1))
 	if err != nil || int64(len(data)) > maxAPIBytes {
-		return nil, 0, errRejected
+		return nil, 0, nil, errRejected
 	}
-	return data, response.StatusCode, nil
+	return data, response.StatusCode, response.Header, nil
+}
+
+// forbiddenIsNotQuota reports whether a 403 response proves that the
+// refusal is a permission refusal and not a rate limit: the remaining-quota
+// header is present and above zero, there is no Retry-After header, and the
+// body does not mention a rate limit. It fails closed: any missing or
+// unparsable proof is "not proven", and the caller then treats the response
+// as a rate limit.
+func forbiddenIsNotQuota(header http.Header, body []byte) bool {
+	remaining, err := strconv.Atoi(strings.TrimSpace(header.Get("X-RateLimit-Remaining")))
+	if err != nil || remaining <= 0 {
+		return false
+	}
+	if header.Get("Retry-After") != "" {
+		return false
+	}
+	return forbiddenBodyIsPermission(body)
+}
+
+// forbiddenBodyIsPermission is true only for one closed JSON object whose
+// message does not mention a rate limit, an abuse limit or a secondary
+// limit. Any other body (not JSON, other fields, no message) is not proven.
+func forbiddenBodyIsPermission(body []byte) bool {
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(body, &obj); err != nil || obj == nil {
+		return false
+	}
+	for k := range obj {
+		switch k {
+		case "message", "documentation_url", "status", "errors":
+		default:
+			return false
+		}
+	}
+	var message string
+	if raw, ok := obj["message"]; !ok || json.Unmarshal(raw, &message) != nil || message == "" {
+		return false
+	}
+	lower := strings.ToLower(message)
+	for _, word := range []string{"rate limit", "rate-limit", "ratelimit", "abuse", "secondary", "quota", "retry"} {
+		if strings.Contains(lower, word) {
+			return false
+		}
+	}
+	return true
 }
 
 // RepoResolution records the outcome of resolving one repository's current
@@ -409,6 +472,11 @@ type OwnerBaseline struct {
 }
 
 var errRateLimited = errors.New("github api rate limited")
+
+// errRepoForbidden: GitHub refused this one repository with a 403 that is
+// provably not a rate limit. It stops nothing else in the run; the
+// repository stays pending and its citations are never eligible.
+var errRepoForbidden = errors.New("REPO_FORBIDDEN: github api refused access to this repository (not a rate limit)")
 
 // NoBaselineDetermination is the evidence that a repository has no release
 // or tag to compare against: the releases list and the tags list were each
@@ -501,7 +569,13 @@ func apiGet(ctx context.Context, fetcher APIFetcher, path string) ([]byte, error
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", errRejected, err)
 	}
-	if status == 403 || status == 429 {
+	if status == 429 {
+		return nil, errRateLimited
+	}
+	if status == 403 {
+		if forbiddenBodyIsPermission(body) {
+			return nil, errRepoForbidden
+		}
 		return nil, errRateLimited
 	}
 	if status == 404 {
@@ -1345,6 +1419,9 @@ func BuildWorklistWithOptions(ctx context.Context, citations []Citation, project
 			resolution.Detail = ambiguous.Error() + "; a human must choose the baseline"
 			resolution.ReleaseListTruncated = cur.truncated
 			applyOwnerBaseline(&resolution, buildOpts.Baselines, resolver.tagCommit, &rateLimited)
+		case errors.Is(err, errRepoForbidden):
+			resolution.Status = repoPendingError
+			resolution.Detail = errRepoForbidden.Error() + "; only this repository is skipped, a human must check access"
 		case err != nil:
 			resolution.Status = repoPendingError
 			resolution.Detail = "resolution attempt failed; re-run with the same --state to retry"
