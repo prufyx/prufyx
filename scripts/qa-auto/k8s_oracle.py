@@ -218,6 +218,53 @@ def rules_metadata_is_non_kubernetes(before_raw, after_raw):
     if not changed:
         raise ValueError("rule-pack metadata changed without an attributable change")
 
+PC_RULES = "cli/internal/projectcheck/data/rules.json"
+PC_ATTEST = "cli/internal/projectcheck/data/corpus-attestation.json"
+PC_APPROVAL = re.compile(r"cli/knowledge/approvals/community/[^/]+\.json")
+
+def project_check_change_is_non_kubernetes(path):
+    """A community-pack file (project-check rules, its attestation, a community approval) may leave the Kubernetes
+    singles unrequired only when every changed rule, listed component or named rule belongs to a non-Kubernetes
+    project. Raises on anything else, on unreadable or odd input (the caller then requires every single)."""
+    import select_projects as sp
+    base, head = ENV("QA_BASE"), ENV("QA_SHA")
+    def show(rev, rel):
+        result = sh("git", "-C", SRC, "show", f"{rev}:{rel}")
+        if result.returncode:
+            raise ValueError("unreadable " + rel)
+        return result.stdout
+    def rules():
+        return [sp._load(show(rev, PC_RULES)) for rev in (base, head)]
+    if path == PC_RULES:
+        old, new = rules()
+        sp._need(isinstance(old, dict) and isinstance(new, dict), "rules shape")
+        sp._need({k: v for k, v in old.items() if k != "entries"} == {k: v for k, v in new.items() if k != "entries"},
+                 "project-check pack metadata changed")
+        oe, ne = sp._entries(old), sp._entries(new)
+        for rule_id in sp._changed_keys(oe, ne):
+            for side in (oe, ne):
+                if rule_id not in side:
+                    continue
+                if _kubernetes_like(side[rule_id]["project"]):
+                    raise ValueError("changed project-check rule is Kubernetes-related")
+                facts = side[rule_id].get("requiredFacts", [])
+                sp._need(isinstance(facts, list) and all(isinstance(f, dict) and isinstance(f.get("component"), str) for f in facts),
+                         "requiredFacts shape")
+                if any(_kubernetes_like(f["component"]) for f in facts):
+                    raise ValueError("changed project-check rule requires a Kubernetes component")
+    elif path == PC_ATTEST:
+        for rev in (base, head):
+            components = sp._load(show(rev, path)).get("components")
+            sp._need(isinstance(components, list) and all(isinstance(c, str) for c in components), "components shape")
+            if any(_kubernetes_like(c) for c in components):
+                raise ValueError("project-check attestation lists Kubernetes")
+    else:
+        rule_id = sp._load(show(head, path))["record"]["ruleId"]
+        sp._need(isinstance(rule_id, str) and rule_id, "approval ruleId")
+        projects = {side[rule_id]["project"] for side in map(sp._entries, rules()) if rule_id in side}
+        if not projects or any(_kubernetes_like(p) for p in projects):
+            raise ValueError("approval rule unresolved or Kubernetes-related")
+
 def required_single_targets(singles):
     """Infer requirements from the exact data diff; operator input can only add."""
     required = set()
@@ -259,6 +306,8 @@ def required_single_targets(singles):
                 elif path == ATTEST_PATH:
                     if attestation_touches_kubernetes():
                         raise ValueError("changed attestation touches Kubernetes")
+                elif path in (PC_RULES, PC_ATTEST) or PC_APPROVAL.fullmatch(path):
+                    project_check_change_is_non_kubernetes(path)
                 elif path.startswith("cli/") and not (path.endswith(".md") or path.startswith("cli/docs/") or
                         path.startswith("cli/internal/extract/crdversions/target-") or path == "cli/internal/customresources/table.json"):
                     raise ValueError("changed data cannot be narrowed")
