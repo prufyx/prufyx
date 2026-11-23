@@ -12,12 +12,19 @@ import argparse, glob, json, os, re, subprocess
 
 RULES = "cli/internal/cncfcheck/data/rules.json"
 ATTEST = "cli/internal/cncfcheck/data/corpus-attestation.json"
-AGGREGATE = (RULES, ATTEST)
+PRULES = "cli/internal/projectcheck/data/rules.json"
+PATTEST = "cli/internal/projectcheck/data/corpus-attestation.json"
+AGGREGATE = (RULES, ATTEST, PRULES, PATTEST)
+RULES_OF = {RULES: RULES, ATTEST: RULES, PRULES: PRULES, PATTEST: PRULES}
+RULE_FILES = (RULES, PRULES)
+APPROVAL = re.compile(r"cli/knowledge/approvals/community/([^/]+)\.json")
+DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
 SLUG = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 RULES_META = {"revision", "policyDigest", "landscapeFileDigest", "registryDigest"}
 RULES_KEYED = {"lineAttestations": ("component", "line", "factFamily"),
                "servedAPIs": ("component", "line"), "pathPolicies": ("component", "policy")}
 ATTEST_META = {"revision", "packDigest", "ruleSetDigest", "ruleCount"}
+PATTEST_DIGESTS = {"packDigest", "ruleSetDigest"}  # the only fields a project-check attestation may change
 
 
 class Unattributable(ValueError):
@@ -114,26 +121,42 @@ def aggregate_projects(path, old_raw, new_raw, slugs, rules_pair=None, trusted=N
     _need(isinstance(old, dict) and isinstance(new, dict) and set(old) == set(new), "top-level shape differs")
     _need(_canon(old.get("schema")) == _canon(new.get("schema")) and isinstance(new.get("schema"), str), "schema differs")
     if rules_pair is None:
-        rules_pair = (old, new) if path == RULES else None
+        rules_pair = (old, new) if path in RULE_FILES else None
     _need(rules_pair is not None, "rules.json unavailable")
     _need(isinstance(trusted, dict), "no trusted base component bindings")
     oe, ne = _entries(rules_pair[0]), _entries(rules_pair[1])
     cmap = _component_map([oe])  # base entries only: the PR cannot bind components
     known = set(slugs) | {e["project"] for e in oe.values()}
     found = set()
-    if path == RULES:
+    if path in RULE_FILES:
         for k in set(old) - {"schema", "entries"} - RULES_META - set(RULES_KEYED):
             _need(_canon(old[k]) == _canon(new[k]), "unknown section changed: " + str(k)[:40])
         for k in RULES_META:
+            if path == PRULES and k not in old:
+                continue  # key sets are equal (checked above): absent on both sides
             _need(isinstance(old.get(k), str) and isinstance(new.get(k), str), "metadata shape")
+        if path == PRULES:  # project-check pack identity may not move under a renewal
+            for k in ("revision", "policyDigest"):
+                _need(_canon(old.get(k)) == _canon(new.get(k)), "project-check pack identity changed: " + k)
         for rid in _changed_keys(oe, ne):
             for side in (oe, ne):
                 if rid in side:
                     found.add(side[rid]["project"])
         for name, fields in RULES_KEYED.items():
+            if path == PRULES and name not in old:
+                continue
             ok, nk = _keyed(old, name, fields), _keyed(new, name, fields)
             for key in _changed_keys(ok, nk):
                 found |= _attribute(key[0], cmap, known, trusted)
+    elif path == PATTEST:
+        # only the two digests may differ; every other field, the component list included, must be identical
+        for k in set(old) - PATTEST_DIGESTS:
+            _need(_canon(old[k]) == _canon(new[k]), "attestation field changed: " + str(k)[:40])
+        for k in PATTEST_DIGESTS:
+            _need(isinstance(old.get(k), str) and isinstance(new.get(k), str)
+                  and DIGEST.fullmatch(old[k]) and DIGEST.fullmatch(new[k]), "digest shape")
+        _need(any(_canon(old[k]) != _canon(new[k]) for k in PATTEST_DIGESTS), "attestation unchanged")
+        _need(isinstance(old.get("components"), list), "components shape")
     else:
         for k in set(old) - {"schema", "components"} - ATTEST_META:
             _need(_canon(old[k]) == _canon(new[k]), "unknown section changed: " + str(k)[:40])
@@ -145,6 +168,25 @@ def aggregate_projects(path, old_raw, new_raw, slugs, rules_pair=None, trusted=N
         for c in set(oc) ^ set(nc):
             found |= _attribute(c, cmap, known, trusted)
     return found & set(slugs)
+
+
+def approval_projects(path, new_raw, rules_pair, slugs):
+    """Project of one added/updated community approval record, via the rule id it names; raises Unattributable (=> full)."""
+    _need(new_raw is not None, "approval absent at head")
+    doc = _load(new_raw)
+    _need(isinstance(doc, dict) and doc.get("schema") == "prufyx.io/knowledge-approval/v2", "approval schema")
+    rec = doc.get("record")
+    _need(isinstance(rec, dict) and rec.get("pack") == "community", "approval record")
+    rid = rec.get("ruleId")
+    _need(isinstance(rid, str) and rid, "approval ruleId")
+    _need(APPROVAL.fullmatch(path).group(1) == rid, "approval file name differs from its rule id")
+    found = set()
+    for side in rules_pair:
+        e = _entries(side).get(rid)
+        if e is not None:
+            found.add(e["project"])
+    _need(found, "approval names no known project")
+    return found & set(slugs)  # a rule project without a crd target has nothing to run, like aggregate rule changes
 
 
 def selection(changed, slugs, reader=None, trusted=None):
@@ -161,15 +203,26 @@ def selection(changed, slugs, reader=None, trusted=None):
             projects.add(m.group(1)); reasons.append("target " + m.group(1)); continue
         if re.search(r"coveragereport/testdata/lines-.*\.json$", p) or re.search(r"(^|/)(knowledge|data)/", p):
             hit = [s for s in slugs if s in p]
+            if APPROVAL.fullmatch(p):
+                if reader is None:
+                    full = True; reasons.append("approval, no diff objects " + p); continue
+                try:
+                    r_old, r_new = reader(PRULES)
+                    got = approval_projects(p, reader(p)[1], (_load(r_old), _load(r_new)), slugs)
+                except (Unattributable, OSError, ValueError, KeyError, TypeError, AttributeError, subprocess.SubprocessError) as e:
+                    full = True; reasons.append("approval unattributable (%s) %s" % (e, p)); continue
+                projects.update(got); reasons.append("approval %s -> %s" % (p, sorted(got))); continue
             if p in AGGREGATE:
                 if reader is None:
                     full = True; reasons.append("data aggregate, no diff objects " + p); continue
                 try:
                     old, new = reader(p)
                     pair = None
-                    if p == ATTEST:
-                        r_old, r_new = reader(RULES)
+                    if p in (ATTEST, PATTEST):
+                        r_old, r_new = reader(RULES_OF[p])
                         pair = (_load(r_old), _load(r_new))
+                        if p == PATTEST:  # a digest moves only with the rule set it digests
+                            _need(_canon(pair[0]) != _canon(pair[1]), "attestation digest without a rule change")
                     got = aggregate_projects(p, old, new, slugs, pair, trusted)
                 except (Unattributable, OSError, ValueError, KeyError, TypeError, AttributeError, subprocess.SubprocessError) as e:
                     full = True; reasons.append("data aggregate unattributable (%s) %s" % (e, p)); continue
