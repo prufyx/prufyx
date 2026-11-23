@@ -145,7 +145,8 @@ def freeze(src, head, base, run_id, extra_projects=()):
     return dict(schema=SCHEMA, head=head, base=base, run_id=run_id, mode=selected["mode"],
                 source_tree=git(src, "rev-parse", head + "^{tree}"), projects=sorted(projects),
                 envelopes=envelopes, extra_projects=sorted(set(extra_projects)),
-                suites=["crd", "k8s", "bp325", "review", "rules"], kind="not_executed", db="not_executed")
+                suites=["crd", "k8s", "bp325", "review", "rules"], kind="not_executed", db="not_executed",
+                renewal_check=bool(selected.get("renewal_check")))
 
 
 def environment_contract():
@@ -169,6 +170,11 @@ def validate(contract, scopes, cases, declarations):
     for suite in contract["suites"]:
         if not any(c.get("suite", "").split("-")[0] == suite for c in cases):
             errors.append("SCOPE_INCOMPLETE: missing suite " + suite)
+    if contract.get("renewal_check"):
+        # a diff that renews project-check rules is covered by the deterministic renewal check; its result is mandatory
+        found = [c for c in cases if c.get("suite") == "rules" and c.get("key") == "renewal|summary"]
+        if len(found) != 1 or found[0].get("error") is not False:
+            errors.append("SCOPE_INCOMPLETE: renewal check result missing or errored")
     if not contract["envelopes"]:
         return errors
     for suite in ("crd", "k8s"):

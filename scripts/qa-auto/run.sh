@@ -441,6 +441,29 @@ PY
   fi
 fi
 
+# 4e2. project-check renewal check, PR mode: when the diff renews project-check rules/approvals (select.json renewal_check) the frozen
+# scope requires its summary case (qa_batch_scope.validate). The maintainer verifier is built from the BASE tree (never from the head, which
+# a mixed diff could have altered) and runs in the sandbox; renewal_check.py also fails any diff touching paths beyond a renewal.
+# Any failure to build or run is an error case, never a skip. $RUN is per-run scratch, removed at exit.
+if [ "$GATE" = 1 ]; then
+  rn=$(python3 -I -c 'import json,sys;print(int(json.load(open(sys.argv[1])).get("renewal_check") is True))' "$OUT/select.json" 2>/dev/null || echo 1)
+  if [ "$rn" != 0 ]; then
+    log "renewal check"
+    rm -f "$OUT/renewal.cases.json"
+    mkdir -p "$RUN/basesrc"
+    if git -C "$RUN/src" archive "$base_sha" cli 2>"$RUN/archive-base.log" | tar -x -C "$RUN/basesrc" 2>>"$RUN/archive-base.log" \
+        && [ -d "$RUN/basesrc/cli" ] \
+        && "$QA_DEVBOX" -w "$RUN/basesrc/cli" sh -c 'GOFLAGS=-mod=vendor go build -o "$1/bin/maintainer" ./cmd/prufyx-maintainer' _ "$RUN" </dev/null >"$RUN/build-maintainer.log" 2>&1 9>&- \
+        && [ -f "$HERE/renewal_check.py" ]; then
+      python3 -I "$HERE/renewal_check.py" --src "$RUN/src" --base "$base_sha" --head "$sha" --maintainer "$RUN/bin/maintainer" \
+        --runner "${QA_RUNBOX:-}" --now "$QA_NOW" --out "$OUT/renewal.cases.json" >"$OUT/renewal.log" 2>&1 9>&- || log "renewal check crashed"
+    else
+      log "renewal check could not be prepared"
+    fi
+    [ -s "$OUT/renewal.cases.json" ] || python3 -I -c 'import json,sys;json.dump([{"suite":"rules","key":"renewal|summary","wrongpass":False,"mismatch":False,"error":True,"detail":{"why":"renewal check did not run"}}],open(sys.argv[1],"w"))' "$OUT/renewal.cases.json"
+  fi
+fi
+
 # 4c. db suite (slow, tens of minutes when the host runs a job queue): only for db/knowledge diffs or QA_DB=1 (nightly),
 # never in the fast path. QA_DB_SUITE = path to the db suite run.sh, supplied by the operator (any job queueing is the
 # suite's own concern).
