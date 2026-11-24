@@ -31,9 +31,9 @@ func (r rolloutRunner) Run(_ context.Context, argv, _ []string, _ time.Duration)
 func TestOwnedRolloutNeverBecomesComponentAbsent(t *testing.T) {
 	const image = "quay.io/argoproj/workflow-controller:v4.1.2"
 	workload := func(kind, name, image, ownerKind, ownerName string) map[string]any {
-		meta := map[string]any{"name": name, "namespace": "ns"}
+		meta := map[string]any{"name": name, "namespace": "ns", "uid": "uid-" + name}
 		if ownerKind != "" {
-			meta["ownerReferences"] = []any{map[string]any{"kind": ownerKind, "apiVersion": "apps/v1", "name": ownerName, "controller": true}}
+			meta["ownerReferences"] = []any{map[string]any{"kind": ownerKind, "apiVersion": "apps/v1", "name": ownerName, "uid": "uid-" + ownerName, "controller": true}}
 		}
 		spec := map[string]any{"containers": []any{map[string]any{"image": image}}}
 		if kind != "Pod" {

@@ -39,7 +39,19 @@ type ownerRef struct {
 	controller       bool
 }
 
-// ownerTemplates maps "Kind/namespace/name" of a read controller to the set of
+// controllerRefs counts the controller owner references; more than one is
+// malformed and never names a managing controller.
+func controllerRefs(owners []ownerRef) int {
+	n := 0
+	for _, o := range owners {
+		if o.controller {
+			n++
+		}
+	}
+	return n
+}
+
+// ownerTemplates maps "Kind/namespace/name/uid" of a read controller to the set of
 // container images represented by an emitted public row or unbound omission.
 // It lives in memory for one context's collection and is never written.
 type ownerTemplates map[string]map[string]bool
@@ -713,8 +725,12 @@ func objectKey(kind string, item any) string {
 	if !ok {
 		return ""
 	}
+	uid, ok := stringValue(at(item, "metadata", "uid"))
+	if !ok || uid == "" {
+		return ""
+	}
 	ns, _ := at(item, "metadata", "namespace").(string)
-	return kind + "/" + ns + "/" + name
+	return kind + "/" + ns + "/" + name + "/" + uid
 }
 
 // controllerKey returns the template key of the Pod's managing controller
@@ -725,6 +741,9 @@ func controllerKey(item any, owners []ownerRef, kinds ...string) string {
 	}
 	ns, _ := at(item, "metadata", "namespace").(string)
 	refs, _ := array(nullDefault(at(item, "metadata", "ownerReferences"), []any{}))
+	if controllerRefs(owners) != 1 {
+		return ""
+	}
 	for i, o := range owners {
 		if !contains(kinds, o.kind) {
 			continue
@@ -732,8 +751,10 @@ func controllerKey(item any, owners []ownerRef, kinds ...string) string {
 		if !controlledBy([]ownerRef{o}, o.kind) {
 			continue
 		}
-		if name, ok := stringValue(at(refs[i], "name")); ok {
-			return o.kind + "/" + ns + "/" + name
+		name, ok := stringValue(at(refs[i], "name"))
+		uid, uidOK := stringValue(at(refs[i], "uid"))
+		if ok && uidOK && uid != "" {
+			return o.kind + "/" + ns + "/" + name + "/" + uid
 		}
 	}
 	return ""

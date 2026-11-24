@@ -95,11 +95,11 @@ func TestRealAbsenceAndHealthyPodsStayQuiet(t *testing.T) {
 
 func TestInjectedSidecarInOwnedPodIsNotAbsent(t *testing.T) {
 	other := ctr("registry.example/other/app:v1.0.0")
-	rs := map[string]any{"kind": "ReplicaSet", "metadata": map[string]any{"name": "rs1", "namespace": "ns"},
+	rs := map[string]any{"kind": "ReplicaSet", "metadata": map[string]any{"name": "rs1", "namespace": "ns", "uid": "u-rs1"},
 		"spec": map[string]any{"template": map[string]any{"spec": map[string]any{"containers": other}}}}
 	podMeta := func() map[string]any {
 		return map[string]any{"name": "p", "namespace": "ns", "ownerReferences": []any{
-			map[string]any{"kind": "ReplicaSet", "apiVersion": "apps/v1", "name": "rs1", "controller": true}}}
+			map[string]any{"kind": "ReplicaSet", "apiVersion": "apps/v1", "name": "rs1", "uid": "u-rs1", "controller": true}}}
 	}
 	run := func(containers []any) string {
 		pod := map[string]any{"kind": "Pod", "metadata": podMeta(), "spec": map[string]any{"containers": containers}}
@@ -125,17 +125,17 @@ func TestOwnedReplicaSetRolloutDoesNotHideUnrepresentedImage(t *testing.T) {
 		for _, parent := range []string{"different image", "missing parent", "matching image"} {
 			t.Run(parent+"/components="+map[bool]string{false: "off", true: "on"}[components], func(t *testing.T) {
 				dep := deployment(map[string]any{"containers": ctr("registry.example/other/app:v1.0.0")})
-				dep["metadata"] = map[string]any{"name": "dep", "namespace": "ns"}
+				dep["metadata"] = map[string]any{"name": "dep", "namespace": "ns", "uid": "u-dep"}
 				if parent == "matching image" {
 					dep["spec"] = map[string]any{"template": map[string]any{"spec": map[string]any{"containers": ctr(presenceImage)}}}
 				}
 				rs := map[string]any{"kind": "ReplicaSet", "metadata": map[string]any{
-					"name": "rs", "namespace": "ns", "ownerReferences": []any{
-						map[string]any{"kind": "Deployment", "apiVersion": "apps/v1", "name": "dep", "controller": true}}},
+					"name": "rs", "namespace": "ns", "uid": "u-rs", "ownerReferences": []any{
+						map[string]any{"kind": "Deployment", "apiVersion": "apps/v1", "name": "dep", "uid": "u-dep", "controller": true}}},
 					"spec": map[string]any{"template": map[string]any{"spec": map[string]any{"containers": ctr(presenceImage)}}}}
 				pod := map[string]any{"kind": "Pod", "metadata": map[string]any{
-					"name": "pod", "namespace": "ns", "ownerReferences": []any{
-						map[string]any{"kind": "ReplicaSet", "apiVersion": "apps/v1", "name": "rs", "controller": true}}},
+					"name": "pod", "namespace": "ns", "uid": "u-pod", "ownerReferences": []any{
+						map[string]any{"kind": "ReplicaSet", "apiVersion": "apps/v1", "name": "rs", "uid": "u-rs", "controller": true}}},
 					"spec": map[string]any{"containers": ctr(presenceImage)}}
 				r := multiRunner{"deployments.apps": dep, "replicasets.apps": rs, "pods": pod}
 				if parent == "missing parent" {
@@ -147,6 +147,83 @@ func TestOwnedReplicaSetRolloutDoesNotHideUnrepresentedImage(t *testing.T) {
 					t.Fatalf("unbound=%v want %v: omissions=%q", unbound, want, got)
 				}
 			})
+		}
+	}
+}
+
+// listRunner serves several raw items per resource.
+type listRunner map[string][]map[string]any
+
+func (r listRunner) Run(_ context.Context, argv, _ []string, _ time.Duration) (CommandResult, error) {
+	joined := strings.Join(argv, " ")
+	for resource, items := range r {
+		if strings.Contains(joined, " "+resource+" ") {
+			list := []any{}
+			for _, item := range items {
+				list = append(list, item)
+			}
+			raw, _ := json.Marshal(map[string]any{"items": list})
+			return CommandResult{Stdout: raw}, nil
+		}
+	}
+	return CommandResult{Stdout: fakeResponse(argv)}, nil
+}
+
+func ownedObject(kind, name, uid, image string, refs ...any) map[string]any {
+	meta := map[string]any{"name": name, "namespace": "ns", "uid": uid}
+	if len(refs) > 0 {
+		meta["ownerReferences"] = refs
+	}
+	if kind == "Pod" {
+		return map[string]any{"kind": kind, "metadata": meta, "spec": map[string]any{"containers": ctr(image)}}
+	}
+	return map[string]any{"kind": kind, "metadata": meta, "spec": map[string]any{"template": map[string]any{"spec": map[string]any{"containers": ctr(image)}}}}
+}
+
+func ref(kind, name, uid string) map[string]any {
+	return map[string]any{"kind": kind, "apiVersion": "apps/v1", "name": name, "uid": uid, "controller": true}
+}
+
+// TestOwnershipMustBeCompleteAndConsistent covers mid-rollout ReplicaSets,
+// missing owners, mismatched UIDs and ambiguous controllers: none may let an
+// owner-linked image count as represented when no row or omission carries it.
+func TestOwnershipMustBeCompleteAndConsistent(t *testing.T) {
+	other := "registry.example/other/app:v1.0.0"
+	cases := map[string]struct {
+		r    listRunner
+		want bool
+	}{
+		"mid-rollout old ReplicaSet with different image": {listRunner{
+			"deployments.apps": {ownedObject("Deployment", "dep", "u-dep", other)},
+			"replicasets.apps": {ownedObject("ReplicaSet", "rs-new", "u-new", other, ref("Deployment", "dep", "u-dep")),
+				ownedObject("ReplicaSet", "rs-old", "u-old", presenceImage, ref("Deployment", "dep", "u-dep"))},
+			"pods": {ownedObject("Pod", "p-old", "u-p", presenceImage, ref("ReplicaSet", "rs-old", "u-old"))}}, true},
+		"ReplicaSet owner UID mismatch": {listRunner{
+			"deployments.apps": {ownedObject("Deployment", "dep", "u-dep", presenceImage)},
+			"replicasets.apps": {ownedObject("ReplicaSet", "rs", "u-rs", presenceImage, ref("Deployment", "dep", "u-other"))}}, true},
+		"Pod owner UID mismatch": {listRunner{
+			"replicasets.apps": {ownedObject("ReplicaSet", "rs", "u-rs", presenceImage)},
+			"pods":             {ownedObject("Pod", "p", "u-p", presenceImage, ref("ReplicaSet", "rs", "u-stale"))}}, true},
+		"Pod owner ref without UID": {listRunner{
+			"replicasets.apps": {ownedObject("ReplicaSet", "rs", "u-rs", presenceImage)},
+			"pods":             {ownedObject("Pod", "p", "u-p", presenceImage, ref("ReplicaSet", "rs", ""))}}, true},
+		"Pod owner ReplicaSet missing": {listRunner{
+			"pods": {ownedObject("Pod", "p", "u-p", presenceImage, ref("ReplicaSet", "gone", "u-gone"))}}, true},
+		"Pod with two controllers": {listRunner{
+			"replicasets.apps": {ownedObject("ReplicaSet", "rs", "u-rs", other)},
+			"pods":             {ownedObject("Pod", "p", "u-p", presenceImage, ref("ReplicaSet", "rs", "u-rs"), ref("ReplicaSet", "rs", "u-rs"))}}, true},
+		"orphan Pod": {listRunner{
+			"pods": {ownedObject("Pod", "p", "u-p", presenceImage)}}, true},
+		"consistent chain matching template stays quiet": {listRunner{
+			"replicasets.apps": {ownedObject("ReplicaSet", "rs", "u-rs", other)},
+			"pods":             {ownedObject("Pod", "p", "u-p", other, ref("ReplicaSet", "rs", "u-rs"))}}, false},
+	}
+	for name, c := range cases {
+		for _, components := range []bool{false, true} {
+			got := strings.Contains(collectOmissions(t, c.r, components), OmissionComponentVersionUnbound)
+			if got != c.want {
+				t.Fatalf("%s components=%v: unbound=%v want %v", name, components, got, c.want)
+			}
 		}
 	}
 }
