@@ -4844,7 +4844,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-24T05:08:40Z",
           "sources": [
             {
               "contentDigest": "sha256:9d9f5845a1a391873fc10a10686595aa3de62a0e6342bf546dd85c9572886418",
@@ -4856,7 +4856,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-01-29T05:08:40Z"
         },
         "id": "etcd.direct-minor-skip.3-2-32-to-3-7-1",
         "nextAction": "Plan a separate etcd 3.2.x to 3.3.x transition first; do not skip a minor version.",
@@ -4875,7 +4875,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-24T05:09:20Z",
           "sources": [
             {
               "contentDigest": "sha256:9d9f5845a1a391873fc10a10686595aa3de62a0e6342bf546dd85c9572886418",
@@ -4887,7 +4887,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-12T05:09:20Z"
         },
         "id": "etcd.direct-minor-skip.3-3-27-to-3-7-1",
         "nextAction": "Plan a separate etcd 3.3.x to 3.4.x transition first; do not skip a minor version.",
@@ -4906,7 +4906,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-24T05:10:00Z",
           "sources": [
             {
               "contentDigest": "sha256:9d9f5845a1a391873fc10a10686595aa3de62a0e6342bf546dd85c9572886418",
@@ -4918,7 +4918,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-01-18T05:10:00Z"
         },
         "id": "etcd.direct-minor-skip.3-4-45-to-3-7-1",
         "nextAction": "Plan a separate etcd 3.4.x to 3.5.x transition first; do not skip a minor version.",
@@ -4937,7 +4937,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-24T05:10:40Z",
           "sources": [
             {
               "contentDigest": "sha256:9d9f5845a1a391873fc10a10686595aa3de62a0e6342bf546dd85c9572886418",
@@ -4949,7 +4949,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-01-25T05:10:40Z"
         },
         "id": "etcd.direct-minor-skip.3-5-33-to-3-7-1",
         "nextAction": "Plan a separate etcd 3.5.x to 3.6.x transition first; do not skip a minor version.",
@@ -4983,7 +4983,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-24T05:11:20Z",
           "sources": [
             {
               "contentDigest": "sha256:b747a9add5433e31b06e4cdadedfd3268e567dc72d6d72c59cb75974a340cf99",
@@ -5011,7 +5011,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-08T05:11:20Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-2-32-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
@@ -5045,7 +5045,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-24T05:12:00Z",
           "sources": [
             {
               "contentDigest": "sha256:b747a9add5433e31b06e4cdadedfd3268e567dc72d6d72c59cb75974a340cf99",
@@ -5073,7 +5073,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-01-19T05:12:00Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-3-27-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
@@ -5107,7 +5107,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-24T05:12:40Z",
           "sources": [
             {
               "contentDigest": "sha256:b747a9add5433e31b06e4cdadedfd3268e567dc72d6d72c59cb75974a340cf99",
@@ -5135,7 +5135,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-01-26T05:12:40Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-4-45-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
@@ -5169,7 +5169,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-24T05:13:20Z",
           "sources": [
             {
               "contentDigest": "sha256:b747a9add5433e31b06e4cdadedfd3268e567dc72d6d72c59cb75974a340cf99",
@@ -5197,7 +5197,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-09T05:13:20Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-5-33-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
@@ -5231,7 +5231,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-24T05:14:00Z",
           "sources": [
             {
               "contentDigest": "sha256:b747a9add5433e31b06e4cdadedfd3268e567dc72d6d72c59cb75974a340cf99",
@@ -5259,7 +5259,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-01-20T05:14:00Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-6-14-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
