@@ -2,12 +2,12 @@
   "schema": "prufyx.io/coverage-readme-counts/v2",
   "report": {
     "schema": "prufyx.io/coverage-report/v1",
-    "now": "2026-11-21T07:35:25Z",
+    "now": "2026-11-24T05:20:00Z",
     "window": 6,
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
-      "digest": "sha256:eca017aad34cef3ff5d2e729dda56bc7c97d2af42dfa74f031d2446f81668d56"
+      "digest": "sha256:c9e07f1c074d9fc93290b1c67d281d18139e738c48975f682cdbcb2928841c44"
     },
     "lines": {
       "capturedOn": "2026-10-31",
@@ -19,7 +19,7 @@
       "entries": 9,
       "clockOn": "2026-11-10"
     },
-    "clockAttestedAt": "2026-11-21T07:35:25Z",
+    "clockAttestedAt": "2026-11-24T05:20:00Z",
     "packProjectsCovered": 73,
     "crdVersionProjects": 87,
     "crdPublishedProjects": 42,
@@ -980,7 +980,7 @@
         "covered": true,
         "validRules": 2,
         "rulesInWindow": 2,
-        "expiring14d": 0
+        "expiring14d": 1
       },
       {
         "project": "contour",
@@ -1609,7 +1609,7 @@
         "covered": true,
         "validRules": 2,
         "rulesInWindow": 2,
-        "expiring14d": 0
+        "expiring14d": 2
       },
       {
         "project": "eck-operator",
@@ -1895,7 +1895,7 @@
         "covered": true,
         "validRules": 10,
         "rulesInWindow": 10,
-        "expiring14d": 0
+        "expiring14d": 1
       },
       {
         "project": "external-dns",
@@ -2251,7 +2251,7 @@
         "covered": true,
         "validRules": 6,
         "rulesInWindow": 5,
-        "expiring14d": 0
+        "expiring14d": 1
       },
       {
         "project": "furiko",
@@ -2546,7 +2546,7 @@
         "covered": true,
         "validRules": 7,
         "rulesInWindow": 5,
-        "expiring14d": 0
+        "expiring14d": 1
       },
       {
         "project": "helm",
@@ -2871,7 +2871,7 @@
         "covered": true,
         "validRules": 6,
         "rulesInWindow": 3,
-        "expiring14d": 0
+        "expiring14d": 1
       },
       {
         "project": "k8gb",
@@ -4242,7 +4242,7 @@
         "covered": true,
         "validRules": 1,
         "rulesInWindow": 0,
-        "expiring14d": 0
+        "expiring14d": 1
       },
       {
         "project": "metallb",
@@ -5909,7 +5909,15 @@
       }
     ],
     "projectsWithoutLines": [],
-    "expiringProjects": [],
+    "expiringProjects": [
+      "containerd",
+      "dragonfly",
+      "etcd",
+      "flux",
+      "harbor",
+      "jaeger",
+      "longhorn"
+    ],
     "v2": {
       "tiersVerified": false,
       "tier1Projects": 30,
@@ -7061,5 +7069,5 @@
       "g": 41
     }
   },
-  "readmeBlockSha256": "1be35f914f1abeffc944e5d02712720aba18e39ee5eb325491774160a11e9018"
+  "readmeBlockSha256": "604856e661b3b5621b48383cb73be0013941c3421cedd8f8755c1c8b7e837bbd"
 }

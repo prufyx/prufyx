@@ -4505,8 +4505,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-15T12:00:00Z",
           "sources": [
             {
               "id": "envoy-origin-1-34-14-version",
@@ -4578,8 +4578,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-16T12:00:00Z",
           "sources": [
             {
               "id": "envoy-origin-1-35-13-version",
@@ -4651,8 +4651,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-17T12:00:00Z",
           "sources": [
             {
               "id": "envoy-origin-1-36-10-version",
@@ -4724,8 +4724,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-18T12:00:00Z",
           "sources": [
             {
               "id": "envoy-origin-1-37-6-version",
@@ -4797,8 +4797,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-19T12:00:00Z",
           "sources": [
             {
               "id": "envoy-origin-1-38-4-version",
