@@ -5,6 +5,8 @@ package projectcheck
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"sort"
 	"testing"
 	"time"
@@ -430,7 +432,9 @@ func TestEvidenceExpiryReturnsUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err := Check("grafana", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 12, 10, 19, 30, 0, 0, time.UTC)))
+	// The expiry instant is the evaluated rule's own validUntil, so a renewal
+	// of the lease does not need a new constant here.
+	report, err := Check("grafana", prepared.CanonicalInputJSON, testclock.Floor(grafanaLegacyAlertingValidUntil(t)))
 	if err != nil || ClaimExit(report) != 11 || len(report.Check.Claims) != 1 || report.Check.Claims[0].ReasonCode != "RULE_EVIDENCE_STALE" {
 		t.Fatalf("expired report=%+v err=%v", report, err)
 	}
@@ -538,4 +542,38 @@ func TestLatestGrafanaAndKibanaExactOrigins(t *testing.T) {
 	if err != nil || ClaimExit(legacyReport) != 10 || len(legacyReport.Check.Claims) != 1 {
 		t.Fatalf("legacy kibana=%+v err=%v", legacyReport, err)
 	}
+}
+
+// grafanaLegacyAlertingValidUntil reads the end of the lease of the embedded
+// grafana.legacy-alerting-config.10-4-to-11-0 rule.
+func grafanaLegacyAlertingValidUntil(t *testing.T) time.Time {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("data", "rules.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pack struct {
+		Entries []struct {
+			Rule struct {
+				ID       string `json:"id"`
+				Evidence struct {
+					ValidUntil string `json:"validUntil"`
+				} `json:"evidence"`
+			} `json:"rule"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(raw, &pack); err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range pack.Entries {
+		if entry.Rule.ID == "grafana.legacy-alerting-config.10-4-to-11-0" {
+			until, err := time.Parse(time.RFC3339, entry.Rule.Evidence.ValidUntil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return until
+		}
+	}
+	t.Fatal("grafana legacy-alerting rule not in the embedded pack")
+	return time.Time{}
 }

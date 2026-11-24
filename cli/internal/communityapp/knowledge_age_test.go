@@ -87,7 +87,8 @@ func TestKnowledgeAgeCheckCNCFEmbedded(t *testing.T) {
 	for _, now := range instants {
 		for _, format := range []string{"human", "json"} {
 			code, stdout, stderr := runCNCFCLIRaw(t, "check", "cncf", "--project", "kyverno", "--input", input, "--now", now, "--format", format)
-			if want := embeddedNote(t, now); stderr != want {
+			// The command floors --now to the newest review of the kyverno rules (floorNowArgs), so the note is the one at that clock.
+			if want := embeddedNote(t, testclock.FloorTextFor("kyverno", now)); stderr != want {
 				t.Errorf("%s %s: stderr %q, want %q", now, format, stderr, want)
 			}
 			if code != ExitOK && code != ExitBlocked && code != ExitUnknown {
