@@ -16715,7 +16715,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:15:52Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
           "sources": [
             {
               "id": "o-origin-1-118-0-cloud-cost-gate",
@@ -16759,7 +16759,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:15:52Z"
+          "validUntil": "2027-01-18T05:20:00Z"
         },
         "id": "opencost.cloud-cost-source-migration.1-118-0-to-1-121-2",
         "nextAction": "For an enabled cloud-cost deployment that relied on provider-derived configuration, select and separately validate a target-supported cloud-integration JSON source before v1.121.2; do not put credentials or provider values in this declaration.",
