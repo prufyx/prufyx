@@ -2815,7 +2815,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-11T22:20:07Z",
+          "reviewedAt": "2026-11-24T05:06:40Z",
           "sources": [
             {
               "contentDigest": "sha256:aa74494447da45b76109ec4685fd82017d812bb84f29bda06aa13a983d0db1e4",
@@ -2883,7 +2883,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-10T22:20:07Z"
+          "validUntil": "2027-01-28T05:06:40Z"
         },
         "id": "cortex.querier-at-modifier-flag-removed.1-21",
         "nextAction": "Remove querier.at-modifier-enabled from proposed effective upstream Cortex arguments; for the exact reviewed target image only, an omitted command is source-derived as /bin/cortex, not runtime evidence. Validate query behavior separately.",
