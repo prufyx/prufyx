@@ -312,6 +312,12 @@ func (p *packDoc) activeReviewed() []string {
 	for _, e := range p.entries {
 		ev := evidenceOf(e)
 		if ev["state"] == "active" && ev["basis"] == nil && ruleOf(e)["range"] == nil {
+			// A rule reviewed after the newest line attestation carries the
+			// tree clock; a fixture renewal with an earlier review time would
+			// roll that clock back, which the gate refuses by design.
+			if at, ok := ev["reviewedAt"].(string); ok && at > "2026-11-20T00:00:00Z" {
+				continue
+			}
 			out = append(out, ruleID(e))
 		}
 	}
