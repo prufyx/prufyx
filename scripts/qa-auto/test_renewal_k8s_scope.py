@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import k8s_oracle as oracle
+import qalib
 
 PC_RULES = oracle.PC_RULES
 PC_ATTEST = oracle.PC_ATTEST
@@ -228,6 +229,34 @@ class DateOnlyKubernetesRenewal(unittest.TestCase):
         for doc in (base, head):
             doc["entries"][0]["project"] = "cilium"
         self.assertEqual(run_cncf(base, head), set())
+
+
+class RealRemovalMapShape(unittest.TestCase):
+    """kubernetes_removal_facts parses real crdgvk -removal-facts output, where facts without removed GVKs are explicit empty lists."""
+    OUTPUT = json.dumps({"component.kubernetes.in_tree_dockershim_required": [],
+                         "component.kubernetes.lease_v1beta1_removed_gvk_present": ["coordination.k8s.io/v1beta1/Lease"]})
+
+    def run_with_output(self, fact, output=None):
+        base = cncf(kentry("k.r", fact))
+        head = cncf(kentry("k.r", fact, "2026-11-18T09:49:59Z", "2027-02-09T09:49:59Z"))
+        files = {("base", CNCF_RULES): base, ("head", CNCF_RULES): head}
+        result = subprocess.CompletedProcess([], 0, self.OUTPUT if output is None else output, "")
+        qalib.kubernetes_removal_facts.cache_clear()
+        self.addCleanup(qalib.kubernetes_removal_facts.cache_clear)
+        with patch.object(qalib, "sh", return_value=result):
+            return run([CNCF_RULES], files)
+
+    def test_dockershim_fact_present_with_empty_list_is_narrowed(self):
+        self.assertEqual(self.run_with_output("component.kubernetes.in_tree_dockershim_required"), set())
+
+    def test_fact_missing_from_real_output_requires_all(self):
+        self.assertEqual(self.run_with_output("component.kubernetes.other_fact"), EVERY)
+
+    def test_removal_fact_with_members_follows_member_narrowing(self):
+        self.assertEqual(self.run_with_output("component.kubernetes.lease_v1beta1_removed_gvk_present"), {"k8s-single|required:coordination.k8s.io/v1beta1/Lease"})
+
+    def test_unreadable_output_requires_all(self):
+        self.assertEqual(self.run_with_output("component.kubernetes.in_tree_dockershim_required", "not json"), EVERY)
 
 
 if __name__ == "__main__":
