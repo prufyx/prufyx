@@ -7,7 +7,7 @@
   "registryDigest": "sha256:130004d0825886dbd9774deb017fa3ebfc38da0581a361731095c22c0a160b96",
   "entries": [
     {
-      "description": "Argo CD v3.5.2 uses Helm 4; this checks one effective official Helm repository with OCI enabled and caller-declared plain-HTTP transport for the documented force-HTTP flag requirement and direct-repository conflicting TLS flags.",
+      "description": "Argo CD v3.5.2 uses Helm 4; this checks one effective official Helm repository with OCI enabled and caller-declared plain-HTTP transport for the documented force-HTTP flag requirement and direct-repository conflicting TLS flags. Scope: only a repository written as a DNS host name that starts with a letter, with an optional decimal port and optional path; Argo CD v3.5.2 and v3.5.8 recognise that form identically as a Helm OCI repository. IP address literals with a port and other forms that the two releases classify differently remain UNKNOWN.",
       "project": "argo-cd",
       "requiredFacts": [
         {
@@ -50,7 +50,7 @@
         },
         {
           "component": "pkg:github/argoproj/argo-cd",
-          "description": "Whether the caller declares that this selected protocol-free OCI repository uses plain HTTP. This is intent metadata, not network observation.",
+          "description": "Whether the caller declares that this selected protocol-free OCI repository uses plain HTTP. This is intent metadata, not network observation. Declare true only for a host name that starts with a letter, with an optional decimal port and optional path; other forms (for example an IP address with a port) are recognised differently by v3.5.2 and v3.5.8 and are not covered.",
           "enumTokens": null,
           "id": "component.argo_cd.selected_repository_uses_plain_http",
           "side": "proposed",
@@ -91,7 +91,7 @@
           "boolValue": true
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T10:42:00Z",
+          "reviewedAt": "2026-11-24T06:50:00Z",
           "sources": [
             {
               "id": "argo-cd-v3-0-23-version",
@@ -148,10 +148,18 @@
               "contentDigest": "sha256:029e0ec8b6a155d6f969007be17e524e9864538dd25fe1d7d772888eec8b346a",
               "startLine": 49,
               "endLine": 57
+            },
+            {
+              "id": "argo-cd-v3-5-8-helm-oci-url-shape",
+              "url": "https://github.com/argoproj/argo-cd/blob/71576a24e898f50c9bf5e31b6930d81d4ac7717d/util/helm/client.go",
+              "revision": "71576a24e898f50c9bf5e31b6930d81d4ac7717d",
+              "contentDigest": "sha256:86384ee71dd30b2f369de42f18ebc33a94314e6283e938e2ca637cb527530062",
+              "startLine": 446,
+              "endLine": 456
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T10:42:00Z"
+          "validUntil": "2027-01-18T12:00:00Z"
         },
         "id": "argo-cd.plain-http-oci-repository-helm4.3-0-23-to-3-5-2",
         "nextAction": "For this selected plain-HTTP Helm OCI repository, set insecureOCIForceHttp to true and do not combine it with insecure; validate dependency repositories separately.",
@@ -165,7 +173,7 @@
       }
     },
     {
-      "description": "Argo CD v3.5.2 uses Helm 4; this checks one effective official Helm repository with OCI enabled and caller-declared plain-HTTP transport for the documented force-HTTP flag requirement and direct-repository conflicting TLS flags.",
+      "description": "Argo CD v3.5.2 uses Helm 4; this checks one effective official Helm repository with OCI enabled and caller-declared plain-HTTP transport for the documented force-HTTP flag requirement and direct-repository conflicting TLS flags. Scope: only a repository written as a DNS host name that starts with a letter, with an optional decimal port and optional path; Argo CD v3.5.2 and v3.5.8 recognise that form identically as a Helm OCI repository. IP address literals with a port and other forms that the two releases classify differently remain UNKNOWN.",
       "project": "argo-cd",
       "requiredFacts": [
         {
@@ -208,7 +216,7 @@
         },
         {
           "component": "pkg:github/argoproj/argo-cd",
-          "description": "Whether the caller declares that this selected protocol-free OCI repository uses plain HTTP. This is intent metadata, not network observation.",
+          "description": "Whether the caller declares that this selected protocol-free OCI repository uses plain HTTP. This is intent metadata, not network observation. Declare true only for a host name that starts with a letter, with an optional decimal port and optional path; other forms (for example an IP address with a port) are recognised differently by v3.5.2 and v3.5.8 and are not covered.",
           "enumTokens": null,
           "id": "component.argo_cd.selected_repository_uses_plain_http",
           "side": "proposed",
@@ -249,7 +257,7 @@
           "boolValue": true
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T10:42:00Z",
+          "reviewedAt": "2026-11-24T06:50:00Z",
           "sources": [
             {
               "id": "argo-cd-v3-1-16-version",
@@ -306,10 +314,18 @@
               "contentDigest": "sha256:029e0ec8b6a155d6f969007be17e524e9864538dd25fe1d7d772888eec8b346a",
               "startLine": 49,
               "endLine": 57
+            },
+            {
+              "id": "argo-cd-v3-5-8-helm-oci-url-shape",
+              "url": "https://github.com/argoproj/argo-cd/blob/71576a24e898f50c9bf5e31b6930d81d4ac7717d/util/helm/client.go",
+              "revision": "71576a24e898f50c9bf5e31b6930d81d4ac7717d",
+              "contentDigest": "sha256:86384ee71dd30b2f369de42f18ebc33a94314e6283e938e2ca637cb527530062",
+              "startLine": 446,
+              "endLine": 456
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T10:42:00Z"
+          "validUntil": "2027-01-19T12:00:00Z"
         },
         "id": "argo-cd.plain-http-oci-repository-helm4.3-1-16-to-3-5-2",
         "nextAction": "For this selected plain-HTTP Helm OCI repository, set insecureOCIForceHttp to true and do not combine it with insecure; validate dependency repositories separately.",
@@ -323,7 +339,7 @@
       }
     },
     {
-      "description": "Argo CD v3.5.2 uses Helm 4; this checks one effective official Helm repository with OCI enabled and caller-declared plain-HTTP transport for the documented force-HTTP flag requirement and direct-repository conflicting TLS flags.",
+      "description": "Argo CD v3.5.2 uses Helm 4; this checks one effective official Helm repository with OCI enabled and caller-declared plain-HTTP transport for the documented force-HTTP flag requirement and direct-repository conflicting TLS flags. Scope: only a repository written as a DNS host name that starts with a letter, with an optional decimal port and optional path; Argo CD v3.5.2 and v3.5.8 recognise that form identically as a Helm OCI repository. IP address literals with a port and other forms that the two releases classify differently remain UNKNOWN.",
       "project": "argo-cd",
       "requiredFacts": [
         {
@@ -366,7 +382,7 @@
         },
         {
           "component": "pkg:github/argoproj/argo-cd",
-          "description": "Whether the caller declares that this selected protocol-free OCI repository uses plain HTTP. This is intent metadata, not network observation.",
+          "description": "Whether the caller declares that this selected protocol-free OCI repository uses plain HTTP. This is intent metadata, not network observation. Declare true only for a host name that starts with a letter, with an optional decimal port and optional path; other forms (for example an IP address with a port) are recognised differently by v3.5.2 and v3.5.8 and are not covered.",
           "enumTokens": null,
           "id": "component.argo_cd.selected_repository_uses_plain_http",
           "side": "proposed",
@@ -407,7 +423,7 @@
           "boolValue": true
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T10:42:00Z",
+          "reviewedAt": "2026-11-24T06:50:00Z",
           "sources": [
             {
               "id": "argo-cd-v3-2-12-version",
@@ -464,10 +480,18 @@
               "contentDigest": "sha256:029e0ec8b6a155d6f969007be17e524e9864538dd25fe1d7d772888eec8b346a",
               "startLine": 49,
               "endLine": 57
+            },
+            {
+              "id": "argo-cd-v3-5-8-helm-oci-url-shape",
+              "url": "https://github.com/argoproj/argo-cd/blob/71576a24e898f50c9bf5e31b6930d81d4ac7717d/util/helm/client.go",
+              "revision": "71576a24e898f50c9bf5e31b6930d81d4ac7717d",
+              "contentDigest": "sha256:86384ee71dd30b2f369de42f18ebc33a94314e6283e938e2ca637cb527530062",
+              "startLine": 446,
+              "endLine": 456
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T10:42:00Z"
+          "validUntil": "2027-01-20T12:00:00Z"
         },
         "id": "argo-cd.plain-http-oci-repository-helm4.3-2-12-to-3-5-2",
         "nextAction": "For this selected plain-HTTP Helm OCI repository, set insecureOCIForceHttp to true and do not combine it with insecure; validate dependency repositories separately.",
@@ -481,7 +505,7 @@
       }
     },
     {
-      "description": "Argo CD v3.5.2 uses Helm 4; this checks one effective official Helm repository with OCI enabled and caller-declared plain-HTTP transport for the documented force-HTTP flag requirement and direct-repository conflicting TLS flags.",
+      "description": "Argo CD v3.5.2 uses Helm 4; this checks one effective official Helm repository with OCI enabled and caller-declared plain-HTTP transport for the documented force-HTTP flag requirement and direct-repository conflicting TLS flags. Scope: only a repository written as a DNS host name that starts with a letter, with an optional decimal port and optional path; Argo CD v3.5.2 and v3.5.8 recognise that form identically as a Helm OCI repository. IP address literals with a port and other forms that the two releases classify differently remain UNKNOWN.",
       "project": "argo-cd",
       "requiredFacts": [
         {
@@ -524,7 +548,7 @@
         },
         {
           "component": "pkg:github/argoproj/argo-cd",
-          "description": "Whether the caller declares that this selected protocol-free OCI repository uses plain HTTP. This is intent metadata, not network observation.",
+          "description": "Whether the caller declares that this selected protocol-free OCI repository uses plain HTTP. This is intent metadata, not network observation. Declare true only for a host name that starts with a letter, with an optional decimal port and optional path; other forms (for example an IP address with a port) are recognised differently by v3.5.2 and v3.5.8 and are not covered.",
           "enumTokens": null,
           "id": "component.argo_cd.selected_repository_uses_plain_http",
           "side": "proposed",
@@ -565,7 +589,7 @@
           "boolValue": true
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T10:42:00Z",
+          "reviewedAt": "2026-11-24T06:50:00Z",
           "sources": [
             {
               "id": "argo-cd-v3-3-14-version",
@@ -622,10 +646,18 @@
               "contentDigest": "sha256:029e0ec8b6a155d6f969007be17e524e9864538dd25fe1d7d772888eec8b346a",
               "startLine": 49,
               "endLine": 57
+            },
+            {
+              "id": "argo-cd-v3-5-8-helm-oci-url-shape",
+              "url": "https://github.com/argoproj/argo-cd/blob/71576a24e898f50c9bf5e31b6930d81d4ac7717d/util/helm/client.go",
+              "revision": "71576a24e898f50c9bf5e31b6930d81d4ac7717d",
+              "contentDigest": "sha256:86384ee71dd30b2f369de42f18ebc33a94314e6283e938e2ca637cb527530062",
+              "startLine": 446,
+              "endLine": 456
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T10:42:00Z"
+          "validUntil": "2027-01-21T12:00:00Z"
         },
         "id": "argo-cd.plain-http-oci-repository-helm4.3-3-14-to-3-5-2",
         "nextAction": "For this selected plain-HTTP Helm OCI repository, set insecureOCIForceHttp to true and do not combine it with insecure; validate dependency repositories separately.",
@@ -639,7 +671,7 @@
       }
     },
     {
-      "description": "Argo CD v3.5.2 uses Helm 4; this checks one effective official Helm repository with OCI enabled and caller-declared plain-HTTP transport for the documented force-HTTP flag requirement and direct-repository conflicting TLS flags.",
+      "description": "Argo CD v3.5.2 uses Helm 4; this checks one effective official Helm repository with OCI enabled and caller-declared plain-HTTP transport for the documented force-HTTP flag requirement and direct-repository conflicting TLS flags. Scope: only a repository written as a DNS host name that starts with a letter, with an optional decimal port and optional path; Argo CD v3.5.2 and v3.5.8 recognise that form identically as a Helm OCI repository. IP address literals with a port and other forms that the two releases classify differently remain UNKNOWN.",
       "project": "argo-cd",
       "requiredFacts": [
         {
@@ -682,7 +714,7 @@
         },
         {
           "component": "pkg:github/argoproj/argo-cd",
-          "description": "Whether the caller declares that this selected protocol-free OCI repository uses plain HTTP. This is intent metadata, not network observation.",
+          "description": "Whether the caller declares that this selected protocol-free OCI repository uses plain HTTP. This is intent metadata, not network observation. Declare true only for a host name that starts with a letter, with an optional decimal port and optional path; other forms (for example an IP address with a port) are recognised differently by v3.5.2 and v3.5.8 and are not covered.",
           "enumTokens": null,
           "id": "component.argo_cd.selected_repository_uses_plain_http",
           "side": "proposed",
@@ -723,7 +755,7 @@
           "boolValue": true
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T10:42:00Z",
+          "reviewedAt": "2026-11-24T06:50:00Z",
           "sources": [
             {
               "id": "argo-cd-v3-4-8-version",
@@ -780,10 +812,18 @@
               "contentDigest": "sha256:029e0ec8b6a155d6f969007be17e524e9864538dd25fe1d7d772888eec8b346a",
               "startLine": 49,
               "endLine": 57
+            },
+            {
+              "id": "argo-cd-v3-5-8-helm-oci-url-shape",
+              "url": "https://github.com/argoproj/argo-cd/blob/71576a24e898f50c9bf5e31b6930d81d4ac7717d/util/helm/client.go",
+              "revision": "71576a24e898f50c9bf5e31b6930d81d4ac7717d",
+              "contentDigest": "sha256:86384ee71dd30b2f369de42f18ebc33a94314e6283e938e2ca637cb527530062",
+              "startLine": 446,
+              "endLine": 456
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T10:42:00Z"
+          "validUntil": "2027-01-22T12:00:00Z"
         },
         "id": "argo-cd.plain-http-oci-repository-helm4.3-4-8-to-3-5-2",
         "nextAction": "For this selected plain-HTTP Helm OCI repository, set insecureOCIForceHttp to true and do not combine it with insecure; validate dependency repositories separately.",

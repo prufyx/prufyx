@@ -934,7 +934,11 @@ reviewed `3.0.23`, `3.1.16`, `3.2.12`, `3.3.14`, and `3.4.8` origins to
 project, rule, or upgrade-pair claim. The `PrepareArgoCDLatestRepository`
 adapter already existed and evaluated all five origins via the two-step
 `prepare`/`check` path before this route was wired; only the one-step
-dispatch and catalog registration were added.
+dispatch and catalog registration were added. Only a repository `url` written
+as a DNS host name that starts with a letter, with an optional decimal port
+and optional path, is in scope: Argo CD `3.5.2` and `3.5.8` classify that form
+identically as a Helm OCI repository. Other forms, for example an IP address
+with a port, stay `UNKNOWN`.
 
 ```sh
 umask 077
