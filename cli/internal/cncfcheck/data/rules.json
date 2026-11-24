@@ -1419,7 +1419,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-18T05:00:00Z"
+          "validUntil": "2027-01-10T05:00:00Z"
         },
         "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-47-to-0-9-52",
         "nextAction": "For the selected complete IAM access-key policy, remove or redesign the direct json-diff filter before package 0.9.52; this check does not evaluate other filters, resources, variables, includes, or policy execution.",
@@ -1498,7 +1498,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-18T05:00:40Z"
+          "validUntil": "2027-01-10T05:00:40Z"
         },
         "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-48-to-0-9-52",
         "nextAction": "For the selected complete IAM access-key policy, remove or redesign the direct json-diff filter before package 0.9.52; this check does not evaluate other filters, resources, variables, includes, or policy execution.",
@@ -1656,7 +1656,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-19T05:02:00Z"
+          "validUntil": "2027-01-10T05:02:00Z"
         },
         "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-50-to-0-9-52",
         "nextAction": "For the selected complete IAM access-key policy, remove or redesign the direct json-diff filter before package 0.9.52; this check does not evaluate other filters, resources, variables, includes, or policy execution.",
@@ -1735,7 +1735,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-19T05:02:40Z"
+          "validUntil": "2027-01-17T05:02:40Z"
         },
         "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-51-to-0-9-52",
         "nextAction": "For the selected complete IAM access-key policy, remove or redesign the direct json-diff filter before package 0.9.52; this check does not evaluate other filters, resources, variables, includes, or policy execution.",
@@ -1882,7 +1882,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-24T05:04:00Z",
-          "validUntil": "2027-01-20T05:04:00Z",
+          "validUntil": "2027-02-22T05:04:00Z",
           "sources": [
             {
               "id": "cnpg-v1-29-0-scheduledbackup-cluster-field",
@@ -2020,7 +2020,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-24T05:04:40Z",
-          "validUntil": "2027-01-20T05:04:40Z",
+          "validUntil": "2027-02-15T05:04:40Z",
           "sources": [
             {
               "id": "cni-spec-v0-4-0-network-configuration-forms",
@@ -2085,7 +2085,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-24T05:05:20Z",
-          "validUntil": "2027-02-10T05:05:20Z",
+          "validUntil": "2027-02-22T05:05:20Z",
           "sources": [
             {
               "contentDigest": "sha256:45961feeb1ea6f9140991c4c99a2ca9f9c98c1c449721fb2735a58deec36d729",
@@ -2177,7 +2177,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-24T05:06:00Z",
-          "validUntil": "2027-01-21T05:06:00Z",
+          "validUntil": "2027-02-15T05:06:00Z",
           "sources": [
             {
               "id": "containerd-v1-7-28-runc-v1-bundled",
@@ -2264,7 +2264,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-18T09:49:59Z",
-          "validUntil": "2027-01-26T12:00:00Z",
+          "validUntil": "2027-02-01T12:00:00Z",
           "sources": [
             {
               "id": "contour-v1-20-gateway-api-v1alpha1-removal",
@@ -2483,7 +2483,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-18T09:49:59Z",
-          "validUntil": "2027-01-19T12:00:00Z",
+          "validUntil": "2027-02-15T12:00:00Z",
           "sources": [
             {
               "id": "coredns-origin-1-11-4-version",
@@ -2883,7 +2883,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-21T05:06:40Z"
+          "validUntil": "2027-02-15T05:06:40Z"
         },
         "id": "cortex.querier-at-modifier-flag-removed.1-21",
         "nextAction": "Remove querier.at-modifier-enabled from proposed effective upstream Cortex arguments; for the exact reviewed target image only, an omitted command is source-derived as /bin/cortex, not runtime evidence. Validate query behavior separately.",
@@ -4123,7 +4123,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-24T05:07:20Z",
-          "validUntil": "2027-02-11T05:07:20Z",
+          "validUntil": "2027-02-22T05:07:20Z",
           "sources": [
             {
               "id": "old-base-options",
@@ -4290,7 +4290,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-24T05:08:00Z",
-          "validUntil": "2027-01-22T05:08:00Z",
+          "validUntil": "2027-02-15T05:08:00Z",
           "sources": [
             {
               "id": "old-base-options",
@@ -4856,7 +4856,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-22T05:08:40Z"
+          "validUntil": "2027-02-15T05:08:40Z"
         },
         "id": "etcd.direct-minor-skip.3-2-32-to-3-7-1",
         "nextAction": "Plan a separate etcd 3.2.x to 3.3.x transition first; do not skip a minor version.",
@@ -4887,7 +4887,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-02-12T05:09:20Z"
+          "validUntil": "2027-02-22T05:09:20Z"
         },
         "id": "etcd.direct-minor-skip.3-3-27-to-3-7-1",
         "nextAction": "Plan a separate etcd 3.3.x to 3.4.x transition first; do not skip a minor version.",
@@ -4918,7 +4918,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-18T05:10:00Z"
+          "validUntil": "2027-02-15T05:10:00Z"
         },
         "id": "etcd.direct-minor-skip.3-4-45-to-3-7-1",
         "nextAction": "Plan a separate etcd 3.4.x to 3.5.x transition first; do not skip a minor version.",
@@ -4949,7 +4949,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-18T05:10:40Z"
+          "validUntil": "2027-02-15T05:10:40Z"
         },
         "id": "etcd.direct-minor-skip.3-5-33-to-3-7-1",
         "nextAction": "Plan a separate etcd 3.5.x to 3.6.x transition first; do not skip a minor version.",
@@ -5011,7 +5011,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-02-08T05:11:20Z"
+          "validUntil": "2027-02-22T05:11:20Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-2-32-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
@@ -5073,7 +5073,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-19T05:12:00Z"
+          "validUntil": "2027-02-15T05:12:00Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-3-27-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
@@ -5135,7 +5135,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-26T05:12:40Z"
+          "validUntil": "2027-02-22T05:12:40Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-4-45-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
@@ -5197,7 +5197,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-02-09T05:13:20Z"
+          "validUntil": "2027-02-22T05:13:20Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-5-33-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
@@ -5259,7 +5259,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-20T05:14:00Z"
+          "validUntil": "2027-02-22T05:14:00Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-6-14-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
@@ -5302,7 +5302,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-24T05:14:40Z",
-          "validUntil": "2027-01-27T05:14:40Z",
+          "validUntil": "2027-02-22T05:14:40Z",
           "sources": [
             {
               "contentDigest": "sha256:be26b5ae5bdc89450da840ca42621f0dac915be749b0c63932f353ac112b05ed",
@@ -6772,7 +6772,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-24T05:15:20Z",
-          "validUntil": "2027-02-10T05:15:20Z",
+          "validUntil": "2027-02-22T05:15:20Z",
           "sources": [
             {
               "id": "source-31789d8a65d3-3",
@@ -7407,7 +7407,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-24T05:16:00Z",
-          "validUntil": "2027-01-21T05:16:00Z",
+          "validUntil": "2027-02-22T05:16:00Z",
           "sources": [
             {
               "id": "source-41da2fbd7dd5-129",
@@ -8173,7 +8173,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-24T05:16:40Z",
-          "validUntil": "2027-01-28T05:16:40Z",
+          "validUntil": "2027-02-22T05:16:40Z",
           "sources": [
             {
               "id": "keycloak-26-7-2-redirect-query-117-120",
@@ -8414,7 +8414,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-24T05:17:20Z",
-          "validUntil": "2027-02-11T05:17:20Z",
+          "validUntil": "2027-02-22T05:17:20Z",
           "sources": [
             {
               "id": "source-656ad81a245c-release-85",
@@ -8511,7 +8511,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-24T05:18:00Z",
-          "validUntil": "2027-01-22T05:18:00Z",
+          "validUntil": "2027-02-22T05:18:00Z",
           "sources": [
             {
               "id": "kubeflow-kfp-v1-components-public-import",
@@ -14945,7 +14945,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-24T05:18:40Z",
-          "validUntil": "2027-01-29T05:18:40Z",
+          "validUntil": "2027-02-22T05:18:40Z",
           "sources": [
             {
               "id": "source-8bb4d023b6d8-222",
@@ -14992,7 +14992,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-24T05:19:20Z",
-          "validUntil": "2027-02-12T05:19:20Z",
+          "validUntil": "2027-02-22T05:19:20Z",
           "sources": [
             {
               "id": "metallb-v0-12-old-release",
@@ -16759,7 +16759,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-18T05:20:00Z"
+          "validUntil": "2027-02-22T05:20:00Z"
         },
         "id": "opencost.cloud-cost-source-migration.1-118-0-to-1-121-2",
         "nextAction": "For an enabled cloud-cost deployment that relied on provider-derived configuration, select and separately validate a target-supported cloud-integration JSON source before v1.121.2; do not put credentials or provider values in this declaration.",
@@ -17859,7 +17859,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-24T05:20:40Z",
-          "validUntil": "2027-01-25T05:20:40Z",
+          "validUntil": "2027-02-22T05:20:40Z",
           "sources": [
             {
               "id": "prometheus-alertmanager-source-1-old-default-v2",
@@ -18541,7 +18541,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-24T05:21:20Z",
-          "validUntil": "2027-02-08T05:21:20Z",
+          "validUntil": "2027-02-22T05:21:20Z",
           "sources": [
             {
               "id": "prometheus-source-1-old-scrape-key",
