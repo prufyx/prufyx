@@ -1881,8 +1881,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T00:00:00Z",
-          "validUntil": "2026-12-10T00:00:00Z",
+          "reviewedAt": "2026-11-24T05:04:00Z",
+          "validUntil": "2027-01-20T05:04:00Z",
           "sources": [
             {
               "id": "cnpg-v1-29-0-scheduledbackup-cluster-field",
@@ -1894,11 +1894,11 @@
             },
             {
               "id": "cnpg-v1-29-2-release-note",
-              "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/94ee3117858765c77d0dbfde381a037944a48a64/docs/src/release_notes/v1.29.md",
-              "revision": "94ee3117858765c77d0dbfde381a037944a48a64",
-              "contentDigest": "sha256:0b04c3fc20c26848e91a84f4877d2868e498b78242a052ef5cd6519a11c0c223",
-              "startLine": 25,
-              "endLine": 30
+              "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/6887f9aeb7ec159ed4a7e5fce28441aafd26317c/docs/src/release_notes/v1.29.md",
+              "revision": "6887f9aeb7ec159ed4a7e5fce28441aafd26317c",
+              "contentDigest": "sha256:4d1c057d85aa4e3c286ade7cc31b5f8c9147ec0ff46c289ee41970cb3b14b274",
+              "startLine": 253,
+              "endLine": 258
             },
             {
               "id": "cnpg-v1-30-database-cel",
@@ -1926,11 +1926,11 @@
             },
             {
               "id": "cnpg-v1-30-release-note",
-              "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/4b5e244a7d031f67e025c83c1555e7726ecbbfa1/docs/src/release_notes/v1.30.md",
-              "revision": "4b5e244a7d031f67e025c83c1555e7726ecbbfa1",
-              "contentDigest": "sha256:7ed8e77352b49a1e8f441ee7a5f34a3ab304596eb4db2025912fe1f43d177650",
-              "startLine": 25,
-              "endLine": 30
+              "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/30cca36d32328a78dc96c51db966ce629d5b72db/docs/src/release_notes/v1.30.md",
+              "revision": "30cca36d32328a78dc96c51db966ce629d5b72db",
+              "contentDigest": "sha256:a1143f3c079e12100ac1754eed0227180fb5a7b9648a8c17eb8fe9fa2aee01bf",
+              "startLine": 435,
+              "endLine": 440
             },
             {
               "id": "cnpg-v1-30-scheduledbackup-cel",
@@ -2176,8 +2176,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T12:00:00Z",
-          "validUntil": "2026-12-11T12:00:00Z",
+          "reviewedAt": "2026-11-24T05:06:00Z",
+          "validUntil": "2027-01-21T05:06:00Z",
           "sources": [
             {
               "id": "containerd-v1-7-28-runc-v1-bundled",
@@ -2205,27 +2205,27 @@
             },
             {
               "id": "containerd-v2-0-0-cri-runtime-migration-copy",
-              "url": "https://github.com/containerd/containerd/blob/207ad711eabd375a01713109a8a197d197ff6542/plugins/cri/runtime/plugin.go",
-              "revision": "207ad711eabd375a01713109a8a197d197ff6542",
-              "contentDigest": "sha256:ba6eca750068afaef430942ff39cdd73b72663d384c690f05d31df1c2ea7afb0",
-              "startLine": 54,
-              "endLine": 65
+              "url": "https://github.com/containerd/containerd/blob/9681afd6c50dc7f18b68cbea4cee26f48b5e22ae/plugins/cri/runtime/plugin.go",
+              "revision": "9681afd6c50dc7f18b68cbea4cee26f48b5e22ae",
+              "contentDigest": "sha256:bc7e8e69017fdbea48087a03eb49947ae11fa7c77c8b01924aea915dbfa33979",
+              "startLine": 196,
+              "endLine": 211
             },
             {
               "id": "containerd-v2-0-0-cri-runtime-migration-preserves-runtime-type",
-              "url": "https://github.com/containerd/containerd/blob/207ad711eabd375a01713109a8a197d197ff6542/plugins/cri/runtime/plugin.go",
-              "revision": "207ad711eabd375a01713109a8a197d197ff6542",
-              "contentDigest": "sha256:ba6eca750068afaef430942ff39cdd73b72663d384c690f05d31df1c2ea7afb0",
-              "startLine": 201,
-              "endLine": 217
+              "url": "https://github.com/containerd/containerd/blob/9681afd6c50dc7f18b68cbea4cee26f48b5e22ae/plugins/cri/runtime/plugin.go",
+              "revision": "9681afd6c50dc7f18b68cbea4cee26f48b5e22ae",
+              "contentDigest": "sha256:bc7e8e69017fdbea48087a03eb49947ae11fa7c77c8b01924aea915dbfa33979",
+              "startLine": 213,
+              "endLine": 281
             },
             {
               "id": "containerd-v2-0-0-removed-official-runtimes",
-              "url": "https://github.com/containerd/containerd/blob/207ad711eabd375a01713109a8a197d197ff6542/docs/containerd-2.0.md",
-              "revision": "207ad711eabd375a01713109a8a197d197ff6542",
-              "contentDigest": "sha256:45961feeb1ea6f9140991c4c99a2ca9f9c98c1c449721fb2735a58deec36d729",
-              "startLine": 123,
-              "endLine": 125
+              "url": "https://github.com/containerd/containerd/blob/9681afd6c50dc7f18b68cbea4cee26f48b5e22ae/docs/containerd-2.0.md",
+              "revision": "9681afd6c50dc7f18b68cbea4cee26f48b5e22ae",
+              "contentDigest": "sha256:955c27c34031ce286f11bd53b94778b63b4595c43a31a353eed95cc2f9279a23",
+              "startLine": 127,
+              "endLine": 129
             }
           ]
         },
@@ -5301,8 +5301,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-09T01:45:37Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-24T05:14:40Z",
+          "validUntil": "2027-01-27T05:14:40Z",
           "sources": [
             {
               "contentDigest": "sha256:be26b5ae5bdc89450da840ca42621f0dac915be749b0c63932f353ac112b05ed",
@@ -5313,20 +5313,20 @@
               "url": "https://github.com/etcd-io/etcd/blob/507c0de87bd5034e3de4ab76ebf96b54dae0cd52/server/etcdmain/config.go"
             },
             {
-              "contentDigest": "sha256:4010a2e5527a3b73400491daa318137e3d8748166114c6d0a50b1aa7671337e0",
-              "endLine": 139,
+              "contentDigest": "sha256:e78c592a0ac299ef9a74c2ba157b383576f048f92a4d120573319d4c4cb2faa4",
+              "endLine": 138,
               "id": "source-f5d605a93abe-104",
-              "revision": "f5d605a93abe2fdfa13880aab0f1f3a4203628dd",
-              "startLine": 104,
-              "url": "https://github.com/etcd-io/etcd/blob/f5d605a93abe2fdfa13880aab0f1f3a4203628dd/server/etcdmain/config.go"
+              "revision": "0689586e360e2c6b46f95ad5634c25d5fa1683db",
+              "startLine": 102,
+              "url": "https://github.com/etcd-io/etcd/blob/0689586e360e2c6b46f95ad5634c25d5fa1683db/server/etcdmain/config.go"
             },
             {
-              "contentDigest": "sha256:3932ca3ca9af55afe4f3e2574003c676909abea4a5cf778887943f276c2964a8",
-              "endLine": 965,
+              "contentDigest": "sha256:b37f4b0386a98303bef18b3b7f2effd29947722347989caa6a7cd19181e93f15",
+              "endLine": 963,
               "id": "source-f5d605a93abe-752",
-              "revision": "f5d605a93abe2fdfa13880aab0f1f3a4203628dd",
-              "startLine": 752,
-              "url": "https://github.com/etcd-io/etcd/blob/f5d605a93abe2fdfa13880aab0f1f3a4203628dd/server/embed/config.go"
+              "revision": "0689586e360e2c6b46f95ad5634c25d5fa1683db",
+              "startLine": 750,
+              "url": "https://github.com/etcd-io/etcd/blob/0689586e360e2c6b46f95ad5634c25d5fa1683db/server/embed/config.go"
             }
           ]
         },
@@ -8510,8 +8510,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-10T20:30:00Z",
-          "validUntil": "2026-12-09T20:30:00Z",
+          "reviewedAt": "2026-11-24T05:18:00Z",
+          "validUntil": "2027-01-22T05:18:00Z",
           "sources": [
             {
               "id": "kubeflow-kfp-v1-components-public-import",
@@ -8531,19 +8531,19 @@
             },
             {
               "id": "kubeflow-kfp-v2-components-export",
-              "url": "https://github.com/kubeflow/pipelines/blob/e03e31219387b587b700ba3e31a02df486aa364f/sdk/python/kfp/components/__init__.py",
-              "revision": "e03e31219387b587b700ba3e31a02df486aa364f",
-              "contentDigest": "sha256:198591beb7def92163e7d2d50afbc0d9b1282c50df03c6c4aa2b08e90368f2c3",
-              "startLine": 15,
-              "endLine": 31
+              "url": "https://github.com/kubeflow/pipelines/blob/c5658f09ec38e82730a8eca0a1aabf0876087eec/sdk/python/kfp/components/__init__.py",
+              "revision": "c5658f09ec38e82730a8eca0a1aabf0876087eec",
+              "contentDigest": "sha256:c5e96db5f91c4849b1e2cd625ed11e71915c3216ffbe9592f0dbe92e026bb23c",
+              "startLine": 17,
+              "endLine": 36
             },
             {
               "id": "kubeflow-kfp-v2-dsl-component-export",
-              "url": "https://github.com/kubeflow/pipelines/blob/e03e31219387b587b700ba3e31a02df486aa364f/sdk/python/kfp/dsl/__init__.py",
-              "revision": "e03e31219387b587b700ba3e31a02df486aa364f",
-              "contentDigest": "sha256:0bf2281a2930250696df64277ba8478750a72ea5da80d466163b2ca9bf18997d",
-              "startLine": 15,
-              "endLine": 24
+              "url": "https://github.com/kubeflow/pipelines/blob/c5658f09ec38e82730a8eca0a1aabf0876087eec/sdk/python/kfp/dsl/__init__.py",
+              "revision": "c5658f09ec38e82730a8eca0a1aabf0876087eec",
+              "contentDigest": "sha256:e96b5c284de135fac012078ae3ee95ddaca1bc61e4c17f11fcb3277beb14eba6",
+              "startLine": 259,
+              "endLine": 295
             },
             {
               "id": "kubeflow-kfp-v2-migration-create-component",
