@@ -15054,8 +15054,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T20:22:53Z",
-          "validUntil": "2026-12-10T20:22:53Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-16T12:00:00Z",
           "sources": [
             {
               "id": "nats-00-v2-10-server-name-accepted",
@@ -15141,8 +15141,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:46:00Z",
-          "validUntil": "2026-12-11T08:46:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-16T12:00:00Z",
           "sources": [
             {
               "id": "nats-origin-2-10-29-version",
@@ -15236,8 +15236,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:46:00Z",
-          "validUntil": "2026-12-11T08:46:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-17T12:00:00Z",
           "sources": [
             {
               "id": "nats-origin-2-11-17-version",
@@ -15331,8 +15331,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:46:00Z",
-          "validUntil": "2026-12-11T08:46:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-18T12:00:00Z",
           "sources": [
             {
               "id": "nats-origin-2-12-15-version",
@@ -15426,8 +15426,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:46:00Z",
-          "validUntil": "2026-12-11T08:46:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-19T12:00:00Z",
           "sources": [
             {
               "id": "nats-origin-2-8-4-version",
@@ -15521,8 +15521,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:46:00Z",
-          "validUntil": "2026-12-11T08:46:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-15T12:00:00Z",
           "sources": [
             {
               "id": "nats-origin-2-9-25-version",
