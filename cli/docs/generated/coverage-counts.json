@@ -2,12 +2,12 @@
   "schema": "prufyx.io/coverage-readme-counts/v2",
   "report": {
     "schema": "prufyx.io/coverage-report/v1",
-    "now": "2026-11-24T05:20:00Z",
+    "now": "2026-11-24T05:21:20Z",
     "window": 6,
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
-      "digest": "sha256:10c88bbd20752e3a705c3daddceb068b487c530199fc3a9bfc82446034e39e38"
+      "digest": "sha256:5238248ac3233bd235d602b18471ae95b6b5f700334f89688944fde303176c5c"
     },
     "lines": {
       "capturedOn": "2026-10-31",
@@ -19,7 +19,7 @@
       "entries": 9,
       "clockOn": "2026-11-10"
     },
-    "clockAttestedAt": "2026-11-24T05:20:00Z",
+    "clockAttestedAt": "2026-11-24T05:21:20Z",
     "packProjectsCovered": 73,
     "crdVersionProjects": 87,
     "crdPublishedProjects": 42,
@@ -980,7 +980,7 @@
         "covered": true,
         "validRules": 2,
         "rulesInWindow": 2,
-        "expiring14d": 1
+        "expiring14d": 0
       },
       {
         "project": "contour",
@@ -1609,7 +1609,7 @@
         "covered": true,
         "validRules": 2,
         "rulesInWindow": 2,
-        "expiring14d": 2
+        "expiring14d": 0
       },
       {
         "project": "eck-operator",
@@ -1895,7 +1895,7 @@
         "covered": true,
         "validRules": 10,
         "rulesInWindow": 10,
-        "expiring14d": 1
+        "expiring14d": 0
       },
       {
         "project": "external-dns",
@@ -2546,7 +2546,7 @@
         "covered": true,
         "validRules": 7,
         "rulesInWindow": 5,
-        "expiring14d": 1
+        "expiring14d": 0
       },
       {
         "project": "helm",
@@ -2871,7 +2871,7 @@
         "covered": true,
         "validRules": 6,
         "rulesInWindow": 3,
-        "expiring14d": 1
+        "expiring14d": 0
       },
       {
         "project": "k8gb",
@@ -4242,7 +4242,7 @@
         "covered": true,
         "validRules": 1,
         "rulesInWindow": 0,
-        "expiring14d": 1
+        "expiring14d": 0
       },
       {
         "project": "metallb",
@@ -5909,14 +5909,7 @@
       }
     ],
     "projectsWithoutLines": [],
-    "expiringProjects": [
-      "containerd",
-      "dragonfly",
-      "etcd",
-      "harbor",
-      "jaeger",
-      "longhorn"
-    ],
+    "expiringProjects": [],
     "v2": {
       "tiersVerified": false,
       "tier1Projects": 30,
@@ -7068,5 +7061,5 @@
       "g": 41
     }
   },
-  "readmeBlockSha256": "604856e661b3b5621b48383cb73be0013941c3421cedd8f8755c1c8b7e837bbd"
+  "readmeBlockSha256": "e31b73366c39ab4140d7a6cb4ca9a409a3de7ace18718cad400648ae3332f659"
 }
