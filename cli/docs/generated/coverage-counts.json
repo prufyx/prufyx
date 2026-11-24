@@ -7,7 +7,7 @@
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
-      "digest": "sha256:c9e07f1c074d9fc93290b1c67d281d18139e738c48975f682cdbcb2928841c44"
+      "digest": "sha256:cac9fb4d1513cd6acd9a13b5f6a21d3ab5861fc0ffa0b05b77604454a46f1b1c"
     },
     "lines": {
       "capturedOn": "2026-10-31",
@@ -2251,7 +2251,7 @@
         "covered": true,
         "validRules": 6,
         "rulesInWindow": 5,
-        "expiring14d": 1
+        "expiring14d": 0
       },
       {
         "project": "furiko",
@@ -5913,7 +5913,6 @@
       "containerd",
       "dragonfly",
       "etcd",
-      "flux",
       "harbor",
       "jaeger",
       "longhorn"
