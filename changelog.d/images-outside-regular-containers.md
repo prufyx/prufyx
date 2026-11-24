@@ -1,0 +1,2 @@
+### Fixed
+- A reviewed component image found only in an init container, an ephemeral container or a bare Pod is no longer reported absent. A ReplicaSet, Job or Pod can rely on its managing controller only when the exact image already has a public component row or an unbound omission; a rollout's old image is not hidden by a changed parent template. The collector also lists Pods; full API responses reach local process memory, while retained output contains only public summaries and bounded omissions.

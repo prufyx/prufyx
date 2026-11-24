@@ -23,7 +23,7 @@ func (r kindRunner) Run(_ context.Context, argv, _ []string, _ time.Duration) (C
 	if strings.Contains(joined, " "+r.resource+" ") {
 		meta := map[string]any{}
 		if r.owner != "" {
-			meta["ownerReferences"] = []any{map[string]any{"kind": r.owner, "name": "x"}}
+			meta["ownerReferences"] = []any{map[string]any{"kind": r.owner, "apiVersion": ownerAPIVersions[r.owner], "controller": true, "name": "x"}}
 		}
 		raw, _ := json.Marshal(map[string]any{"items": []any{map[string]any{
 			"kind": r.kind, "metadata": meta,
@@ -34,7 +34,7 @@ func (r kindRunner) Run(_ context.Context, argv, _ []string, _ time.Duration) (C
 	return CommandResult{Stdout: fakeResponse(argv)}, nil
 }
 
-func collectOmissions(t *testing.T, r kindRunner, components bool) string {
+func collectOmissions(t *testing.T, r Runner, components bool) string {
 	t.Helper()
 	tmp := t.TempDir()
 	kubeconfig := filepath.Join(tmp, "kc")
@@ -90,7 +90,6 @@ func TestHealthyDeploymentAndItsReplicaSetDoNotTriggerUnbound(t *testing.T) {
 	img := "quay.io/argoproj/workflow-controller:v4.1.2"
 	for _, r := range []kindRunner{
 		{"deployments.apps", "Deployment", img, ""},
-		{"replicasets.apps", "ReplicaSet", img, "Deployment"},
 		{"deployments.apps", "Deployment", "registry.example/other/app:v1.0.0", ""},
 		{"replicasets.apps", "ReplicaSet", "registry.example/other/app:v1.0.0", ""},
 	} {
