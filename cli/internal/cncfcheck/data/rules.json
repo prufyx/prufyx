@@ -14175,7 +14175,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
           "sources": [
             {
               "contentDigest": "sha256:eb3238110346601e8e014dac5e5fa873bde7c94bb2f33053f92fd175c1b2a1f1",
@@ -14243,7 +14243,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-16T12:00:00Z"
         },
         "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-14-5",
         "nextAction": "Remove reportsChunkSize from the effective official upstream bare reports-controller arguments. Otherwise provide an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.",
@@ -14313,7 +14313,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
           "sources": [
             {
               "contentDigest": "sha256:eb3238110346601e8e014dac5e5fa873bde7c94bb2f33053f92fd175c1b2a1f1",
@@ -14381,7 +14381,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-17T12:00:00Z"
         },
         "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-15-3",
         "nextAction": "Remove reportsChunkSize from the effective official upstream bare reports-controller arguments. Otherwise provide an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.",
@@ -14451,7 +14451,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
           "sources": [
             {
               "contentDigest": "sha256:eb3238110346601e8e014dac5e5fa873bde7c94bb2f33053f92fd175c1b2a1f1",
@@ -14519,7 +14519,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-18T12:00:00Z"
         },
         "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-16-4",
         "nextAction": "Remove reportsChunkSize from the effective official upstream bare reports-controller arguments. Otherwise provide an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.",
@@ -14589,7 +14589,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
           "sources": [
             {
               "contentDigest": "sha256:eb3238110346601e8e014dac5e5fa873bde7c94bb2f33053f92fd175c1b2a1f1",
@@ -14657,7 +14657,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-19T12:00:00Z"
         },
         "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-17-2",
         "nextAction": "Remove reportsChunkSize from the effective official upstream bare reports-controller arguments. Otherwise provide an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.",
@@ -14727,7 +14727,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
           "sources": [
             {
               "contentDigest": "sha256:eb3238110346601e8e014dac5e5fa873bde7c94bb2f33053f92fd175c1b2a1f1",
@@ -14795,7 +14795,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-15T12:00:00Z"
         },
         "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-18-2",
         "nextAction": "Remove reportsChunkSize from the effective official upstream bare reports-controller arguments. Otherwise provide an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.",
