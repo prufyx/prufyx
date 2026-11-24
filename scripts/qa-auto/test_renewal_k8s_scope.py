@@ -128,7 +128,7 @@ class RenewalK8sScope(unittest.TestCase):
 
 
 CNCF_RULES = "cli/internal/cncfcheck/data/rules.json"
-REMOVAL = {"removed_fact": ["sample.example/v1/Widget"]}
+REMOVAL = {"removed_fact": ["sample.example/v1/Widget"], "component.kubernetes.in_tree_dockershim_required": []}
 
 
 def kentry(rid, fact, reviewed="2026-09-01T00:00:00Z", valid="2026-12-01T00:00:00Z", **rule_extra):
@@ -141,9 +141,9 @@ def cncf(*entries):
     return {"schema": "s", "entries": list(entries)}
 
 
-def run_cncf(base, head, removal=REMOVAL):
+def run_cncf(base, head, removal=None):
     files = {("base", CNCF_RULES): base, ("head", CNCF_RULES): head}
-    with patch.object(oracle, "kubernetes_removal_facts", return_value=removal):
+    with patch.object(oracle, "kubernetes_removal_facts", return_value=REMOVAL if removal is None else removal):
         return run([CNCF_RULES], files)
 
 
@@ -193,6 +193,35 @@ class DateOnlyKubernetesRenewal(unittest.TestCase):
         base, head = self.renewed(self.RUNTIME)
         self.assertEqual(run_cncf(base, cncf()), EVERY)
         self.assertEqual(run_cncf(cncf(), head), EVERY)
+
+    def test_fact_absent_from_map_requires_all(self):
+        self.assertEqual(run_cncf(*self.renewed(self.RUNTIME), removal={"other": []}), EVERY)
+
+    def test_removed_gvk_present_without_entry_requires_all(self):
+        base, head = self.renewed("component.x.y_removed_gvk_present")
+        self.assertEqual(run_cncf(base, head, removal={"other": ["a/b/C"]}), EVERY)
+        self.assertEqual(run_cncf(base, head, removal={"component.x.y_removed_gvk_present": []}), EVERY)
+
+    def test_missing_fact_id_non_intermediate_operator_requires_all(self):
+        base, head = self.renewed(self.RUNTIME)
+        for doc in (base, head):
+            del doc["entries"][0]["rule"]["condition"]
+            doc["entries"][0]["rule"]["operator"] = "other_operator"
+        self.assertEqual(run_cncf(base, head), EVERY)
+        for doc in (base, head):
+            del doc["entries"][0]["rule"]["operator"]
+        self.assertEqual(run_cncf(base, head), EVERY)
+
+    def test_non_string_fact_id_requires_all(self):
+        base, head = self.renewed(["x"])
+        self.assertEqual(run_cncf(base, head), EVERY)
+
+    def test_intermediate_version_operator_date_only_is_narrowed(self):
+        base, head = self.renewed(self.RUNTIME)
+        for doc in (base, head):
+            del doc["entries"][0]["rule"]["condition"]
+            doc["entries"][0]["rule"]["operator"] = "require_intermediate_version"
+        self.assertEqual(run_cncf(base, head), set())
 
     def test_non_kubernetes_date_only_entry_is_not_forced(self):
         base, head = self.renewed(self.RUNTIME)

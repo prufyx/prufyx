@@ -284,8 +284,16 @@ def date_only_change(before, after):
         return False
     if None in stripped or stripped[0] != stripped[1]:
         return False  # not a date-only change: the existing per-fact narrowing (or fail-closed) decides
-    fact = after["rule"].get("condition", {}).get("factId")
-    return not kubernetes_removal_facts().get(fact)
+    rule = after["rule"]
+    condition = rule.get("condition")
+    if not isinstance(condition, dict) or "factId" not in condition:
+        # no fact: only the version-skew operator is known to be independent of removal members
+        return "condition" not in rule and rule.get("operator") == "require_intermediate_version"
+    fact = condition["factId"]
+    if not isinstance(fact, str) or fact.endswith("_removed_gvk_present"):
+        return False
+    members = kubernetes_removal_facts().get(fact)  # absent from the map: unknown, not "no members"
+    return isinstance(members, list) and not members and fact in kubernetes_removal_facts()
 
 
 def required_single_targets(singles):
