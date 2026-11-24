@@ -110,6 +110,37 @@ class Anchor(unittest.TestCase):
         r = crd.classify_pair(11, unknown_report(), [ITEM], [], P)  # no versions given
         self.assertTrue(r[1])
 
+    def covers(self, entries):
+        self.rules(entries)
+        return crd.anchor_only_rule_covers(P, "1.19.11", "1.20.0", [ITEM])
+
+    def test_ranged_rule_with_overlapping_member_next_to_anchor_is_false(self):
+        ranged = rule(frm="1.19.0", range={"from": {"gte": "1.19.0"}})
+        self.assertFalse(self.covers([rule(), ranged]))
+        sub = rule(frm="1.18.0")
+        sub["rule"]["subject"]["range"] = {"from": {"gte": "1.18.0"}}
+        self.assertFalse(self.covers([rule(), sub]))
+
+    def test_exact_rule_with_declared_from_is_false(self):
+        self.assertFalse(self.covers([rule(), rule(frm="1.19.11", to="1.20.0")]))
+        self.assertFalse(self.covers([rule(), rule(frm="1.19.11", to="1.21.0")]))
+
+    def test_unparseable_overlapping_subject_is_false(self):
+        for subject in ("x", {"from": "main", "to": "1.20.0"}, {"from": "1.19.0"}, {"to": "1.20.0"}):
+            other = rule(frm="1.18.0")
+            other["rule"]["subject"] = subject
+            self.assertFalse(self.covers([rule(), other]), subject)
+
+    def test_non_overlapping_other_rule_keeps_anchor_covering(self):
+        ranged = rule(members=("cilium.io/v2alpha1/Other",), range={"from": {"gte": "1.19.0"}})
+        exact = rule(frm="1.19.11", members=("cilium.io/v2alpha1/Other",))
+        broken = rule(members=("cilium.io/v2alpha1/Other",))
+        broken["rule"]["subject"] = "x"
+        self.assertTrue(self.covers([rule(), ranged, exact, broken]))
+
+    def test_other_exact_anchor_of_another_patch_is_fine(self):
+        self.assertTrue(self.covers([rule(), rule(frm="1.19.5", to="1.20.0")]))
+
     def test_other_project_rule_does_not_cover(self):
         entry = rule()
         entry["project"] = "other"

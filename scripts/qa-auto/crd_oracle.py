@@ -660,19 +660,22 @@ def anchor_only_rule_covers(project, frm, to, removed):
         covered = set()
         for e in entries:
             rule = e["rule"]
-            subject = rule.get("subject")
-            if e.get("project") != project or "range" in rule or not isinstance(subject, dict) or "range" in subject:
-                continue
-            if subject.get("to") != ".".join(b.groups()):
-                continue
-            anchor = SEMVER.fullmatch(subject.get("from") or "")
-            if not anchor or anchor.groups()[:2] != a.groups()[:2] or anchor.groups() == a.groups():
-                continue
-            if rule.get("operator") != "forbid_set_member":
+            if e.get("project") != project or rule.get("operator") != "forbid_set_member":
                 continue
             members = (rule.get("setCondition") or {}).get("members")
-            if isinstance(members, list):
-                covered |= want & {m for m in members if isinstance(m, str)}
+            overlap = want & {m for m in members if isinstance(m, str)} if isinstance(members, list) else set()
+            if not overlap:
+                continue
+            # any other rule that removes one of the same members must be a plain exact anchor of another from-version
+            subject = rule.get("subject")
+            if "range" in rule or not isinstance(subject, dict) or "range" in subject:
+                return False
+            anchor, target = SEMVER.fullmatch(subject.get("from") or ""), SEMVER.fullmatch(subject.get("to") or "")
+            if not anchor or not target or anchor.groups() == a.groups():
+                return False
+            if target.groups() != b.groups() or anchor.groups()[:2] != a.groups()[:2]:
+                continue
+            covered |= overlap
         return covered == want
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return False
