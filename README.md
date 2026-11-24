@@ -486,7 +486,7 @@ Velero and others.
 Every rule in the CNCF and community-project packs is time-limited.
 
 <!-- validity-window:begin -->
-The 304 active rules shipped today stop being valid, rule by rule, between 2026-12-10 and 2027-02-19 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 12 of the 304 stop being valid on or before 2026-12-15, in the 6 days starting on the earliest.
+The 304 active rules shipped today stop being valid, rule by rule, between 2026-12-10 and 2027-02-22 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 12 of the 304 stop being valid on or before 2026-12-15, in the 6 days starting on the earliest.
 <!-- validity-window:end -->
 
 The named cert-manager and Prometheus checks are pinned to
