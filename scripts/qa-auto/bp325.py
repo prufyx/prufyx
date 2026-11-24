@@ -7,6 +7,28 @@ sys.path.insert(0,os.path.dirname(os.path.abspath(__file__)))
 from qalib import case,dump,boxed
 P=sys.argv[1]; W=sys.argv[2]; os.makedirs(W,exist_ok=True)
 CASES=[]
+RULE_ID="buildpacks.lifecycle-platform-api-support.0-16-5-to-0-17-7"
+BASE_NOW="2026-09-10T17:00:00Z"
+def _utc(t):
+    import datetime
+    return datetime.datetime.strptime(t,"%Y-%m-%dT%H:%M:%SZ")
+def derive_now(rules_path,base_now=BASE_NOW):
+    """Clock that keeps the case testing the same behaviour after the rule is renewed: max(evidence.reviewedAt, base_now),
+    only when it is still before evidence.validUntil. Any problem returns base_now unchanged (the case then fails visibly, never passes by accident)."""
+    try:
+        with open(rules_path) as f: doc=json.load(f)
+        rows=[e["rule"] for e in doc["entries"] if e["rule"]["id"]==RULE_ID]
+        if len(rows)!=1: return base_now
+        ev=rows[0]["evidence"]
+        now=max(_utc(ev["reviewedAt"]),_utc(base_now))
+        if not now<_utc(ev["validUntil"]): return base_now
+        return now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    except Exception:
+        return base_now
+def _rules_path():
+    root=os.environ.get("QA_SRC") or os.path.join(os.path.dirname(os.path.abspath(__file__)),"..","..")
+    return os.path.join(root,"cli","internal","cncfcheck","data","rules.json")
+NOW=derive_now(_rules_path()) if __name__=="__main__" else BASE_NOW
 DEP=["0.3","0.4","0.5","0.6"]; S0=["0.3","0.4","0.5","0.6","0.7","0.8","0.9","0.10","0.11"]; S1=S0+["0.12"]
 def cfg(path,ver,sup,dep=DEP,drop_apis=False):
     apis=json.dumps({"buildpack":{"supported":["0.9"],"deprecated":[]},"platform":{"supported":sup,"deprecated":dep}})
@@ -16,7 +38,7 @@ def cfg(path,ver,sup,dep=DEP,drop_apis=False):
 def run(name,cur,prop,api,frm="0.16.5",to="0.17.7",expect=None):
     c=f"{W}/{name}-c.json"; p=f"{W}/{name}-p.json"
     cur(c); prop(p)
-    r=subprocess.run(boxed([P,"check","cncf","--project","buildpacks","--current-lifecycle-config",c,"--proposed-lifecycle-config",p,"--from",frm,"--to",to,"--current-platform-api","0.11","--proposed-platform-api",api,"--now","2026-09-10T17:00:00Z","--format","json"]),capture_output=True,text=True)
+    r=subprocess.run(boxed([P,"check","cncf","--project","buildpacks","--current-lifecycle-config",c,"--proposed-lifecycle-config",p,"--from",frm,"--to",to,"--current-platform-api","0.11","--proposed-platform-api",api,"--now",NOW,"--format","json"]),capture_output=True,text=True)
     try: j=json.loads(r.stdout); v=j.get("verdict") or j.get("result",{}).get("status")
     except Exception: v="?"
     ok = r.returncode in expect

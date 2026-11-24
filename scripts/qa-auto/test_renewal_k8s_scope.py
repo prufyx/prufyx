@@ -127,5 +127,79 @@ class RenewalK8sScope(unittest.TestCase):
         self.assertEqual(run(CHANGED + ["cli/internal/projectcheck/projectcheck.go"], pr691()), EVERY)
 
 
+CNCF_RULES = "cli/internal/cncfcheck/data/rules.json"
+REMOVAL = {"removed_fact": ["sample.example/v1/Widget"]}
+
+
+def kentry(rid, fact, reviewed="2026-09-01T00:00:00Z", valid="2026-12-01T00:00:00Z", **rule_extra):
+    rule = {"id": rid, "condition": {"factId": fact}, "evidence": {"reviewedAt": reviewed, "validUntil": valid, "state": "active"}}
+    rule.update(rule_extra)
+    return {"project": "kubernetes", "rule": rule}
+
+
+def cncf(*entries):
+    return {"schema": "s", "entries": list(entries)}
+
+
+def run_cncf(base, head, removal=REMOVAL):
+    files = {("base", CNCF_RULES): base, ("head", CNCF_RULES): head}
+    with patch.object(oracle, "kubernetes_removal_facts", return_value=removal):
+        return run([CNCF_RULES], files)
+
+
+class DateOnlyKubernetesRenewal(unittest.TestCase):
+    RUNTIME = "component.kubernetes.in_tree_dockershim_required"
+
+    def renewed(self, fact, **rule_extra):
+        base = cncf(kentry("k.dockershim", fact, **rule_extra))
+        head = cncf(kentry("k.dockershim", fact, "2026-11-18T09:49:59Z", "2027-02-09T09:49:59Z", **rule_extra))
+        return base, head
+
+    def test_date_only_runtime_fact_is_narrowed(self):
+        self.assertEqual(run_cncf(*self.renewed(self.RUNTIME)), set())
+
+    def test_date_plus_other_field_requires_all(self):
+        base, head = self.renewed(self.RUNTIME)
+        head["entries"][0]["rule"]["evidence"]["state"] = "retired"
+        self.assertEqual(run_cncf(base, head), EVERY)
+        base, head = self.renewed(self.RUNTIME)
+        head["entries"][0]["rule"]["message"] = "changed"
+        self.assertEqual(run_cncf(base, head), EVERY)
+
+    def test_date_plus_source_repin_requires_all(self):
+        base, head = self.renewed(self.RUNTIME)
+        head["entries"][0]["rule"]["evidence"]["sources"] = [{"url": "u"}]
+        self.assertEqual(run_cncf(base, head), EVERY)
+
+    def test_removal_fact_with_date_only_follows_existing_narrowing(self):
+        base, head = self.renewed("removed_fact")
+        self.assertEqual(run_cncf(base, head), {STABLE})
+
+    def test_malformed_entries_require_all(self):
+        base, head = self.renewed(self.RUNTIME)
+        del head["entries"][0]["rule"]["evidence"]["validUntil"]
+        self.assertEqual(run_cncf(base, head), EVERY)
+        base, head = self.renewed(self.RUNTIME)
+        head["entries"][0]["rule"]["evidence"] = "x"
+        self.assertEqual(run_cncf(base, head), EVERY)
+
+    def test_unreadable_removal_map_requires_all(self):
+        base, head = self.renewed(self.RUNTIME)
+        files = {("base", CNCF_RULES): base, ("head", CNCF_RULES): head}
+        with patch.object(oracle, "kubernetes_removal_facts", side_effect=ValueError("unreadable")):
+            self.assertEqual(run([CNCF_RULES], files), EVERY)
+
+    def test_added_or_removed_kubernetes_entry_requires_all(self):
+        base, head = self.renewed(self.RUNTIME)
+        self.assertEqual(run_cncf(base, cncf()), EVERY)
+        self.assertEqual(run_cncf(cncf(), head), EVERY)
+
+    def test_non_kubernetes_date_only_entry_is_not_forced(self):
+        base, head = self.renewed(self.RUNTIME)
+        for doc in (base, head):
+            doc["entries"][0]["project"] = "cilium"
+        self.assertEqual(run_cncf(base, head), set())
+
+
 if __name__ == "__main__":
     unittest.main()
