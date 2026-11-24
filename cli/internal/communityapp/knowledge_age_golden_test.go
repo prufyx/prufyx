@@ -35,8 +35,17 @@ var ageClocks = func() []struct{ name, now string } {
 // evidence ends, the same offsets as supersedeids.AgeClocks has for the
 // earliest end of the whole pack. The plan's verdict follows that rule's own
 // end, not the pack's earliest one, which a renewal of other rules moves.
-var batchAgeClocks = func() map[string]string {
-	_, until := testclock.RuleEvidence("thanos.receive-store-flags-removed.0-42")
+var batchAgeClocks = ruleAgeClocks("thanos.receive-store-flags-removed.0-42")
+
+// cncfAgeClocks are the same instants for the one rule the golden check cncf
+// run evaluates (a Kyverno rule): the verdict follows that rule's own end, not
+// the pack's earliest one, which a renewal of other rules moves.
+var cncfAgeClocks = ruleAgeClocks(kyvernoReportsChunkSizeRuleID)
+
+// ruleAgeClocks gives the before, inside and after instants of one rule: 31, 17
+// days before and 3 days after the day its evidence ends.
+func ruleAgeClocks(ruleID string) map[string]string {
+	_, until := testclock.RuleEvidence(ruleID)
 	end, err := time.Parse(time.RFC3339, until)
 	if err != nil {
 		panic(err)
@@ -47,15 +56,15 @@ var batchAgeClocks = func() map[string]string {
 		"inside": inside.Format(time.RFC3339),
 		"after":  inside.AddDate(0, 0, 20).Format(time.RFC3339),
 	}
-}()
+}
 
 // maskBatchClocks replaces the batch plan's own age instants with the
 // placeholders the pack-wide age instants get (testclock.MaskClocks; the inside
 // instant is the shared test clock there), so the
 // batch goldens are the same text whichever rule fixes the instants.
-func maskBatchClocks(got []byte) []byte {
+func maskBatchClocks(got []byte, clocks map[string]string) []byte {
 	for name, placeholder := range map[string]string{"before": "2001-02-01T00:00:00Z", "inside": "2001-01-01T00:00:00Z", "after": "2001-04-01T00:00:00Z"} {
-		got = bytes.ReplaceAll(got, []byte(batchAgeClocks[name]), []byte(placeholder))
+		got = bytes.ReplaceAll(got, []byte(clocks[name]), []byte(placeholder))
 	}
 	return got
 }
@@ -94,7 +103,9 @@ func maskSources(got []byte) []byte {
 func ageGolden(t *testing.T, name string, got []byte) {
 	t.Helper()
 	if strings.HasPrefix(name, "check-batch-") {
-		got = maskBatchClocks(got)
+		got = maskBatchClocks(got, batchAgeClocks)
+	} else if strings.HasPrefix(name, "check-cncf-") {
+		got = maskBatchClocks(got, cncfAgeClocks)
 	}
 	masked := maskSources(maskPack(t, got))
 	goldenfile.Check(t, filepath.Join("testdata", "knowledge-age", name), masked, *updateAgeGoldens, "")
@@ -110,7 +121,7 @@ func TestCheckOutputUnchangedNearExpiry(t *testing.T) {
 	root, plan := writeEmbeddedCLIBatch(t)
 	for _, clock := range ageClocks {
 		for _, format := range []string{"human", "json"} {
-			code, stdout, _ := runCNCFCLI(t, "check", "cncf", "--project", "kyverno", "--input", input, "--now", clock.now, "--format", format)
+			code, stdout, _ := runCNCFCLI(t, "check", "cncf", "--project", "kyverno", "--input", input, "--now", cncfAgeClocks[clock.name], "--format", format)
 			ageGolden(t, fmt.Sprintf("check-cncf-%s.%s", clock.name, format), []byte(fmt.Sprintf("%s\nexit %d\n", stdout, code)))
 			code, stdout, _ = runCNCFCLI(t, "check", "batch", "--plan", plan, "--root", root, "--now", batchAgeClocks[clock.name], "--format", format)
 			ageGolden(t, fmt.Sprintf("check-batch-%s.%s", clock.name, format), []byte(fmt.Sprintf("%s\nexit %d\n", stdout, code)))

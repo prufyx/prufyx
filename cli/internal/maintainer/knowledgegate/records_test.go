@@ -384,9 +384,16 @@ func TestGateReviewedAttestationApproval(t *testing.T) {
 	t.Run("stagger", func(t *testing.T) {
 		base, head := attestedTrees(t, []string{"1.22"}, []string{"1.22"}, func(p *packDoc, atts []map[string]any) []map[string]any {
 			a := reviewedAttestation(t, p, "1.19")
-			// The week where most of the shipped pack's leases end, computed
-			// from the pack: a renewal moves it.
-			a["evidence"].(map[string]any)["validUntil"] = busiestEndNoon(t, p.entries).Format(time.RFC3339)
+			// The record's lease may not run past 90 days after its review
+			// (gateNow is fixed), so the week is chosen from that bound, never
+			// from where the shipped leases happen to fall: a renewal spreads
+			// them over later weeks, so no shipped week reaches the cap. The
+			// test fills the chosen week up to the cap with rules (tightened
+			// leases, never loosened), so the new record is the one that
+			// exceeds it, whichever way the pack's leases are laid out.
+			end := gateNow.Add(80 * 24 * time.Hour)
+			a["evidence"].(map[string]any)["validUntil"] = end.Format(time.RFC3339)
+			fillWeekToCap(t, p.entries, end)
 			return append(atts, a)
 		})
 		key.pinBoth(t, base, head, "airstand")
@@ -825,29 +832,42 @@ func TestSupersededRecordApprovalCannotReturn(t *testing.T) {
 	}
 }
 
-// busiestEndNoon is noon (UTC) of a day in the ISO week where the most of the
-// entries' evidence ends (the earliest such week on a tie).
-func busiestEndNoon(t *testing.T, entries []map[string]any) time.Time {
+// fillWeekToCap moves the leases of the entries (in rule id order, skipping the
+// pinned ones) to end until the ISO week of end holds exactly the stagger cap
+// of them, so one more lease in that week exceeds the cap. A lease only moves
+// earlier, so no entry is loosened.
+func fillWeekToCap(t *testing.T, entries []map[string]any, end time.Time) {
 	t.Helper()
-	counts := map[string]int{}
-	days := map[string]time.Time{}
-	best := ""
-	for _, e := range entries {
-		until, err := time.Parse(time.RFC3339, evidenceOf(e)["validUntil"].(string))
+	week := evidencereattest.ISOWeek(end)
+	limit := evidencereattest.StaggerCap(len(entries) + 1)
+	sorted := append([]map[string]any(nil), entries...)
+	sort.Slice(sorted, func(i, j int) bool { return ruleID(sorted[i]) < ruleID(sorted[j]) })
+	inWeek := 0
+	var movable []map[string]any
+	for _, e := range sorted {
+		ev := evidenceOf(e)
+		if lease, _ := ev["lease"].(string); lease == "pinned" {
+			continue
+		}
+		until, err := time.Parse(time.RFC3339, ev["validUntil"].(string))
 		if err != nil {
 			t.Fatal(err)
 		}
-		week := evidencereattest.ISOWeek(until)
-		counts[week]++
-		days[week] = time.Date(until.Year(), until.Month(), until.Day(), 12, 0, 0, 0, time.UTC)
-	}
-	for week, n := range counts {
-		if best == "" || n > counts[best] || (n == counts[best] && week < best) {
-			best = week
+		switch {
+		case evidencereattest.ISOWeek(until) == week:
+			inWeek++
+		case until.After(end):
+			movable = append(movable, e)
 		}
 	}
-	if best == "" {
-		t.Fatal("the pack has no entry")
+	for _, e := range movable {
+		if inWeek >= limit {
+			break
+		}
+		evidenceOf(e)["validUntil"] = end.Format(time.RFC3339)
+		inWeek++
 	}
-	return days[best]
+	if inWeek != limit {
+		t.Fatalf("cannot fill week %s to the cap %d: %d", week, limit, inWeek)
+	}
 }

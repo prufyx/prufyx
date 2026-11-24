@@ -173,6 +173,22 @@ func TestEmbeddedPackBaseline(t *testing.T) {
 		// bumped revision means a new baseline, which this file records.
 		t.Skipf("embedded pack is %s; the baseline pack is %s", head.Revision, baseline)
 	}
+	// The clock is never before the newest review of the shipped rules: a
+	// renewal reviewed after the pack's own clock is not in force yet and
+	// would move pairs to a lower tier. At that clock one crossplane pair is
+	// decided by a reviewed rule (B 3, S 43) that the earlier clock left at S.
+	if supersedeids.Superseded() {
+		newest, ok, err := NewestEvidenceTime(pack)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ok && now.Before(newest) {
+			// Only when the pack holds a review newer than its own clock:
+			// then the crossplane pair above moves from S to B.
+			want.B, want.S = want.B+1, want.S-1
+			now = newest
+		}
+	}
 	report, err := Compute(Input{Pack: pack, Lines: read(t, "testdata/lines-2026-10-08.json"), Now: now})
 	if err != nil {
 		t.Fatal(err)

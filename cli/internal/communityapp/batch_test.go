@@ -61,7 +61,7 @@ func TestBatchCheckCLIEmitsMachineActionableOutcomesWithoutPrivatePaths(t *testi
 	}
 	var stdout, stderr bytes.Buffer
 	exit := Run(t.Context(), floorNowArgs([]string{"check", "batch", "--plan", planPath, "--root", root, "--now", testclock.ProjectNewest("thanos").Format(time.RFC3339), "--format", "json"}), &stdout, &stderr, "test")
-	if exit != ExitOK || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"aggregateCategory":"PASS"`) || !strings.Contains(stdout.String(), `"outcome":"PASS"`) || strings.Contains(stdout.String(), root) || strings.Contains(stdout.String(), "input.json") {
+	if exit != ExitOK || !onlyAgeNote(stderr.String()) || !strings.Contains(stdout.String(), `"aggregateCategory":"PASS"`) || !strings.Contains(stdout.String(), `"outcome":"PASS"`) || strings.Contains(stdout.String(), root) || strings.Contains(stdout.String(), "input.json") {
 		t.Fatalf("exit=%d stdout=%s stderr=%s", exit, stdout.String(), stderr.String())
 	}
 }
@@ -101,7 +101,7 @@ func TestBatchCheckCLIEvaluatesOpenTelemetryInternalMetricsRule(t *testing.T) {
 	}
 	var stdout, stderr bytes.Buffer
 	exit := Run(t.Context(), floorNowArgs([]string{"check", "batch", "--plan", planPath, "--root", root, "--now", testclock.ProjectNewest("opentelemetry").Format(time.RFC3339), "--format", "json"}), &stdout, &stderr, "test")
-	if exit != ExitOK || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"aggregateCategory":"PASS"`) || !strings.Contains(stdout.String(), `"outcome":"PASS"`) || !strings.Contains(stdout.String(), `opentelemetry.internal-telemetry-default-bind`) || strings.Contains(stdout.String(), root) || strings.Contains(stdout.String(), "otel-input.json") {
+	if exit != ExitOK || !onlyAgeNote(stderr.String()) || !strings.Contains(stdout.String(), `"aggregateCategory":"PASS"`) || !strings.Contains(stdout.String(), `"outcome":"PASS"`) || !strings.Contains(stdout.String(), `opentelemetry.internal-telemetry-default-bind`) || strings.Contains(stdout.String(), root) || strings.Contains(stdout.String(), "otel-input.json") {
 		t.Fatalf("exit=%d stdout=%s stderr=%s", exit, stdout.String(), stderr.String())
 	}
 }
@@ -145,4 +145,12 @@ func TestBatchCheckCLIPropagatesOutputFailures(t *testing.T) {
 			t.Fatalf("%s output failure exit=%d stderr=%s", format, exit, stderr.String())
 		}
 	}
+}
+
+// onlyAgeNote is true for empty standard error or exactly the one knowledge-age
+// note: the embedded pack may hold rules inside their last 30 days at the
+// pinned clock, which the note words; anything else on standard error is a
+// failure.
+func onlyAgeNote(stderr string) bool {
+	return stderr == "" || (ageNoteLine.FindString(stderr) == stderr && strings.Count(stderr, "\n") == 1)
 }

@@ -1830,6 +1830,13 @@ func TestPrepareAndVerifyStayWithinStaggerCapOnRealPacks(t *testing.T) {
 		// Late enough that every wave's slot date is later than the
 		// packs' current validUntil values, so only V7 limits the batch.
 		at := time.Date(2026, 12, 14, 12, 0, 0, 0, time.UTC)
+		for _, entry := range doc.Entries {
+			if fields, err := parseRuleFields(entry.Rule); err == nil {
+				if until, perr := time.Parse(time.RFC3339, fields.Evidence.ValidUntil); perr == nil && until.After(at) {
+					at = time.Date(until.Year(), until.Month(), until.Day(), 12, 0, 0, 0, time.UTC)
+				}
+			}
+		}
 		wl := evidencerepin.Worklist{
 			Schema: evidencerepin.Schema, Authority: evidencerepin.Authority, GeneratedAt: rfc3339(at),
 			Scope: evidencerepin.WorklistScope{RulePacks: []string{tc.path}},

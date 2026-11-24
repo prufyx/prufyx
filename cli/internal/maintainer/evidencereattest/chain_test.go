@@ -559,6 +559,14 @@ func TestWeeklyBatchSimulationOnRealPacks(t *testing.T) {
 				start = reviewed.Add(time.Hour)
 			}
 		}
+		// The start is the wave 1 slot day (the fixed date above is one): a
+		// rule renewed on it gets a lease of the full slot cycle, so the
+		// shortest gap between two renewals of a rule is not an accident of
+		// where the newest review of the shipped pack falls in the cycle. A
+		// start moved by a renewal moves on to the next wave 1 slot day.
+		if start, err = SlotDate(1, start.Add(-time.Nanosecond)); err != nil {
+			t.Fatal(err)
+		}
 		renewals, notLater, notDue, lapsed := 0, 0, 0, 0
 		capped := map[string]bool{}
 		// lastRenewed and minGap track, per rule, the shortest time
