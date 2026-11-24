@@ -1498,7 +1498,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-25T05:00:40Z"
+          "validUntil": "2027-01-18T05:00:40Z"
         },
         "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-48-to-0-9-52",
         "nextAction": "For the selected complete IAM access-key policy, remove or redesign the direct json-diff filter before package 0.9.52; this check does not evaluate other filters, resources, variables, includes, or policy execution.",
@@ -1577,7 +1577,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-02-08T05:01:20Z"
+          "validUntil": "2027-02-15T05:01:20Z"
         },
         "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-49-to-0-9-52",
         "nextAction": "For the selected complete IAM access-key policy, remove or redesign the direct json-diff filter before package 0.9.52; this check does not evaluate other filters, resources, variables, includes, or policy execution.",
@@ -1735,7 +1735,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-26T05:02:40Z"
+          "validUntil": "2027-01-19T05:02:40Z"
         },
         "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-51-to-0-9-52",
         "nextAction": "For the selected complete IAM access-key policy, remove or redesign the direct json-diff filter before package 0.9.52; this check does not evaluate other filters, resources, variables, includes, or policy execution.",
@@ -1779,7 +1779,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-24T05:03:20Z",
-          "validUntil": "2027-02-09T05:03:20Z",
+          "validUntil": "2027-02-16T05:03:20Z",
           "sources": [
             {
               "id": "cloud-custodian-v0.9.50-iam-access-key",
@@ -2020,7 +2020,7 @@
         "evidence": {
           "state": "active",
           "reviewedAt": "2026-11-24T05:04:40Z",
-          "validUntil": "2027-01-27T05:04:40Z",
+          "validUntil": "2027-01-20T05:04:40Z",
           "sources": [
             {
               "id": "cni-spec-v0-4-0-network-configuration-forms",
@@ -2883,7 +2883,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-28T05:06:40Z"
+          "validUntil": "2027-01-21T05:06:40Z"
         },
         "id": "cortex.querier-at-modifier-flag-removed.1-21",
         "nextAction": "Remove querier.at-modifier-enabled from proposed effective upstream Cortex arguments; for the exact reviewed target image only, an omitted command is source-derived as /bin/cortex, not runtime evidence. Validate query behavior separately.",
@@ -4856,7 +4856,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-29T05:08:40Z"
+          "validUntil": "2027-01-22T05:08:40Z"
         },
         "id": "etcd.direct-minor-skip.3-2-32-to-3-7-1",
         "nextAction": "Plan a separate etcd 3.2.x to 3.3.x transition first; do not skip a minor version.",
@@ -4949,7 +4949,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-25T05:10:40Z"
+          "validUntil": "2027-01-18T05:10:40Z"
         },
         "id": "etcd.direct-minor-skip.3-5-33-to-3-7-1",
         "nextAction": "Plan a separate etcd 3.5.x to 3.6.x transition first; do not skip a minor version.",
