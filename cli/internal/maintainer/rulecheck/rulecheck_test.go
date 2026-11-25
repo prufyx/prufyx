@@ -336,7 +336,9 @@ func firstRangedEntry(t *testing.T) map[string]any {
 	t.Helper()
 	var mechanical map[string]any
 	for _, entry := range realEntries(t, filepath.Join("..", "..", "cncfcheck", "data", "rules.json")) {
-		if !releaseBoundaryRange(rule(entry)) {
+		// The mutations below are written for the Kubernetes minor-line
+		// shape (1.21 to 1.22); line-wide project ranges are not their base.
+		if entry["project"] != "kubernetes" || !releaseBoundaryRange(rule(entry)) {
 			continue
 		}
 		evidence, _ := rule(entry)["evidence"].(map[string]any)
