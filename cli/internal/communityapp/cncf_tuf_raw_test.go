@@ -58,7 +58,7 @@ func TestTUFUpdaterRawUnknownPrivacyAndModeGuards(t *testing.T) {
 		{"except handler rebound", "from tuf.ngclient import Updater\ntry:\n    pass\nexcept Exception as Updater:\n    Updater('/m','https://private.invalid/', bootstrap=None)\n", "6.0.0", "7.0.0", "candidate_call_count"},
 		{"star args", "from tuf.ngclient import Updater\nUpdater(*PRIVATE_VALUES)\n", "6.0.0", "7.0.0", "star_arguments"},
 		{"positional bootstrap", "from tuf.ngclient import Updater\nUpdater(a,b,c,d,e,f,PRIVATE_ROOT)\n", "6.0.0", "7.0.0", "positional_bootstrap"},
-		{"wrong pair", "from tuf.ngclient import Updater\nUpdater('/m','https://private.invalid/')\n", "6.0.1", "7.0.0", ""},
+		{"wrong pair", "from tuf.ngclient import Updater\nUpdater('/m','https://private.invalid/')\n", "5.1.0", "7.0.0", ""},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

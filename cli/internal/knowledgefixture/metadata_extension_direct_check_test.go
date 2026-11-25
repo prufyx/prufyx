@@ -155,6 +155,8 @@ func syntheticDistributionBundle(revision string, now time.Time) ([]byte, error)
 	subject["to"], _ = json.Marshal("4.0.0")
 	rule["subject"], _ = json.Marshal(subject)
 	rule["id"], _ = json.Marshal("synthetic.distribution-schema1.3-to-4")
+	// The synthetic tuple is one exact fictional pair, not the reviewed line range.
+	delete(rule, "range")
 	var evidence map[string]json.RawMessage
 	if json.Unmarshal(rule["evidence"], &evidence) != nil {
 		return nil, errors.New("synthetic Distribution evidence is invalid")
