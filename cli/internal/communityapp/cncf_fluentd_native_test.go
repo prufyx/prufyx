@@ -111,7 +111,7 @@ func TestFluentDNativeCheck_LiteralTreatmentShapeStillRoutes(t *testing.T) {
 func TestFluentDNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
 	t.Parallel()
 	path := writeCNCFFile(t, "fluentd-ruby.json", fluentdRubyTargetInput("official_upstream", "3.1.0", true), 0o600)
-	code, stdout, stderr := runCNCFCLI(t, fluentdNativeArgs(path, "1.18.0", "1.19.4")...)
+	code, stdout, stderr := runCNCFCLI(t, fluentdNativeArgs(path, "1.18.0", "1.20.0")...)
 	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
 		t.Fatalf("wrong pair code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
