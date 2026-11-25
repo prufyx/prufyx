@@ -92,7 +92,7 @@ func TestKubeEdgeDeclarationsPreserveIntentAndApplicabilityBoundaries(t *testing
 		{name: "partial argv stays unknown", selectorState: "declared", selectorValue: "legacy_profile_version", complete: false, distribution: "official_upstream", surface: "keadm_init", currentVersion: "1.18.0", wantCode: ExitUnknown, wantStatus: "UNKNOWN"},
 		{name: "custom build stays unknown", selectorState: "declared", selectorValue: "legacy_profile_version", complete: true, distribution: "custom_build", surface: "keadm_init", currentVersion: "1.18.0", wantCode: ExitUnknown, wantStatus: "UNKNOWN"},
 		{name: "other command stays unknown", selectorState: "declared", selectorValue: "legacy_profile_version", complete: true, distribution: "official_upstream", surface: "other", currentVersion: "1.18.0", wantCode: ExitUnknown, wantStatus: "UNKNOWN"},
-		{name: "wrong tuple stays unknown", selectorState: "declared", selectorValue: "legacy_profile_version", complete: true, distribution: "official_upstream", surface: "keadm_init", currentVersion: "1.18.1", wantCode: ExitUnknown, wantStatus: "UNKNOWN"},
+		{name: "wrong tuple stays unknown", selectorState: "declared", selectorValue: "legacy_profile_version", complete: true, distribution: "official_upstream", surface: "keadm_init", currentVersion: "1.17.3", wantCode: ExitUnknown, wantStatus: "UNKNOWN"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			raw := kubeEdgeExampleDeclaration(t, tc.selectorState, tc.selectorValue, tc.complete, tc.distribution, tc.surface, tc.currentVersion)
