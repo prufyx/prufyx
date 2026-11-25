@@ -3687,6 +3687,80 @@
           }
         },
         "status": "UNKNOWN"
+      },
+      {
+        "name": "range-interior-non-exact-versions-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/coredns/coredns",
+                "version": "1.6.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/coredns/coredns",
+                "version": "1.7.1",
+                "facts": [
+                  {
+                    "id": "component.coredns.distribution",
+                    "state": "declared",
+                    "enumValue": "official"
+                  },
+                  {
+                    "id": "component.coredns.federation_directive_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-upper-boundary-outside-unknown",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/coredns/coredns",
+                "version": "1.6.9",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/coredns/coredns",
+                "version": "1.8.0",
+                "facts": [
+                  {
+                    "id": "component.coredns.distribution",
+                    "state": "declared",
+                    "enumValue": "official"
+                  },
+                  {
+                    "id": "component.coredns.federation_directive_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
       }
     ]
   },
@@ -10070,6 +10144,70 @@
           }
         },
         "status": "UNKNOWN"
+      },
+      {
+        "name": "range-interior-non-exact-versions-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/emissary-ingress/emissary",
+                "version": "3.10.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/emissary-ingress/emissary",
+                "version": "4.0.0",
+                "facts": [
+                  {
+                    "id": "component.emissary.removed_metrics_endpoint_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-upper-boundary-outside-unknown",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/emissary-ingress/emissary",
+                "version": "3.10.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/emissary-ingress/emissary",
+                "version": "4.1.0",
+                "facts": [
+                  {
+                    "id": "component.emissary.removed_metrics_endpoint_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
       }
     ]
   },
@@ -13312,6 +13450,80 @@
         },
         "name": "wrong-pair",
         "status": "UNKNOWN"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/fluent/fluentd",
+                "facts": [],
+                "version": "1.18.1"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:generic/ruby",
+                "facts": [],
+                "version": "3.1.0"
+              },
+              {
+                "component": "pkg:github/fluent/fluentd",
+                "facts": [
+                  {
+                    "enumValue": "official_upstream",
+                    "id": "component.fluentd.distribution",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.19.1"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "range-interior-non-exact-versions-blocked",
+        "status": "BLOCKED"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/fluent/fluentd",
+                "facts": [],
+                "version": "1.18.0"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:generic/ruby",
+                "facts": [],
+                "version": "3.1.0"
+              },
+              {
+                "component": "pkg:github/fluent/fluentd",
+                "facts": [
+                  {
+                    "enumValue": "official_upstream",
+                    "id": "component.fluentd.distribution",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.20.0"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "range-upper-boundary-outside-unknown",
+        "status": "UNKNOWN"
       }
     ],
     "project": "fluentd",
@@ -13500,6 +13712,80 @@
           }
         },
         "status": "UNKNOWN"
+      },
+      {
+        "name": "range-interior-non-exact-versions-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/fluent/fluentd",
+                "version": "1.16.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:generic/ruby",
+                "version": "2.6.9",
+                "facts": []
+              },
+              {
+                "component": "pkg:github/fluent/fluentd",
+                "version": "1.17.1",
+                "facts": [
+                  {
+                    "id": "component.fluentd.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-upper-boundary-outside-unknown",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/fluent/fluentd",
+                "version": "1.16.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:generic/ruby",
+                "version": "2.6.9",
+                "facts": []
+              },
+              {
+                "component": "pkg:github/fluent/fluentd",
+                "version": "1.18.0",
+                "facts": [
+                  {
+                    "id": "component.fluentd.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
       }
     ]
   },
@@ -13621,6 +13907,100 @@
                 "component": "pkg:github/fluent/fluentd",
                 "version": "1.18.0",
                 "facts": []
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "range-interior-non-exact-versions-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/fluent/fluentd",
+                "version": "1.17.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/fluent/fluentd",
+                "version": "1.18.1",
+                "facts": [
+                  {
+                    "id": "component.fluentd.current_default_used",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.fluentd.literal_treatment_change_risk",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.fluentd.preserve_literal_treatment",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.fluentd.selected_value_complete",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-upper-boundary-outside-unknown",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/fluent/fluentd",
+                "version": "1.17.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/fluent/fluentd",
+                "version": "1.19.0",
+                "facts": [
+                  {
+                    "id": "component.fluentd.current_default_used",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.fluentd.literal_treatment_change_risk",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.fluentd.preserve_literal_treatment",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.fluentd.selected_value_complete",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
               }
             ]
           }
@@ -14827,6 +15207,70 @@
           }
         },
         "status": "UNKNOWN"
+      },
+      {
+        "name": "range-interior-non-exact-versions-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.14.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.15.1",
+                "facts": [
+                  {
+                    "id": "component.harbor.installer_with_chartmuseum_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-upper-boundary-outside-unknown",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.14.4",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.16.0",
+                "facts": [
+                  {
+                    "id": "component.harbor.installer_with_chartmuseum_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
       }
     ]
   },
@@ -14921,6 +15365,70 @@
                   {
                     "id": "component.harbor.installer_with_chartmuseum_present",
                     "state": "unsupported"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "range-interior-non-exact-versions-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.7.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.8.4",
+                "facts": [
+                  {
+                    "id": "component.harbor.installer_with_chartmuseum_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-upper-boundary-outside-unknown",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.7.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.9.0",
+                "facts": [
+                  {
+                    "id": "component.harbor.installer_with_chartmuseum_present",
+                    "state": "declared",
+                    "boolValue": true
                   }
                 ]
               }
@@ -16874,6 +17382,100 @@
           "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
         },
         "status": "UNKNOWN"
+      },
+      {
+        "name": "range-interior-non-exact-versions-blocked",
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/karmada-io/karmada",
+                "facts": [],
+                "version": "1.18.1"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/karmada-io/karmada",
+                "facts": [
+                  {
+                    "enumValue": "official_upstream",
+                    "id": "component.karmada.distribution",
+                    "state": "declared"
+                  },
+                  {
+                    "enumValue": "karmada_policy_application_failover",
+                    "id": "component.karmada.execution_surface",
+                    "state": "declared"
+                  },
+                  {
+                    "boolValue": true,
+                    "id": "component.karmada.removed_application_purge_mode_present",
+                    "state": "declared"
+                  },
+                  {
+                    "boolValue": true,
+                    "id": "component.karmada.target_policy_crd_admission_required",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.19.1"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-upper-boundary-outside-unknown",
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/karmada-io/karmada",
+                "facts": [],
+                "version": "1.18.1"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/karmada-io/karmada",
+                "facts": [
+                  {
+                    "enumValue": "official_upstream",
+                    "id": "component.karmada.distribution",
+                    "state": "declared"
+                  },
+                  {
+                    "enumValue": "karmada_policy_application_failover",
+                    "id": "component.karmada.execution_surface",
+                    "state": "declared"
+                  },
+                  {
+                    "boolValue": true,
+                    "id": "component.karmada.removed_application_purge_mode_present",
+                    "state": "declared"
+                  },
+                  {
+                    "boolValue": true,
+                    "id": "component.karmada.target_policy_crd_admission_required",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.20.0"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "status": "UNKNOWN"
       }
     ]
   },
@@ -18062,6 +18664,100 @@
               {
                 "component": "pkg:github/kubeedge/kubeedge",
                 "version": "1.19.0",
+                "facts": [
+                  {
+                    "id": "component.kubeedge.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.kubeedge.effective_argv_complete",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.kubeedge.execution_surface",
+                    "state": "declared",
+                    "enumValue": "keadm_init"
+                  },
+                  {
+                    "id": "component.kubeedge.init_version_selection_form",
+                    "state": "declared",
+                    "enumValue": "legacy_profile_version"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "range-interior-non-exact-versions-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubeedge/kubeedge",
+                "version": "1.18.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubeedge/kubeedge",
+                "version": "1.19.1",
+                "facts": [
+                  {
+                    "id": "component.kubeedge.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.kubeedge.effective_argv_complete",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.kubeedge.execution_surface",
+                    "state": "declared",
+                    "enumValue": "keadm_init"
+                  },
+                  {
+                    "id": "component.kubeedge.init_version_selection_form",
+                    "state": "declared",
+                    "enumValue": "legacy_profile_version"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-upper-boundary-outside-unknown",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubeedge/kubeedge",
+                "version": "1.18.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubeedge/kubeedge",
+                "version": "1.20.0",
                 "facts": [
                   {
                     "id": "component.kubeedge.distribution",
@@ -25256,6 +25952,70 @@
           }
         },
         "status": "UNKNOWN"
+      },
+      {
+        "name": "range-interior-non-exact-versions-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubevirt/kubevirt",
+                "version": "1.8.2",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubevirt/kubevirt",
+                "version": "1.9.1",
+                "facts": [
+                  {
+                    "id": "component.kubevirt.interface_binding_cardinality_invalid",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-upper-boundary-outside-unknown",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/kubevirt/kubevirt",
+                "version": "1.8.4",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/kubevirt/kubevirt",
+                "version": "1.10.0",
+                "facts": [
+                  {
+                    "id": "component.kubevirt.interface_binding_cardinality_invalid",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
       }
     ]
   },
@@ -30521,6 +31281,70 @@
           }
         },
         "status": "UNKNOWN"
+      },
+      {
+        "name": "range-interior-non-exact-versions-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.10.20",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.11.5",
+                "facts": [
+                  {
+                    "id": "component.nats.selected_name_has_ascii_space",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-upper-boundary-outside-unknown",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.10.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.12.0",
+                "facts": [
+                  {
+                    "id": "component.nats.selected_name_has_ascii_space",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
       }
     ]
   },
@@ -30891,6 +31715,70 @@
       },
       {
         "name": "wrong-target",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.12.15",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.15.0",
+                "facts": [
+                  {
+                    "id": "component.nats.selected_name_has_ascii_space",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "range-interior-non-exact-versions-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.12.5",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.14.2",
+                "facts": [
+                  {
+                    "id": "component.nats.selected_name_has_ascii_space",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-upper-boundary-outside-unknown",
         "input": {
           "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
           "authority": "OPERATOR_DECLARED_MINIMIZED",

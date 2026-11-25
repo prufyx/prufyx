@@ -15514,7 +15514,7 @@
     },
     {
       "project": "nats",
-      "description": "NATS 2.11.0 rejects ASCII spaces in directly declared server, cluster, and gateway names that 2.10.0 accepted. This checks only submitted literal names and does not resolve includes, variables, defaults, startup behavior, connectivity, or whole-upgrade compatibility. Whole-line: the space check on server, cluster and gateway names is absent from every 2.10 release (v2.10.0 to v2.10.29) and present in every 2.11 release (v2.11.0 to v2.11.17), read at each release tag (final releases only, no release candidates).",
+      "description": "NATS 2.11.0 rejects ASCII spaces in directly declared server, cluster, and gateway names that 2.10.0 accepted. This checks only submitted literal names and does not resolve includes, variables, defaults, startup behavior, connectivity, or whole-upgrade compatibility. Whole-line: the space check on server, cluster and gateway names in the config parser is absent from every 2.10 release (v2.10.0 to v2.10.29) and present in every 2.11 release (v2.11.0 to v2.11.17), read at each release tag (final releases only, no release candidates).",
       "requiredFacts": [
         {
           "side": "proposed",
