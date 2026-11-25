@@ -424,7 +424,9 @@ func ClaimExit(report Report) int {
 	// result cannot be a pass.
 	decided, unknown := 0, report.UnverifiedSemanticIdentity || len(report.DeferredRules) > 0 || (report.TrustPolicy != nil && report.TrustPolicy.ExcludedRules > 0)
 	for _, claim := range report.Check.Claims {
-		if claim.IsVerdictNeutral() {
+		if claim.IsVerdictNeutral() || claim.IsBoundaryCovered() {
+			// A boundary-covered claim is answered by its covering claim,
+			// which MarshalReport above bound to this report.
 			continue
 		}
 		decided++

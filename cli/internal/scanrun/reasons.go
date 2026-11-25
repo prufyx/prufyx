@@ -83,6 +83,11 @@ var reasonOutcomes = map[string]outcome{
 	// outside the range is likewise not reviewed, never excluded.
 	constraintengine.ReasonReleaseBoundaryNotReviewed: gapOutcome(scanreport.GapRuleNotDecided),
 
+	// A boundary question answered by an exact sibling is still not a
+	// decision of this rule; the scan stays conservative and lists it as
+	// not decided (the covering claim carries the verdict).
+	constraintengine.ReasonBoundaryCoveredByExact: gapOutcome(scanreport.GapRuleNotDecided),
+
 	// A chart rule excluded from an input that does not declare its chart is
 	// not applicable; an application rule (or a dependency) on a component
 	// declared as a chart is not decided.

@@ -381,7 +381,7 @@ func atLeastCrossingContract(digest string) bool {
 // other claim is one when the scope block lists its rule under a chart hop.
 func validChartClaims(report Report) bool {
 	chartContract := atLeastChartContract(report.EngineContractDigest)
-	ranged := report.EngineContractDigest == engineContractDigestChartRanged()
+	ranged := report.EngineContractDigest == engineContractDigestChartRanged() || report.EngineContractDigest == engineContractDigestBoundaryCovered()
 	chartRules := map[string]bool{}
 	if scope := report.ScopeCompleteness; scope != nil {
 		for _, component := range scope.Components {
@@ -432,7 +432,7 @@ func validChartClaims(report Report) bool {
 // validScopeCharts binds a scope block's chart identities and chart reasons
 // to the chart scope contract.
 func validScopeCharts(scope *ScopeCompleteness) bool {
-	chartScope := scope.ContractDigest == scopeContractDigestChart() || scope.ContractDigest == scopeContractDigestChartNotice() || scope.ContractDigest == scopeContractDigestChartRanged()
+	chartScope := scope.ContractDigest == scopeContractDigestChart() || scope.ContractDigest == scopeContractDigestChartNotice() || scope.ContractDigest == scopeContractDigestChartRanged() || scope.ContractDigest == scopeContractDigestBoundaryCovered()
 	for _, component := range scope.Components {
 		if component.Chart != nil && (!chartScope || !ValidChartRef(*component.Chart)) {
 			return false

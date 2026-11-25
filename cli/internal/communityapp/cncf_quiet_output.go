@@ -52,6 +52,10 @@ func summarizeClaims(claims []constraintengine.Claim, showPasses bool) claimSumm
 			summary.notices = append(summary.notices, claim)
 			continue
 		}
+		if claim.IsBoundaryCovered() {
+			// Answered by its covering claim, which is listed on its own.
+			continue
+		}
 		verdicts++
 		switch {
 		case claim.Status == "UNKNOWN" && claim.ReasonCode == reasonTransitionNotReviewed:

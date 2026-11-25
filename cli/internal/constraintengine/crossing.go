@@ -195,7 +195,7 @@ func (r rule) usesCrossing() bool { return r.Crossing != nil }
 // validateCrossingRule checks the crossing object of one rule. Every failure
 // is ErrInvalid: a crossing the engine cannot fully check is never admitted.
 func validateCrossingRule(r rule) error {
-	if r.ReasonCode == ReasonCrossingPassNotReviewed || r.ReasonCode == ReasonCrossingNotReviewed || r.ReasonCode == ReasonReleaseBoundaryNotReviewed {
+	if r.ReasonCode == ReasonCrossingPassNotReviewed || r.ReasonCode == ReasonCrossingNotReviewed || r.ReasonCode == ReasonReleaseBoundaryNotReviewed || r.ReasonCode == ReasonBoundaryCoveredByExact {
 		return fmt.Errorf("reason code %s belongs to the engine: %w", r.ReasonCode, ErrInvalid)
 	}
 	c := r.Crossing

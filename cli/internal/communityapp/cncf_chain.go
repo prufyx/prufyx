@@ -46,7 +46,7 @@ func writeChainHop(b *strings.Builder, label string, hop cncfcheck.ChainHop, sho
 	fmt.Fprintf(b, "  %-10s %s -> %s  %s\n", label, hop.From, hop.To, hop.Verdict)
 	undecided := 0
 	for _, claim := range hop.Report.Check.Claims {
-		if claim.IsVerdictNeutral() {
+		if claim.IsVerdictNeutral() || claim.IsBoundaryCovered() {
 			continue
 		}
 		switch {

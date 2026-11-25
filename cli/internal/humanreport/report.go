@@ -109,6 +109,10 @@ func Render(out io.Writer, in Input) error {
 			addSources(claim)
 			continue
 		}
+		if claim.IsBoundaryCovered() {
+			// Answered by its covering claim, which is listed on its own.
+			continue
+		}
 		counts.verdicts++
 		collapsed := claim.Status == "UNKNOWN" &&
 			(claim.ReasonCode == ReasonTransitionNotReviewed || claim.ReasonCode == constraintengine.ReasonReleaseBoundaryNotReviewed)
