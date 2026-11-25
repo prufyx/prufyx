@@ -22,7 +22,9 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfprepare"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/k8sremovals"
 )
 
@@ -31,27 +33,46 @@ type gvk struct {
 	Served, Store bool
 }
 
+const kubernetesComponent = "pkg:github/kubernetes/kubernetes"
+
+// removalFactMap maps every Kubernetes fact to its removed GVKs. A registry fact of the Kubernetes component
+// that is not a removed-GVK presence fact gets an explicit empty list (it has no removal members). A
+// removed-GVK presence fact appears only with members; one without members, and any fact the registry does
+// not define, stays absent, so the caller cannot tell it from an unknown fact and must treat it as unknown.
+func removalFactMap(defs []constraintengine.FactDefinition) map[string][]string {
+	facts := map[string][]string{}
+	for _, removals := range k8sremovals.ByTargetMinor() {
+		for _, removal := range removals {
+			for _, kind := range removal.Kinds {
+				facts[removal.Fact] = append(facts[removal.Fact], removal.Group+"/"+removal.Removed+"/"+kind)
+			}
+		}
+	}
+	for _, removal := range k8sremovals.RemovedVersions() {
+		if removal.Line == "1.32" {
+			for _, kind := range removal.Kinds {
+				facts[cncfprepare.KubernetesFlowControlFact] = append(facts[cncfprepare.KubernetesFlowControlFact], removal.Group+"/"+removal.Version+"/"+kind)
+			}
+		}
+	}
+	for _, def := range defs {
+		if def.Component != kubernetesComponent || strings.HasSuffix(def.ID, "_removed_gvk_present") {
+			continue
+		}
+		if _, ok := facts[def.ID]; !ok {
+			facts[def.ID] = []string{}
+		}
+	}
+	return facts
+}
+
 func main() {
 	strip := flag.Bool("strip", false, "relax CRD schemas")
 	sample := flag.Bool("sample", false, "emit sample custom resources")
 	removalFacts := flag.Bool("removal-facts", false, "emit Kubernetes removal fact GVKs")
 	flag.Parse()
 	if *removalFacts {
-		facts := map[string][]string{}
-		for _, removals := range k8sremovals.ByTargetMinor() {
-			for _, removal := range removals {
-				for _, kind := range removal.Kinds {
-					facts[removal.Fact] = append(facts[removal.Fact], removal.Group+"/"+removal.Removed+"/"+kind)
-				}
-			}
-		}
-		for _, removal := range k8sremovals.RemovedVersions() {
-			if removal.Line == "1.32" {
-				for _, kind := range removal.Kinds {
-					facts[cncfprepare.KubernetesFlowControlFact] = append(facts[cncfprepare.KubernetesFlowControlFact], removal.Group+"/"+removal.Version+"/"+kind)
-				}
-			}
-		}
+		facts := removalFactMap(cncfcheck.CompiledFactDefinitions())
 		if err := json.NewEncoder(os.Stdout).Encode(facts); err != nil {
 			os.Exit(1)
 		}

@@ -265,6 +265,37 @@ def project_check_change_is_non_kubernetes(path):
         if not projects or any(_kubernetes_like(p) for p in projects):
             raise ValueError("approval rule unresolved or Kubernetes-related")
 
+def date_only_change(before, after):
+    """True only for a Kubernetes entry present on both sides that differs solely in rule.evidence.reviewedAt/validUntil
+    and whose fact has no removal members: its verdict cannot move any single target. Anything else is False (or raises)."""
+    if not isinstance(before, dict) or not isinstance(after, dict) or before.get("project") != "kubernetes" or after.get("project") != "kubernetes":
+        return False
+    def strip(entry):
+        entry = json.loads(json.dumps(entry))
+        evidence = entry["rule"]["evidence"]
+        if not isinstance(evidence, dict) or "reviewedAt" not in evidence or "validUntil" not in evidence:
+            return None
+        evidence.pop("reviewedAt")
+        evidence.pop("validUntil")
+        return entry
+    try:
+        stripped = strip(before), strip(after)
+    except (KeyError, TypeError):
+        return False
+    if None in stripped or stripped[0] != stripped[1]:
+        return False  # not a date-only change: the existing per-fact narrowing (or fail-closed) decides
+    rule = after["rule"]
+    condition = rule.get("condition")
+    if not isinstance(condition, dict) or "factId" not in condition:
+        # no fact: only the version-skew operator is known to be independent of removal members
+        return "condition" not in rule and rule.get("operator") == "require_intermediate_version"
+    fact = condition["factId"]
+    if not isinstance(fact, str) or fact.endswith("_removed_gvk_present"):
+        return False
+    members = kubernetes_removal_facts().get(fact)  # absent from the map: unknown, not "no members"
+    return isinstance(members, list) and not members and fact in kubernetes_removal_facts()
+
+
 def required_single_targets(singles):
     """Infer requirements from the exact data diff; operator input can only add."""
     required = set()
@@ -292,6 +323,8 @@ def required_single_targets(singles):
                         rules_metadata_is_non_kubernetes(before.stdout, after.stdout)
                     for rule_id in set(entries[0]) | set(entries[1]):
                         if entries[0].get(rule_id) == entries[1].get(rule_id):
+                            continue
+                        if date_only_change(entries[0].get(rule_id), entries[1].get(rule_id)):
                             continue
                         for entry in (entries[0].get(rule_id), entries[1].get(rule_id)):
                             if entry is None or entry["project"] != "kubernetes":

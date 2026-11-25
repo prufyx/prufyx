@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import k8s_oracle as oracle
+import qalib
 
 PC_RULES = oracle.PC_RULES
 PC_ATTEST = oracle.PC_ATTEST
@@ -125,6 +126,137 @@ class RenewalK8sScope(unittest.TestCase):
 
     def test_code_change_beside_renewal_requires_all(self):
         self.assertEqual(run(CHANGED + ["cli/internal/projectcheck/projectcheck.go"], pr691()), EVERY)
+
+
+CNCF_RULES = "cli/internal/cncfcheck/data/rules.json"
+REMOVAL = {"removed_fact": ["sample.example/v1/Widget"], "component.kubernetes.in_tree_dockershim_required": []}
+
+
+def kentry(rid, fact, reviewed="2026-09-01T00:00:00Z", valid="2026-12-01T00:00:00Z", **rule_extra):
+    rule = {"id": rid, "condition": {"factId": fact}, "evidence": {"reviewedAt": reviewed, "validUntil": valid, "state": "active"}}
+    rule.update(rule_extra)
+    return {"project": "kubernetes", "rule": rule}
+
+
+def cncf(*entries):
+    return {"schema": "s", "entries": list(entries)}
+
+
+def run_cncf(base, head, removal=None):
+    files = {("base", CNCF_RULES): base, ("head", CNCF_RULES): head}
+    with patch.object(oracle, "kubernetes_removal_facts", return_value=REMOVAL if removal is None else removal):
+        return run([CNCF_RULES], files)
+
+
+class DateOnlyKubernetesRenewal(unittest.TestCase):
+    RUNTIME = "component.kubernetes.in_tree_dockershim_required"
+
+    def renewed(self, fact, **rule_extra):
+        base = cncf(kentry("k.dockershim", fact, **rule_extra))
+        head = cncf(kentry("k.dockershim", fact, "2026-11-18T09:49:59Z", "2027-02-09T09:49:59Z", **rule_extra))
+        return base, head
+
+    def test_date_only_runtime_fact_is_narrowed(self):
+        self.assertEqual(run_cncf(*self.renewed(self.RUNTIME)), set())
+
+    def test_date_plus_other_field_requires_all(self):
+        base, head = self.renewed(self.RUNTIME)
+        head["entries"][0]["rule"]["evidence"]["state"] = "retired"
+        self.assertEqual(run_cncf(base, head), EVERY)
+        base, head = self.renewed(self.RUNTIME)
+        head["entries"][0]["rule"]["message"] = "changed"
+        self.assertEqual(run_cncf(base, head), EVERY)
+
+    def test_date_plus_source_repin_requires_all(self):
+        base, head = self.renewed(self.RUNTIME)
+        head["entries"][0]["rule"]["evidence"]["sources"] = [{"url": "u"}]
+        self.assertEqual(run_cncf(base, head), EVERY)
+
+    def test_removal_fact_with_date_only_follows_existing_narrowing(self):
+        base, head = self.renewed("removed_fact")
+        self.assertEqual(run_cncf(base, head), {STABLE})
+
+    def test_malformed_entries_require_all(self):
+        base, head = self.renewed(self.RUNTIME)
+        del head["entries"][0]["rule"]["evidence"]["validUntil"]
+        self.assertEqual(run_cncf(base, head), EVERY)
+        base, head = self.renewed(self.RUNTIME)
+        head["entries"][0]["rule"]["evidence"] = "x"
+        self.assertEqual(run_cncf(base, head), EVERY)
+
+    def test_unreadable_removal_map_requires_all(self):
+        base, head = self.renewed(self.RUNTIME)
+        files = {("base", CNCF_RULES): base, ("head", CNCF_RULES): head}
+        with patch.object(oracle, "kubernetes_removal_facts", side_effect=ValueError("unreadable")):
+            self.assertEqual(run([CNCF_RULES], files), EVERY)
+
+    def test_added_or_removed_kubernetes_entry_requires_all(self):
+        base, head = self.renewed(self.RUNTIME)
+        self.assertEqual(run_cncf(base, cncf()), EVERY)
+        self.assertEqual(run_cncf(cncf(), head), EVERY)
+
+    def test_fact_absent_from_map_requires_all(self):
+        self.assertEqual(run_cncf(*self.renewed(self.RUNTIME), removal={"other": []}), EVERY)
+
+    def test_removed_gvk_present_without_entry_requires_all(self):
+        base, head = self.renewed("component.x.y_removed_gvk_present")
+        self.assertEqual(run_cncf(base, head, removal={"other": ["a/b/C"]}), EVERY)
+        self.assertEqual(run_cncf(base, head, removal={"component.x.y_removed_gvk_present": []}), EVERY)
+
+    def test_missing_fact_id_non_intermediate_operator_requires_all(self):
+        base, head = self.renewed(self.RUNTIME)
+        for doc in (base, head):
+            del doc["entries"][0]["rule"]["condition"]
+            doc["entries"][0]["rule"]["operator"] = "other_operator"
+        self.assertEqual(run_cncf(base, head), EVERY)
+        for doc in (base, head):
+            del doc["entries"][0]["rule"]["operator"]
+        self.assertEqual(run_cncf(base, head), EVERY)
+
+    def test_non_string_fact_id_requires_all(self):
+        base, head = self.renewed(["x"])
+        self.assertEqual(run_cncf(base, head), EVERY)
+
+    def test_intermediate_version_operator_date_only_is_narrowed(self):
+        base, head = self.renewed(self.RUNTIME)
+        for doc in (base, head):
+            del doc["entries"][0]["rule"]["condition"]
+            doc["entries"][0]["rule"]["operator"] = "require_intermediate_version"
+        self.assertEqual(run_cncf(base, head), set())
+
+    def test_non_kubernetes_date_only_entry_is_not_forced(self):
+        base, head = self.renewed(self.RUNTIME)
+        for doc in (base, head):
+            doc["entries"][0]["project"] = "cilium"
+        self.assertEqual(run_cncf(base, head), set())
+
+
+class RealRemovalMapShape(unittest.TestCase):
+    """kubernetes_removal_facts parses real crdgvk -removal-facts output, where facts without removed GVKs are explicit empty lists."""
+    OUTPUT = json.dumps({"component.kubernetes.in_tree_dockershim_required": [],
+                         "component.kubernetes.lease_v1beta1_removed_gvk_present": ["coordination.k8s.io/v1beta1/Lease"]})
+
+    def run_with_output(self, fact, output=None):
+        base = cncf(kentry("k.r", fact))
+        head = cncf(kentry("k.r", fact, "2026-11-18T09:49:59Z", "2027-02-09T09:49:59Z"))
+        files = {("base", CNCF_RULES): base, ("head", CNCF_RULES): head}
+        result = subprocess.CompletedProcess([], 0, self.OUTPUT if output is None else output, "")
+        qalib.kubernetes_removal_facts.cache_clear()
+        self.addCleanup(qalib.kubernetes_removal_facts.cache_clear)
+        with patch.object(qalib, "sh", return_value=result):
+            return run([CNCF_RULES], files)
+
+    def test_dockershim_fact_present_with_empty_list_is_narrowed(self):
+        self.assertEqual(self.run_with_output("component.kubernetes.in_tree_dockershim_required"), set())
+
+    def test_fact_missing_from_real_output_requires_all(self):
+        self.assertEqual(self.run_with_output("component.kubernetes.other_fact"), EVERY)
+
+    def test_removal_fact_with_members_follows_member_narrowing(self):
+        self.assertEqual(self.run_with_output("component.kubernetes.lease_v1beta1_removed_gvk_present"), {"k8s-single|required:coordination.k8s.io/v1beta1/Lease"})
+
+    def test_unreadable_output_requires_all(self):
+        self.assertEqual(self.run_with_output("component.kubernetes.in_tree_dockershim_required", "not json"), EVERY)
 
 
 if __name__ == "__main__":

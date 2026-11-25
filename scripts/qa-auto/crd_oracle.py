@@ -558,6 +558,19 @@ DESIGN_STATUS = "DESIGN_UNKNOWN_WHOLE_CRD_REMOVAL"
 # Gap reason the scanner gives (observed, cilium 1.17.0 -> 1.18.0 with only a removed CRD) a pair whose only difference is a CRD the later anchor no longer defines: no rule exists, so the hop has no data.
 DESIGN_GAP_REASONS = frozenset({"COMPONENT_NOT_COVERED"})
 
+# Structural gaps the scanner adds to every hop that changes the major line (scanrun/jump.go): no rule scoped to that transition, and
+# the release lines between the old and the next major are not listed. They are accepted only for a pair that changes the major line.
+MAJOR_GAP_REASONS = frozenset({"MAJOR_HOP_NOT_COVERED", "LINES_NOT_LISTED"})
+# Accepted additionally only in the whole-only UNKNOWN shape (no findings) of a major-line change: the later line has no attestation.
+WHOLE_ONLY_GAP_REASONS = frozenset({"LINE_NOT_ATTESTED"})
+MAJOR_LINE = re.compile(r"v?(0|[1-9][0-9]{0,5})\.", re.A)
+
+
+def major_line_changes(frm, to):
+    """True only when both versions parse and their major numbers differ; anything unparseable is False (the extra gaps stay refused)."""
+    a, b = MAJOR_LINE.match(frm or ""), MAJOR_LINE.match(to or "")
+    return bool(a and b and a[1] != b[1])
+
 
 # The scanner also says how many manifests belong to a group no reviewed project owns (a CRD the later release no longer defines).
 UNOWNED_GAP_REASON = "DOCUMENTS_NOT_EVALUATED"
@@ -629,7 +642,46 @@ def unowned_gap_ok(gap, whole_docs):
     return bool(m) and whole_docs > 0 and int(m.group(1)) == whole_docs
 
 
-def whole_signal_clause(report, component, whole_docs=0, allow_findings=False, must_have_unowned=False):
+SEMVER = re.compile(r"v?(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})", re.A)
+ANCHOR_STATUS = "ANCHOR_ONLY_UNKNOWN"
+
+
+def anchor_only_rule_covers(project, frm, to, removed):
+    """True only when the reviewed rule table holds, for this project, an exact-anchor removal rule (no range, subject exactly
+    anchor_from -> to) whose members include every expected removal, the declared target equals the anchor target and the declared
+    from-version is a different patch of the anchor's own line. Anything unreadable, ranged or different is False."""
+    try:
+        a, b = SEMVER.fullmatch(frm or ""), SEMVER.fullmatch(to or "")
+        if not a or not b or not removed:
+            return False
+        with open(os.path.join(SRC, "cli/internal/cncfcheck/data/rules.json")) as handle:
+            entries = json.load(handle)["entries"]
+        want = {"/".join(x) for x in removed}
+        covered = set()
+        for e in entries:
+            rule = e["rule"]
+            if e.get("project") != project or rule.get("operator") != "forbid_set_member":
+                continue
+            members = (rule.get("setCondition") or {}).get("members")
+            overlap = want & {m for m in members if isinstance(m, str)} if isinstance(members, list) else set()
+            if not overlap:
+                continue
+            # any other rule that removes one of the same members must be a plain exact anchor of another from-version
+            subject = rule.get("subject")
+            if "range" in rule or not isinstance(subject, dict) or "range" in subject:
+                return False
+            anchor, target = SEMVER.fullmatch(subject.get("from") or ""), SEMVER.fullmatch(subject.get("to") or "")
+            if not anchor or not target or anchor.groups() == a.groups():
+                return False
+            if target.groups() != b.groups() or anchor.groups()[:2] != a.groups()[:2]:
+                continue
+            covered |= overlap
+        return covered == want
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return False
+
+
+def whole_signal_clause(report, component, whole_docs=0, allow_findings=False, must_have_unowned=False, major_change=False):
     """None when the scan output has the documented whole-CRD shape, else a short code naming the first failing clause.
     Whole-only shape: no findings, no unsupported combination, nothing omitted, at least one gap for the component, every gap
     reason in the removed-definition set, every hop of the component NO_DATA with only those reasons and no family evaluated.
@@ -653,9 +705,11 @@ def whole_signal_clause(report, component, whole_docs=0, allow_findings=False, m
         return "GAP_UNOWNED"
     if must_have_unowned and not unowned:
         return "GAP_UNOWNED_MISSING"
-    if any(g.get("reason") not in DESIGN_GAP_REASONS for g in mine):
+    accepted = DESIGN_GAP_REASONS | (MAJOR_GAP_REASONS if major_change else frozenset()) | \
+        (WHOLE_ONLY_GAP_REASONS if major_change and not allow_findings else frozenset())
+    if any(g.get("reason") not in accepted for g in mine):
         return "GAP_REASON"
-    if not mine:
+    if not any(g.get("reason") in DESIGN_GAP_REASONS for g in mine):
         return "NO_GAP"
     if allow_findings:
         return None
@@ -666,7 +720,7 @@ def whole_signal_clause(report, component, whole_docs=0, allow_findings=False, m
     # observed for a whole-CRD pair: every hop NO_DATA with only the same reason, no family evaluated
     if not all(isinstance(h, dict) and h.get("status") == "NO_DATA" for h in hops):
         return "HOP_STATUS"
-    if not all(set(h.get("reasons") or []) <= DESIGN_GAP_REASONS for h in hops):
+    if not all(set(h.get("reasons") or []) <= accepted for h in hops):
         return "HOP_REASON"
     if any(h.get("families") for h in hops):
         return "HOP_FAMILIES"
@@ -718,7 +772,7 @@ def split_unowned(removed, listed, whole_crd=()):
             [x for x in removed if x not in whole_crd and not owned(listed, x)])
 
 
-def classify_pair(code, report, removed, whole_crd, component, later_groups=None, served=None, listed=None):
+def classify_pair(code, report, removed, whole_crd, component, later_groups=None, served=None, listed=None, major_change=False, versions=None):
     """(wrongpass, mismatch, missing, statuses, design, clause); clause is a short code for diagnostics.
     later_groups: groups that still have a CRD at the later release, None when unread (the unowned-group gap is then not accepted).
     A removal whose (group, kind) the reviewed table does not own cannot be attributed by the product: the owned part is
@@ -727,9 +781,9 @@ def classify_pair(code, report, removed, whole_crd, component, later_groups=None
     # a pair with whole-CRD removals keeps its documented design shape (including the unowned-group gap count) unchanged
     own, unowned = (split_unowned(removed, listed, set(whole_crd)) if not set(whole_crd) & set(removed) else (list(removed), []))
     if not unowned:
-        return classify_owned(code, report, removed, whole_crd, component, later_groups, served, listed)
+        return classify_owned(code, report, removed, whole_crd, component, later_groups, served, listed, major_change, versions)
     wp, mm, missing, statuses, design, clause = classify_owned(
-        code, report, own, whole_crd, component, later_groups, served, listed)
+        code, report, own, whole_crd, component, later_groups, served, listed, major_change, versions)
     if wp or is_pass(code, report) or "PASS" in statuses:
         return True, False, missing, statuses, False, "PASS"
     named = [x for x in unowned if any(
@@ -752,7 +806,7 @@ def classify_pair(code, report, removed, whole_crd, component, later_groups=None
     return False, False, [], statuses, design, "UNOWNED_UNKNOWN"
 
 
-def classify_owned(code, report, removed, whole_crd, component, later_groups=None, served=None, listed=None):
+def classify_owned(code, report, removed, whole_crd, component, later_groups=None, served=None, listed=None, major_change=False, versions=None):
     """classify_pair for removals the reviewed table owns."""
     whole_set = set(whole_crd) & set(removed)
     gone = len(whole_set) if later_groups is not None and all(x[0] not in later_groups for x in whole_set) else 0
@@ -763,18 +817,25 @@ def classify_owned(code, report, removed, whole_crd, component, later_groups=Non
     version = [x for x in removed if x not in whole_set]
     wp, mm, missing, statuses = scoped_result(code, report, version, component, FAMILY)
     if not whole_set:
+        if (mm and not wp and versions and code == 11 and report.get("verdict") == "UNKNOWN" and not is_pass(code, report)
+                and not any(isinstance(f, dict) and f.get("component") == component for f in report.get("findings") or [])
+                and anchor_only_rule_covers(component, versions[0], versions[1], removed)
+                and whole_signal_clause(report, component, 0, major_change=major_change) is None):
+            # the reviewed rule is an exact anchor of this line: a different patch of the line is outside its subject, so the
+            # scanner's UNKNOWN (not covered, nothing evaluated, no finding) is the expected answer, never a pass
+            return False, False, [], statuses, False, ANCHOR_STATUS
         return wp, mm, missing, statuses, False, "NO_WHOLE"
     if is_pass(code, report) or "PASS" in statuses:
         return True, False, missing, statuses, False, "PASS"
     unknown = report.get("verdict") == "UNKNOWN"
     if not version:
-        clause = "EXIT" if code != 11 else ("NOT_UNKNOWN" if not unknown else whole_signal_clause(report, component, gone, must_have_unowned=foreign > 0))
+        clause = "EXIT" if code != 11 else ("NOT_UNKNOWN" if not unknown else whole_signal_clause(report, component, gone, must_have_unowned=foreign > 0, major_change=major_change))
         if clause is None:
             return False, False, [], statuses, True, "OK"
         return False, True, ["/".join(x) for x in sorted(whole_set)], statuses, False, clause
     # mixed: version-level removals are reported by their rules, the whole-CRD part is silent by documented design
     if code == 10 and report.get("verdict") == "BLOCKED":
-        clause = whole_signal_clause(report, component, gone, allow_findings=True, must_have_unowned=foreign > 0) or version_findings_clause(report, version, component)
+        clause = whole_signal_clause(report, component, gone, allow_findings=True, must_have_unowned=foreign > 0, major_change=major_change) or version_findings_clause(report, version, component)
         if clause is None and not missing and not mm:
             return False, False, [], statuses, True, "OK"
     else:
@@ -824,7 +885,8 @@ def execute(plan):
             out.append(case("crd", key, error=True, why=tail))
             continue
         wp, mm, missing, crd, design, clause = classify_pair(code, j, removed, whole_crd, proj, plan.get("later_groups", {}).get(t),
-                                                                  set(sf), listed_groups())
+                                                                  set(sf), listed_groups(), major_line_changes(f[len(pref):], t[len(pref):]),
+                                                                  (f[len(pref):], t[len(pref):]))
         complete = complete_scan_scope(j, len(sf))
         if not complete:
             omitted.append(dict(target=target, reason="input omitted or incomplete; replay the full input"))
