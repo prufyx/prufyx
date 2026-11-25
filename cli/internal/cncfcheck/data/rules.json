@@ -2290,7 +2290,7 @@
     },
     {
       "project": "coredns",
-      "description": "Federation plugin removal from the official CoreDNS distribution; custom builds are UNKNOWN.",
+      "description": "Federation plugin removal from the official CoreDNS distribution; custom builds are UNKNOWN. Whole-line: the federation plugin is in plugin.cfg of every 1.6 release (v1.6.0 to v1.6.9) and in none of the 1.7 releases (v1.7.0, v1.7.1), read at each release tag.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -2340,6 +2340,22 @@
           "validUntil": "2027-02-03T08:30:00Z",
           "sources": [
             {
+              "id": "coredns-v1-6-9-plugin-list",
+              "url": "https://github.com/coredns/coredns/blob/1766568398e3120c85d44f5c6237a724248b652e/plugin.cfg",
+              "revision": "1766568398e3120c85d44f5c6237a724248b652e",
+              "contentDigest": "sha256:cde89685fd7c0b47488829f1892a4e41afc49f017383a4380465a6d3d1b2d366",
+              "startLine": 50,
+              "endLine": 56
+            },
+            {
+              "id": "coredns-v1-7-1-plugin-list",
+              "url": "https://github.com/coredns/coredns/blob/aa82ca62fb048562ffaf4aa24d3f2db8d8bd0333/plugin.cfg",
+              "revision": "aa82ca62fb048562ffaf4aa24d3f2db8d8bd0333",
+              "contentDigest": "sha256:c2f594d66962cbd0b787817d7f8ed8d875d86dc17ec3e7d95cd9bf00913b11a4",
+              "startLine": 50,
+              "endLine": 56
+            },
+            {
               "id": "source-f59c03d09c3a-13",
               "url": "https://github.com/coredns/coredns/blob/f59c03d09c3a3a12f571ad1087b979325f3dae30/notes/coredns-1.7.0.md",
               "revision": "f59c03d09c3a3a12f571ad1087b979325f3dae30",
@@ -2350,7 +2366,39 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Remove federation usage or obtain separately reviewed custom-plugin evidence; validate DNS behavior separately."
+        "nextAction": "Remove federation usage or obtain separately reviewed custom-plugin evidence; validate DNS behavior separately.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "coredns-v1-6-9-plugin-list"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "source-f59c03d09c3a-13"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "source-f59c03d09c3a-13"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "coredns-v1-7-1-plugin-list"
+            }
+          ],
+          "from": {
+            "gte": "1.6.0",
+            "lt": "1.7.0"
+          },
+          "to": {
+            "gte": "1.7.0",
+            "lt": "1.8.0"
+          }
+        }
       }
     },
     {
@@ -4396,7 +4444,7 @@
     },
     {
       "project": "emissary-ingress",
-      "description": "Emissary-Ingress 4.0.1 removes diagd's extra metrics endpoint option; this rule covers only a caller-declared direct diagd argv and does not treat the banner endpoint's default change as option removal.",
+      "description": "Emissary-Ingress 4.0.1 removes diagd's extra metrics endpoint option; this rule covers only a caller-declared direct diagd argv and does not treat the banner endpoint's default change as option removal. Whole-line: the diagd option definitions are those of the only 3.10 release (v3.10.0) and, in their 4.0 form, of both 4.0 releases (v4.0.0, v4.0.1), read at each release tag.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -4453,7 +4501,39 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Remove --metrics-endpoint from the proposed direct diagd argv; configure any desired banner behavior separately through the target-supported interface and validate deployment wiring independently."
+        "nextAction": "Remove --metrics-endpoint from the proposed direct diagd argv; configure any desired banner behavior separately through the target-supported interface and validate deployment wiring independently.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "emissary-v3-10-0-diagd-options"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "emissary-v3-10-0-diagd-options"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "emissary-changelog-v4-0-1"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "emissary-v4-0-1-diagd-options"
+            }
+          ],
+          "from": {
+            "gte": "3.10.0",
+            "lt": "3.11.0"
+          },
+          "to": {
+            "gte": "4.0.0",
+            "lt": "4.1.0"
+          }
+        }
       }
     },
     {
@@ -7092,7 +7172,7 @@
       }
     },
     {
-      "description": "Fluentd v1.19.3 official upstream package target constraint for one exact origin: Ruby must be at least 3.2. This does not verify custom packaging, plugins, or direct-upgrade behavior.",
+      "description": "Fluentd v1.19.3 official upstream package target constraint for one exact origin: Ruby must be at least 3.2. This does not verify custom packaging, plugins, or direct-upgrade behavior. Whole-line: required_ruby_version is >= 2.7 in the only 1.18 release (v1.18.0) and >= 3.2 in every 1.19 release (v1.19.0 to v1.19.4), read at each release tag.",
       "project": "fluentd",
       "requiredFacts": [
         {
@@ -7126,6 +7206,22 @@
           "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
+              "contentDigest": "sha256:451bf53cb8c2974b9399b0c73d50da13c3fb14c73780e3cca95b4bf0773de76b",
+              "endLine": 25,
+              "id": "fluentd-v1-18-0-gemspec",
+              "revision": "46372ddd521870f6a203baefb5a598209486d0bc",
+              "startLine": 17,
+              "url": "https://github.com/fluent/fluentd/blob/46372ddd521870f6a203baefb5a598209486d0bc/fluentd.gemspec"
+            },
+            {
+              "contentDigest": "sha256:7e509f23023c34179fe319e101e6925cd3e49456d3ad8ee6d90df43b95425c6a",
+              "endLine": 30,
+              "id": "fluentd-v1-19-0-gemspec",
+              "revision": "ed15edc4b7c86c1fcea3fbf326b7c42325e6fc71",
+              "startLine": 22,
+              "url": "https://github.com/fluent/fluentd/blob/ed15edc4b7c86c1fcea3fbf326b7c42325e6fc71/fluentd.gemspec"
+            },
+            {
               "contentDigest": "sha256:13202f2340e106d23a778ef830b145dbdd83ba46fe7c075bf6f32217c9bf9058",
               "endLine": 32,
               "id": "fluentd-v1-19-target-ruby-gemspec",
@@ -7140,6 +7236,38 @@
         "id": "fluentd.ruby-minimum-target.1-18-0-to-1-19-3",
         "nextAction": "Use Ruby 3.2 or newer for the proposed official Fluentd 1.19.3 package; review custom packaging and plugin compatibility separately.",
         "operator": "require_component_version",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "fluentd-v1-18-0-gemspec"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "fluentd-v1-19-0-gemspec"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "fluentd-v1-19-0-gemspec"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "fluentd-v1-19-target-ruby-gemspec"
+            }
+          ],
+          "from": {
+            "gte": "1.18.0",
+            "lt": "1.19.0"
+          },
+          "to": {
+            "gte": "1.19.0",
+            "lt": "1.20.0"
+          }
+        },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "subject": {
           "component": "pkg:github/fluent/fluentd",
@@ -7150,7 +7278,7 @@
     },
     {
       "project": "fluentd",
-      "description": "Fluentd 1.17.0 raises the official upstream package minimum Ruby version to 2.7; custom builds and plugin compatibility are unverified.",
+      "description": "Fluentd 1.17.0 raises the official upstream package minimum Ruby version to 2.7; custom builds and plugin compatibility are unverified. Whole-line: required_ruby_version is >= 2.4 in every 1.16 release (v1.16.0 to v1.16.11) and >= 2.7 in every 1.17 release (v1.17.0, v1.17.1), read at each release tag.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -7192,6 +7320,22 @@
           "validUntil": "2027-02-06T09:15:00Z",
           "sources": [
             {
+              "id": "fluentd-v1-16-11-gemspec",
+              "url": "https://github.com/fluent/fluentd/blob/844c1d8711d94976910cf9a70e29464fbada2862/fluentd.gemspec",
+              "revision": "844c1d8711d94976910cf9a70e29464fbada2862",
+              "contentDigest": "sha256:3ef4e6d6c36efdb2ab5c4e5588bfe8509d610f583176285a201c884cb2b6a656",
+              "startLine": 17,
+              "endLine": 22
+            },
+            {
+              "id": "fluentd-v1-17-1-gemspec",
+              "url": "https://github.com/fluent/fluentd/blob/78a7972bfe6b421f08472701f04f00515ed24bee/fluentd.gemspec",
+              "revision": "78a7972bfe6b421f08472701f04f00515ed24bee",
+              "contentDigest": "sha256:f58e2f77c7aff411609fa6f798c786c19cbc46183344005937de4ebf3439aeb8",
+              "startLine": 19,
+              "endLine": 25
+            },
+            {
               "id": "source-206b46b91560-19",
               "url": "https://github.com/fluent/fluentd/blob/206b46b91560177366371c1f05bbcf09ac006d86/fluentd.gemspec",
               "revision": "206b46b91560177366371c1f05bbcf09ac006d86",
@@ -7218,12 +7362,44 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Use a proposed Ruby version at least 2.7.0 for the official Fluentd 1.17.0 package; review custom packaging and plugins separately."
+        "nextAction": "Use a proposed Ruby version at least 2.7.0 for the official Fluentd 1.17.0 package; review custom packaging and plugins separately.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "source-206b46b91560-19"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "source-e763c0761c44-19"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "source-e763c0761c44-19"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "fluentd-v1-17-1-gemspec"
+            }
+          ],
+          "from": {
+            "gte": "1.16.0",
+            "lt": "1.17.0"
+          },
+          "to": {
+            "gte": "1.17.0",
+            "lt": "1.18.0"
+          }
+        }
       }
     },
     {
       "project": "fluentd",
-      "description": "Fluentd 1.17.1 preserved selected classic-config literals, while 1.18.0 routes unquoted embedded markers through interpolation handling. This checks one complete caller-selected literal only.",
+      "description": "Fluentd 1.17.1 preserved selected classic-config literals, while 1.18.0 routes unquoted embedded markers through interpolation handling. This checks one complete caller-selected literal only. Whole-line: lib/fluent/config/literal_parser.rb and v1_parser.rb are byte-identical at both 1.17 releases (v1.17.0, v1.17.1, as at the cited commit) and the cited 1.18 file is the one at the only 1.18 release (v1.18.0).",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -7348,7 +7524,39 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Quote the unchanged selected literal or revise it explicitly, then reassess this narrow literal-treatment check. Ruby parsing, interpolation safety, runtime behavior and the rest of the Fluentd configuration remain unresolved."
+        "nextAction": "Quote the unchanged selected literal or revise it explicitly, then reassess this narrow literal-treatment check. Ruby parsing, interpolation safety, runtime behavior and the rest of the Fluentd configuration remain unresolved.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "old-literal-parser"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "target-release-changelog"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "target-release-changelog"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "target-literal-parser"
+            }
+          ],
+          "from": {
+            "gte": "1.17.0",
+            "lt": "1.18.0"
+          },
+          "to": {
+            "gte": "1.18.0",
+            "lt": "1.19.0"
+          }
+        }
       }
     },
     {
@@ -8418,7 +8626,7 @@
     },
     {
       "project": "harbor",
-      "description": "Harbor 2.15.2 target installer rejects docker-compose installer --with-chartmuseum. This checks only one complete caller-selected literal installer argv.",
+      "description": "Harbor 2.15.2 target installer rejects docker-compose installer --with-chartmuseum. This checks only one complete caller-selected literal installer argv. Whole-line: make/install.sh is byte-identical to the cited file at every 2.14 release (v2.14.0 to v2.14.6) and every 2.15 release (v2.15.0 to v2.15.5). This is a target check that does not say when the option was removed, so the range carries no release boundary.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -8468,12 +8676,44 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Remove --with-chartmuseum from the selected Harbor installer argv for this exact target pair. This does not execute the installer or assess chart, database, or runtime migration."
+        "nextAction": "Remove --with-chartmuseum from the selected Harbor installer argv for this exact target pair. This does not execute the installer or assess chart, database, or runtime migration.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "harbor-v2-15-installer-parser"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "harbor-v2-15-installer-parser"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "harbor-v2-15-installer-parser"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "harbor-v2-15-installer-guidance"
+            }
+          ],
+          "from": {
+            "gte": "2.14.0",
+            "lt": "2.15.0"
+          },
+          "to": {
+            "gte": "2.15.0",
+            "lt": "2.16.0"
+          }
+        }
       }
     },
     {
       "project": "harbor",
-      "description": "Harbor 2.8 removes the docker-compose installer --with-chartmuseum flag; this checks only one complete caller-selected literal installer argv.",
+      "description": "Harbor 2.8 removes the docker-compose installer --with-chartmuseum flag; this checks only one complete caller-selected literal installer argv. Whole-line: make/install.sh is byte-identical to the cited 2.7 file at every 2.7 release (v2.7.0 to v2.7.4) and to the cited 2.8 file at every 2.8 release (v2.8.0 to v2.8.6); the option is parsed in the first and falls to the exit-1 default in the second.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -8539,7 +8779,39 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Remove --with-chartmuseum from the selected Harbor installer argv before 2.8.0; this does not execute the installer or assess chart, database, or runtime migration."
+        "nextAction": "Remove --with-chartmuseum from the selected Harbor installer argv before 2.8.0; this does not execute the installer or assess chart, database, or runtime migration.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "harbor-v2-7-installer-parser"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "harbor-v2-8-installer-parser"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "harbor-v2-8-installer-parser"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "harbor-v2-8-installer-forwarding"
+            }
+          ],
+          "from": {
+            "gte": "2.7.0",
+            "lt": "2.8.0"
+          },
+          "to": {
+            "gte": "2.8.0",
+            "lt": "2.9.0"
+          }
+        }
       }
     },
     {
@@ -9284,7 +9556,7 @@
       }
     },
     {
-      "description": "Karmada 1.19.0 official policy CRDs remove the deprecated application failover purgeMode values Immediately and Graciously; this checks declared rendered input only when target-CRD admission is explicitly required.",
+      "description": "Karmada 1.19.0 official policy CRDs remove the deprecated application failover purgeMode values Immediately and Graciously; this checks declared rendered input only when target-CRD admission is explicitly required. Whole-line: the four cited files are byte-identical at every 1.18 release (v1.18.0 to v1.18.4, as at the cited commit) and, in their 1.19 form, at every 1.19 release (v1.19.0, v1.19.1), read at each release tag.",
       "project": "karmada",
       "requiredFacts": [
         {
@@ -9427,6 +9699,38 @@
         "id": "karmada.application-purge-mode-legacy-values-removed.1-19",
         "nextAction": "Replace application failover purgeMode Immediately with Directly and Graciously with Gracefully in proposed in-scope resources; validate target CRD selection and application separately.",
         "operator": "forbid_predicate_value",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "source-507245020dbb-types-279"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "source-6d7b233a54d5-types-279"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "source-6d7b233a54d5-types-279"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "source-6d7b233a54d5-validation-328"
+            }
+          ],
+          "from": {
+            "gte": "1.18.0",
+            "lt": "1.19.0"
+          },
+          "to": {
+            "gte": "1.19.0",
+            "lt": "1.20.0"
+          }
+        },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "subject": {
           "component": "pkg:github/karmada-io/karmada",
@@ -9741,7 +10045,7 @@
     },
     {
       "project": "kubeedge",
-      "description": "KubeEdge v1.19.0 changes the exact keadm init legacy version-selector form --profile version=<version> into external values-file handling; this checks only an explicit complete official-upstream init plan and does not inspect files or claim that --profile itself was removed.",
+      "description": "KubeEdge v1.19.0 changes the exact keadm init legacy version-selector form --profile version=<version> into external values-file handling; this checks only an explicit complete official-upstream init plan and does not inspect files or claim that --profile itself was removed. Whole-line: the cited keadm cloudcore.go is byte-identical to the 1.18 form at every 1.18 release (v1.18.0 to v1.18.3) and to the 1.19 form at every 1.19 release (v1.19.0 to v1.19.2); helm_helper.go and init.go are byte-identical across each line, read at each release tag.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -9883,7 +10187,39 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "For this exact official v1.19.0 keadm init plan, replace legacy --profile version=<version> selection with --kubeedge-version=v1.19.0. Review any external --profile values file separately."
+        "nextAction": "For this exact official v1.19.0 keadm init plan, replace legacy --profile version=<version> selection with --kubeedge-version=v1.19.0. Review any external --profile values file separately.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "source-c5e705a7545d-cloudcore-93"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "source-6ca40b8e51d9-cloudcore-112"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "source-6ca40b8e51d9-cloudcore-112"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "source-6ca40b8e51d9-init-75"
+            }
+          ],
+          "from": {
+            "gte": "1.18.0",
+            "lt": "1.19.0"
+          },
+          "to": {
+            "gte": "1.19.0",
+            "lt": "1.20.0"
+          }
+        }
       }
     },
     {
@@ -15126,7 +15462,7 @@
     },
     {
       "project": "kubevirt",
-      "description": "KubeVirt 1.9.0 requires each supplied VM or VMI interface to have exactly one binding method or binding plugin; this resource-local check does not inspect admission, feature gates, plugins, or runtime behavior.",
+      "description": "KubeVirt 1.9.0 requires each supplied VM or VMI interface to have exactly one binding method or binding plugin; this resource-local check does not inspect admission, feature gates, plugins, or runtime behavior. Whole-line: pkg/network/admitter/binding.go is byte-identical to the cited 1.8.4 file at every 1.8 release (v1.8.0 to v1.8.4) and to the cited 1.9.0 file at every 1.9 release (v1.9.0, v1.9.1); the API schema file is byte-identical to the cited one at both 1.9 releases, read at each release tag.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -15184,7 +15520,39 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Ensure each submitted VM or VMI interface has exactly one supported binding method or plugin, then validate the target resource schema and admission separately."
+        "nextAction": "Ensure each submitted VM or VMI interface has exactly one supported binding method or plugin, then validate the target resource schema and admission separately.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "kubevirt-v1-8-4-binding-plugin-conflict"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "kubevirt-v1-9-0-binding-exactly-one"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "kubevirt-v1-9-0-binding-exactly-one"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "kubevirt-api-v1-9-inline-interface-binding-method"
+            }
+          ],
+          "from": {
+            "gte": "1.8.0",
+            "lt": "1.9.0"
+          },
+          "to": {
+            "gte": "1.9.0",
+            "lt": "1.10.0"
+          }
+        }
       }
     },
     {
@@ -16434,7 +16802,7 @@
     },
     {
       "project": "nats",
-      "description": "NATS 2.11.0 rejects ASCII spaces in directly declared server, cluster, and gateway names that 2.10.0 accepted. This checks only submitted literal names and does not resolve includes, variables, defaults, startup behavior, connectivity, or whole-upgrade compatibility.",
+      "description": "NATS 2.11.0 rejects ASCII spaces in directly declared server, cluster, and gateway names that 2.10.0 accepted. This checks only submitted literal names and does not resolve includes, variables, defaults, startup behavior, connectivity, or whole-upgrade compatibility. Whole-line: the space check on server, cluster and gateway names is absent from every 2.10 release (v2.10.0 to v2.10.29) and present in every 2.11 release (v2.11.0 to v2.11.17), read at each release tag (final releases only, no release candidates).",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -16512,11 +16880,51 @@
               "contentDigest": "sha256:23c448091f6adc24c646523feefb0cb60aae2da8ba735cc9a61ace37a368f1e9",
               "startLine": 2006,
               "endLine": 2027
+            },
+            {
+              "id": "nats-v2-11-17-server-name-rejected",
+              "url": "https://github.com/nats-io/nats-server/blob/0f192db71455eaca7f1fef14548a239845f24b96/server/opts.go",
+              "revision": "0f192db71455eaca7f1fef14548a239845f24b96",
+              "contentDigest": "sha256:3676d0d9660724eede782c46c2346d42fd73310e536b944864bbabef1f7fa82e",
+              "startLine": 1005,
+              "endLine": 1013
             }
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Remove ASCII spaces from every explicitly supplied server, cluster, or gateway name, then recheck the same literal configuration. This does not validate includes, default names, connectivity, or the whole upgrade."
+        "nextAction": "Remove ASCII spaces from every explicitly supplied server, cluster, or gateway name, then recheck the same literal configuration. This does not validate includes, default names, connectivity, or the whole upgrade.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "nats-00-v2-10-server-name-accepted"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "nats-03-v2-11-server-name-rejected"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "nats-03-v2-11-server-name-rejected"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "nats-v2-11-17-server-name-rejected"
+            }
+          ],
+          "from": {
+            "gte": "2.10.0",
+            "lt": "2.11.0"
+          },
+          "to": {
+            "gte": "2.11.0",
+            "lt": "2.12.0"
+          }
+        }
       }
     },
     {
@@ -16830,7 +17238,7 @@
     },
     {
       "project": "nats",
-      "description": "At the exact NATS 2.14.6 target, the official parser rejects ASCII spaces in directly declared server, cluster, and gateway names. This target-only check evaluates submitted literal names without claiming when that behavior was introduced or resolving includes, variables, defaults, startup, connectivity, or whole-upgrade compatibility.",
+      "description": "At the exact NATS 2.14.6 target, the official parser rejects ASCII spaces in directly declared server, cluster, and gateway names. This target-only check evaluates submitted literal names without claiming when that behavior was introduced or resolving includes, variables, defaults, startup, connectivity, or whole-upgrade compatibility. Whole-line: the space check on server, cluster and gateway names is present in every 2.12 release (v2.12.0 to v2.12.15) and every 2.14 release (v2.14.0 to v2.14.10), read at each release tag. This is a target check that does not say when the check was added, so the range carries no release boundary.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -16916,11 +17324,51 @@
               "contentDigest": "sha256:1e143d379cfc0e6ce8e6094d0d4116f0fec54d071bee51b7c166edefb9ab4465",
               "startLine": 67,
               "endLine": 70
+            },
+            {
+              "id": "nats-v2-12-15-server-name-rejected",
+              "url": "https://github.com/nats-io/nats-server/blob/8460a428cf3b27c8627595d630f1ccad55786d13/server/opts.go",
+              "revision": "8460a428cf3b27c8627595d630f1ccad55786d13",
+              "contentDigest": "sha256:5d46c2c61a3fabd1b2ec8038e7edfdc02dd201f828f474dd3dd4759361897d6c",
+              "startLine": 1065,
+              "endLine": 1073
             }
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Remove ASCII spaces from each selected literal server, cluster, or gateway name before proposing the exact 2.14.6 target; validate all unselected configuration and runtime behavior separately."
+        "nextAction": "Remove ASCII spaces from each selected literal server, cluster, or gateway name before proposing the exact 2.14.6 target; validate all unselected configuration and runtime behavior separately.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "nats-v2-12-15-server-name-rejected"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "nats-v2-12-15-server-name-rejected"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "nats-target-2-14-6-server-name-space-rejection"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "nats-target-2-14-6-cluster-name-space-rejection"
+            }
+          ],
+          "from": {
+            "gte": "2.12.0",
+            "lt": "2.13.0"
+          },
+          "to": {
+            "gte": "2.14.0",
+            "lt": "2.15.0"
+          }
+        }
       }
     },
     {
