@@ -1,0 +1,18 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "sail-operator",
+    "catalog": "community",
+    "name": "sail-operator",
+    "repo": "github.com/istio-ecosystem/sail-operator",
+    "component": "pkg:github/istio-ecosystem/sail-operator",
+    "factProject": "sail_operator",
+    "tagPrefixes": [""],
+    "minFrom": "1.26",
+    "paths": [
+      {"path": "chart/crds", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"},
+      {"path": "common/scripts", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

@@ -47,6 +47,24 @@
       ]
     },
     {
+      "slug": "argocd-commenter",
+      "catalog": "community",
+      "upstream": {
+        "name": "argocd-commenter",
+        "repository": "https://github.com/int128/argocd-commenter",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/int128/argocd-commenter/blob/5afed3053041acfbe75b68002ca874e2734ec838/LICENSE"
+      },
+      "factProject": "argocd_commenter",
+      "component": "pkg:github/int128/argocd-commenter",
+      "groups": [
+        {
+          "name": "argocdcommenter.int128.github.io",
+          "source": "https://github.com/int128/argocd-commenter/blob/5afed3053041acfbe75b68002ca874e2734ec838/config/crd/bases/argocdcommenter.int128.github.io_applicationhealths.yaml"
+        }
+      ]
+    },
+    {
       "slug": "awx-operator",
       "catalog": "community",
       "upstream": {
@@ -485,6 +503,24 @@
         {
           "name": "garo.tietoevry.com",
           "source": "https://github.com/evryfs/github-actions-runner-operator/blob/4b39140ecedabb6624ce92bf852713b80d1422d6/config/crd/bases/garo.tietoevry.com_githubactionrunners.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "glasskube-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "operator",
+        "repository": "https://github.com/glasskube/operator",
+        "license": "LGPL-3.0-only",
+        "licenseSource": "https://github.com/glasskube/operator/blob/a322664abd34a2001f0defe7bfce71c179b72ec8/LICENSE"
+      },
+      "factProject": "glasskube_operator",
+      "component": "pkg:github/glasskube/operator",
+      "groups": [
+        {
+          "name": "glasskube.eu",
+          "source": "https://github.com/glasskube/operator/blob/a322664abd34a2001f0defe7bfce71c179b72ec8/deploy/crd/vaults.glasskube.eu-v1.yml"
         }
       ]
     },
@@ -1123,6 +1159,24 @@
       ]
     },
     {
+      "slug": "multigres-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "multigres-operator",
+        "repository": "https://github.com/multigres/multigres-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/multigres/multigres-operator/blob/0ada04877567bc6ad5e5548d0f1ba378009fab6a/LICENSE"
+      },
+      "factProject": "multigres_operator",
+      "component": "pkg:github/multigres/multigres-operator",
+      "groups": [
+        {
+          "name": "multigres.com",
+          "source": "https://github.com/multigres/multigres-operator/blob/0ada04877567bc6ad5e5548d0f1ba378009fab6a/config/crd/bases/multigres.com_toposervers.yaml"
+        }
+      ]
+    },
+    {
       "slug": "node-feature-discovery",
       "catalog": "community",
       "upstream": {
@@ -1457,6 +1511,24 @@
       ]
     },
     {
+      "slug": "sail-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "sail-operator",
+        "repository": "https://github.com/istio-ecosystem/sail-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/istio-ecosystem/sail-operator/blob/01aa257a2d51b297b7152a8bb95303bc3aa5489d/LICENSE"
+      },
+      "factProject": "sail_operator",
+      "component": "pkg:github/istio-ecosystem/sail-operator",
+      "groups": [
+        {
+          "name": "sailoperator.io",
+          "source": "https://github.com/istio-ecosystem/sail-operator/blob/01aa257a2d51b297b7152a8bb95303bc3aa5489d/chart/crds/sailoperator.io_ztunnels.yaml"
+        }
+      ]
+    },
+    {
       "slug": "schemahero",
       "catalog": "cncf",
       "factProject": "schemahero",
@@ -1487,6 +1559,24 @@
         {
           "name": "bitnami.com",
           "source": "https://github.com/bitnami/sealed-secrets/blob/6772bee54ff8c7ef27bdeeaf15ec329854796c69/helm/sealed-secrets/crds/bitnami.com_sealedsecrets.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "snapscheduler",
+      "catalog": "community",
+      "upstream": {
+        "name": "snapscheduler",
+        "repository": "https://github.com/backube/snapscheduler",
+        "license": "AGPL-3.0-only",
+        "licenseSource": "https://github.com/backube/snapscheduler/blob/46883ceb23a2e3dbf59fcc4e0ef59c96a6195ba6/LICENSE"
+      },
+      "factProject": "snapscheduler",
+      "component": "pkg:github/backube/snapscheduler",
+      "groups": [
+        {
+          "name": "snapscheduler.backube",
+          "source": "https://github.com/backube/snapscheduler/blob/46883ceb23a2e3dbf59fcc4e0ef59c96a6195ba6/config/crd/bases/snapscheduler.backube_snapshotschedules.yaml"
         }
       ]
     },
@@ -1567,6 +1657,24 @@
         {
           "name": "aquasecurity.github.io",
           "source": "https://github.com/aquasecurity/trivy-operator/blob/047f1d95f4f8355569aadbdad0f1c74550c6cbec/deploy/helm/crds/aquasecurity.github.io_vulnerabilityreports.yaml"
+        }
+      ]
+    },
+    {
+      "slug": "vals-operator",
+      "catalog": "community",
+      "upstream": {
+        "name": "vals-operator",
+        "repository": "https://github.com/digitalis-io/vals-operator",
+        "license": "Apache-2.0",
+        "licenseSource": "https://github.com/digitalis-io/vals-operator/blob/9f7b6c9b5f9a3207b1893580ac2af3427df61ddc/LICENSE"
+      },
+      "factProject": "vals_operator",
+      "component": "pkg:github/digitalis-io/vals-operator",
+      "groups": [
+        {
+          "name": "digitalis.io",
+          "source": "https://github.com/digitalis-io/vals-operator/blob/9f7b6c9b5f9a3207b1893580ac2af3427df61ddc/config/crd/bases/digitalis.io_dbsecrets.yaml"
         }
       ]
     },

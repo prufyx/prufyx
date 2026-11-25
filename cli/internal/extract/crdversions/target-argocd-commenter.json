@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "argocd-commenter",
+    "catalog": "community",
+    "name": "argocd-commenter",
+    "repo": "github.com/int128/argocd-commenter",
+    "component": "pkg:github/int128/argocd-commenter",
+    "factProject": "argocd_commenter",
+    "tagPrefixes": ["v"],
+    "minFrom": "1.16",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}

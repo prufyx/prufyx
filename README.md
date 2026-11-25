@@ -313,7 +313,7 @@ upgrade surface they decide.
 Catalogued is not the same as decided.
 
 <!-- crd-catalogue:begin -->
-A project is catalogued when it has a reviewed custom-resource target (87 projects: 46 of the CNCF landscape catalog, 41 of the community catalog). It is decided only for the upgrades that a rule or line attestation covers for the whole release-line pair (A or B in the table below). Of the 41 community-catalog projects, 17 hold a published rule or current line attestation for the CRD version family and 24 hold none.
+A project is catalogued when it has a reviewed custom-resource target (93 projects: 46 of the CNCF landscape catalog, 47 of the community catalog). It is decided only for the upgrades that a rule or line attestation covers for the whole release-line pair (A or B in the table below). Of the 47 community-catalog projects, 17 hold a published rule or current line attestation for the CRD version family and 30 hold none.
 <!-- crd-catalogue:end -->
 
 In beta.0, a community-catalog project without data in the embedded knowledge
@@ -333,7 +333,7 @@ Generated on 2026-11-24 by `scripts/readme-coverage.sh` (do not edit this block 
 | Projects with at least one executable check (a rule, a named check or a profile; says nothing about which upgrades it decides) | 68 |
 | Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 53 of 79 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
-| Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 87 |
+| Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 93 |
 | Projects with a published CRD rule or line attestation | 42 |
 
 Version-coverage by form, over the last five minor upgrades of each of the 79 CNCF-catalog projects of the snapshot (395 upgrades between consecutive release lines). Each upgrade is counted once, under its strongest form, in this order: A/B decided, then k8s served-API, then S, then L, then G. Only A/B is called decided: a valid rule or attestation covers every version of both release lines. k8s served-API is an answer from the Kubernetes served-API family alone. S is a rule for one exact version pair only. L is listed, not judged: the change is listed, the answer is ATTENTION, never PASS. G is a gap, with its reason. There is no total over the forms.

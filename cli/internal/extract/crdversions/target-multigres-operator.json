@@ -1,0 +1,17 @@
+{
+  "schema": "prufyx.io/crd-version-target/v1",
+  "target": {
+    "project": "multigres-operator",
+    "catalog": "community",
+    "name": "multigres-operator",
+    "repo": "github.com/multigres/multigres-operator",
+    "component": "pkg:github/multigres/multigres-operator",
+    "factProject": "multigres_operator",
+    "tagPrefixes": ["v"],
+    "minFrom": "0.6",
+    "paths": [
+      {"path": "config/crd/bases", "directory": true, "match": "^[^.][^/]*\\.ya?ml$", "guard": "(?i)crd"}
+    ],
+    "exclude": []
+  }
+}
