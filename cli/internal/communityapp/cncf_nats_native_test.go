@@ -57,11 +57,35 @@ func TestNATSLatestNativeConfigAllExactOrigins(t *testing.T) {
 			})
 		}
 	}
-	for _, tc := range []struct{ from, to string }{{"2.12.14", "2.14.6"}, {"2.12.15", "2.14.5"}} {
+	// Controls moved outside every reviewed NATS range (2.10-2.11, 2.12-2.14):
+	// an origin on the unreviewed 2.13 line, and a target past the 2.14 line.
+	for _, tc := range []struct{ from, to string }{{"2.13.2", "2.14.6"}, {"2.12.15", "2.15.0"}} {
 		path := writeCNCFFile(t, "nats-latest-wrong-pair.json", []byte(`{"server_name":"edge node"}`), 0o600)
 		code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "nats", "--nats-config", path, "--from", tc.from, "--to", tc.to, "--now", "2026-09-12T08:47:00Z", "--format", "json")
 		if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "RULE_TRANSITION_NOT_REVIEWED") || strings.Contains(stdout, "edge node") {
 			t.Fatalf("pair=%s/%s code=%d stdout=%q stderr=%q", tc.from, tc.to, code, stdout, stderr)
+		}
+	}
+}
+
+// The two pairs the wrong-pair control used before the 2.12 line-wide range:
+// both are inside it, so they are decided range matches with the range
+// disclosure, and a blocking value still blocks.
+func TestNATSLatestNativeConfigLineWideRangePairs(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ from, to string }{{"2.12.14", "2.14.6"}, {"2.12.15", "2.14.5"}} {
+		for _, c := range []struct {
+			raw, status string
+			want        int
+		}{
+			{`{"server_name":"edge-west"}`, "PASS", ExitOK},
+			{`{"cluster":{"name":"edge cluster"}}`, "BLOCKED", ExitBlocked},
+		} {
+			path := writeCNCFFile(t, "nats-range.json", []byte(c.raw), 0o600)
+			code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "nats", "--nats-config", path, "--from", tc.from, "--to", tc.to, "--now", "2026-09-12T08:47:00Z", "--format", "json")
+			if code != c.want || stderr != "" || !strings.Contains(stdout, `"status":"`+c.status+`"`) || !strings.Contains(stdout, `"mode":"range"`) || strings.Contains(stdout, "edge cluster") {
+				t.Fatalf("pair=%s/%s %s code=%d stdout=%q stderr=%q", tc.from, tc.to, c.status, code, stdout, stderr)
+			}
 		}
 	}
 }
