@@ -163,6 +163,11 @@ func TestPrepareEtcdLatestAllExactOriginsAndHopPrecedence(t *testing.T) {
 				t.Fatalf("report=%+v err=%v", report, err)
 			}
 			for _, claim := range report.Check.Claims {
+				// A reviewed line range that does not cover the declared pair
+				// only says so; it decides nothing for this pair.
+				if claim.ReasonCode == "RULE_RELEASE_BOUNDARY_NOT_REVIEWED" {
+					continue
+				}
 				if claim.Status != "BLOCKED" {
 					t.Fatalf("claim=%+v", claim)
 				}
