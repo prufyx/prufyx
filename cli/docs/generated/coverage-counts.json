@@ -7,7 +7,7 @@
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
-      "digest": "sha256:66926e8b4f2520d12ca2ac46299c9054d253964eea292b02e2961fdc5a8ca19d"
+      "digest": "sha256:5fa809124ca7f7e5f69bee8aa712e5e65f5630a1f6769a4008e784be095a141b"
     },
     "lines": {
       "capturedOn": "2026-10-31",
@@ -21,7 +21,7 @@
     },
     "clockAttestedAt": "2026-11-24T05:21:20Z",
     "packProjectsCovered": 73,
-    "crdVersionProjects": 87,
+    "crdVersionProjects": 93,
     "crdPublishedProjects": 42,
     "fleet": {
       "projects": 79,
@@ -7061,5 +7061,5 @@
       "g": 41
     }
   },
-  "readmeBlockSha256": "e31b73366c39ab4140d7a6cb4ca9a409a3de7ace18718cad400648ae3332f659"
+  "readmeBlockSha256": "d7ac8be0096808c50f9a101a7786c3a697bc0997a6972fff340ab55f556d8d78"
 }
