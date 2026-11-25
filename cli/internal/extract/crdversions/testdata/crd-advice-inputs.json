@@ -21,6 +21,30 @@
    "sourcesDigest": "0ae78d2eebd4c41396e625111e73d6256b7238ac20ff81259e0ae05274a65d17"
   },
   {
+   "ruleId": "kubevela.crd-version-removal.applicationrevisions-core-oam-dev.1-8-0-to-1-9-0",
+   "replacement": "v1beta1",
+   "storedVersionsPresent": false,
+   "sourcesDigest": "1c6bf20495ff6028c2b967decba7da28dc1fb2a342109de18dfa7f0d72237955"
+  },
+  {
+   "ruleId": "kubevela.crd-version-removal.applications-core-oam-dev.1-8-0-to-1-9-0",
+   "replacement": "v1beta1",
+   "storedVersionsPresent": false,
+   "sourcesDigest": "de5bbbd895d0a1e8798b28397fb1ec64eedb433554b485ab4413ade7d87b95ad"
+  },
+  {
+   "ruleId": "kubevela.crd-version-removal.componentdefinitions-core-oam-dev.1-8-0-to-1-9-0",
+   "replacement": "v1beta1",
+   "storedVersionsPresent": false,
+   "sourcesDigest": "3687a4ad4b2e796cd9d1e5a28b8f8c81740a70f5898a8f5c7af0c4fdf3d099b9"
+  },
+  {
+   "ruleId": "kubevela.crd-version-removal.traitdefinitions-core-oam-dev.1-8-0-to-1-9-0",
+   "replacement": "v1beta1",
+   "storedVersionsPresent": false,
+   "sourcesDigest": "273e37b3be2d044d1d5b431af66b42a34668769d88915d5f7187a8f5017d0c40"
+  },
+  {
    "ruleId": "kyverno.crd-version-removal.updaterequests-kyverno-io.1-15-0-to-1-16-0",
    "replacement": "v2",
    "storedVersionsPresent": false,

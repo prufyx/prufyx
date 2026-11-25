@@ -209,9 +209,12 @@ func TestPublishedRemediationAdviceMatchesExtractor(t *testing.T) {
 			t.Errorf("pending entry %s names no published crd-version-removal rule: remove it", id)
 		}
 	}
-	for id := range rows {
+	rec := verifiedRules(t)
+	for id, row := range rows {
 		if !seen[id] {
-			t.Errorf("advice row %s names no published crd-version-removal rule: remove it", id)
+			if err := checkPreLanded(id, row, rec); err != nil {
+				t.Error(err)
+			}
 		}
 	}
 	if os.Getenv("PRUFYX_PRINT_REMEDIATION_ALLOWLIST") != "" {
@@ -415,6 +418,26 @@ func checkVerified(r publishedRule, row adviceRow, v verifiedRule, hasRecord boo
 	return nil
 }
 
+// checkPreLanded accepts an advice row and its verification record for a rule
+// that is not published yet, so a knowledge batch can add the rule without a
+// code change first. The pair must stand alone: both present, and the row
+// equal to what the record derives from the recorded spec.versions flags.
+// Once the rule is published the full checks apply to it.
+func checkPreLanded(id string, row adviceRow, rec map[string]verifiedRule) error {
+	v, ok := rec[id]
+	if !ok || row.RuleID != id {
+		return fmt.Errorf("%s names no published crd-version-removal rule and is not a complete advice row plus verification record pair: remove it", id)
+	}
+	repl, stored, err := v.derive()
+	if err != nil {
+		return err
+	}
+	if v.Replacement != repl || v.StoredVersionsPresent != stored || row.Replacement != repl || row.StoredVersionsPresent != stored {
+		return fmt.Errorf("%s: pre-landed row and record differ from the CRD-derived inputs (%s, %v)", id, repl, stored)
+	}
+	return nil
+}
+
 // Every advice row equals the inputs derived from the cited CRD files'
 // spec.versions, as recorded with their revision and sha256 by
 // testdata/verify-crd-advice.py (which fetched the files and checked the
@@ -436,7 +459,9 @@ func TestAdviceRowsMatchCRDVerification(t *testing.T) {
 	}
 	for id := range rec {
 		if !seen[id] {
-			t.Errorf("verification entry %s names no published crd-version-removal rule: remove it", id)
+			if err := checkPreLanded(id, rows[id], rec); err != nil {
+				t.Error(err)
+			}
 		}
 	}
 }

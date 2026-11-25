@@ -131,6 +131,178 @@
    "storedVersionsPresent": false
   },
   {
+   "ruleId": "kubevela.crd-version-removal.applicationrevisions-core-oam-dev.1-8-0-to-1-9-0",
+   "sources": [
+    {
+     "id": "crd-1-9-0",
+     "repo": "https://github.com/kubevela/kubevela",
+     "revision": "da3618ad2743713f38508fe28fef1b2d34810034",
+     "path": "charts/vela-core/crds/core.oam.dev_applicationrevisions.yaml",
+     "digest": "sha256:3917648c7612ad69ef80d7bb9ecac42a215896c7e1c6a2d685bdcef7cb6b7bd1",
+     "versions": [
+      {
+       "name": "v1beta1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    },
+    {
+     "id": "crd-versions-1-8-0",
+     "repo": "https://github.com/kubevela/kubevela",
+     "revision": "fcd721ffed6013777962befb68fff96424b67b06",
+     "path": "charts/vela-core/crds/core.oam.dev_applicationrevisions.yaml",
+     "digest": "sha256:23bb40045d74afa3b87aff4d45d6d6061808280b180e2fbfd7c40d0c5d312ae1",
+     "versions": [
+      {
+       "name": "v1alpha2",
+       "served": true,
+       "storage": false
+      },
+      {
+       "name": "v1beta1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    }
+   ],
+   "removedVersions": [
+    "v1alpha2"
+   ],
+   "replacement": "v1beta1",
+   "storedVersionsPresent": false
+  },
+  {
+   "ruleId": "kubevela.crd-version-removal.applications-core-oam-dev.1-8-0-to-1-9-0",
+   "sources": [
+    {
+     "id": "crd-1-9-0",
+     "repo": "https://github.com/kubevela/kubevela",
+     "revision": "da3618ad2743713f38508fe28fef1b2d34810034",
+     "path": "charts/vela-core/crds/core.oam.dev_applications.yaml",
+     "digest": "sha256:e09af0ca32e40cea9c7c1015e475d0e8c66b2ec037dc5207e1e9c9ccd947932a",
+     "versions": [
+      {
+       "name": "v1beta1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    },
+    {
+     "id": "crd-versions-1-8-0",
+     "repo": "https://github.com/kubevela/kubevela",
+     "revision": "fcd721ffed6013777962befb68fff96424b67b06",
+     "path": "charts/vela-core/crds/core.oam.dev_applications.yaml",
+     "digest": "sha256:3d21ad13e43d7aa459e627458e0650476832740b536c508c8e43f9383a9fee90",
+     "versions": [
+      {
+       "name": "v1alpha2",
+       "served": true,
+       "storage": false
+      },
+      {
+       "name": "v1beta1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    }
+   ],
+   "removedVersions": [
+    "v1alpha2"
+   ],
+   "replacement": "v1beta1",
+   "storedVersionsPresent": false
+  },
+  {
+   "ruleId": "kubevela.crd-version-removal.componentdefinitions-core-oam-dev.1-8-0-to-1-9-0",
+   "sources": [
+    {
+     "id": "crd-1-9-0",
+     "repo": "https://github.com/kubevela/kubevela",
+     "revision": "da3618ad2743713f38508fe28fef1b2d34810034",
+     "path": "charts/vela-core/crds/core.oam.dev_componentdefinitions.yaml",
+     "digest": "sha256:af69e13fa295ce06381c0e189ae680f8a4194fa39d76a798cafb963b336cd350",
+     "versions": [
+      {
+       "name": "v1beta1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    },
+    {
+     "id": "crd-versions-1-8-0",
+     "repo": "https://github.com/kubevela/kubevela",
+     "revision": "fcd721ffed6013777962befb68fff96424b67b06",
+     "path": "charts/vela-core/crds/core.oam.dev_componentdefinitions.yaml",
+     "digest": "sha256:aac4346388aec6a86580e2ac86271f8559165f0ac9493b79136410372ce16c5c",
+     "versions": [
+      {
+       "name": "v1alpha2",
+       "served": true,
+       "storage": false
+      },
+      {
+       "name": "v1beta1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    }
+   ],
+   "removedVersions": [
+    "v1alpha2"
+   ],
+   "replacement": "v1beta1",
+   "storedVersionsPresent": false
+  },
+  {
+   "ruleId": "kubevela.crd-version-removal.traitdefinitions-core-oam-dev.1-8-0-to-1-9-0",
+   "sources": [
+    {
+     "id": "crd-1-9-0",
+     "repo": "https://github.com/kubevela/kubevela",
+     "revision": "da3618ad2743713f38508fe28fef1b2d34810034",
+     "path": "charts/vela-core/crds/core.oam.dev_traitdefinitions.yaml",
+     "digest": "sha256:407d566d33a268d1644b6cf4507422bb4d115bab0bcac872c39401aa5cf8d25a",
+     "versions": [
+      {
+       "name": "v1beta1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    },
+    {
+     "id": "crd-versions-1-8-0",
+     "repo": "https://github.com/kubevela/kubevela",
+     "revision": "fcd721ffed6013777962befb68fff96424b67b06",
+     "path": "charts/vela-core/crds/core.oam.dev_traitdefinitions.yaml",
+     "digest": "sha256:7594ad9c959e0b34af66a2faa68edc3cec1f22335852de6ada5bf9c80a6c8439",
+     "versions": [
+      {
+       "name": "v1alpha2",
+       "served": true,
+       "storage": false
+      },
+      {
+       "name": "v1beta1",
+       "served": true,
+       "storage": true
+      }
+     ]
+    }
+   ],
+   "removedVersions": [
+    "v1alpha2"
+   ],
+   "replacement": "v1beta1",
+   "storedVersionsPresent": false
+  },
+  {
    "ruleId": "kyverno.crd-version-removal.updaterequests-kyverno-io.1-15-0-to-1-16-0",
    "sources": [
     {
