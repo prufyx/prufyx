@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:c0b14db8da6d360fbf1f3bb00ded753b93973745a0d6de1f6c9ac93a14b98765",
+    "candidateDigest": "sha256:b6951834a71487cfd7796b54bb60f191fc0b47efca0ee120077fa6078cc042cf",
+    "candidateId": "pr-821",
+    "decidedAt": "2026-11-25T13:30:05Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "opentelemetry.logging-exporter-removed.0-111"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "NS0CfpdWavHsov31QOx/DcTHy6o8PKhgbNlQzD//NBrQaXkfIhDOEZYhbVsReFQM1xeJEs3k/zn6T+daPWsrBA=="
+}

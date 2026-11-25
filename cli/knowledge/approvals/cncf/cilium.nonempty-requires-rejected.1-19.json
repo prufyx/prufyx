@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:2a8ea9a2aa9a03569f2eb83c48e1d845597a2fe1e88be716b173b6070e2288d7",
+    "candidateDigest": "sha256:4f9c159b1bc2e5230d89144cd923efd597c6c796e01f01bfc735f3802a2958c0",
+    "candidateId": "pr-821",
+    "decidedAt": "2026-11-25T13:26:46Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "cilium.nonempty-requires-rejected.1-19"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "+D+/tzODj5eZu1ewJV4cG4G2CKRWVBOJFjsWJCFgaHobYmd3c//9yG2+ERFKw1Mszn5ZObFncLjX38Eq9Vj6Dg=="
+}

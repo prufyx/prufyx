@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:94ea3cdeca0a2efc135517d9b04a14466796db25295d8cac47f5bfbed8d3f47d",
+    "candidateDigest": "sha256:f0521f78368a19cdb9d4e7d215193ab96fe436e13ddeb578357bbb19e1d3562d",
+    "candidateId": "pr-821",
+    "decidedAt": "2026-11-25T13:29:08Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "kubeflow.kfp-create-component-from-func-removed.1-8-22-to-2-0-0"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "yqUiWLozV/X1ROZ5FeHgAViQ4gjqdMNKWWhsTt8g/3WRLCAz8A1Jwx1cDq3qe/nWqgAHSGSIaR4iKbyhHRGTBg=="
+}

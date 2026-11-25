@@ -1,15 +1,15 @@
 {
   "schema": "prufyx.io/knowledge-approval/v2",
   "record": {
-    "baseDigest": "sha256:07e58a01f0d04c870fdd50e6a2b72bc3ce7dbb2d6257b6f39e9b055d570b8a8e",
-    "candidateDigest": "sha256:220f1f6313f3e389c9b7e7149ccf3357048d296cb486ffb29d0e06b2b9eb5910",
-    "candidateId": "pr-64",
-    "decidedAt": "2026-10-22T06:23:58Z",
+    "baseDigest": "sha256:220f1f6313f3e389c9b7e7149ccf3357048d296cb486ffb29d0e06b2b9eb5910",
+    "candidateDigest": "sha256:0d50dc253b1080042b7db72202011604c98aecbb305265e60c8bb36246e31ed5",
+    "candidateId": "pr-821",
+    "decidedAt": "2026-11-25T13:30:36Z",
     "decision": "approve",
     "identity": "airstand",
     "pack": "cncf",
     "ruleId": "rook.direct-minor-skip.1-15-9-to-1-20-7"
   },
   "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
-  "signature": "wttE2GPaxtBbPvY83J08ewiY41hOFGWJwftoNSUGbj4MuPcHEZH5/N9S9TeEYJEsDNnQHGdWq1YOyPWS5SPNCQ=="
+  "signature": "tTznh1rndwkHLHcFkJ64B9gRz2O67eZO+MmVGW8VCboEQAQbq15t8YZ1gNAOSoN/UPcFBIpirxaEmjnn42azCw=="
 }

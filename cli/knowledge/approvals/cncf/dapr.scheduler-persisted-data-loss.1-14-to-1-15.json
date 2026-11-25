@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:f669a2d19a19388666cc66cb5072f5f08f9c99fd13b632b0023a2c5bc846ebb0",
+    "candidateDigest": "sha256:3dfd15ec4174330cd51321fc79896558e7b41665ee3d61b24c9e01add499ff53",
+    "candidateId": "pr-821",
+    "decidedAt": "2026-11-25T13:27:29Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "dapr.scheduler-persisted-data-loss.1-14-to-1-15"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "8/kY6BFYqz8ukdwXcZCnfVEscug1uYneaPZIf5S+fqMv7XTt7OmiAqUiwKkUNtl2ZGVxl2JdcIrR00furvqMCw=="
+}

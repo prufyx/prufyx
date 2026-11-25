@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:3106df9bf46469a9c4a9b3f77ba1c2d68c09cb5a207a572eb9ef84049b80cfff",
+    "candidateDigest": "sha256:9826a6235aa00ae5abccc9beaafa3efd65ce4dd9be099dbbf13d06fb2d822eed",
+    "candidateId": "pr-821",
+    "decidedAt": "2026-11-25T13:30:00Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "opencost.cloud-cost-source-migration.1-120-4-to-1-121-2"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "YVokompvD94fkzxQAxWtTCNRrBdjlhxJQg9yEG+2l2Rrxhz24vkjPU0dMCBuUWgmYKGw6UhAVM/rlJeacPNrBw=="
+}
