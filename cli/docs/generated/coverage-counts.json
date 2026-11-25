@@ -7,7 +7,7 @@
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
-      "digest": "sha256:18f59e0fb09214bf7204dc1d02b33ed50c02b109651b2906efdaea68f436f9a8"
+      "digest": "sha256:7bd717aca79207ca1159c66ece7787a333707f671b8b887bf7cba47d5bf49b14"
     },
     "lines": {
       "capturedOn": "2026-10-31",
@@ -27,32 +27,32 @@
       "projects": 79,
       "pairs": 395,
       "a": 97,
-      "b": 3,
-      "s": 39,
+      "b": 13,
+      "s": 29,
       "g": 256,
       "listedChangelog": 18,
       "c1": 63,
-      "c3": 20,
+      "c3": 21,
       "c5": 14,
-      "vcPairs": 0.2532,
-      "vcMean": 0.2532,
-      "sPairs": 0.0987,
+      "vcPairs": 0.2785,
+      "vcMean": 0.2785,
+      "sPairs": 0.0734,
       "rulesInWindow": 155
     },
     "priorityProjects": {
       "projects": 30,
       "pairs": 150,
       "a": 37,
-      "b": 2,
-      "s": 22,
+      "b": 6,
+      "s": 18,
       "g": 89,
       "listedChangelog": 9,
       "c1": 29,
-      "c3": 8,
+      "c3": 9,
       "c5": 5,
-      "vcPairs": 0.26,
-      "vcMean": 0.26,
-      "sPairs": 0.1467,
+      "vcPairs": 0.2867,
+      "vcMean": 0.2867,
+      "sPairs": 0.12,
       "rulesInWindow": 112
     },
     "communityCatalog": {
@@ -80,6 +80,11 @@
         "family": "kubernetes.removed_served_gvk",
         "a": 5,
         "b": 0
+      },
+      {
+        "family": "other",
+        "a": 0,
+        "b": 10
       }
     ],
     "projects": [
@@ -1740,7 +1745,10 @@
           {
             "from": "3.10",
             "to": "4.0",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "4.0",
@@ -1749,10 +1757,10 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 1,
+        "b": 1,
+        "s": 0,
         "g": 4,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 1,
@@ -2133,17 +2141,26 @@
           {
             "from": "1.16",
             "to": "1.17",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "1.17",
             "to": "1.18",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "1.18",
             "to": "1.19",
-            "status": "S",
+            "status": "B",
+            "families": [
+              "other"
+            ],
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
@@ -2173,11 +2190,11 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 3,
+        "b": 3,
+        "s": 0,
         "g": 2,
         "listedChangelog": 1,
-        "vc": 0,
+        "vc": 0.6,
         "vcA": 0,
         "covered": true,
         "validRules": 7,
@@ -2524,7 +2541,10 @@
           {
             "from": "2.14",
             "to": "2.15",
-            "status": "S",
+            "status": "B",
+            "families": [
+              "other"
+            ],
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
@@ -2538,10 +2558,10 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 1,
+        "b": 1,
+        "s": 0,
         "g": 4,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 7,
@@ -3086,14 +3106,17 @@
           {
             "from": "1.18",
             "to": "1.19",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 1,
+        "b": 1,
+        "s": 0,
         "g": 4,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 1,
@@ -3564,7 +3587,10 @@
           {
             "from": "1.18",
             "to": "1.19",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "1.19",
@@ -3588,10 +3614,10 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 1,
+        "b": 1,
+        "s": 0,
         "g": 4,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 1,
@@ -3831,14 +3857,17 @@
           {
             "from": "1.8",
             "to": "1.9",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 1,
+        "b": 1,
+        "s": 0,
         "g": 4,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 1,
@@ -4489,7 +4518,10 @@
           {
             "from": "2.10",
             "to": "2.11",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "2.11",
@@ -4499,7 +4531,10 @@
           {
             "from": "2.12",
             "to": "2.14",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "2.14",
@@ -4508,10 +4543,10 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 2,
+        "b": 2,
+        "s": 0,
         "g": 3,
-        "vc": 0,
+        "vc": 0.4,
         "vcA": 0,
         "covered": true,
         "validRules": 6,
@@ -6291,9 +6326,9 @@
         "project": "emissary-ingress",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 1,
+        "s": 0,
         "l": 0,
         "g": 4,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6368,9 +6403,9 @@
         "project": "fluentd",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 3,
         "k8s": 0,
-        "s": 3,
+        "s": 0,
         "l": 1,
         "g": 1,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6431,9 +6466,9 @@
         "project": "harbor",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 1,
+        "s": 0,
         "l": 0,
         "g": 4,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6527,9 +6562,9 @@
         "project": "karmada",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 1,
+        "s": 0,
         "l": 0,
         "g": 4,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6624,9 +6659,9 @@
         "project": "kubeedge",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 1,
+        "s": 0,
         "l": 0,
         "g": 4,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6666,9 +6701,9 @@
         "project": "kubevirt",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 1,
+        "s": 0,
         "l": 0,
         "g": 4,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6786,9 +6821,9 @@
         "project": "nats",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 2,
         "k8s": 0,
-        "s": 2,
+        "s": 0,
         "l": 0,
         "g": 3,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -7044,9 +7079,9 @@
       "projects": 79,
       "pairs": 395,
       "projectsWithAnswer": 54,
-      "ab": 95,
+      "ab": 105,
       "k8s": 5,
-      "s": 39,
+      "s": 29,
       "l": 18,
       "g": 238
     },
@@ -7061,5 +7096,5 @@
       "g": 41
     }
   },
-  "readmeBlockSha256": "1be35f914f1abeffc944e5d02712720aba18e39ee5eb325491774160a11e9018"
+  "readmeBlockSha256": "705bdc88f2a64084438a2d21120fd1a609d2b188b8b4f7ab9c26f72620788202"
 }
