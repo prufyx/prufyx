@@ -75,7 +75,7 @@ func TestSyntheticGraduatedCNCFJourneys(t *testing.T) {
 				removeProposedFact(t, document, "component.falco.removed_040_cli_flags_present")
 			},
 			wrongPair: func(document map[string]any) {
-				setProposedVersionForComponent(t, document, "pkg:github/falcosecurity/falco", "0.41.1")
+				setProposedVersionForComponent(t, document, "pkg:github/falcosecurity/falco", "0.43.0")
 			},
 		},
 		{
@@ -193,7 +193,7 @@ func TestSyntheticGraduatedCNCFJourneys(t *testing.T) {
 				removeProposedFact(t, document, "component.spire.removed_entry_ttl_flag_present")
 			},
 			wrongPair: func(document map[string]any) {
-				setProposedVersionForComponent(t, document, "pkg:github/spiffe/spire", "1.11.1")
+				setProposedVersionForComponent(t, document, "pkg:github/spiffe/spire", "1.12.0")
 			},
 		},
 		{
