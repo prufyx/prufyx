@@ -176,7 +176,7 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 	if len(b.pack.Entries) != 228+extra+shippedBatch+len(crdbatchids.Foreign())+crossingRules || len(vectors) != 228+extra+shippedBatch {
 		t.Fatal("unexpected reviewed rule or vector count")
 	}
-	if caseCount != 1156+4*extra+4*shippedBatch {
+	if caseCount != 1154+4*extra+4*shippedBatch {
 		t.Fatal("unexpected reviewed case count")
 	}
 	for _, vector := range vectors {

@@ -297,7 +297,8 @@ func TestPublishedRangeWidensSelectionAndClaims(t *testing.T) {
 		if got := ClaimExit(report); got != tc.wantExit {
 			t.Fatalf("present=%v: exit=%d want %d", tc.present, got, tc.wantExit)
 		}
-		if report.Check.EngineContractDigest != constraintengine.EngineContractDigestRanged() {
+		// The shipped pack opts in to the boundary-covered contract by its schema.
+		if report.Check.EngineContractDigest != constraintengine.EngineContractDigestBoundaryCovered() {
 			t.Fatalf("present=%v: digest=%s", tc.present, report.Check.EngineContractDigest)
 		}
 	}

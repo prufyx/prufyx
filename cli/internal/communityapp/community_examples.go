@@ -544,9 +544,36 @@ func communityClaim(report map[string]any, want string) bool {
 	return communityClaims(report, want)
 }
 
-func communityClaims(report map[string]any, wants ...string) bool {
+// communityAllClaimsUnknown is true when the report holds at least one claim
+// and every claim is UNKNOWN, whatever its number.
+func communityAllClaimsUnknown(report map[string]any) bool {
 	check, _ := report["check"].(map[string]any)
 	claims, _ := check["claims"].([]any)
+	if len(claims) == 0 {
+		return false
+	}
+	for _, value := range claims {
+		claim, _ := value.(map[string]any)
+		if status, _ := claim["status"].(string); status != "UNKNOWN" {
+			return false
+		}
+	}
+	return report["assessment"] == "UNKNOWN" && report["networkUsed"] == false && report["runtimeReproduced"] == float64(0)
+}
+
+func communityClaims(report map[string]any, wants ...string) bool {
+	check, _ := report["check"].(map[string]any)
+	all, _ := check["claims"].([]any)
+	// A claim whose release-boundary question an exact sibling answered is
+	// not a scoped claim of its own: its covering claim is listed beside it.
+	claims := make([]any, 0, len(all))
+	for _, value := range all {
+		claim, _ := value.(map[string]any)
+		if covering, _ := claim["coveringRuleId"].(string); covering != "" && claim["reasonCode"] == "RULE_BOUNDARY_COVERED_BY_EXACT_RULE" {
+			continue
+		}
+		claims = append(claims, value)
+	}
 	if len(claims) != len(wants) {
 		return false
 	}

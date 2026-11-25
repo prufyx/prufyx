@@ -108,6 +108,23 @@ func TestFluentDNativeCheck_LiteralTreatmentShapeStillRoutes(t *testing.T) {
 	}
 }
 
+// The pair the wrong-pair control used before the 1.19 line-wide range:
+// 1.18.0 -> 1.19.4 is inside it, so it is a decided range match with the
+// range disclosure. The control moved to 1.20.0, outside every reviewed range.
+func TestFluentDNativeCheck_LineWideRangePairIsARangeMatch(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		ruby, status string
+		want         int
+	}{{"9.9.9", "PASS", ExitOK}, {"0.0.1", "BLOCKED", ExitBlocked}} {
+		path := writeCNCFFile(t, "fluentd-range.json", fluentdRubyTargetInput("official_upstream", c.ruby, true), 0o600)
+		code, stdout, stderr := runCNCFCLI(t, fluentdNativeArgs(path, "1.18.0", "1.19.4")...)
+		if code != c.want || stderr != "" || !strings.Contains(stdout, `"status":"`+c.status+`"`) || !strings.Contains(stdout, `"mode":"range"`) {
+			t.Fatalf("ruby=%s code=%d stdout=%q stderr=%q", c.ruby, code, stdout, stderr)
+		}
+	}
+}
+
 func TestFluentDNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
 	t.Parallel()
 	path := writeCNCFFile(t, "fluentd-ruby.json", fluentdRubyTargetInput("official_upstream", "3.1.0", true), 0o600)
