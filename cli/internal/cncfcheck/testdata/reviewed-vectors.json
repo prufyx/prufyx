@@ -13156,7 +13156,7 @@
                     "state": "declared"
                   }
                 ],
-                "version": "1.19.2"
+                "version": "1.20.0"
               }
             ]
           },
@@ -13325,7 +13325,7 @@
             "components": [
               {
                 "component": "pkg:github/fluent/fluentd",
-                "version": "1.16.1",
+                "version": "1.15.4",
                 "facts": []
               }
             ]
@@ -16622,7 +16622,7 @@
               {
                 "component": "pkg:github/karmada-io/karmada",
                 "facts": [],
-                "version": "1.18.2"
+                "version": "1.17.5"
               }
             ]
           },
@@ -16699,7 +16699,7 @@
                     "state": "declared"
                   }
                 ],
-                "version": "1.19.1"
+                "version": "1.20.0"
               }
             ]
           },
@@ -17904,7 +17904,7 @@
             "components": [
               {
                 "component": "pkg:github/kubeedge/kubeedge",
-                "version": "1.18.1",
+                "version": "1.17.3",
                 "facts": []
               }
             ]
@@ -25086,7 +25086,7 @@
             "components": [
               {
                 "component": "pkg:github/kubevirt/kubevirt",
-                "version": "1.8.5",
+                "version": "1.7.2",
                 "facts": []
               }
             ]
@@ -30759,7 +30759,7 @@
             "components": [
               {
                 "component": "pkg:github/nats-io/nats-server",
-                "version": "2.14.5",
+                "version": "2.15.0",
                 "facts": [
                   {
                     "id": "component.nats.selected_name_has_ascii_space",
