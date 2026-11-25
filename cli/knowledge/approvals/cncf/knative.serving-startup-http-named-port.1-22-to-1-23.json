@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:9d512feef3734c6ace0b1095093798459af50e51abf5ba40491b5c31fc8ce99d",
+    "candidateDigest": "sha256:d6575d3242ce23d3286533f9e163c565a2aa8284505a1b281528b43524393ddb",
+    "candidateId": "pr-821",
+    "decidedAt": "2026-11-25T13:29:04Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "knative.serving-startup-http-named-port.1-22-to-1-23"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "jyqrVKCoJkHA0RYth0d9IEx1rvmTJg8kR+QbIanoMYXaZvnYzvuq23ixrEpGBxDGBObwcCjYjq9NjqHcntX4DA=="
+}

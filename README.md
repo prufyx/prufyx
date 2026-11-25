@@ -324,7 +324,7 @@ community projects that hold CRD knowledge.
 ## Coverage
 
 <!-- coverage:begin -->
-Generated on 2026-11-21 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the date clock of the block is 2026-11-10 (the later of the snapshot's evaluation date and every capture date). The block is evaluated at 2026-11-21T07:35:25Z, the time of the newest line attestation or rule review, which is later than the date clock above.
+Generated on 2026-11-24 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the date clock of the block is 2026-11-10 (the later of the snapshot's evaluation date and every capture date). The block is evaluated at 2026-11-24T05:21:20Z, the time of the newest line attestation or rule review, which is later than the date clock above.
 
 | Executable rules | Count |
 | --- | --- |
@@ -486,7 +486,7 @@ Velero and others.
 Every rule in the CNCF and community-project packs is time-limited.
 
 <!-- validity-window:begin -->
-The 304 active rules shipped today stop being valid, rule by rule, between 2026-12-07 and 2027-02-16 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 172 of the 304 stop being valid on or before 2026-12-12, in the 6 days starting on the earliest.
+The 304 active rules shipped today stop being valid, rule by rule, between 2026-12-10 and 2027-02-22 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 12 of the 304 stop being valid on or before 2026-12-15, in the 6 days starting on the earliest.
 <!-- validity-window:end -->
 
 The named cert-manager and Prometheus checks are pinned to

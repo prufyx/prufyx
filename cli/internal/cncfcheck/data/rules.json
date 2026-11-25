@@ -841,8 +841,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T08:30:00Z",
+          "validUntil": "2027-02-01T08:30:00Z",
           "sources": [
             {
               "id": "source-e98f483bfd57-12",
@@ -895,7 +895,7 @@
           }
         ],
         "evidence": {
-          "reviewedAt": "2026-09-12T01:23:59Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
           "sources": [
             {
               "contentDigest": "sha256:02a5b8c2157c4b3d7e433803235b0cacd0b67d4693dd726c3349f82b2fc6275f",
@@ -939,7 +939,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T01:23:59Z"
+          "validUntil": "2027-02-13T08:57:00Z"
         },
         "id": "argo-cd.resource-exclusions-v2-visibility-preservation.3-0",
         "nextAction": "For declared v2 visibility preservation, remove resource.exclusions or set its exact empty sequence in the complete effective target argocd-cm; otherwise retain UNKNOWN and inspect complete precedence.",
@@ -1015,8 +1015,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-10T16:59:15Z",
-          "validUntil": "2026-12-09T16:59:15Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-09T12:00:00Z",
           "sources": [
             {
               "id": "buildpacks-lifecycle-0-17-7-platform-verification",
@@ -1077,8 +1077,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T10:00:00Z",
-          "validUntil": "2026-12-11T10:00:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-09T12:00:00Z",
           "sources": [
             {
               "id": "source-cilium-1-16-19-cluster-name-log",
@@ -1234,8 +1234,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-09T03:30:00Z",
-          "validUntil": "2026-12-08T03:30:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-03T12:00:00Z",
           "sources": [
             {
               "id": "source-cilium-1-19-7-ccnp-bound-01",
@@ -1336,8 +1336,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-02T12:00:00Z",
           "sources": [
             {
               "id": "source-7c6667e1e707-300",
@@ -1375,7 +1375,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:42:47Z",
+          "reviewedAt": "2026-11-24T05:00:00Z",
           "sources": [
             {
               "id": "c-origin-0-9-47-package-version",
@@ -1419,7 +1419,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:42:47Z"
+          "validUntil": "2027-01-10T05:00:00Z"
         },
         "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-47-to-0-9-52",
         "nextAction": "For the selected complete IAM access-key policy, remove or redesign the direct json-diff filter before package 0.9.52; this check does not evaluate other filters, resources, variables, includes, or policy execution.",
@@ -1454,7 +1454,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:42:47Z",
+          "reviewedAt": "2026-11-24T05:00:40Z",
           "sources": [
             {
               "id": "c-origin-0-9-48-package-version",
@@ -1498,7 +1498,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:42:47Z"
+          "validUntil": "2027-01-10T05:00:40Z"
         },
         "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-48-to-0-9-52",
         "nextAction": "For the selected complete IAM access-key policy, remove or redesign the direct json-diff filter before package 0.9.52; this check does not evaluate other filters, resources, variables, includes, or policy execution.",
@@ -1533,7 +1533,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:42:47Z",
+          "reviewedAt": "2026-11-24T05:01:20Z",
           "sources": [
             {
               "id": "c-origin-0-9-49-package-version",
@@ -1577,7 +1577,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:42:47Z"
+          "validUntil": "2027-02-15T05:01:20Z"
         },
         "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-49-to-0-9-52",
         "nextAction": "For the selected complete IAM access-key policy, remove or redesign the direct json-diff filter before package 0.9.52; this check does not evaluate other filters, resources, variables, includes, or policy execution.",
@@ -1612,7 +1612,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:42:47Z",
+          "reviewedAt": "2026-11-24T05:02:00Z",
           "sources": [
             {
               "id": "c-origin-0-9-50-package-version",
@@ -1656,7 +1656,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:42:47Z"
+          "validUntil": "2027-01-10T05:02:00Z"
         },
         "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-50-to-0-9-52",
         "nextAction": "For the selected complete IAM access-key policy, remove or redesign the direct json-diff filter before package 0.9.52; this check does not evaluate other filters, resources, variables, includes, or policy execution.",
@@ -1691,7 +1691,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:42:47Z",
+          "reviewedAt": "2026-11-24T05:02:40Z",
           "sources": [
             {
               "id": "c-origin-0-9-51-package-version",
@@ -1735,7 +1735,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:42:47Z"
+          "validUntil": "2027-01-17T05:02:40Z"
         },
         "id": "cloud-custodian.iam-access-key-json-diff-rejected.0-9-51-to-0-9-52",
         "nextAction": "For the selected complete IAM access-key policy, remove or redesign the direct json-diff filter before package 0.9.52; this check does not evaluate other filters, resources, variables, includes, or policy execution.",
@@ -1778,8 +1778,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T22:38:05Z",
-          "validUntil": "2026-12-10T22:38:05Z",
+          "reviewedAt": "2026-11-24T05:03:20Z",
+          "validUntil": "2027-02-16T05:03:20Z",
           "sources": [
             {
               "id": "cloud-custodian-v0.9.50-iam-access-key",
@@ -1881,8 +1881,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T00:00:00Z",
-          "validUntil": "2026-12-10T00:00:00Z",
+          "reviewedAt": "2026-11-24T05:04:00Z",
+          "validUntil": "2027-02-22T05:04:00Z",
           "sources": [
             {
               "id": "cnpg-v1-29-0-scheduledbackup-cluster-field",
@@ -1894,11 +1894,11 @@
             },
             {
               "id": "cnpg-v1-29-2-release-note",
-              "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/94ee3117858765c77d0dbfde381a037944a48a64/docs/src/release_notes/v1.29.md",
-              "revision": "94ee3117858765c77d0dbfde381a037944a48a64",
-              "contentDigest": "sha256:0b04c3fc20c26848e91a84f4877d2868e498b78242a052ef5cd6519a11c0c223",
-              "startLine": 25,
-              "endLine": 30
+              "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/6887f9aeb7ec159ed4a7e5fce28441aafd26317c/docs/src/release_notes/v1.29.md",
+              "revision": "6887f9aeb7ec159ed4a7e5fce28441aafd26317c",
+              "contentDigest": "sha256:4d1c057d85aa4e3c286ade7cc31b5f8c9147ec0ff46c289ee41970cb3b14b274",
+              "startLine": 253,
+              "endLine": 258
             },
             {
               "id": "cnpg-v1-30-database-cel",
@@ -1926,11 +1926,11 @@
             },
             {
               "id": "cnpg-v1-30-release-note",
-              "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/4b5e244a7d031f67e025c83c1555e7726ecbbfa1/docs/src/release_notes/v1.30.md",
-              "revision": "4b5e244a7d031f67e025c83c1555e7726ecbbfa1",
-              "contentDigest": "sha256:7ed8e77352b49a1e8f441ee7a5f34a3ab304596eb4db2025912fe1f43d177650",
-              "startLine": 25,
-              "endLine": 30
+              "url": "https://github.com/cloudnative-pg/cloudnative-pg/blob/30cca36d32328a78dc96c51db966ce629d5b72db/docs/src/release_notes/v1.30.md",
+              "revision": "30cca36d32328a78dc96c51db966ce629d5b72db",
+              "contentDigest": "sha256:a1143f3c079e12100ac1754eed0227180fb5a7b9648a8c17eb8fe9fa2aee01bf",
+              "startLine": 435,
+              "endLine": 440
             },
             {
               "id": "cnpg-v1-30-scheduledbackup-cel",
@@ -2019,8 +2019,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T15:18:55Z",
-          "validUntil": "2026-12-10T15:18:55Z",
+          "reviewedAt": "2026-11-24T05:04:40Z",
+          "validUntil": "2027-02-15T05:04:40Z",
           "sources": [
             {
               "id": "cni-spec-v0-4-0-network-configuration-forms",
@@ -2084,8 +2084,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-09T01:45:37Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-24T05:05:20Z",
+          "validUntil": "2027-02-22T05:05:20Z",
           "sources": [
             {
               "contentDigest": "sha256:45961feeb1ea6f9140991c4c99a2ca9f9c98c1c449721fb2735a58deec36d729",
@@ -2176,8 +2176,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T12:00:00Z",
-          "validUntil": "2026-12-11T12:00:00Z",
+          "reviewedAt": "2026-11-24T05:06:00Z",
+          "validUntil": "2027-02-15T05:06:00Z",
           "sources": [
             {
               "id": "containerd-v1-7-28-runc-v1-bundled",
@@ -2205,27 +2205,27 @@
             },
             {
               "id": "containerd-v2-0-0-cri-runtime-migration-copy",
-              "url": "https://github.com/containerd/containerd/blob/207ad711eabd375a01713109a8a197d197ff6542/plugins/cri/runtime/plugin.go",
-              "revision": "207ad711eabd375a01713109a8a197d197ff6542",
-              "contentDigest": "sha256:ba6eca750068afaef430942ff39cdd73b72663d384c690f05d31df1c2ea7afb0",
-              "startLine": 54,
-              "endLine": 65
+              "url": "https://github.com/containerd/containerd/blob/9681afd6c50dc7f18b68cbea4cee26f48b5e22ae/plugins/cri/runtime/plugin.go",
+              "revision": "9681afd6c50dc7f18b68cbea4cee26f48b5e22ae",
+              "contentDigest": "sha256:bc7e8e69017fdbea48087a03eb49947ae11fa7c77c8b01924aea915dbfa33979",
+              "startLine": 196,
+              "endLine": 211
             },
             {
               "id": "containerd-v2-0-0-cri-runtime-migration-preserves-runtime-type",
-              "url": "https://github.com/containerd/containerd/blob/207ad711eabd375a01713109a8a197d197ff6542/plugins/cri/runtime/plugin.go",
-              "revision": "207ad711eabd375a01713109a8a197d197ff6542",
-              "contentDigest": "sha256:ba6eca750068afaef430942ff39cdd73b72663d384c690f05d31df1c2ea7afb0",
-              "startLine": 201,
-              "endLine": 217
+              "url": "https://github.com/containerd/containerd/blob/9681afd6c50dc7f18b68cbea4cee26f48b5e22ae/plugins/cri/runtime/plugin.go",
+              "revision": "9681afd6c50dc7f18b68cbea4cee26f48b5e22ae",
+              "contentDigest": "sha256:bc7e8e69017fdbea48087a03eb49947ae11fa7c77c8b01924aea915dbfa33979",
+              "startLine": 213,
+              "endLine": 281
             },
             {
               "id": "containerd-v2-0-0-removed-official-runtimes",
-              "url": "https://github.com/containerd/containerd/blob/207ad711eabd375a01713109a8a197d197ff6542/docs/containerd-2.0.md",
-              "revision": "207ad711eabd375a01713109a8a197d197ff6542",
-              "contentDigest": "sha256:45961feeb1ea6f9140991c4c99a2ca9f9c98c1c449721fb2735a58deec36d729",
-              "startLine": 123,
-              "endLine": 125
+              "url": "https://github.com/containerd/containerd/blob/9681afd6c50dc7f18b68cbea4cee26f48b5e22ae/docs/containerd-2.0.md",
+              "revision": "9681afd6c50dc7f18b68cbea4cee26f48b5e22ae",
+              "contentDigest": "sha256:955c27c34031ce286f11bd53b94778b63b4595c43a31a353eed95cc2f9279a23",
+              "startLine": 127,
+              "endLine": 129
             }
           ]
         },
@@ -2263,8 +2263,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T00:00:00Z",
-          "validUntil": "2026-12-10T00:00:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-01T12:00:00Z",
           "sources": [
             {
               "id": "contour-v1-20-gateway-api-v1alpha1-removal",
@@ -2336,8 +2336,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T08:30:00Z",
+          "validUntil": "2027-02-03T08:30:00Z",
           "sources": [
             {
               "id": "source-f59c03d09c3a-13",
@@ -2401,8 +2401,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-14T12:00:00Z",
           "sources": [
             {
               "id": "coredns-origin-1-10-1-version",
@@ -2482,8 +2482,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-15T12:00:00Z",
           "sources": [
             {
               "id": "coredns-origin-1-11-4-version",
@@ -2563,8 +2563,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-27T12:00:00Z",
           "sources": [
             {
               "id": "coredns-origin-1-12-4-version",
@@ -2644,8 +2644,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-01T12:00:00Z",
           "sources": [
             {
               "id": "coredns-origin-1-13-2-version",
@@ -2725,8 +2725,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-12T12:00:00Z",
           "sources": [
             {
               "id": "coredns-origin-1-9-4-version",
@@ -2815,7 +2815,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-11T22:20:07Z",
+          "reviewedAt": "2026-11-24T05:06:40Z",
           "sources": [
             {
               "contentDigest": "sha256:aa74494447da45b76109ec4685fd82017d812bb84f29bda06aa13a983d0db1e4",
@@ -2883,7 +2883,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-10T22:20:07Z"
+          "validUntil": "2027-02-15T05:06:40Z"
         },
         "id": "cortex.querier-at-modifier-flag-removed.1-21",
         "nextAction": "Remove querier.at-modifier-enabled from proposed effective upstream Cortex arguments; for the exact reviewed target image only, an omitted command is source-derived as /bin/cortex, not runtime evidence. Validate query behavior separately.",
@@ -2953,7 +2953,7 @@
           }
         ],
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "id": "cortex-v1-21-target-01-removal",
@@ -2981,7 +2981,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-03T12:00:00Z"
         },
         "id": "cortex.querier-at-modifier-flag-target-argv.1-16-1-to-1-21-1",
         "nextAction": "Remove querier.at-modifier-enabled from proposed literal upstream Cortex argv; validate query behavior separately.",
@@ -3051,7 +3051,7 @@
           }
         ],
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "id": "cortex-v1-21-target-01-removal",
@@ -3079,7 +3079,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-08T12:00:00Z"
         },
         "id": "cortex.querier-at-modifier-flag-target-argv.1-18-1-to-1-21-1",
         "nextAction": "Remove querier.at-modifier-enabled from proposed literal upstream Cortex argv; validate query behavior separately.",
@@ -3149,7 +3149,7 @@
           }
         ],
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "id": "cortex-v1-21-target-01-removal",
@@ -3177,7 +3177,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-01-30T12:00:00Z"
         },
         "id": "cortex.querier-at-modifier-flag-target-argv.1-19-1-to-1-21-1",
         "nextAction": "Remove querier.at-modifier-enabled from proposed literal upstream Cortex argv; validate query behavior separately.",
@@ -3247,7 +3247,7 @@
           }
         ],
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "id": "cortex-v1-21-target-01-removal",
@@ -3275,7 +3275,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-04T12:00:00Z"
         },
         "id": "cortex.querier-at-modifier-flag-target-argv.1-20-1-to-1-21-1",
         "nextAction": "Remove querier.at-modifier-enabled from proposed literal upstream Cortex argv; validate query behavior separately.",
@@ -3590,8 +3590,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T19:38:03Z",
-          "validUntil": "2026-12-07T19:38:03Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-26T12:00:00Z",
           "sources": [
             {
               "id": "source-2efdb03ae80f-79",
@@ -3850,8 +3850,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-10T20:25:55Z",
-          "validUntil": "2026-12-09T20:25:55Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-05T12:00:00Z",
           "sources": [
             {
               "id": "cubefs-v3-3-2-json-config-loader",
@@ -3936,8 +3936,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-10T13:34:13Z",
-          "validUntil": "2026-12-09T13:34:13Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-30T12:00:00Z",
           "sources": [
             {
               "id": "source-6e0d7ba5c039-476",
@@ -3995,8 +3995,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T15:18:55Z",
-          "validUntil": "2026-12-10T15:18:55Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-12T12:00:00Z",
           "sources": [
             {
               "id": "distribution-v2-8-3-schema1-format",
@@ -4122,8 +4122,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T22:06:45Z",
-          "validUntil": "2026-12-07T22:06:45Z",
+          "reviewedAt": "2026-11-24T05:07:20Z",
+          "validUntil": "2027-02-22T05:07:20Z",
           "sources": [
             {
               "id": "old-base-options",
@@ -4289,8 +4289,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T22:06:45Z",
-          "validUntil": "2026-12-07T22:06:45Z",
+          "reviewedAt": "2026-11-24T05:08:00Z",
+          "validUntil": "2027-02-15T05:08:00Z",
           "sources": [
             {
               "id": "old-base-options",
@@ -4391,8 +4391,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T00:00:00Z",
-          "validUntil": "2026-12-10T00:00:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-06T12:00:00Z",
           "sources": [
             {
               "id": "emissary-changelog-v4-0-1",
@@ -4456,8 +4456,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T08:30:00Z",
+          "validUntil": "2027-02-04T08:30:00Z",
           "sources": [
             {
               "id": "source-4a0dfd5df93d-4",
@@ -4505,8 +4505,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-15T12:00:00Z",
           "sources": [
             {
               "id": "envoy-origin-1-34-14-version",
@@ -4578,8 +4578,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-16T12:00:00Z",
           "sources": [
             {
               "id": "envoy-origin-1-35-13-version",
@@ -4651,8 +4651,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-17T12:00:00Z",
           "sources": [
             {
               "id": "envoy-origin-1-36-10-version",
@@ -4724,8 +4724,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-18T12:00:00Z",
           "sources": [
             {
               "id": "envoy-origin-1-37-6-version",
@@ -4797,8 +4797,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:00:00Z",
-          "validUntil": "2026-12-11T09:00:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-19T12:00:00Z",
           "sources": [
             {
               "id": "envoy-origin-1-38-4-version",
@@ -4844,7 +4844,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-24T05:08:40Z",
           "sources": [
             {
               "contentDigest": "sha256:9d9f5845a1a391873fc10a10686595aa3de62a0e6342bf546dd85c9572886418",
@@ -4856,7 +4856,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-15T05:08:40Z"
         },
         "id": "etcd.direct-minor-skip.3-2-32-to-3-7-1",
         "nextAction": "Plan a separate etcd 3.2.x to 3.3.x transition first; do not skip a minor version.",
@@ -4875,7 +4875,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-24T05:09:20Z",
           "sources": [
             {
               "contentDigest": "sha256:9d9f5845a1a391873fc10a10686595aa3de62a0e6342bf546dd85c9572886418",
@@ -4887,7 +4887,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-22T05:09:20Z"
         },
         "id": "etcd.direct-minor-skip.3-3-27-to-3-7-1",
         "nextAction": "Plan a separate etcd 3.3.x to 3.4.x transition first; do not skip a minor version.",
@@ -4906,7 +4906,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-24T05:10:00Z",
           "sources": [
             {
               "contentDigest": "sha256:9d9f5845a1a391873fc10a10686595aa3de62a0e6342bf546dd85c9572886418",
@@ -4918,7 +4918,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-15T05:10:00Z"
         },
         "id": "etcd.direct-minor-skip.3-4-45-to-3-7-1",
         "nextAction": "Plan a separate etcd 3.4.x to 3.5.x transition first; do not skip a minor version.",
@@ -4937,7 +4937,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-24T05:10:40Z",
           "sources": [
             {
               "contentDigest": "sha256:9d9f5845a1a391873fc10a10686595aa3de62a0e6342bf546dd85c9572886418",
@@ -4949,7 +4949,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-15T05:10:40Z"
         },
         "id": "etcd.direct-minor-skip.3-5-33-to-3-7-1",
         "nextAction": "Plan a separate etcd 3.5.x to 3.6.x transition first; do not skip a minor version.",
@@ -4983,7 +4983,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-24T05:11:20Z",
           "sources": [
             {
               "contentDigest": "sha256:b747a9add5433e31b06e4cdadedfd3268e567dc72d6d72c59cb75974a340cf99",
@@ -5011,7 +5011,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-22T05:11:20Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-2-32-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
@@ -5045,7 +5045,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-24T05:12:00Z",
           "sources": [
             {
               "contentDigest": "sha256:b747a9add5433e31b06e4cdadedfd3268e567dc72d6d72c59cb75974a340cf99",
@@ -5073,7 +5073,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-15T05:12:00Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-3-27-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
@@ -5107,7 +5107,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-24T05:12:40Z",
           "sources": [
             {
               "contentDigest": "sha256:b747a9add5433e31b06e4cdadedfd3268e567dc72d6d72c59cb75974a340cf99",
@@ -5135,7 +5135,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-22T05:12:40Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-4-45-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
@@ -5169,7 +5169,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-24T05:13:20Z",
           "sources": [
             {
               "contentDigest": "sha256:b747a9add5433e31b06e4cdadedfd3268e567dc72d6d72c59cb75974a340cf99",
@@ -5197,7 +5197,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-22T05:13:20Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-5-33-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
@@ -5231,7 +5231,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-24T05:14:00Z",
           "sources": [
             {
               "contentDigest": "sha256:b747a9add5433e31b06e4cdadedfd3268e567dc72d6d72c59cb75974a340cf99",
@@ -5259,7 +5259,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-22T05:14:00Z"
         },
         "id": "etcd.experimental-flags-unsupported.3-6-14-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
@@ -5301,8 +5301,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-09T01:45:37Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-24T05:14:40Z",
+          "validUntil": "2027-02-22T05:14:40Z",
           "sources": [
             {
               "contentDigest": "sha256:be26b5ae5bdc89450da840ca42621f0dac915be749b0c63932f353ac112b05ed",
@@ -5313,20 +5313,20 @@
               "url": "https://github.com/etcd-io/etcd/blob/507c0de87bd5034e3de4ab76ebf96b54dae0cd52/server/etcdmain/config.go"
             },
             {
-              "contentDigest": "sha256:4010a2e5527a3b73400491daa318137e3d8748166114c6d0a50b1aa7671337e0",
-              "endLine": 139,
+              "contentDigest": "sha256:e78c592a0ac299ef9a74c2ba157b383576f048f92a4d120573319d4c4cb2faa4",
+              "endLine": 138,
               "id": "source-f5d605a93abe-104",
-              "revision": "f5d605a93abe2fdfa13880aab0f1f3a4203628dd",
-              "startLine": 104,
-              "url": "https://github.com/etcd-io/etcd/blob/f5d605a93abe2fdfa13880aab0f1f3a4203628dd/server/etcdmain/config.go"
+              "revision": "0689586e360e2c6b46f95ad5634c25d5fa1683db",
+              "startLine": 102,
+              "url": "https://github.com/etcd-io/etcd/blob/0689586e360e2c6b46f95ad5634c25d5fa1683db/server/etcdmain/config.go"
             },
             {
-              "contentDigest": "sha256:3932ca3ca9af55afe4f3e2574003c676909abea4a5cf778887943f276c2964a8",
-              "endLine": 965,
+              "contentDigest": "sha256:b37f4b0386a98303bef18b3b7f2effd29947722347989caa6a7cd19181e93f15",
+              "endLine": 963,
               "id": "source-f5d605a93abe-752",
-              "revision": "f5d605a93abe2fdfa13880aab0f1f3a4203628dd",
-              "startLine": 752,
-              "url": "https://github.com/etcd-io/etcd/blob/f5d605a93abe2fdfa13880aab0f1f3a4203628dd/server/embed/config.go"
+              "revision": "0689586e360e2c6b46f95ad5634c25d5fa1683db",
+              "startLine": 750,
+              "url": "https://github.com/etcd-io/etcd/blob/0689586e360e2c6b46f95ad5634c25d5fa1683db/server/embed/config.go"
             }
           ]
         },
@@ -5399,8 +5399,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T20:58:21Z",
-          "validUntil": "2026-12-07T20:58:21Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-02-11T08:59:00Z",
           "sources": [
             {
               "id": "source-b94cda0b12e5-1",
@@ -5505,8 +5505,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-09T00:46:26Z",
-          "validUntil": "2026-12-08T00:46:26Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-01-28T08:59:00Z",
           "sources": [
             {
               "id": "source-ce4b4408988d-107",
@@ -5867,7 +5867,7 @@
           "version": "3.2.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "contentDigest": "sha256:13202f2340e106d23a778ef830b145dbdd83ba46fe7c075bf6f32217c9bf9058",
@@ -5879,7 +5879,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-01-28T12:00:00Z"
         },
         "id": "fluentd.ruby-minimum-target.1-14-6-to-1-19-3",
         "nextAction": "Use Ruby 3.2 or newer for the proposed official Fluentd 1.19.3 package; review custom packaging and plugin compatibility separately.",
@@ -5924,7 +5924,7 @@
           "version": "3.2.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "contentDigest": "sha256:13202f2340e106d23a778ef830b145dbdd83ba46fe7c075bf6f32217c9bf9058",
@@ -5936,7 +5936,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-02-02T12:00:00Z"
         },
         "id": "fluentd.ruby-minimum-target.1-15-3-to-1-19-3",
         "nextAction": "Use Ruby 3.2 or newer for the proposed official Fluentd 1.19.3 package; review custom packaging and plugin compatibility separately.",
@@ -5981,7 +5981,7 @@
           "version": "3.2.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "contentDigest": "sha256:13202f2340e106d23a778ef830b145dbdd83ba46fe7c075bf6f32217c9bf9058",
@@ -5993,7 +5993,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-02-13T12:00:00Z"
         },
         "id": "fluentd.ruby-minimum-target.1-16-11-to-1-19-3",
         "nextAction": "Use Ruby 3.2 or newer for the proposed official Fluentd 1.19.3 package; review custom packaging and plugin compatibility separately.",
@@ -6038,7 +6038,7 @@
           "version": "3.2.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "contentDigest": "sha256:13202f2340e106d23a778ef830b145dbdd83ba46fe7c075bf6f32217c9bf9058",
@@ -6050,7 +6050,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-01-29T12:00:00Z"
         },
         "id": "fluentd.ruby-minimum-target.1-17-1-to-1-19-3",
         "nextAction": "Use Ruby 3.2 or newer for the proposed official Fluentd 1.19.3 package; review custom packaging and plugin compatibility separately.",
@@ -6095,7 +6095,7 @@
           "version": "3.2.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "contentDigest": "sha256:13202f2340e106d23a778ef830b145dbdd83ba46fe7c075bf6f32217c9bf9058",
@@ -6107,7 +6107,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-02-03T12:00:00Z"
         },
         "id": "fluentd.ruby-minimum-target.1-18-0-to-1-19-3",
         "nextAction": "Use Ruby 3.2 or newer for the proposed official Fluentd 1.19.3 package; review custom packaging and plugin compatibility separately.",
@@ -6160,8 +6160,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T19:38:03Z",
-          "validUntil": "2026-12-07T19:38:03Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
+          "validUntil": "2027-02-06T09:15:00Z",
           "sources": [
             {
               "id": "source-206b46b91560-19",
@@ -6266,8 +6266,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T00:03:11Z",
-          "validUntil": "2026-12-10T00:03:11Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-01T12:00:00Z",
           "sources": [
             {
               "id": "old-literal-parser",
@@ -6352,8 +6352,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-15T12:00:00Z",
           "sources": [
             {
               "id": "source-325038fc31e0-316",
@@ -6398,8 +6398,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:26:49Z",
-          "validUntil": "2026-12-11T09:26:49Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-15T12:00:00Z",
           "sources": [
             {
               "id": "flux-target-crd-bundle",
@@ -6468,8 +6468,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:26:49Z",
-          "validUntil": "2026-12-11T09:26:49Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-16T12:00:00Z",
           "sources": [
             {
               "id": "flux-target-crd-bundle",
@@ -6538,8 +6538,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:26:49Z",
-          "validUntil": "2026-12-11T09:26:49Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-17T12:00:00Z",
           "sources": [
             {
               "id": "flux-target-crd-bundle",
@@ -6608,8 +6608,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:26:49Z",
-          "validUntil": "2026-12-11T09:26:49Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-18T12:00:00Z",
           "sources": [
             {
               "id": "flux-target-crd-bundle",
@@ -6678,8 +6678,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T09:26:49Z",
-          "validUntil": "2026-12-11T09:26:49Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-19T12:00:00Z",
           "sources": [
             {
               "id": "flux-target-crd-bundle",
@@ -6771,8 +6771,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-24T05:15:20Z",
+          "validUntil": "2027-02-22T05:15:20Z",
           "sources": [
             {
               "id": "source-31789d8a65d3-3",
@@ -6818,8 +6818,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T10:01:45Z",
-          "validUntil": "2026-12-11T10:01:45Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-12T12:00:00Z",
           "sources": [
             {
               "id": "harbor-v2-15-installer-guidance",
@@ -6873,8 +6873,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T10:01:45Z",
-          "validUntil": "2026-12-11T10:01:45Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-23T12:00:00Z",
           "sources": [
             {
               "id": "harbor-v2-15-installer-guidance",
@@ -6928,8 +6928,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T10:01:45Z",
-          "validUntil": "2026-12-11T10:01:45Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-25T12:00:00Z",
           "sources": [
             {
               "id": "harbor-v2-15-installer-guidance",
@@ -6983,8 +6983,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T10:01:45Z",
-          "validUntil": "2026-12-11T10:01:45Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-05T12:00:00Z",
           "sources": [
             {
               "id": "harbor-v2-15-installer-guidance",
@@ -7038,8 +7038,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T10:01:45Z",
-          "validUntil": "2026-12-11T10:01:45Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-10T12:00:00Z",
           "sources": [
             {
               "id": "harbor-v2-15-installer-guidance",
@@ -7093,8 +7093,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T22:50:15Z",
-          "validUntil": "2026-12-10T22:50:15Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-02T12:00:00Z",
           "sources": [
             {
               "id": "harbor-v2-7-installer-parser",
@@ -7167,8 +7167,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-05T12:00:00Z",
           "sources": [
             {
               "id": "source-81c902a12346-118",
@@ -7224,8 +7224,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-10T20:17:00Z",
-          "validUntil": "2026-12-09T20:17:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-25T12:00:00Z",
           "sources": [
             {
               "id": "in-toto-v2-2-key-argument-arity",
@@ -7330,8 +7330,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-06T12:00:00Z",
           "sources": [
             {
               "id": "source-8825a6b7f8c9-5",
@@ -7406,8 +7406,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T14:07:57Z",
-          "validUntil": "2026-12-07T14:07:57Z",
+          "reviewedAt": "2026-11-24T05:16:00Z",
+          "validUntil": "2027-02-22T05:16:00Z",
           "sources": [
             {
               "id": "source-41da2fbd7dd5-129",
@@ -7514,8 +7514,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:38:00Z",
-          "validUntil": "2026-12-11T08:38:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-13T12:00:00Z",
           "sources": [
             {
               "id": "jaeger-v2-20-default-config-fallback",
@@ -7598,8 +7598,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:38:00Z",
-          "validUntil": "2026-12-11T08:38:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-18T12:00:00Z",
           "sources": [
             {
               "id": "jaeger-v2-20-default-config-fallback",
@@ -7682,8 +7682,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:38:00Z",
-          "validUntil": "2026-12-11T08:38:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-01-26T12:00:00Z",
           "sources": [
             {
               "id": "jaeger-v2-20-default-config-fallback",
@@ -7766,8 +7766,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:38:00Z",
-          "validUntil": "2026-12-11T08:38:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-06T12:00:00Z",
           "sources": [
             {
               "id": "jaeger-v2-20-default-config-fallback",
@@ -7850,8 +7850,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:38:00Z",
-          "validUntil": "2026-12-11T08:38:00Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
+          "validUntil": "2027-02-11T12:00:00Z",
           "sources": [
             {
               "id": "jaeger-v2-20-default-config-fallback",
@@ -7946,7 +7946,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-09T03:24:02Z",
+          "reviewedAt": "2026-11-18T09:49:59Z",
           "sources": [
             {
               "contentDigest": "sha256:b46f806938456f92af605e9e7361201a3d139f81a086cc24a972ef82f513758c",
@@ -8014,7 +8014,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-08T03:24:02Z"
+          "validUntil": "2027-01-29T12:00:00Z"
         },
         "id": "karmada.application-purge-mode-legacy-values-removed.1-19",
         "nextAction": "Replace application failover purgeMode Immediately with Directly and Graciously with Gracefully in proposed in-scope resources; validate target CRD selection and application separately.",
@@ -8072,8 +8072,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T13:58:04Z",
-          "validUntil": "2026-12-07T13:58:04Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-02-10T08:59:00Z",
           "sources": [
             {
               "id": "keda-v216-external-scaler",
@@ -8172,8 +8172,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-09T20:59:01Z",
-          "validUntil": "2026-12-08T20:59:01Z",
+          "reviewedAt": "2026-11-24T05:16:40Z",
+          "validUntil": "2027-02-22T05:16:40Z",
           "sources": [
             {
               "id": "keycloak-26-7-2-redirect-query-117-120",
@@ -8258,8 +8258,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-10T16:29:25Z",
-          "validUntil": "2026-12-09T16:29:25Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
+          "validUntil": "2027-02-04T09:50:12Z",
           "sources": [
             {
               "id": "knative-serving-v1-22-user-container-probes",
@@ -8413,8 +8413,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-10T14:15:00Z",
-          "validUntil": "2026-12-09T14:15:00Z",
+          "reviewedAt": "2026-11-24T05:17:20Z",
+          "validUntil": "2027-02-22T05:17:20Z",
           "sources": [
             {
               "id": "source-656ad81a245c-release-85",
@@ -8510,8 +8510,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-10T20:30:00Z",
-          "validUntil": "2026-12-09T20:30:00Z",
+          "reviewedAt": "2026-11-24T05:18:00Z",
+          "validUntil": "2027-02-22T05:18:00Z",
           "sources": [
             {
               "id": "kubeflow-kfp-v1-components-public-import",
@@ -8531,19 +8531,19 @@
             },
             {
               "id": "kubeflow-kfp-v2-components-export",
-              "url": "https://github.com/kubeflow/pipelines/blob/e03e31219387b587b700ba3e31a02df486aa364f/sdk/python/kfp/components/__init__.py",
-              "revision": "e03e31219387b587b700ba3e31a02df486aa364f",
-              "contentDigest": "sha256:198591beb7def92163e7d2d50afbc0d9b1282c50df03c6c4aa2b08e90368f2c3",
-              "startLine": 15,
-              "endLine": 31
+              "url": "https://github.com/kubeflow/pipelines/blob/c5658f09ec38e82730a8eca0a1aabf0876087eec/sdk/python/kfp/components/__init__.py",
+              "revision": "c5658f09ec38e82730a8eca0a1aabf0876087eec",
+              "contentDigest": "sha256:c5e96db5f91c4849b1e2cd625ed11e71915c3216ffbe9592f0dbe92e026bb23c",
+              "startLine": 17,
+              "endLine": 36
             },
             {
               "id": "kubeflow-kfp-v2-dsl-component-export",
-              "url": "https://github.com/kubeflow/pipelines/blob/e03e31219387b587b700ba3e31a02df486aa364f/sdk/python/kfp/dsl/__init__.py",
-              "revision": "e03e31219387b587b700ba3e31a02df486aa364f",
-              "contentDigest": "sha256:0bf2281a2930250696df64277ba8478750a72ea5da80d466163b2ca9bf18997d",
-              "startLine": 15,
-              "endLine": 24
+              "url": "https://github.com/kubeflow/pipelines/blob/c5658f09ec38e82730a8eca0a1aabf0876087eec/sdk/python/kfp/dsl/__init__.py",
+              "revision": "c5658f09ec38e82730a8eca0a1aabf0876087eec",
+              "contentDigest": "sha256:e96b5c284de135fac012078ae3ee95ddaca1bc61e4c17f11fcb3277beb14eba6",
+              "startLine": 259,
+              "endLine": 295
             },
             {
               "id": "kubeflow-kfp-v2-migration-create-component",
@@ -10380,8 +10380,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-02-01T08:59:00Z",
           "sources": [
             {
               "id": "source-4ce5a8954017-1002",
@@ -13746,8 +13746,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T00:00:00Z",
-          "validUntil": "2026-12-10T00:00:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
+          "validUntil": "2027-02-11T09:50:12Z",
           "sources": [
             {
               "id": "kubevirt-api-v1-9-inline-interface-binding-method",
@@ -13844,8 +13844,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T21:06:35Z",
-          "validUntil": "2026-12-07T21:06:35Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-01-27T08:59:00Z",
           "sources": [
             {
               "id": "source-1110a0305eec-220",
@@ -14045,7 +14045,7 @@
           "boolValue": true
         },
         "evidence": {
-          "reviewedAt": "2026-09-09T00:53:06Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
           "sources": [
             {
               "id": "go-1-21-4-standard-flag-grammar",
@@ -14105,7 +14105,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-08T00:53:06Z"
+          "validUntil": "2027-02-02T08:59:00Z"
         },
         "id": "kyverno.reports-chunk-size-removed.1-13",
         "nextAction": "For the declared official upstream bare reports-controller surface, remove reportsChunkSize from literal proposed arguments. Otherwise supply an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.",
@@ -14175,7 +14175,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
           "sources": [
             {
               "contentDigest": "sha256:eb3238110346601e8e014dac5e5fa873bde7c94bb2f33053f92fd175c1b2a1f1",
@@ -14243,7 +14243,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-16T12:00:00Z"
         },
         "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-14-5",
         "nextAction": "Remove reportsChunkSize from the effective official upstream bare reports-controller arguments. Otherwise provide an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.",
@@ -14313,7 +14313,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
           "sources": [
             {
               "contentDigest": "sha256:eb3238110346601e8e014dac5e5fa873bde7c94bb2f33053f92fd175c1b2a1f1",
@@ -14381,7 +14381,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-17T12:00:00Z"
         },
         "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-15-3",
         "nextAction": "Remove reportsChunkSize from the effective official upstream bare reports-controller arguments. Otherwise provide an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.",
@@ -14451,7 +14451,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
           "sources": [
             {
               "contentDigest": "sha256:eb3238110346601e8e014dac5e5fa873bde7c94bb2f33053f92fd175c1b2a1f1",
@@ -14519,7 +14519,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-18T12:00:00Z"
         },
         "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-16-4",
         "nextAction": "Remove reportsChunkSize from the effective official upstream bare reports-controller arguments. Otherwise provide an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.",
@@ -14589,7 +14589,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
           "sources": [
             {
               "contentDigest": "sha256:eb3238110346601e8e014dac5e5fa873bde7c94bb2f33053f92fd175c1b2a1f1",
@@ -14657,7 +14657,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-19T12:00:00Z"
         },
         "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-17-2",
         "nextAction": "Remove reportsChunkSize from the effective official upstream bare reports-controller arguments. Otherwise provide an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.",
@@ -14727,7 +14727,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
           "sources": [
             {
               "contentDigest": "sha256:eb3238110346601e8e014dac5e5fa873bde7c94bb2f33053f92fd175c1b2a1f1",
@@ -14795,7 +14795,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-15T12:00:00Z"
         },
         "id": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-18-2",
         "nextAction": "Remove reportsChunkSize from the effective official upstream bare reports-controller arguments. Otherwise provide an explicit supported surface declaration or keep the result UNKNOWN; review reporting behavior separately.",
@@ -14887,8 +14887,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T22:06:25Z",
-          "validUntil": "2026-12-07T22:06:25Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
+          "validUntil": "2027-02-01T09:50:12Z",
           "sources": [
             {
               "id": "source-526633fdeea3-36",
@@ -14944,8 +14944,8 @@
         "intermediate": "1.8.0",
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-24T05:18:40Z",
+          "validUntil": "2027-02-22T05:18:40Z",
           "sources": [
             {
               "id": "source-8bb4d023b6d8-222",
@@ -14991,8 +14991,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T00:00:00Z",
-          "validUntil": "2026-12-10T00:00:00Z",
+          "reviewedAt": "2026-11-24T05:19:20Z",
+          "validUntil": "2027-02-22T05:19:20Z",
           "sources": [
             {
               "id": "metallb-v0-12-old-release",
@@ -15054,8 +15054,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T20:22:53Z",
-          "validUntil": "2026-12-10T20:22:53Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-16T12:00:00Z",
           "sources": [
             {
               "id": "nats-00-v2-10-server-name-accepted",
@@ -15141,8 +15141,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:46:00Z",
-          "validUntil": "2026-12-11T08:46:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-16T12:00:00Z",
           "sources": [
             {
               "id": "nats-origin-2-10-29-version",
@@ -15236,8 +15236,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:46:00Z",
-          "validUntil": "2026-12-11T08:46:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-17T12:00:00Z",
           "sources": [
             {
               "id": "nats-origin-2-11-17-version",
@@ -15331,8 +15331,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:46:00Z",
-          "validUntil": "2026-12-11T08:46:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-18T12:00:00Z",
           "sources": [
             {
               "id": "nats-origin-2-12-15-version",
@@ -15426,8 +15426,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:46:00Z",
-          "validUntil": "2026-12-11T08:46:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-19T12:00:00Z",
           "sources": [
             {
               "id": "nats-origin-2-8-4-version",
@@ -15521,8 +15521,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T08:46:00Z",
-          "validUntil": "2026-12-11T08:46:00Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
+          "validUntil": "2027-02-15T12:00:00Z",
           "sources": [
             {
               "id": "nats-origin-2-9-25-version",
@@ -15637,7 +15637,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:505564a786688a109bbb01af9d07f1c9ae3cfac45c7ac261bd70e25292455398",
@@ -15705,7 +15705,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-03T09:50:12Z"
         },
         "id": "opa.v0-consumer-producer-option-at-1-20-2-from-1-15-2",
         "nextAction": "Enable the effective OPA build producer --v0-compatible mode for the declared v0-consumer scenario, or review and declare the rego.v1 import alternative; independently verify policy and bundle compatibility.",
@@ -15769,7 +15769,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:06965b85aafb6b5444b92684261caea8d4d73ad5ed233ccfb9787b9bac8cf742",
@@ -15837,7 +15837,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-02-08T09:50:12Z"
         },
         "id": "opa.v0-consumer-producer-option-at-1-20-2-from-1-16-2",
         "nextAction": "Enable the effective OPA build producer --v0-compatible mode for the declared v0-consumer scenario, or review and declare the rego.v1 import alternative; independently verify policy and bundle compatibility.",
@@ -15901,7 +15901,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:c390b0c45db3d9827f3b45c3655d654bc10a2bc391943e1ec8817510f6229499",
@@ -15969,7 +15969,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-01-11T09:50:12Z"
         },
         "id": "opa.v0-consumer-producer-option-at-1-20-2-from-1-17-1",
         "nextAction": "Enable the effective OPA build producer --v0-compatible mode for the declared v0-consumer scenario, or review and declare the rego.v1 import alternative; independently verify policy and bundle compatibility.",
@@ -16033,7 +16033,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:4aa0b920226edd09d71cdc4c08cd756d7eb22715d2b379a95fc39779ca28be57",
@@ -16101,7 +16101,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-01-22T09:50:12Z"
         },
         "id": "opa.v0-consumer-producer-option-at-1-20-2-from-1-18-2",
         "nextAction": "Enable the effective OPA build producer --v0-compatible mode for the declared v0-consumer scenario, or review and declare the rego.v1 import alternative; independently verify policy and bundle compatibility.",
@@ -16165,7 +16165,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:33:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:ca72df67064227b90a9a069ca734e2c9cbcaa67034409fd6649e1598cc029403",
@@ -16233,7 +16233,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:33:00Z"
+          "validUntil": "2027-01-30T09:50:12Z"
         },
         "id": "opa.v0-consumer-producer-option-at-1-20-2-from-1-19-1",
         "nextAction": "Enable the effective OPA build producer --v0-compatible mode for the declared v0-consumer scenario, or review and declare the rego.v1 import alternative; independently verify policy and bundle compatibility.",
@@ -16305,8 +16305,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
+          "validUntil": "2027-02-02T09:50:12Z",
           "sources": [
             {
               "id": "source-7b004efe4a7c-134",
@@ -16415,7 +16415,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:15:52Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
           "sources": [
             {
               "id": "o-origin-1-116-0-cloud-cost-gate",
@@ -16459,7 +16459,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:15:52Z"
+          "validUntil": "2027-01-16T09:16:00Z"
         },
         "id": "opencost.cloud-cost-source-migration.1-116-0-to-1-121-2",
         "nextAction": "For an enabled cloud-cost deployment that relied on provider-derived configuration, select and separately validate a target-supported cloud-integration JSON source before v1.121.2; do not put credentials or provider values in this declaration.",
@@ -16565,7 +16565,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:15:52Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
           "sources": [
             {
               "id": "o-origin-1-117-6-cloud-cost-gate",
@@ -16609,7 +16609,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:15:52Z"
+          "validUntil": "2027-01-21T09:16:00Z"
         },
         "id": "opencost.cloud-cost-source-migration.1-117-6-to-1-121-2",
         "nextAction": "For an enabled cloud-cost deployment that relied on provider-derived configuration, select and separately validate a target-supported cloud-integration JSON source before v1.121.2; do not put credentials or provider values in this declaration.",
@@ -16715,7 +16715,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:15:52Z",
+          "reviewedAt": "2026-11-24T05:20:00Z",
           "sources": [
             {
               "id": "o-origin-1-118-0-cloud-cost-gate",
@@ -16759,7 +16759,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:15:52Z"
+          "validUntil": "2027-02-22T05:20:00Z"
         },
         "id": "opencost.cloud-cost-source-migration.1-118-0-to-1-121-2",
         "nextAction": "For an enabled cloud-cost deployment that relied on provider-derived configuration, select and separately validate a target-supported cloud-integration JSON source before v1.121.2; do not put credentials or provider values in this declaration.",
@@ -16865,7 +16865,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:15:52Z",
+          "reviewedAt": "2026-11-18T09:16:00Z",
           "sources": [
             {
               "id": "o-origin-1-119-2-cloud-cost-gate",
@@ -16909,7 +16909,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:15:52Z"
+          "validUntil": "2027-01-29T09:16:00Z"
         },
         "id": "opencost.cloud-cost-source-migration.1-119-2-to-1-121-2",
         "nextAction": "For an enabled cloud-cost deployment that relied on provider-derived configuration, select and separately validate a target-supported cloud-integration JSON source before v1.121.2; do not put credentials or provider values in this declaration.",
@@ -17023,8 +17023,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T21:22:55Z",
-          "validUntil": "2026-12-10T21:22:55Z",
+          "reviewedAt": "2026-11-18T08:57:00Z",
+          "validUntil": "2027-01-28T08:57:00Z",
           "sources": [
             {
               "id": "opencost-v1-119-memory-controller-provider-config",
@@ -17165,7 +17165,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:42:47Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
           "sources": [
             {
               "id": "o-origin-1-120-4-cloud-cost-gate",
@@ -17209,7 +17209,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:42:47Z"
+          "validUntil": "2027-02-04T09:15:00Z"
         },
         "id": "opencost.cloud-cost-source-migration.1-120-4-to-1-121-2",
         "nextAction": "If the caller independently confirms provider-derived reliance, select and validate a target cloud-integration JSON source before v1.121.2. This revalidation route does not claim v1.121.2 introduced nil initialization; do not include credentials.",
@@ -17252,8 +17252,8 @@
         "appliesWhen": [],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T15:47:46Z",
-          "validUntil": "2026-12-10T00:00:00Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-01-27T08:59:00Z",
           "sources": [
             {
               "id": "openfga-v1-18-0-oidc-changelog",
@@ -17478,8 +17478,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-13T09:29:22Z",
-          "validUntil": "2026-12-12T09:29:22Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
+          "validUntil": "2027-02-06T09:50:12Z",
           "sources": [
             {
               "id": "otel-0.110.0-telemetry-factory",
@@ -17567,8 +17567,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T02:34:43Z",
-          "validUntil": "2026-12-11T02:34:43Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
+          "validUntil": "2027-01-29T09:50:12Z",
           "sources": [
             {
               "id": "source-080b76506c5b-10",
@@ -17760,7 +17760,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T17:28:04Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:0c939b2fe3867ef5e24e4bdb6ae7d9d327350f1294ff79bd29bf8c3b73c2fd15",
@@ -17812,7 +17812,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T17:28:04Z"
+          "validUntil": "2027-01-13T09:50:12Z"
         },
         "id": "prometheus.alertmanager-api-v1-removed.2-55-1-to-3-14-0",
         "nextAction": "Replace api_version: v1 with v2 in the selected Alertmanager mapping, then separately verify target support, reachability, alert delivery, and the complete target configuration.",
@@ -17858,8 +17858,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-12T00:26:18Z",
-          "validUntil": "2026-12-11T00:26:18Z",
+          "reviewedAt": "2026-11-24T05:20:40Z",
+          "validUntil": "2027-02-22T05:20:40Z",
           "sources": [
             {
               "id": "prometheus-alertmanager-source-1-old-default-v2",
@@ -17956,7 +17956,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:02:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18000,7 +18000,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:02:00Z"
+          "validUntil": "2027-01-15T09:50:12Z"
         },
         "id": "prometheus.alertmanager-api-v1.target-config.3-10-0-to-3-14-0",
         "nextAction": "Replace api_version: v1 with v2 in the selected Alertmanager mapping, then separately verify target Alertmanager support, reachability, and alert delivery.",
@@ -18038,7 +18038,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:02:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18082,7 +18082,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:02:00Z"
+          "validUntil": "2027-01-20T09:50:12Z"
         },
         "id": "prometheus.alertmanager-api-v1.target-config.3-11-3-to-3-14-0",
         "nextAction": "Replace api_version: v1 with v2 in the selected Alertmanager mapping, then separately verify target Alertmanager support, reachability, and alert delivery.",
@@ -18120,7 +18120,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:02:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18164,7 +18164,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:02:00Z"
+          "validUntil": "2027-01-28T09:50:12Z"
         },
         "id": "prometheus.alertmanager-api-v1.target-config.3-12-0-to-3-14-0",
         "nextAction": "Replace api_version: v1 with v2 in the selected Alertmanager mapping, then separately verify target Alertmanager support, reachability, and alert delivery.",
@@ -18202,7 +18202,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:02:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18246,7 +18246,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:02:00Z"
+          "validUntil": "2027-02-02T09:50:12Z"
         },
         "id": "prometheus.alertmanager-api-v1.target-config.3-13-3-to-3-14-0",
         "nextAction": "Replace api_version: v1 with v2 in the selected Alertmanager mapping, then separately verify target Alertmanager support, reachability, and alert delivery.",
@@ -18284,7 +18284,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T09:02:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18328,7 +18328,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T09:02:00Z"
+          "validUntil": "2027-02-13T09:50:12Z"
         },
         "id": "prometheus.alertmanager-api-v1.target-config.3-9-1-to-3-14-0",
         "nextAction": "Replace api_version: v1 with v2 in the selected Alertmanager mapping, then separately verify target Alertmanager support, reachability, and alert delivery.",
@@ -18362,7 +18362,7 @@
           "boolValue": true
         },
         "evidence": {
-          "reviewedAt": "2026-09-13T08:57:28Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:65a2d40744ed955abccecea69ab8a200c13d969e3301e96853e6bd69b9a80dcc",
@@ -18422,7 +18422,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-12T08:57:28Z"
+          "validUntil": "2027-01-26T09:50:12Z"
         },
         "id": "prometheus.remote-write-http2-default.2-55-1-to-3-14-0",
         "nextAction": "Set direct enable_http2: true on the selected remote_write entry or revise the declared endpoint requirement, then separately verify endpoint protocol support, negotiation, delivery, and the complete target configuration.",
@@ -18459,7 +18459,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T17:28:04Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:0c939b2fe3867ef5e24e4bdb6ae7d9d327350f1294ff79bd29bf8c3b73c2fd15",
@@ -18495,7 +18495,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T17:28:04Z"
+          "validUntil": "2027-01-18T09:50:12Z"
         },
         "id": "prometheus.scrape-classic-histograms-key-renamed.2-55-1-to-3-14-0",
         "nextAction": "Rename scrape_classic_histograms to always_scrape_classic_histograms in the selected scrape configuration, then separately validate the complete target configuration.",
@@ -18540,8 +18540,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-11T22:49:25Z",
-          "validUntil": "2026-12-10T22:49:25Z",
+          "reviewedAt": "2026-11-24T05:21:20Z",
+          "validUntil": "2027-02-22T05:21:20Z",
           "sources": [
             {
               "id": "prometheus-source-1-old-scrape-key",
@@ -18629,7 +18629,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18649,7 +18649,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-02-08T09:50:12Z"
         },
         "id": "prometheus.scrape-classic-histograms.target-config.3-10-0-to-3-14-0",
         "nextAction": "Replace scrape_classic_histograms with always_scrape_classic_histograms in the selected scrape_config, then validate complete configuration, startup, and scraping separately.",
@@ -18686,7 +18686,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18706,7 +18706,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-01-11T09:50:12Z"
         },
         "id": "prometheus.scrape-classic-histograms.target-config.3-11-3-to-3-14-0",
         "nextAction": "Replace scrape_classic_histograms with always_scrape_classic_histograms in the selected scrape_config, then validate complete configuration, startup, and scraping separately.",
@@ -18743,7 +18743,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18763,7 +18763,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-01-30T09:50:12Z"
         },
         "id": "prometheus.scrape-classic-histograms.target-config.3-12-0-to-3-14-0",
         "nextAction": "Replace scrape_classic_histograms with always_scrape_classic_histograms in the selected scrape_config, then validate complete configuration, startup, and scraping separately.",
@@ -18800,7 +18800,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18820,7 +18820,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-02-04T09:50:12Z"
         },
         "id": "prometheus.scrape-classic-histograms.target-config.3-13-3-to-3-14-0",
         "nextAction": "Replace scrape_classic_histograms with always_scrape_classic_histograms in the selected scrape_config, then validate complete configuration, startup, and scraping separately.",
@@ -18857,7 +18857,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:05:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:629498030714922f585aa2414bce578377b3fa9dc587f001fca658ae83c42a9a",
@@ -18877,7 +18877,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:05:00Z"
+          "validUntil": "2027-02-09T09:50:12Z"
         },
         "id": "prometheus.scrape-classic-histograms.target-config.3-9-1-to-3-14-0",
         "nextAction": "Replace scrape_classic_histograms with always_scrape_classic_histograms in the selected scrape_config, then validate complete configuration, startup, and scraping separately.",
@@ -18896,7 +18896,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:5079398ac1d6f8d4705f1e2c3950a1b0c56a694060b380afd40c067501b96707",
@@ -18916,7 +18916,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-09T09:50:12Z"
         },
         "id": "rook.direct-minor-skip.1-15-9-to-1-20-7",
         "nextAction": "Plan a separate supported Rook 1.15.x to 1.16.x transition first; the cited latest patch is an evidence endpoint, not a mandatory exact intermediate.",
@@ -18935,7 +18935,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:62f961857d5da44355a555e060ae21a64f47a067b479e6baa297676641a68eb1",
@@ -18955,7 +18955,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-01-25T09:50:12Z"
         },
         "id": "rook.direct-minor-skip.1-16-9-to-1-20-7",
         "nextAction": "Plan a separate supported Rook 1.16.x to 1.17.x transition first; the cited latest patch is an evidence endpoint, not a mandatory exact intermediate.",
@@ -18974,7 +18974,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:a7fe324e80043627b9ed99de7e1c1659e523e40bff13c2a5e6c08c5a02d90a8f",
@@ -18994,7 +18994,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-05T09:50:12Z"
         },
         "id": "rook.direct-minor-skip.1-17-9-to-1-20-7",
         "nextAction": "Plan a separate supported Rook 1.17x to 1.18.x transition first; the cited latest patch is an evidence endpoint, not a mandatory exact intermediate.",
@@ -19013,7 +19013,7 @@
       "requiredFacts": [],
       "rule": {
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "contentDigest": "sha256:3824dfb02bb1802d11268e827a79b3840e470201b1541518eb1f7cc95eff6f25",
@@ -19033,7 +19033,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-10T09:50:12Z"
         },
         "id": "rook.direct-minor-skip.1-18-11-to-1-20-7",
         "nextAction": "Plan a separate supported Rook 1.18x to 1.19.x transition first; the cited latest patch is an evidence endpoint, not a mandatory exact intermediate.",
@@ -19082,8 +19082,8 @@
         "intermediate": "1.19.5",
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
+          "validUntil": "2027-02-03T09:15:00Z",
           "sources": [
             {
               "id": "source-51bca7e46d75-87",
@@ -19119,8 +19119,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
+          "validUntil": "2027-02-08T09:15:00Z",
           "sources": [
             {
               "id": "source-51bca7e46d75-37",
@@ -19148,7 +19148,7 @@
           "version": "1.31.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "rook-1-20-7-kubernetes-minimum",
@@ -19160,7 +19160,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-01-26T09:50:12Z"
         },
         "id": "rook.minimum-kubernetes.1-20-7",
         "nextAction": "Supply proposed Kubernetes 1.31 or newer; CSI migration, Ceph state, chart order and runtime behavior remain UNKNOWN.",
@@ -19185,7 +19185,7 @@
           "version": "1.31.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:31:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "rook-origin-1-15-9-identity",
@@ -19205,7 +19205,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:31:00Z"
+          "validUntil": "2027-01-12T09:50:12Z"
         },
         "id": "rook.minimum-kubernetes.1-20-7-from-1-15-9",
         "nextAction": "Supply proposed Kubernetes 1.31 or newer for this exact target constraint; supported upgrade routing, CSI migration, Ceph state, chart order, and runtime behavior remain UNKNOWN.",
@@ -19230,7 +19230,7 @@
           "version": "1.31.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:31:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "rook-origin-1-16-9-identity",
@@ -19250,7 +19250,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:31:00Z"
+          "validUntil": "2027-01-25T09:50:12Z"
         },
         "id": "rook.minimum-kubernetes.1-20-7-from-1-16-9",
         "nextAction": "Supply proposed Kubernetes 1.31 or newer for this exact target constraint; supported upgrade routing, CSI migration, Ceph state, chart order, and runtime behavior remain UNKNOWN.",
@@ -19275,7 +19275,7 @@
           "version": "1.31.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:31:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "rook-origin-1-17-9-identity",
@@ -19295,7 +19295,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:31:00Z"
+          "validUntil": "2027-02-05T09:50:12Z"
         },
         "id": "rook.minimum-kubernetes.1-20-7-from-1-17-9",
         "nextAction": "Supply proposed Kubernetes 1.31 or newer for this exact target constraint; supported upgrade routing, CSI migration, Ceph state, chart order, and runtime behavior remain UNKNOWN.",
@@ -19320,7 +19320,7 @@
           "version": "1.31.0"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T08:31:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "rook-origin-1-18-11-identity",
@@ -19340,7 +19340,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T08:31:00Z"
+          "validUntil": "2027-02-10T09:50:12Z"
         },
         "id": "rook.minimum-kubernetes.1-20-7-from-1-18-11",
         "nextAction": "Supply proposed Kubernetes 1.31 or newer for this exact target constraint; supported upgrade routing, CSI migration, Ceph state, chart order, and runtime behavior remain UNKNOWN.",
@@ -19539,8 +19539,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T23:37:17Z",
-          "validUntil": "2026-12-07T23:37:17Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-02-12T08:59:00Z",
           "sources": [
             {
               "id": "source-9c4d83a3b44d-137",
@@ -20613,7 +20613,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-09T01:59:12Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
           "sources": [
             {
               "contentDigest": "sha256:cf97d0e156ad5b8347d1416a70df6791ad1eab3b7ba53f54d16a21d6ff66b6e6",
@@ -20657,7 +20657,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-08T01:36:41Z"
+          "validUntil": "2027-02-13T08:59:00Z"
         },
         "id": "strimzi.kafka-v1beta2-api-removed.1-0",
         "nextAction": "Convert rendered kind Kafka resources to kafka.strimzi.io/v1 and require validation against the official target Kafka CRD; verify CRD application and runtime separately.",
@@ -20760,8 +20760,8 @@
         ],
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-09T03:59:00Z",
-          "validUntil": "2026-12-08T03:59:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
+          "validUntil": "2027-02-08T09:50:12Z",
           "sources": [
             {
               "id": "source-tekton-v1-10-config-active",
@@ -20862,8 +20862,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-02-04T08:59:00Z",
           "sources": [
             {
               "id": "source-0d7a3536be53-40",
@@ -20900,7 +20900,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "thanos-v0-42-target-01-removed-flags",
@@ -20936,7 +20936,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-06T09:50:12Z"
         },
         "id": "thanos.receive-store-flags-target-argv.0-37-2-to-0-42-4",
         "nextAction": "Remove the named Receive or Store argv flag, then separately review compaction, storage, and Thanos Query compatibility.",
@@ -20970,7 +20970,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "thanos-v0-42-target-01-removed-flags",
@@ -21006,7 +21006,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-11T09:50:12Z"
         },
         "id": "thanos.receive-store-flags-target-argv.0-38-0-to-0-42-4",
         "nextAction": "Remove the named Receive or Store argv flag, then separately review compaction, storage, and Thanos Query compatibility.",
@@ -21040,7 +21040,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "thanos-v0-42-target-01-removed-flags",
@@ -21076,7 +21076,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-01-27T09:50:12Z"
         },
         "id": "thanos.receive-store-flags-target-argv.0-39-2-to-0-42-4",
         "nextAction": "Remove the named Receive or Store argv flag, then separately review compaction, storage, and Thanos Query compatibility.",
@@ -21110,7 +21110,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "thanos-v0-42-target-01-removed-flags",
@@ -21146,7 +21146,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-01T09:50:12Z"
         },
         "id": "thanos.receive-store-flags-target-argv.0-40-1-to-0-42-4",
         "nextAction": "Remove the named Receive or Store argv flag, then separately review compaction, storage, and Thanos Query compatibility.",
@@ -21180,7 +21180,7 @@
           "side": "proposed"
         },
         "evidence": {
-          "reviewedAt": "2026-09-12T07:37:00Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
               "id": "thanos-v0-42-target-01-removed-flags",
@@ -21216,7 +21216,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2026-12-11T07:37:00Z"
+          "validUntil": "2027-02-12T09:50:12Z"
         },
         "id": "thanos.receive-store-flags-target-argv.0-41-0-to-0-42-4",
         "nextAction": "Remove the named Receive or Store argv flag, then separately review compaction, storage, and Thanos Query compatibility.",
@@ -21318,8 +21318,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-10T21:54:36Z",
-          "validUntil": "2026-12-09T21:54:36Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-02-10T08:59:00Z",
           "sources": [
             {
               "id": "python-tuf-v6-ngclient-export",
@@ -21396,8 +21396,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T08:59:00Z",
+          "validUntil": "2027-02-09T08:59:00Z",
           "sources": [
             {
               "id": "source-0b7eaaf4e6bb-27",
@@ -21428,8 +21428,8 @@
         "intermediate": "1.17.0",
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T09:15:00Z",
+          "validUntil": "2027-01-25T09:15:00Z",
           "sources": [
             {
               "id": "source-0b7eaaf4e6bb-6",
@@ -21680,8 +21680,8 @@
         },
         "evidence": {
           "state": "active",
-          "reviewedAt": "2026-09-08T12:07:56Z",
-          "validUntil": "2026-12-07T12:07:56Z",
+          "reviewedAt": "2026-11-18T09:50:12Z",
+          "validUntil": "2027-02-05T09:50:12Z",
           "sources": [
             {
               "id": "source-bee41a670a0e-78",

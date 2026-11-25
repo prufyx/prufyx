@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:f5c588bdd6387c41a63b39e337e96d8500f3c6c1407c6f8c198c3377284546d6",
+    "candidateDigest": "sha256:952696bc5646df79caa9cd7719b76de4e5fa5c3b5631af0a3986063214a5756a",
+    "candidateId": "pr-821",
+    "decidedAt": "2026-11-25T13:27:33Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "dragonfly.manager-retained-debug.2-2-3-2-2-4"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "ivmLdu5+Wmd5dJrR191UejLdSnNBxCI8OSjLTref+6rD8leJ4SOJqoVr2juH1a+reVjjUtOAyN79/6dGtF9NCg=="
+}

@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:a7c918e872acba30ccd5b09a09b75762812d44a0bce1cb19e1cacae14ffaaccd",
+    "candidateDigest": "sha256:1b7190d517820ad9002afb5d1e0d9d5d13b1491e6f4d86a409d96c2a510c20d1",
+    "candidateId": "pr-821",
+    "decidedAt": "2026-11-25T13:31:01Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "tekton.metrics-protocol-prometheus.1-10"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "g9tr30tp8qY8/DagCfOeMwrqJpVP+Ns6H/Uf/xLtBYE3Aquh82xp7Q+FrRxMybBxWGJQWQPb4IJqFVYmHDqrDA=="
+}

@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:b406ecfdfd6d849e74158c8685ce003556ca781e893827183b0b8d42d366cc08",
+    "candidateDigest": "sha256:11a1ef730c72a94e54ddb92573a9953fe5b3adb4974731b800ac10d6b3a38e5b",
+    "candidateId": "pr-821",
+    "decidedAt": "2026-11-25T13:30:51Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "rook.minimum-kubernetes.1-20-7-from-1-16-9"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "z2n0EgIgH+0N67kAFPXddOhcGfw8fTPBDaWhBaWhNWj0yqCxBZ8bA2n73afV0i7OvR5WPva8pxemUqtpF4wxCg=="
+}

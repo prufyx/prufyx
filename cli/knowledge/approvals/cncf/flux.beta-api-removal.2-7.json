@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:930cc27c8cd9c5ec5c7fe8864dbd29ceead5dd221f212157c6b9f61dd31ed4f4",
+    "candidateDigest": "sha256:96e40587a3ad207f80bac6773e7e7352fb11ef6c559ae3756d8c441ac6c24955",
+    "candidateId": "pr-821",
+    "decidedAt": "2026-11-25T13:28:22Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "flux.beta-api-removal.2-7"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "lgY0AvHfutmmUNv+P53mE2hH/3TFemyrvnLBUYwxL5tgFXrc0t7+wz9OJjkKcIcuRoKqx7ISY9xnVeorNcP9Bw=="
+}

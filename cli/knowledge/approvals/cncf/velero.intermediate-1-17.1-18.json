@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:48169b457e6f87b5e32d516f70ed65b1bf6dd0ec903a03cc0cd6d2dfc1425b2b",
+    "candidateDigest": "sha256:cf78255da61d3f7a10f509b0a45e54fe2a7664436eb12df9c8c2b3a90edb62b7",
+    "candidateId": "pr-821",
+    "decidedAt": "2026-11-25T13:31:16Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "velero.intermediate-1-17.1-18"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "NCnZ5qIdrT74j3g4RXkrEqCIrTqdkEc0KblzRXYE6enk8cRlBibYesgscZ7ASnDzgY7duGwxLwglNgnXof8kDw=="
+}

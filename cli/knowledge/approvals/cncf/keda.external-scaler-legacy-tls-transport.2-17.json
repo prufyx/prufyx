@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:de213cba97fcd8fce5bd329f320a37673943050febcbda61f1ee543eeec89300",
+    "candidateDigest": "sha256:7f23051ed4a1848c5992594b6906ab7f67fe1a1936e39a9f08d8e560688634e6",
+    "candidateId": "pr-821",
+    "decidedAt": "2026-11-25T13:29:01Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "keda.external-scaler-legacy-tls-transport.2-17"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "JjOhNbd1NfNYW6wiYpILVrdsA83kqN0lQMX/srDHFpz1gMKauN7hqqslkJHEo5AEak1BEGXQQtRiJoZ2GFunBw=="
+}

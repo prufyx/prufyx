@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:b45f559645325cff89a6d5ded24c5aa05a3d98c460940ab5d0bd4678a3cd1f9f",
+    "candidateDigest": "sha256:db1276b1c0afb3fe02f82af52468dcf03977fb7f628eb1e6bfdd9ecea71a4e23",
+    "candidateId": "pr-821",
+    "decidedAt": "2026-11-25T13:29:16Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "kyverno.reports-chunk-size-unsupported-at-1-19-1-from-1-14-5"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "0H+xM4IEdmDmNlviER8xTtoIworWb6y06gbcKCQa91cd6yCMR1Ad92EaHNJBTnibFEuWwYb9ndHJnxFC6BGWCA=="
+}
