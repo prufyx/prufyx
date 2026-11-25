@@ -168,8 +168,10 @@ func TestEmbeddedPackBaseline(t *testing.T) {
 		// That snapshot lists no releases, so the release-scoped attestations
 		// decide nothing in it (24 A pairs fall back to B, S or G).
 		// Reviewed rules with a line-wide range (see the release-line ranges in
-		// the rule pack) decide pairs of this window: S to B.
-		now, want = supersedeids.Clock(), fleetFigures{Projects: 55, Pairs: 275, A: 5, B: 3, S: 43, G: 224, C1: 53, C3: 1}
+		// the rule pack) decide pairs of this window: S to B. They include
+		// falco 0.40-0.41, etcd 3.5-3.6, spire 1.10-1.11 and 1.13-1.14,
+		// distribution 2.8-3.0, python-tuf 6.0-7.0 and openfga 1.17-1.18.
+		now, want = supersedeids.Clock(), fleetFigures{Projects: 55, Pairs: 275, A: 5, B: 10, S: 36, G: 224, C1: 53, C3: 1}
 	} else if head.Revision != baseline {
 		// Only the reviewed generation is tied to the baseline revision: a
 		// bumped revision means a new baseline, which this file records.

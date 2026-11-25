@@ -3963,7 +3963,7 @@
     },
     {
       "project": "distribution",
-      "description": "Distribution 3.0.0 removes the schema1 manifest handler present in the 2.8.3 source line. This classifies only one caller-supplied image manifest JSON document; it does not claim schema1 was enabled in every 2.8.3 deployment or validate storage, pull, content, platform, or runtime behavior.",
+      "description": "Distribution 3.0.0 removes the schema1 manifest handler present in the 2.8.3 source line. This classifies only one caller-supplied image manifest JSON document; it does not claim schema1 was enabled in every 2.8.3 deployment or validate storage, pull, content, platform, or runtime behavior. Whole-line: the schema1 manifest package and handler are present in every 2.8 release (v2.8.0 to v2.8.3) and absent from the only 3.0 release (v3.0.0), read at each release tag.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -4025,7 +4025,39 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Convert the image manifest to a supported Docker schema2 or OCI image-manifest form, then validate content references, storage, pull, platform, and runtime behavior separately."
+        "nextAction": "Convert the image manifest to a supported Docker schema2 or OCI image-manifest form, then validate content references, storage, pull, platform, and runtime behavior separately.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "distribution-v2-8-3-schema1-handler"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "distribution-v2-8-3-schema1-handler"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "distribution-v3-0-0-schema2-only-store"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "distribution-v3-0-0-schema2-only-store"
+            }
+          ],
+          "from": {
+            "gte": "2.8.0",
+            "lt": "2.9.0"
+          },
+          "to": {
+            "gte": "3.0.0",
+            "lt": "3.1.0"
+          }
+        }
       }
     },
     {
@@ -5694,7 +5726,7 @@
     },
     {
       "project": "etcd",
-      "description": "Removal of the eight named etcd v2/proxy options only; data migration and quorum health are unverified.",
+      "description": "Removal of the eight named etcd v2/proxy options only; data migration and quorum health are unverified. Whole-line: the eight options are registered in every 3.5 release (v3.5.0 to v3.5.36) and registered in no 3.6 release (v3.6.0 to v3.6.17), nor listed among its ignored flags, read at each release tag.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -5725,6 +5757,22 @@
           "validUntil": "2027-02-22T05:14:40Z",
           "sources": [
             {
+              "contentDigest": "sha256:6711bfcd2b8ec1ea6d882c9f92612183b20055b2c66715208b4eb626e0857677",
+              "endLine": 234,
+              "id": "etcd-3-5-36-v2-proxy-flags",
+              "revision": "a5f37e35a47bf71c01a1708deaba210374335f1b",
+              "startLine": 224,
+              "url": "https://github.com/etcd-io/etcd/blob/a5f37e35a47bf71c01a1708deaba210374335f1b/server/etcdmain/config.go"
+            },
+            {
+              "contentDigest": "sha256:e78c592a0ac299ef9a74c2ba157b383576f048f92a4d120573319d4c4cb2faa4",
+              "endLine": 139,
+              "id": "etcd-3-6-17-new-config",
+              "revision": "0689586e360e2c6b46f95ad5634c25d5fa1683db",
+              "startLine": 102,
+              "url": "https://github.com/etcd-io/etcd/blob/0689586e360e2c6b46f95ad5634c25d5fa1683db/server/etcdmain/config.go"
+            },
+            {
               "contentDigest": "sha256:be26b5ae5bdc89450da840ca42621f0dac915be749b0c63932f353ac112b05ed",
               "endLine": 220,
               "id": "source-507c0de87bd5-210",
@@ -5751,12 +5799,44 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Remove the documented v2/proxy flags from the proposed effective arguments; plan storage and quorum migration separately."
+        "nextAction": "Remove the documented v2/proxy flags from the proposed effective arguments; plan storage and quorum migration separately.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "etcd-3-5-36-v2-proxy-flags"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "source-f5d605a93abe-104"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "source-f5d605a93abe-104"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "etcd-3-6-17-new-config"
+            }
+          ],
+          "from": {
+            "gte": "3.5.0",
+            "lt": "3.6.0"
+          },
+          "to": {
+            "gte": "3.6.0",
+            "lt": "3.7.0"
+          }
+        }
       }
     },
     {
       "project": "falco",
-      "description": "Falco 0.41 removes five deprecated 0.40 CLI spellings for the official Falco executable; this rule covers only an operator-declared proposed argv presence predicate.",
+      "description": "Falco 0.41 removes five deprecated 0.40 CLI spellings for the official Falco executable; this rule covers only an operator-declared proposed argv presence predicate. Whole-line: the five spellings are defined in the only 0.40 release (0.40.0) and are absent from the option table of every 0.41 release (0.41.0 to 0.41.3), read at each release tag.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -5823,6 +5903,14 @@
           "validUntil": "2027-02-11T08:59:00Z",
           "sources": [
             {
+              "id": "falco-0-41-3-options",
+              "url": "https://github.com/falcosecurity/falco/blob/d26e0f77b8409b1506efaac4dac7164e71f2ee76/userspace/falco/app/options.cpp",
+              "revision": "d26e0f77b8409b1506efaac4dac7164e71f2ee76",
+              "contentDigest": "sha256:657bae3d86a80c2e5e9b074898e04a5aacf15bbe29bc27b2aa58b8a6768e9b30",
+              "startLine": 95,
+              "endLine": 127
+            },
+            {
               "id": "source-b94cda0b12e5-1",
               "url": "https://github.com/falcosecurity/falco/blob/b94cda0b12e555051693214d88cf4f24a94e19b1/CHANGELOG.md",
               "revision": "b94cda0b12e555051693214d88cf4f24a94e19b1",
@@ -5857,7 +5945,39 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Replace any declared removed Falco 0.40 CLI spelling with a target-supported configuration mechanism, then review the explicit proposed argv separately. Supply an explicit declaration when the argv is unknown."
+        "nextAction": "Replace any declared removed Falco 0.40 CLI spelling with a target-supported configuration mechanism, then review the explicit proposed argv separately. Supply an explicit declaration when the argv is unknown.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "source-ce4b4408988d-107"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "source-b94cda0b12e5-1"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "source-b94cda0b12e5-1"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "falco-0-41-3-options"
+            }
+          ],
+          "from": {
+            "gte": "0.40.0",
+            "lt": "0.41.0"
+          },
+          "to": {
+            "gte": "0.41.0",
+            "lt": "0.42.0"
+          }
+        }
       }
     },
     {
@@ -18750,7 +18870,7 @@
     },
     {
       "project": "openfga",
-      "description": "OpenFGA 1.18.0 refuses startup for the official OIDC mode when the effective issuer or audience is empty; this checks only a caller-declared effective configuration.",
+      "description": "OpenFGA 1.18.0 refuses startup for the official OIDC mode when the effective issuer or audience is empty; this checks only a caller-declared effective configuration. Whole-line: the empty-issuer and empty-audience startup check is absent from both 1.17 releases (v1.17.0, v1.17.1) and present in every 1.18 release (v1.18.0 to v1.18.3), read at each release tag.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -18782,6 +18902,14 @@
           "validUntil": "2027-01-27T08:59:00Z",
           "sources": [
             {
+              "id": "openfga-v1-17-1-config-validation",
+              "url": "https://github.com/openfga/openfga/blob/393db3f903b923a0414c96145012e527af700685/pkg/server/config/config.go",
+              "revision": "393db3f903b923a0414c96145012e527af700685",
+              "contentDigest": "sha256:453333919db1b743ed5afc68e7a0bbcbccff71d0652497475fec3c431c9f212e",
+              "startLine": 610,
+              "endLine": 626
+            },
+            {
               "id": "openfga-v1-18-0-oidc-changelog",
               "url": "https://github.com/openfga/openfga/blob/81089a31698505b4d5f01311c04e83b9adfcf383/CHANGELOG.md",
               "revision": "81089a31698505b4d5f01311c04e83b9adfcf383",
@@ -18804,15 +18932,55 @@
               "contentDigest": "sha256:6408ad7ac5ca3af6df12b731a302909a2614d643184215537f5796ff7442bb6e",
               "startLine": 623,
               "endLine": 631
+            },
+            {
+              "id": "openfga-v1-18-3-oidc-validation",
+              "url": "https://github.com/openfga/openfga/blob/81c6202153a853d90589565884a56942c3fd07be/pkg/server/config/config.go",
+              "revision": "81c6202153a853d90589565884a56942c3fd07be",
+              "contentDigest": "sha256:6408ad7ac5ca3af6df12b731a302909a2614d643184215537f5796ff7442bb6e",
+              "startLine": 623,
+              "endLine": 631
             }
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Resolve all OpenFGA file, environment, and flag precedence outside this check, then provide complete effective configuration with nonempty OIDC issuer and audience before the target upgrade."
+        "nextAction": "Resolve all OpenFGA file, environment, and flag precedence outside this check, then provide complete effective configuration with nonempty OIDC issuer and audience before the target upgrade.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "openfga-v1-17-1-config-validation"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "openfga-v1-18-0-oidc-changelog"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "openfga-v1-18-0-oidc-changelog"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "openfga-v1-18-3-oidc-validation"
+            }
+          ],
+          "from": {
+            "gte": "1.17.0",
+            "lt": "1.18.0"
+          },
+          "to": {
+            "gte": "1.18.0",
+            "lt": "1.19.0"
+          }
+        }
       }
     },
     {
-      "description": "OpenFGA 1.14.0 refuses to start with the built-in Playground enabled and authn.method=preshared, which 1.13.1 accepted; this checks only a caller-declared effective configuration.",
+      "description": "OpenFGA 1.14.0 refuses to start with the built-in Playground enabled and authn.method=preshared, which 1.13.1 accepted; this checks only a caller-declared effective configuration. Whole-line: the Playground accepts authn method preshared in both 1.13 releases (v1.13.0, v1.13.1) and rejects it in every 1.14 release (v1.14.0 to v1.14.2), read at each release tag.",
       "project": "openfga",
       "requiredFacts": [
         {
@@ -18911,7 +19079,39 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Disable the Playground (it is deprecated and development-only) or set authn.method to none before the 1.14.0 upgrade; resolve file, environment and flag precedence outside this check first."
+        "nextAction": "Disable the Playground (it is deprecated and development-only) or set authn.method to none before the 1.14.0 upgrade; resolve file, environment and flag precedence outside this check first.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "openfga-v1-13-1-config-validation"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "openfga-v1-14-0-changelog-playground"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "openfga-v1-14-0-changelog-playground"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "openfga-v1-14-0-config-validation"
+            }
+          ],
+          "from": {
+            "gte": "1.13.0",
+            "lt": "1.14.0"
+          },
+          "to": {
+            "gte": "1.14.0",
+            "lt": "1.15.0"
+          }
+        }
       }
     },
     {
@@ -20880,7 +21080,7 @@
       }
     },
     {
-      "description": "SPIRE Agent 1.14.0 removes the deprecated agent.retry_bootstrap configuration key; the stock agent rejects an unknown key in the agent section at startup. This rule covers only a caller-declared effective agent configuration file of the official distribution.",
+      "description": "SPIRE Agent 1.14.0 removes the deprecated agent.retry_bootstrap configuration key; the stock agent rejects an unknown key in the agent section at startup. This rule covers only a caller-declared effective agent configuration file of the official distribution. Whole-line: the retry_bootstrap key is read by every 1.13 release (v1.13.0 to v1.13.6) and by no 1.14 release (v1.14.0 to v1.14.9), each of which keeps the unknown-key check, read at each release tag.",
       "project": "spire",
       "requiredFacts": [
         {
@@ -20997,12 +21197,44 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Remove the agent.retry_bootstrap key from the SPIRE Agent configuration before upgrading to 1.14.0 (retrying bootstrap is the default); review the effective agent section separately."
+        "nextAction": "Remove the agent.retry_bootstrap key from the SPIRE Agent configuration before upgrading to 1.14.0 (retrying bootstrap is the default); review the effective agent section separately.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "spire-v1-13-6-retry-bootstrap-deprecated"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "spire-v1-14-0-agent-config-keys"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "spire-v1-14-0-agent-config-keys"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "spire-v1-14-0-unknown-config-gate"
+            }
+          ],
+          "from": {
+            "gte": "1.13.0",
+            "lt": "1.14.0"
+          },
+          "to": {
+            "gte": "1.14.0",
+            "lt": "1.15.0"
+          }
+        }
       }
     },
     {
       "project": "spire",
-      "description": "SPIRE 1.11 removes the legacy direct spire-server entry create -ttl/--ttl option; this rule covers only an operator-declared proposed effective option-presence predicate for that exact command surface.",
+      "description": "SPIRE 1.11 removes the legacy direct spire-server entry create -ttl/--ttl option; this rule covers only an operator-declared proposed effective option-presence predicate for that exact command surface. Whole-line: the -ttl option is defined by entry create in every 1.10 release (v1.10.0 to v1.10.4) and in no 1.11 release (v1.11.0 to v1.11.3), read at each release tag.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -21107,11 +21339,51 @@
               "contentDigest": "sha256:0edc70decfe6d2916ed0e9b9f5a722710eac4e248610f52f4daa89c4e7c712d8",
               "startLine": 88,
               "endLine": 104
+            },
+            {
+              "id": "spire-v1-11-3-entry-create-flags",
+              "url": "https://github.com/spiffe/spire/blob/dc3440081ad7aa193fb5de06eec2840d76598ae4/cmd/spire-server/cli/entry/create.go",
+              "revision": "dc3440081ad7aa193fb5de06eec2840d76598ae4",
+              "contentDigest": "sha256:e094bb5352397db5516b2557a842ab8c2b8268db2e76acec7412adc9393c7f79",
+              "startLine": 88,
+              "endLine": 104
             }
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Remove each declared legacy -ttl or --ttl option from the proposed direct spire-server entry create invocation, then review the explicit proposed effective option set separately. Supply an explicit declaration when that option set is unknown."
+        "nextAction": "Remove each declared legacy -ttl or --ttl option from the proposed direct spire-server entry create invocation, then review the explicit proposed effective option set separately. Supply an explicit declaration when that option set is unknown.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "source-9c4d83a3b44d-93"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "source-ca35234a30a2-21"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "source-ca35234a30a2-21"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "spire-v1-11-3-entry-create-flags"
+            }
+          ],
+          "from": {
+            "gte": "1.10.0",
+            "lt": "1.11.0"
+          },
+          "to": {
+            "gte": "1.11.0",
+            "lt": "1.12.0"
+          }
+        }
       }
     },
     {
@@ -22817,7 +23089,7 @@
     },
     {
       "project": "the-update-framework-tuf",
-      "description": "python-tuf 7.0.0 requires an explicitly named bootstrap argument for tuf.ngclient.Updater; this checks only keyword presence in one conservatively bound direct call in caller-supplied Python source.",
+      "description": "python-tuf 7.0.0 requires an explicitly named bootstrap argument for tuf.ngclient.Updater; this checks only keyword presence in one conservatively bound direct call in caller-supplied Python source. Whole-line: bootstrap defaults to None in the only 6.0 release (v6.0.0) and is a required argument in every 7.0 release (v7.0.0 and v7.0.1), read at each release tag.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -22864,6 +23136,14 @@
               "endLine": 111
             },
             {
+              "id": "python-tuf-v7-0-1-updater-signature",
+              "url": "https://github.com/theupdateframework/python-tuf/blob/49eb1da48c58cf0cbb0f2e490f7ad39fbd8c1f15/tuf/ngclient/updater.py",
+              "revision": "49eb1da48c58cf0cbb0f2e490f7ad39fbd8c1f15",
+              "contentDigest": "sha256:fa32bc4a416cf54b996b0b431df5081b68cb00f8b7c5e3e0b196f39dbe40d9f3",
+              "startLine": 81,
+              "endLine": 147
+            },
+            {
               "id": "python-tuf-v7-ngclient-export",
               "url": "https://github.com/theupdateframework/python-tuf/blob/353bdb767db56fd4667c9bcf56b710d50fdc2ac0/tuf/ngclient/__init__.py",
               "revision": "353bdb767db56fd4667c9bcf56b710d50fdc2ac0",
@@ -22890,7 +23170,39 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Add an explicit bootstrap keyword suitable for the application and recheck. Use trusted root metadata bytes, or bootstrap=None only for an intended cached-root path; separately validate cache, trust, metadata, update, and runtime behavior."
+        "nextAction": "Add an explicit bootstrap keyword suitable for the application and recheck. Use trusted root metadata bytes, or bootstrap=None only for an intended cached-root path; separately validate cache, trust, metadata, update, and runtime behavior.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "python-tuf-v6-updater-signature"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "python-tuf-v6-updater-signature"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "python-tuf-v7-updater-signature"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "python-tuf-v7-0-1-updater-signature"
+            }
+          ],
+          "from": {
+            "gte": "6.0.0",
+            "lt": "6.1.0"
+          },
+          "to": {
+            "gte": "7.0.0",
+            "lt": "7.1.0"
+          }
+        }
       }
     },
     {
