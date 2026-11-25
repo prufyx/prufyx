@@ -24,7 +24,7 @@ that a whole upgrade is safe.
 
 <!-- release-notes:begin -->
 
-Changes from `v0.1.0-beta.0` (70f67cac4a3b) to `v0.1.0-beta.1` (50215255e6d2), computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.
+Changes from `v0.1.0-beta.0` (70f67cac4a3b) to `v0.1.0-beta.1` (3b55933b4831), computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.
 
 ### Summary
 
@@ -41,9 +41,9 @@ Changes from `v0.1.0-beta.0` (70f67cac4a3b) to `v0.1.0-beta.1` (50215255e6d2), c
 | Kubernetes minors with a line attestation | 18 | 18 | 0 |
 | Projects with a release-line snapshot (README coverage block) | 78 | 79 | +1 |
 | Upgrades between consecutive release lines | 390 | 395 | +5 |
-| A/B decided (whole release-line pair; Kubernetes served-API only pairs excluded) | 38 | 95 | +57 |
+| A/B decided (whole release-line pair; Kubernetes served-API only pairs excluded) | 38 | 111 | +73 |
 | Kubernetes served-API (decided) | 5 | 5 | 0 |
-| Rule for one exact version pair only (S) | 40 | 39 | -1 |
+| Rule for one exact version pair only (S) | 40 | 23 | -17 |
 | Listed, not judged (L) | 0 | 18 | +18 |
 | Gap (G) | 307 | 238 | -69 |
 
@@ -53,7 +53,7 @@ The figures for `v0.1.0-beta.0` in this section are approximate: that release ha
 
 ### Coverage since the previous release
 
-previous = tag `v0.1.0-beta.0`, commit 70f67cac4a3b, counts sha256 `db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3`; current counts sha256 `a7854ae359e8026b38ab1a1106e0ad37a44a814943a8c7f1bde72c04ddb914fd`.
+previous = tag `v0.1.0-beta.0`, commit 70f67cac4a3b, counts sha256 `db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3`; current counts sha256 `f7ac8706649c9fec1fccca996da31423be6415f43f7bebaa876bc0cbccd4f444`.
 
 The counts carry the number of valid rules per project, not rule ids, so rules added are the per-project change of that number.
 
@@ -61,7 +61,7 @@ Projects added (9): `burrito (community)`, `chaosblade-operator (community)`, `f
 
 Projects removed (0): none
 
-In projects present in both releases: upgrade pairs added 0, removed 0, decided pairs gained 60, lost 0. Valid rules in all projects: 252 -> 253 (+1).
+In projects present in both releases: upgrade pairs added 0, removed 0, decided pairs gained 76, lost 0. Valid rules in all projects: 252 -> 253 (+1).
 
 | Project | Pairs added | Pairs removed | Decided gained | Decided lost | Valid rules |
 | --- | --- | --- | --- | --- | --- |
@@ -72,15 +72,28 @@ In projects present in both releases: upgrade pairs added 0, removed 0, decided 
 | `crossplane` | 0 | 0 | 2 | 0 | 3 -> 3 (0) |
 | `dapr` | 0 | 0 | 3 | 0 | 1 -> 1 (0) |
 | `dex` | 0 | 0 | 5 | 0 | 0 -> 0 (0) |
+| `distribution` | 0 | 0 | 1 | 0 | 1 -> 1 (0) |
+| `emissary-ingress` | 0 | 0 | 1 | 0 | 1 -> 1 (0) |
+| `etcd` | 0 | 0 | 1 | 0 | 10 -> 10 (0) |
+| `falco` | 0 | 0 | 1 | 0 | 6 -> 6 (0) |
+| `fluentd` | 0 | 0 | 2 | 0 | 7 -> 7 (0) |
 | `gateway-api (community)` | 0 | 0 | 5 | 0 | 0 -> 0 (0) |
+| `harbor` | 0 | 0 | 1 | 0 | 7 -> 7 (0) |
 | `istio` | 0 | 0 | 5 | 0 | 1 -> 1 (0) |
 | `k8up` | 0 | 0 | 5 | 0 | 0 -> 0 (0) |
+| `karmada` | 0 | 0 | 1 | 0 | 1 -> 1 (0) |
 | `koordinator` | 0 | 0 | 5 | 0 | 0 -> 0 (0) |
+| `kubeedge` | 0 | 0 | 1 | 0 | 1 -> 1 (0) |
+| `kubevirt` | 0 | 0 | 1 | 0 | 1 -> 1 (0) |
 | `longhorn` | 0 | 0 | 3 | 0 | 1 -> 1 (0) |
+| `nats` | 0 | 0 | 2 | 0 | 6 -> 6 (0) |
+| `openfga` | 0 | 0 | 1 | 0 | 2 -> 2 (0) |
 | `openkruise` | 0 | 0 | 3 | 0 | 0 -> 0 (0) |
 | `openyurt` | 0 | 0 | 3 | 0 | 0 -> 1 (+1) |
 | `rook` | 0 | 0 | 1 | 0 | 11 -> 11 (0) |
+| `spire` | 0 | 0 | 2 | 0 | 2 -> 2 (0) |
 | `submariner` | 0 | 0 | 2 | 0 | 0 -> 0 (0) |
+| `the-update-framework-tuf` | 0 | 0 | 1 | 0 | 1 -> 1 (0) |
 
 - `antrea` gained a decision: 2.2 -> 2.3 (G -> A)
 - `antrea` gained a decision: 2.3 -> 2.4 (G -> A)
@@ -110,11 +123,18 @@ In projects present in both releases: upgrade pairs added 0, removed 0, decided 
 - `dex` gained a decision: 2.43 -> 2.44 (G -> A)
 - `dex` gained a decision: 2.44 -> 2.45 (G -> A)
 - `dex` gained a decision: 2.45 -> 2.46 (G -> A)
+- `distribution` gained a decision: 2.8 -> 3.0 (S -> B)
+- `emissary-ingress` gained a decision: 3.10 -> 4.0 (S -> B)
+- `etcd` gained a decision: 3.5 -> 3.6 (S -> B)
+- `falco` gained a decision: 0.40 -> 0.41 (S -> B)
+- `fluentd` gained a decision: 1.16 -> 1.17 (S -> B)
+- `fluentd` gained a decision: 1.18 -> 1.19 (S -> B)
 - `gateway-api (community)` gained a decision: 1.2 -> 1.3 (G -> A)
 - `gateway-api (community)` gained a decision: 1.3 -> 1.4 (G -> A)
 - `gateway-api (community)` gained a decision: 1.4 -> 1.5 (G -> A)
 - `gateway-api (community)` gained a decision: 1.5 -> 1.6 (G -> A)
 - `gateway-api (community)` gained a decision: 1.6 -> 1.7 (G -> A)
+- `harbor` gained a decision: 2.14 -> 2.15 (S -> B)
 - `istio` gained a decision: 1.26 -> 1.27 (G -> A)
 - `istio` gained a decision: 1.27 -> 1.28 (G -> A)
 - `istio` gained a decision: 1.28 -> 1.29 (G -> A)
@@ -125,14 +145,20 @@ In projects present in both releases: upgrade pairs added 0, removed 0, decided 
 - `k8up` gained a decision: 2.13 -> 2.14 (G -> A)
 - `k8up` gained a decision: 2.14 -> 2.15 (G -> A)
 - `k8up` gained a decision: 2.15 -> 2.16 (G -> A)
+- `karmada` gained a decision: 1.18 -> 1.19 (S -> B)
 - `koordinator` gained a decision: 1.3 -> 1.4 (G -> A)
 - `koordinator` gained a decision: 1.4 -> 1.5 (G -> A)
 - `koordinator` gained a decision: 1.5 -> 1.6 (G -> A)
 - `koordinator` gained a decision: 1.6 -> 1.7 (G -> A)
 - `koordinator` gained a decision: 1.7 -> 1.8 (G -> A)
+- `kubeedge` gained a decision: 1.18 -> 1.19 (S -> B)
+- `kubevirt` gained a decision: 1.8 -> 1.9 (S -> B)
 - `longhorn` gained a decision: 1.10 -> 1.11 (G -> A)
 - `longhorn` gained a decision: 1.11 -> 1.12 (G -> A)
 - `longhorn` gained a decision: 1.12 -> 1.13 (G -> A)
+- `nats` gained a decision: 2.10 -> 2.11 (S -> B)
+- `nats` gained a decision: 2.12 -> 2.14 (S -> B)
+- `openfga` gained a decision: 1.17 -> 1.18 (S -> B)
 - `openkruise` gained a decision: 1.4 -> 1.5 (G -> A)
 - `openkruise` gained a decision: 1.5 -> 1.6 (G -> A)
 - `openkruise` gained a decision: 1.6 -> 1.7 (G -> A)
@@ -140,8 +166,11 @@ In projects present in both releases: upgrade pairs added 0, removed 0, decided 
 - `openyurt` gained a decision: 1.4 -> 1.5 (G -> A)
 - `openyurt` gained a decision: 1.5 -> 1.6 (G -> A)
 - `rook` gained a decision: 1.16 -> 1.17 (G -> A)
+- `spire` gained a decision: 1.10 -> 1.11 (S -> B)
+- `spire` gained a decision: 1.13 -> 1.14 (S -> B)
 - `submariner` gained a decision: 0.22 -> 0.23 (G -> A)
 - `submariner` gained a decision: 0.23 -> 0.24 (G -> A)
+- `the-update-framework-tuf` gained a decision: 6.0 -> 7.0 (S -> B)
 
 ### Projects added to the support inventory (1)
 
