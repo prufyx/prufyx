@@ -56,3 +56,31 @@ func TestOldSchemaReportsReplayByteIdentically(t *testing.T) {
 		}
 	}
 }
+
+// goldenChartRangedBoundary is the sealed report of a hop that reaches a
+// release-boundary UNKNOWN claim under the chart range schema. Taken before
+// the boundary-covered schema existed.
+const goldenChartRangedBoundary = "14c28defeccf8d75cd84a0f49f6b398aa48f1f0926d86b139bc1c882b4e2f38f"
+
+func chartRangedBoundaryHash(t *testing.T) string {
+	t.Helper()
+	registry := chartRegistry(t)
+	fact := valuesSetFact([]string{"a.b"}, true)
+	rules := parseChartRules(t, registry, rangedChartDocument(t, RulesSchemaChartRanged, OperatorRequireSetMember, "2.15.0", "2.16.0", requireConditionJSON("a.b")+","+consecutiveRange(BasisChangedInRelease), true))
+	report, raw := evaluateAndSeal(t, chartHopInput(t, registry, "2.14.3", "2.16.0", fact, "", true), rules)
+	if claim := report.Claims[0]; claim.Status != "UNKNOWN" || claim.ReasonCode != ReasonReleaseBoundaryNotReviewed {
+		t.Fatalf("fixture does not reach a boundary claim: %+v", claim)
+	}
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:])
+}
+
+func TestChartRangedBoundaryReportReplaysByteIdentically(t *testing.T) {
+	got := chartRangedBoundaryHash(t)
+	if goldenChartRangedBoundary == "" {
+		t.Logf("GOLDEN chart-ranged %s", got)
+	}
+	if got != goldenChartRangedBoundary {
+		t.Errorf("chart-ranged boundary report hash %s, want %s", got, goldenChartRangedBoundary)
+	}
+}

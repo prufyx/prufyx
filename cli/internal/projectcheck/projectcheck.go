@@ -633,7 +633,8 @@ func ClaimExit(report Report) int {
 	}
 	decided, unknown := 0, false
 	for _, c := range report.Check.Claims {
-		if c.IsVerdictNeutral() {
+		if c.IsVerdictNeutral() || c.IsBoundaryCovered() {
+			// Answered by its covering claim, as in the CNCF route.
 			continue
 		}
 		decided++

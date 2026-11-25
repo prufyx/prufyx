@@ -147,7 +147,7 @@ func claimActionLine(claim constraintengine.Claim) string {
 func verdictClaims(claims []constraintengine.Claim) int {
 	verdicts := 0
 	for _, claim := range claims {
-		if !claim.IsVerdictNeutral() {
+		if !claim.IsVerdictNeutral() && !claim.IsBoundaryCovered() {
 			verdicts++
 		}
 	}

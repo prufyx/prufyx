@@ -471,7 +471,7 @@ func claimNotes(claims []constraintengine.Claim) []string {
 func communityClaimViews(claims []constraintengine.Claim) []claimView {
 	views := make([]claimView, 0, len(claims))
 	for _, claim := range claims {
-		if claim.IsVerdictNeutral() {
+		if claim.IsVerdictNeutral() || claim.IsBoundaryCovered() {
 			continue
 		}
 		views = append(views, claimView{Status: claim.Status, ReasonCode: claim.ReasonCode, EvidenceFreshness: claim.EvidenceFreshness})
@@ -505,7 +505,7 @@ type claimView struct{ Status, ReasonCode, EvidenceFreshness string }
 func cncfClaimViews(claims []constraintengine.Claim) []claimView {
 	views := make([]claimView, 0, len(claims))
 	for _, claim := range claims {
-		if claim.IsVerdictNeutral() {
+		if claim.IsVerdictNeutral() || claim.IsBoundaryCovered() {
 			continue
 		}
 		view := claimView{Status: claim.Status, ReasonCode: claim.ReasonCode, EvidenceFreshness: claim.EvidenceFreshness}
