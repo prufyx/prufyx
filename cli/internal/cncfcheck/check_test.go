@@ -176,7 +176,7 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 	if len(b.pack.Entries) != 242+extra+shippedBatch+len(crdbatchids.Foreign())+crossingRules || len(vectors) != 242+extra+shippedBatch {
 		t.Fatal("unexpected reviewed rule or vector count")
 	}
-	if caseCount != 1335+4*extra+4*shippedBatch {
+	if caseCount != 1344+4*extra+4*shippedBatch {
 		t.Fatal("unexpected reviewed case count")
 	}
 	for _, vector := range vectors {
@@ -419,8 +419,8 @@ func TestSPIREVectorsParseAndStayBoundToTheirRule(t *testing.T) {
 			count++
 		}
 	}
-	if count != 16 {
-		t.Fatalf("SPIRE reviewed vectors = %d, want 16", count)
+	if count != 17 {
+		t.Fatalf("SPIRE reviewed vectors = %d, want 17", count)
 	}
 }
 

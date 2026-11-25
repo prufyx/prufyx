@@ -7426,6 +7426,38 @@
           }
         },
         "status": "UNKNOWN"
+      },
+      {
+        "name": "range-interior-non-exact-versions-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/distribution/distribution",
+                "version": "2.8.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/distribution/distribution",
+                "version": "3.0.1",
+                "facts": [
+                  {
+                    "id": "component.distribution.image_manifest_format",
+                    "state": "declared",
+                    "enumValue": "docker_schema1"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
       }
     ]
   },
@@ -13387,6 +13419,38 @@
           }
         },
         "status": "UNKNOWN"
+      },
+      {
+        "name": "range-interior-non-exact-versions-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/etcd-io/etcd",
+                "version": "3.5.20",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/etcd-io/etcd",
+                "version": "3.6.5",
+                "facts": [
+                  {
+                    "id": "component.etcd.removed_v2_proxy_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
       }
     ]
   },
@@ -13774,6 +13838,90 @@
               {
                 "component": "pkg:github/falcosecurity/falco",
                 "version": "0.41.0",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "range-interior-non-exact-versions-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.40.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.41.2",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "range-upper-boundary-outside-unknown",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.40.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.0",
                 "facts": [
                   {
                     "id": "component.falco.distribution",
@@ -41969,6 +42117,38 @@
           }
         },
         "status": "UNKNOWN"
+      },
+      {
+        "name": "range-interior-non-exact-versions-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/openfga/openfga",
+                "version": "1.17.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/openfga/openfga",
+                "version": "1.18.2",
+                "facts": [
+                  {
+                    "id": "component.openfga.oidc_required_fields_missing",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
       }
     ]
   },
@@ -42128,6 +42308,38 @@
           }
         },
         "status": "UNKNOWN"
+      },
+      {
+        "name": "range-interior-non-exact-versions-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/openfga/openfga",
+                "version": "1.13.0",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/openfga/openfga",
+                "version": "1.14.1",
+                "facts": [
+                  {
+                    "id": "component.openfga.playground_enabled_with_preshared_authn",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
       }
     ]
   },
@@ -45974,6 +46186,43 @@
           }
         },
         "status": "UNKNOWN"
+      },
+      {
+        "name": "range-interior-non-exact-versions-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/spiffe/spire",
+                "version": "1.13.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/spiffe/spire",
+                "version": "1.14.5",
+                "facts": [
+                  {
+                    "id": "component.spire.agent_retry_bootstrap_key_present",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.spire.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
       }
     ]
   },
@@ -46727,6 +46976,54 @@
           "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
         },
         "status": "UNKNOWN"
+      },
+      {
+        "name": "range-interior-non-exact-versions-blocked",
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/spiffe/spire",
+                "facts": [
+                  {
+                    "boolValue": false,
+                    "id": "component.spire.removed_entry_ttl_flag_present",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.10.2"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/spiffe/spire",
+                "facts": [
+                  {
+                    "enumValue": "official_upstream",
+                    "id": "component.spire.distribution",
+                    "state": "declared"
+                  },
+                  {
+                    "enumValue": "spire_server_entry_create",
+                    "id": "component.spire.execution_surface",
+                    "state": "declared"
+                  },
+                  {
+                    "boolValue": true,
+                    "id": "component.spire.removed_entry_ttl_flag_present",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.11.2"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "status": "BLOCKED"
       }
     ]
   },
@@ -50508,6 +50805,38 @@
           }
         },
         "status": "UNKNOWN"
+      },
+      {
+        "name": "range-interior-non-exact-versions-blocked",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/theupdateframework/python-tuf",
+                "version": "6.0.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/theupdateframework/python-tuf",
+                "version": "7.0.1",
+                "facts": [
+                  {
+                    "id": "component.tuf.updater_bootstrap_keyword_present",
+                    "state": "declared",
+                    "boolValue": false
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
       }
     ]
   },
