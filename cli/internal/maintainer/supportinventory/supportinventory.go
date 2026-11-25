@@ -586,6 +586,7 @@ var cncfPackLevels = []packLevel{
 	{"prufyx.io/cncf-source-rule-pack/v1alpha13", anyRule(constraintengine.AnyChartRule)},
 	{"prufyx.io/cncf-source-rule-pack/v1alpha14", anyRule(constraintengine.AnyChartNoticeRule)},
 	{"prufyx.io/cncf-source-rule-pack/v1alpha15", anyRule(constraintengine.AnyChartRangedRule)},
+	{"prufyx.io/cncf-source-rule-pack/v1alpha16", declaresSchema("prufyx.io/cncf-source-rule-pack/v1alpha16", constraintengine.AnyRanged)},
 }
 
 // anyCommunityCatalogEntry is the loader's test for a pack holding an entry
@@ -627,6 +628,19 @@ var communityPackLevels = []packLevel{
 	{"prufyx.io/community-project-source-rule-pack/v1alpha2", anyRule(constraintengine.AnyRanged)},
 	{"prufyx.io/community-project-source-rule-pack/v1alpha3", anyRule(constraintengine.AnyNoticeRule)},
 	{"prufyx.io/community-project-source-rule-pack/v1alpha4", anyRule(constraintengine.AnySeverityRule)},
+}
+
+// declaresSchema is the opt-in level test: the pack declares this schema
+// itself and holds at least one rule the feature test accepts. No pack is at
+// this level by content alone.
+func declaresSchema(schema string, test func([]json.RawMessage) (bool, error)) func(map[string]any) (bool, error) {
+	feature := anyRule(test)
+	return func(pack map[string]any) (bool, error) {
+		if declared, _ := stringValue(pack["schema"]); declared != schema {
+			return false, nil
+		}
+		return feature(pack)
+	}
 }
 
 // anyRule applies one of the engine's own feature tests to the pack's rules.

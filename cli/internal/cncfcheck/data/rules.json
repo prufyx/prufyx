@@ -1,5 +1,5 @@
 {
-  "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
+  "schema": "prufyx.io/cncf-source-rule-pack/v1alpha16",
   "revision": "cncf-2026-09-13.8",
   "policyId": "cncf-source-preview-v1",
   "policyDigest": "sha256:59fb35dd1cf0241cb704b10de6d8040cd584da29fb17443a353bab4542aeb83d",
@@ -6491,7 +6491,7 @@
     },
     {
       "project": "fluentd",
-      "description": "Fluentd 1.17.1 preserved selected classic-config literals, while 1.18.0 routes unquoted embedded markers through interpolation handling. This checks one complete caller-selected literal only. Whole-line: lib/fluent/config/literal_parser.rb and v1_parser.rb are byte-identical at both 1.17 releases (v1.17.0, v1.17.1, as at the cited commit) and the cited 1.18 file is the one at the only 1.18 release (v1.18.0).",
+      "description": "Fluentd 1.17.1 preserved selected classic-config literals, while 1.18.0 routes unquoted embedded markers through interpolation handling. This checks one complete caller-selected literal only.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -6616,39 +6616,7 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Quote the unchanged selected literal or revise it explicitly, then reassess this narrow literal-treatment check. Ruby parsing, interpolation safety, runtime behavior and the rest of the Fluentd configuration remain unresolved.",
-        "range": {
-          "bounds": [
-            {
-              "basis": "PREVIOUS_MINOR_LINE",
-              "bound": "from.gte",
-              "sourceId": "old-literal-parser"
-            },
-            {
-              "basis": "CHANGED_IN_RELEASE",
-              "bound": "from.lt",
-              "sourceId": "target-release-changelog"
-            },
-            {
-              "basis": "CHANGED_IN_RELEASE",
-              "bound": "to.gte",
-              "sourceId": "target-release-changelog"
-            },
-            {
-              "basis": "TARGET_SERIES",
-              "bound": "to.lt",
-              "sourceId": "target-literal-parser"
-            }
-          ],
-          "from": {
-            "gte": "1.17.0",
-            "lt": "1.18.0"
-          },
-          "to": {
-            "gte": "1.18.0",
-            "lt": "1.19.0"
-          }
-        }
+        "nextAction": "Quote the unchanged selected literal or revise it explicitly, then reassess this narrow literal-treatment check. Ruby parsing, interpolation safety, runtime behavior and the rest of the Fluentd configuration remain unresolved."
       }
     },
     {

@@ -16,13 +16,16 @@ import (
 )
 
 type graduatedJourney struct {
-	name       string
-	project    string
-	fixture    string
-	setup      func(map[string]any)
-	pass       func(map[string]any)
-	missing    func(map[string]any)
-	wrongPair  func(map[string]any)
+	name      string
+	project   string
+	fixture   string
+	setup     func(map[string]any)
+	pass      func(map[string]any)
+	missing   func(map[string]any)
+	wrongPair func(map[string]any)
+	// rangePair moves the proposed version to a pair inside the reviewed
+	// line-wide range; the journey then decides it as a range match.
+	rangePair  func(map[string]any)
 	passCode   int
 	passStatus string
 	multiRule  bool
@@ -75,7 +78,11 @@ func TestSyntheticGraduatedCNCFJourneys(t *testing.T) {
 				removeProposedFact(t, document, "component.falco.removed_040_cli_flags_present")
 			},
 			wrongPair: func(document map[string]any) {
+				// Control moved outside every reviewed Falco range (0.40-0.41, 0.40-0.42).
 				setProposedVersionForComponent(t, document, "pkg:github/falcosecurity/falco", "0.43.0")
+			},
+			rangePair: func(document map[string]any) {
+				setProposedVersionForComponent(t, document, "pkg:github/falcosecurity/falco", "0.41.1")
 			},
 		},
 		{
@@ -102,7 +109,13 @@ func TestSyntheticGraduatedCNCFJourneys(t *testing.T) {
 			missing: func(document map[string]any) {
 				removeProposedComponent(t, document, "pkg:generic/ruby")
 			},
+			// Control moved outside every reviewed Fluentd range (1.16-1.17,
+			// 1.18-1.19 and the exact pairs): an origin and target on the 1.19 line.
 			wrongPair: func(document map[string]any) {
+				setCurrentVersionForComponent(t, document, "pkg:github/fluent/fluentd", "1.19.0")
+				setProposedVersionForComponent(t, document, "pkg:github/fluent/fluentd", "1.19.1")
+			},
+			rangePair: func(document map[string]any) {
 				setProposedVersionForComponent(t, document, "pkg:github/fluent/fluentd", "1.17.1")
 			},
 		},
@@ -193,7 +206,11 @@ func TestSyntheticGraduatedCNCFJourneys(t *testing.T) {
 				removeProposedFact(t, document, "component.spire.removed_entry_ttl_flag_present")
 			},
 			wrongPair: func(document map[string]any) {
+				// Control moved outside every reviewed SPIRE range (1.10-1.11, 1.13-1.14).
 				setProposedVersionForComponent(t, document, "pkg:github/spiffe/spire", "1.12.0")
+			},
+			rangePair: func(document map[string]any) {
+				setProposedVersionForComponent(t, document, "pkg:github/spiffe/spire", "1.11.1")
 			},
 		},
 		{
@@ -286,7 +303,12 @@ func TestSyntheticGraduatedCNCFJourneys(t *testing.T) {
 			missing: func(document map[string]any) {
 				removeProposedFact(t, document, "component.coredns.federation_directive_present")
 			},
+			// Control moved outside the reviewed CoreDNS range (1.6-1.7): 1.8.0 -> 1.8.1.
 			wrongPair: func(document map[string]any) {
+				setCurrentVersionForComponent(t, document, "pkg:github/coredns/coredns", "1.8.0")
+				setProposedVersion(t, document, "1.8.1")
+			},
+			rangePair: func(document map[string]any) {
 				setProposedVersion(t, document, "1.7.1")
 			},
 		},
@@ -348,11 +370,29 @@ func TestSyntheticGraduatedCNCFJourneys(t *testing.T) {
 				wantStatus string
 				wantClaim  bool
 				wantReason string
+				wantRange  bool
 			}{
 				{name: "declared trigger", wantCode: ExitBlocked, wantStatus: "BLOCKED", wantClaim: true},
 				{name: "declared non-trigger", mutate: journey.pass, wantCode: journey.passCode, wantStatus: journey.passStatus, wantClaim: true},
 				{name: "missing applicability fact", mutate: journey.missing, wantCode: ExitUnknown, wantStatus: "UNKNOWN", wantClaim: true},
 				{name: "wrong transition", mutate: journey.wrongPair, wantCode: ExitUnknown, wantStatus: "UNKNOWN", wantClaim: true, wantReason: "RULE_TRANSITION_NOT_REVIEWED"},
+			}
+			if journey.rangePair != nil {
+				// The pair the wrong-transition control used to be: it is now
+				// inside the reviewed line-wide range, so it is a decided range
+				// match with its range disclosure, not an unreviewed pair.
+				cases = append(cases, struct {
+					name       string
+					mutate     func(map[string]any)
+					wantCode   int
+					wantStatus string
+					wantClaim  bool
+					wantReason string
+					wantRange  bool
+				}{name: "line-wide range pair", mutate: func(document map[string]any) {
+					journey.pass(document)
+					journey.rangePair(document)
+				}, wantCode: journey.passCode, wantStatus: journey.passStatus, wantClaim: true, wantRange: true})
 			}
 			if journey.project == "coredns" {
 				cases = append(cases,
@@ -363,6 +403,7 @@ func TestSyntheticGraduatedCNCFJourneys(t *testing.T) {
 						wantStatus string
 						wantClaim  bool
 						wantReason string
+						wantRange  bool
 					}{name: "custom distribution guard", mutate: func(document map[string]any) {
 						setProposedEnumFact(t, document, "component.coredns.distribution", "custom")
 					}, wantCode: ExitUnknown, wantStatus: "UNKNOWN", wantClaim: true},
@@ -373,6 +414,7 @@ func TestSyntheticGraduatedCNCFJourneys(t *testing.T) {
 						wantStatus string
 						wantClaim  bool
 						wantReason string
+						wantRange  bool
 					}{name: "missing distribution guard", mutate: func(document map[string]any) {
 						removeProposedFact(t, document, "component.coredns.distribution")
 					}, wantCode: ExitUnknown, wantStatus: "UNKNOWN", wantClaim: true},
@@ -381,6 +423,14 @@ func TestSyntheticGraduatedCNCFJourneys(t *testing.T) {
 			if journey.passStatus == "" {
 				cases[1].wantCode = ExitOK
 				cases[1].wantStatus = "PASS"
+			}
+			if journey.passStatus == "" {
+				for i := range cases {
+					if cases[i].wantRange {
+						cases[i].wantCode = ExitOK
+						cases[i].wantStatus = "PASS"
+					}
+				}
 			}
 			for _, tc := range cases {
 				tc := tc
@@ -462,6 +512,9 @@ func TestSyntheticGraduatedCNCFJourneys(t *testing.T) {
 					}
 					if wantReason != "" && !strings.Contains(stdout, `"reasonCode":"`+wantReason+`"`) {
 						t.Fatalf("missing reason %s: %q", wantReason, stdout)
+					}
+					if tc.wantRange && !strings.Contains(stdout, `"mode":"range"`) {
+						t.Fatalf("range match without its disclosure: %q", stdout)
 					}
 					checkBatchClaims(t, stdout, batchIDs)
 					if offPair && strings.Count(stdout, `"ruleId":`) != len(batchIDs) {
