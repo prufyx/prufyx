@@ -1,0 +1,3 @@
+### Changed
+
+- Ten more reviewed rules that covered one exact version pair now cover the whole release line: opa 1.19 to 1.20, jaeger 2.19 to 2.20, cortex 1.20 to 1.21, coredns 1.13 to 1.14, envoy 1.38 to 1.39, opencost 1.119 to 1.120 and 1.120 to 1.121, opentelemetry collector 0.110 to 0.111 (two rules), and linkerd 2.13 to 2.14. Each is backed by a read of the cited files at every release tag of the lines it covers. Six are checks of the target only (or of behaviour that did not change between the lines): their range carries no release boundary and their description says so.
