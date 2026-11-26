@@ -19,8 +19,14 @@ func TestSyntheticKnowledgeCarriesSetRuleThroughExternalBundles(t *testing.T) {
 		t.Fatal(err)
 	}
 	raw := embeddedProjectEnvelope(t, "kubernetes", "7")
-	if !strings.Contains(string(raw), `"schema":"`+packSchemaSet+`"`) || !strings.Contains(string(raw), syntheticRuleID) {
-		t.Fatal("exported bundle does not carry the set rule under the set schema")
+	// A shipped pack that declares an opt-in level keeps it in the ranged
+	// project's envelope; that level admits the set rule too.
+	want := packSchemaSet
+	if shipped := shippedPack(t).Schema; PackSchemaIsOptIn(shipped) {
+		want = shipped
+	}
+	if !strings.Contains(string(raw), `"schema":"`+want+`"`) || !strings.Contains(string(raw), syntheticRuleID) {
+		t.Fatalf("exported bundle does not carry the set rule under schema %s", want)
 	}
 	if _, err := ParseExternalBundle(raw); err != nil {
 		t.Fatalf("external bundle with a set rule refused: %v", err)
