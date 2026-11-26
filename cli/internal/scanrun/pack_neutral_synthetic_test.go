@@ -78,8 +78,11 @@ func TestScanPackNoticeAndLeadAreNeutral(t *testing.T) {
 			t.Fatalf("case %d: notices %d / %d", index, a.notices, b.notices)
 		}
 		// The hop that selects the notice and the lead (and any hop whose
-		// family fallback holds them) runs under another engine contract.
-		if a.contract[0] == b.contract[0] {
+		// family fallback holds them) runs under another engine contract,
+		// unless its ranged rules already put it under the declared
+		// boundary-covered contract, which admits both and does not move.
+		covered := constraintengine.EngineContractDigestBoundaryCovered()
+		if a.contract[0] != covered && a.contract[0] == b.contract[0] || a.contract[0] == covered && b.contract[0] != covered {
 			t.Fatalf("case %d: contracts %v / %v", index, a.contract, b.contract)
 		}
 	}

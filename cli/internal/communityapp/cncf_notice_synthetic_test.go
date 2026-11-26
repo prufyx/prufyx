@@ -43,11 +43,15 @@ func TestSyntheticNoticeThroughTheCommandRoute(t *testing.T) {
 		exit       int
 		unreviewed bool
 		claims     int
+		contract   string
 	}{
 		// No verdict rule reviews 1.38.0 -> 1.39.0: every Kubernetes rule is
 		// still reported as not reviewed, exactly as without the notice.
-		{"a notice for an unreviewed pair keeps the unreviewed answer", []cncfcheck.Entry{notice}, ExitUnknown, true, 27 + kubernetesRuleExtra() + kubeletSkewRules + controlPlaneSkipRules},
-		{"a notice beside a pass keeps the pass", []cncfcheck.Entry{notice, pass}, 0, false, 2},
+		{"a notice for an unreviewed pair keeps the unreviewed answer", []cncfcheck.Entry{notice}, ExitUnknown, true, 27 + kubernetesRuleExtra() + kubeletSkewRules + controlPlaneSkipRules,
+			// The selection holds shipped ranged rules, and the shipped pack
+			// declares the boundary-covered contract.
+			constraintengine.EngineContractDigestBoundaryCovered()},
+		{"a notice beside a pass keeps the pass", []cncfcheck.Entry{notice, pass}, 0, false, 2, constraintengine.EngineContractDigestNotice()},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			restore, err := cncfcheck.UseSyntheticKnowledge(nil, tc.entries)
@@ -67,7 +71,7 @@ func TestSyntheticNoticeThroughTheCommandRoute(t *testing.T) {
 				t.Fatalf("stdout:\n%s", stdout)
 			}
 			code, report, _ := runCNCFCLI(t, "check", "cncf", "--project", "kubernetes", "--input", path, "--now", supersedeids.ClockString(), "--format", "json")
-			if code != tc.exit || strings.Count(report, `"ruleId":`) != tc.claims || !strings.Contains(report, `"status":"NOTICE"`) || !strings.Contains(report, `"engineContractDigest":"`+constraintengine.EngineContractDigestNotice()+`"`) {
+			if code != tc.exit || strings.Count(report, `"ruleId":`) != tc.claims || !strings.Contains(report, `"status":"NOTICE"`) || !strings.Contains(report, `"engineContractDigest":"`+tc.contract+`"`) {
 				t.Fatalf("code=%d report=%s", code, report)
 			}
 		})
