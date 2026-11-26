@@ -4,6 +4,7 @@ package knowledgepublish
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"os"
 	"strings"
@@ -27,7 +28,16 @@ func TestAdmissionHoldsTheOptInLevelToItsFloor(t *testing.T) {
 	if bytes.Equal(pack, raw) {
 		t.Fatalf("the shipped pack does not state %s", shipped)
 	}
-	// Built for clients at the opt-in floor, so no higher floor applies.
+	// Without line attestations the listed family's own floor cannot be the
+	// reason for a refusal.
+	var members map[string]json.RawMessage
+	if err := json.Unmarshal(pack, &members); err != nil {
+		t.Fatal(err)
+	}
+	delete(members, "lineAttestations")
+	if pack, err = json.Marshal(members); err != nil {
+		t.Fatal(err)
+	}
 	index, built, _, err := cncfcheck.BuildExternalTargetsFromPackPinned(pack, "5", cncfcheck.BoundaryCoveredFloor)
 	if err != nil {
 		t.Fatal(err)
@@ -43,7 +53,7 @@ func TestAdmissionHoldsTheOptInLevelToItsFloor(t *testing.T) {
 	if !bytes.Contains(index.Bytes, member) {
 		t.Fatal("no floor member")
 	}
-	for _, replacement := range []string{"", `,"minClientVersion":"v0.1.0-beta.0"`} {
+	for _, replacement := range []string{"", `,"minClientVersion":"v0.1.0-beta.0"`, `,"minClientVersion":"v0.1.0-beta.2"`} {
 		_, err := admitTargetSet(bytes.Replace(index.Bytes, member, []byte(replacement), 1), targets)
 		if !errors.Is(err, ErrRejected) || !strings.Contains(err.Error(), "opt-in pack level") {
 			t.Fatalf("floor %q: %v", replacement, err)

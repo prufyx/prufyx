@@ -233,6 +233,12 @@ func TestOptInSchemaClientFloorRefused(t *testing.T) {
 		"head unparsable":      {set(floor), raw("junk\n"), "the head's oldest supported client pin"},
 		"base not a version":   {set("latest"), set(floor), "the base's oldest supported client pin"},
 		"head not a version":   {set(floor), set(""), "the head's oldest supported client pin"},
+		"base one release low": {set("v0.1.0-beta.2"), set(floor), "the base still supports client v0.1.0-beta.2"},
+		"base no v prefix":     {set("0.2.0"), set(floor), "the base's oldest supported client pin"},
+		"head no v prefix":     {set(floor), set("0.2.0"), "the head's oldest supported client pin"},
+		"head build metadata":  {set(floor), set("v0.2.0+build"), "the head's oldest supported client pin"},
+		"head bare prerelease": {set(floor), set("v0.2.0-rc"), "the head's oldest supported client pin"},
+		"base short ref":       {raw("ref=abc\nversion=" + floor + "\n"), set(floor), "the base's oldest supported client pin"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -302,6 +308,10 @@ func TestOptInSchemaLaterPinChange(t *testing.T) {
 		"no ref line":   {raw("version=" + floor + "\n"), "the head's oldest supported client pin"},
 		"not a version": {set("latest"), "the head's oldest supported client pin"},
 		"too large":     {raw(strings.Repeat("a", 2048)), "the head's oldest supported client pin"},
+		"no v prefix":   {set("0.2.0"), "the head's oldest supported client pin"},
+		"build suffix":  {set("v0.2.0+build"), "the head's oldest supported client pin"},
+		"bare rc":       {set("v0.2.0-rc"), "the head's oldest supported client pin"},
+		"empty ref":     {raw("ref=\nversion=" + floor + "\n"), "the head's oldest supported client pin"},
 	} {
 		t.Run(label, func(t *testing.T) {
 			t.Parallel()
@@ -335,6 +345,42 @@ func TestOptInSchemaLaterPinChange(t *testing.T) {
 			requirePass(t, r)
 		}
 	})
+}
+
+// The opt-in pin form is the publication workflow's: the same two
+// expressions, and nothing the workflow refuses is read.
+func TestPublishPinForm(t *testing.T) {
+	t.Parallel()
+	workflow, err := os.ReadFile(filepath.Join("..", "..", "..", "..", ".github", "workflows", "knowledge-publish.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, re := range []string{publishPinRefRE.String(), publishPinVersionRE.String()} {
+		if !strings.Contains(string(workflow), "=~ "+re+" ]]") {
+			t.Fatalf("the publication workflow does not match the pin with %s", re)
+		}
+	}
+	ref := "ref=" + strings.Repeat("a", 40)
+	for _, version := range []string{"v0.1.0", "v1.2.3", "v0.1.0-beta.3", "v0.2.0-rc.1"} {
+		for _, end := range []string{"", "\n"} {
+			if got, err := publishPinVersion([]byte(ref + "\nversion=" + version + end)); err != nil || got != version {
+				t.Fatalf("%q: %q, %v", version, got, err)
+			}
+		}
+	}
+	good := "version=v0.2.0"
+	for _, raw := range []string{
+		"", ref, good, good + "\n" + ref, ref + "\n" + good + "\n\n", ref + "\n" + good + "\nx\n", "\n" + ref + "\n" + good,
+		ref + "\r\n" + good, ref + "\n" + good + "\r\n", ref + "\n" + good + " ", ref + " \n" + good,
+		"ref=\n" + good, "ref=abc\n" + good, "ref=" + strings.Repeat("A", 40) + "\n" + good, ref + "a\n" + good,
+		ref + "\nversion=", ref + "\nversion=0.2.0", ref + "\nversion=v0.2", ref + "\nversion=v00.2.0", ref + "\nversion=v0.2.0+build",
+		ref + "\nversion=v0.2.0-beta.3+build", ref + "\nversion=v0.2.0-rc", ref + "\nversion=v0.2.0-rc1", ref + "\nversion=v0.2.0-beta.1.2",
+		ref + "\nversion=v0.2.0-beta-x.1", ref + "\nversion=latest",
+	} {
+		if got, err := publishPinVersion([]byte(raw)); err == nil {
+			t.Fatalf("%q accepted as %q", raw, got)
+		}
+	}
 }
 
 // Only admitted changes of an existing rule of the same pack count, and only

@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
@@ -40,8 +42,10 @@ import (
 //     the head is at or above the version that reads it
 //     (cncfcheck.BoundaryCoveredFloor): publication builds refuse the level
 //     below it, so data that holds it would stop the whole feed. A missing or
-//     unreadable pin refuses. The head's pin is held to the same floor by
-//     every later run while the pack stays at the level (optInPinCheck).
+//     unreadable pin refuses, as does one outside the form the publication
+//     workflow accepts (publishPinVersion). The head's pin is held to the same
+//     floor and form by every later run while the pack stays at the level
+//     (optInPinCheck).
 //
 // Any doubt refuses the change. The gate that decides is the one built from
 // the base branch (pull_request_target), so this admission takes effect only
@@ -169,13 +173,31 @@ func optInClientFloor(opts Options) error {
 	return optInPinFloor("head", opts.Head)
 }
 
+// The two lines of the pin file exactly as the publication workflow
+// (knowledge-publish.yml) accepts them; a test holds them to that file. A pin
+// the workflow refuses stops every publication, so it admits nothing here.
+var (
+	publishPinRefRE     = regexp.MustCompile(`^ref=[0-9a-f]{40}$`)
+	publishPinVersionRE = regexp.MustCompile(`^version=v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z]+\.[0-9]+)?$`)
+)
+
+// publishPinVersion reads the version of a pin file in the publication
+// workflow's form.
+func publishPinVersion(raw []byte) (string, error) {
+	lines := strings.Split(strings.TrimSuffix(string(raw), "\n"), "\n")
+	if len(lines) != 2 || !publishPinRefRE.MatchString(lines[0]) || !publishPinVersionRE.MatchString(lines[1]) {
+		return "", errors.New("the pin file does not hold exactly the lines ref=<40-hex commit> and version=vMAJOR.MINOR.PATCH[-pre.N]")
+	}
+	return strings.TrimPrefix(lines[1], "version="), nil
+}
+
 // optInPinFloor is optInClientFloor for one tree, named name in the refusal.
 func optInPinFloor(name string, tree Tree) error {
 	raw, err := tree.Read(OldestClientPinPath, 1024)
 	if err != nil {
 		return fmt.Errorf("the %s's oldest supported client pin: %v", name, err)
 	}
-	version, err := pinVersion(raw)
+	version, err := publishPinVersion(raw)
 	if err != nil {
 		return fmt.Errorf("the %s's oldest supported client pin: %v", name, err)
 	}
