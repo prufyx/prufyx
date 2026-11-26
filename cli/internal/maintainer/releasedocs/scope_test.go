@@ -35,10 +35,14 @@ func TestRegenDefaultWritesNoNotesAndNoChangelog(t *testing.T) {
 func TestRegenDefaultLeavesReleaseTextWithoutAnyTag(t *testing.T) {
 	e := build(t, rig{notes: replaceIn("| Change |", "| Changed |")})
 	git(t, e.root, "tag", "-d", prevTag)
-	notes := read(t, e.root, notesFile)
+	editSectionBlock(t, e.root, replaceIn("| Change |", "| Changed |"))
+	notes, changelog := read(t, e.root, notesFile), read(t, e.root, changelogPath)
 	regenOK(t, RegenOptions{Root: e.root, Mode: ModeUnreleased, Generate: fakeGen{counts: curCounts(t)}})
 	if read(t, e.root, notesFile) != notes {
 		t.Fatal("notes written")
+	}
+	if read(t, e.root, changelogPath) != changelog {
+		t.Fatal("changelog written")
 	}
 }
 

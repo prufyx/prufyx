@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -39,7 +40,6 @@ func TestReleaseDocsRefusesBadUsage(t *testing.T) {
 		{"check", "--root", ".", "--mode", "unreleased", "--blocks-base="},
 		{"check", "--root", ".", "--mode", "unreleased", "--blocks-base", "HEAD"},
 		{"check", "--root", ".", "--mode", "unreleased", "--blocks-base", "0000000000000000000000000000000000000000"},
-		{"check", "--root", ".", "--mode", "release", "--tag", "v1.0.0", "--previous", "v0.9.0", "--deny-file", "/nonexistent", "--blocks-base", "1111111111111111111111111111111111111111"},
 		{"regen", "--root", ".", "--mode", "unreleased", "--blocks-base", "1111111111111111111111111111111111111111"},
 	}
 	for _, args := range cases {
@@ -47,6 +47,16 @@ func TestReleaseDocsRefusesBadUsage(t *testing.T) {
 		if code != 2 {
 			t.Errorf("%v: exit %d (%s), want 2", args, code, msg)
 		}
+	}
+	// With a readable deny file the only thing wrong is --blocks-base. The
+	// usage text names every flag, so the whole refusal is matched.
+	deny := filepath.Join(t.TempDir(), "deny")
+	if err := os.WriteFile(deny, []byte("zorblax\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, msg := docsExit(t, "check", "--root", ".", "--mode", "release", "--tag", "v1.0.0", "--previous", "v0.9.0", "--deny-file", deny, "--blocks-base", "1111111111111111111111111111111111111111")
+	if code != 2 || !strings.Contains(msg, "--blocks-base belongs to the unreleased mode") {
+		t.Errorf("release mode with --blocks-base: exit %d (%s)", code, msg)
 	}
 }
 

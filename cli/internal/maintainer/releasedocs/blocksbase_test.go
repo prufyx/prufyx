@@ -363,7 +363,7 @@ func TestGitEnvDropsInheritedSettings(t *testing.T) {
 func TestGuardBlockRefusesEveryToken(t *testing.T) {
 	for _, bad := range []string{
 		"a <!-- b", "[x](y)", "<b>", "a\rb", "a\tb", "a\x00b", "a\x1bb", "a\u0085b",
-		"a​b", "a‮b", "a b", "a b", "## [9.9.9]", "x\n## heading", "x\n  ## heading", "a\xffb",
+		"a\u200bb", "a\u202eb", "a\u2028b", "a\u2029b", "## [9.9.9]", "x\n## heading", "x\n  ## heading", "a\xffb",
 	} {
 		if guardBlock(bad) == nil {
 			t.Errorf("%q accepted", bad)
@@ -386,7 +386,7 @@ func (keepGen) Counts(root string) ([]byte, error) {
 // A hostile data string that reaches the block is refused by the check, also
 // when the committed block is stale and equal to the base, and by regen.
 func TestHostileDataStringsAreRefusedByCheckAndRegen(t *testing.T) {
-	for _, name := range []string{"x <!-- y", "[x](y)", "<img>", `x\n## [9.9.9]`, `x‮y`} {
+	for _, name := range []string{"x <!-- y", "[x](y)", "<img>", `x\n## [9.9.9]`, "x\u202ey"} {
 		t.Run(name, func(t *testing.T) {
 			e := build(t, rig{})
 			base := git(t, e.root, "rev-parse", "HEAD")

@@ -249,7 +249,10 @@ or the CHANGELOG in a batch.
 
 CI takes the base from the event: the pull request base commit, the merge group
 base commit, the commit before a push, and the first parent of `HEAD` for the
-nightly and manual runs.
+nightly run. A manual run uses the merge base of `HEAD` and `origin/main`; when
+that is `HEAD` itself (the commit is already in the history of `main`), it uses
+the first parent of `HEAD`. A manual run with no merge base or more than one
+fails.
 
 Stale blocks cannot be released: the `release` and `cut` modes refuse
 `--blocks-base` and require every block to equal its regeneration, so a tag build
@@ -572,6 +575,10 @@ workflow. It reports a table (check, PASS or FAIL) in the job summary:
   is shown as WARN and does not fail the job, so expiring evidence does not block
   unrelated pull requests; on `workflow_dispatch` it is a FAIL, the pre-tag
   signal that blocks a tag);
+- the release docs gate passes in unreleased mode: on a pull request an
+  unchanged stale block of the base commit is accepted (`BLOCKS_BASE`); on
+  `workflow_dispatch` every generated block must be current, so the run fails
+  between releases until the blocks are regenerated;
 - archives exist for the whole build matrix (`prufyx` and `prufyx-collector`
   for linux and darwin on amd64 and arm64), each holding one directory with one
   binary;

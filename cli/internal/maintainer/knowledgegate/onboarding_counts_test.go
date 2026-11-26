@@ -45,56 +45,93 @@ func TestOnboardingAdmitsRegeneratedCounts(t *testing.T) {
 
 func TestOnboardingRefusesCountsThatAreNotTheRegeneration(t *testing.T) {
 	t.Parallel()
-	cases := map[string]func(t *testing.T, f *onboardingFixture, path string, want []byte){
-		"one more newline": func(t *testing.T, _ *onboardingFixture, path string, want []byte) {
+	counts := releasenotes.CountsPath
+	differs := "O2: " + counts + " differs from its regeneration from the head"
+	unreadable := "O2: " + counts + " cannot be read from the head: "
+	outside := func(path string) []string {
+		return []string{"O2: an onboarding change may change only the batch file", "it also changes 1 other files: " + path}
+	}
+	type refusal struct {
+		edit func(t *testing.T, f *onboardingFixture, path string, want []byte)
+		// problem holds the texts the one offline problem must contain.
+		problem []string
+	}
+	cases := map[string]refusal{
+		"one more newline": {func(t *testing.T, _ *onboardingFixture, path string, want []byte) {
 			writeFile(t, path, append(append([]byte{}, want...), '\n'))
-		},
-		"one byte short": func(t *testing.T, _ *onboardingFixture, path string, want []byte) {
+		}, []string{differs}},
+		"one byte short": {func(t *testing.T, _ *onboardingFixture, path string, want []byte) {
 			writeFile(t, path, want[:len(want)-1])
-		},
-		"stale": func(t *testing.T, _ *onboardingFixture, path string, _ []byte) {
+		}, []string{differs}},
+		"stale": {func(t *testing.T, _ *onboardingFixture, path string, _ []byte) {
 			writeFile(t, path, []byte("{}\n"))
-		},
-		"executable": func(t *testing.T, _ *onboardingFixture, path string, _ []byte) {
+		}, []string{differs}},
+		"executable": {func(t *testing.T, _ *onboardingFixture, path string, _ []byte) {
 			if err := os.Chmod(path, 0o755); err != nil {
 				t.Fatal(err)
 			}
-		},
-		"link": func(t *testing.T, _ *onboardingFixture, path string, want []byte) {
-			writeFile(t, path+".real", want)
+		}, []string{"O2: " + counts + " has an executable bit"}},
+		// The target holds the correct bytes and is outside both trees, so
+		// only the link itself can be refused.
+		"link": {func(t *testing.T, _ *onboardingFixture, path string, want []byte) {
+			target := filepath.Join(t.TempDir(), "counts.json")
+			writeFile(t, target, want)
 			if err := os.Remove(path); err != nil {
 				t.Fatal(err)
 			}
-			if err := os.Symlink(filepath.Base(path)+".real", path); err != nil {
+			if err := os.Symlink(target, path); err != nil {
 				t.Fatal(err)
 			}
-		},
-		"deleted": func(t *testing.T, f *onboardingFixture, path string, want []byte) {
+		}, []string{unreadable}},
+		"deleted": {func(t *testing.T, f *onboardingFixture, path string, want []byte) {
 			writeFile(t, filepath.Join(f.base.Root, filepath.FromSlash(releasenotes.CountsPath)), want)
 			if err := os.Remove(path); err != nil {
 				t.Fatal(err)
 			}
-		},
-		"second counts file": func(t *testing.T, _ *onboardingFixture, path string, want []byte) {
+		}, []string{unreadable}},
+		"second counts file": {func(t *testing.T, _ *onboardingFixture, path string, want []byte) {
 			writeFile(t, strings.TrimSuffix(path, ".json")+"-copy.json", want)
-		},
-		"changelog": func(t *testing.T, f *onboardingFixture, _ string, _ []byte) {
+		}, outside(strings.TrimSuffix(counts, ".json") + "-copy.json")},
+		"changelog": {func(t *testing.T, f *onboardingFixture, _ string, _ []byte) {
 			writeFile(t, filepath.Join(f.head.Root, "CHANGELOG.md"), []byte("# Changelog\n"))
-		},
-		"release notes": func(t *testing.T, f *onboardingFixture, _ string, _ []byte) {
+		}, outside("CHANGELOG.md")},
+		"release notes": {func(t *testing.T, f *onboardingFixture, _ string, _ []byte) {
 			writeFile(t, filepath.Join(f.head.Root, "cli", "docs", "release-notes-v9.9.9.md"), []byte("# x\n"))
-		},
+		}, outside("cli/docs/release-notes-v9.9.9.md")},
 	}
-	for name, edit := range cases {
+	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			f, _ := countsFixture(t, edit)
+			f, _ := countsFixture(t, c.edit)
 			rec, ok := f.tryRecord(t)
 			if ok {
 				t.Fatal("the offline checks accept the change")
 			}
+			// No case expects a change that cannot be read at all.
 			if rec.BatchID == "" {
-				return // the tree cannot be read as a change at all
+				t.Fatal("no record: the change was not read as an onboarding change")
+			}
+			layout := DefaultLayout()
+			cls, err := Classify(layout, f.base, f.head)
+			if err != nil {
+				t.Fatal(err)
+			}
+			paths, err := ChangedPaths(f.base, f.head)
+			if err != nil {
+				t.Fatal(err)
+			}
+			st, err := newOnboardingState(layout, f.base, f.head, cls, paths)
+			if err != nil {
+				t.Fatal(err)
+			}
+			problems := st.check(rec, layout.Onboarding.Dir+"/"+rec.BatchID+".json")
+			if len(problems) != 1 {
+				t.Fatalf("want one problem, got %d: %v", len(problems), problems)
+			}
+			for _, text := range c.problem {
+				if !strings.Contains(problems[0], text) {
+					t.Fatalf("problem %q does not contain %q", problems[0], text)
+				}
 			}
 			f.sign(t, rec)
 			if f.gate(t).Passed() {
