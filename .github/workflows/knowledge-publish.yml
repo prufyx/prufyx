@@ -342,6 +342,14 @@ jobs:
           PKG="${pkg}" RECEIPT="${state}/receipt.json" MODE="${mode}" CREATED="${created}" PREV_TUF="${PREV_TUF}" \
             STATE_DIR="${state}" MAX_INDEX_BYTES="${MAX_INDEX_BYTES}" \
             bash "${GITHUB_WORKSPACE}/scripts/knowledge-publish-state.sh"
+          # The oldest-client gate reads the verified previous package in mode
+          # state only; first and recovery runs never name one.
+          if [ "${mode}" = state ]; then
+            {
+              echo "state_pkg=${pkg}"
+              echo "state_digest=${expected_digest}"
+            } >> "${GITHUB_OUTPUT}"
+          fi
 
       # Only after an engine capability change: the previous package is
       # verified with the client built from the commit that produced it (the
@@ -570,9 +578,9 @@ jobs:
           PACKAGE_DIGEST: ${{ steps.sign.outputs.package_digest }}
           REVISION: ${{ steps.sign.outputs.revision }}
           MODE: ${{ steps.prevcap.outputs.mode || steps.prev.outputs.mode }}
-          PREV_PKG: ${{ steps.prevcap.outputs.pkg }}
-          PREV_DIGEST: ${{ steps.prevcap.outputs.digest }}
-          PREV_REVISION: ${{ steps.prevcap.outputs.revision }}
+          PREV_PKG: ${{ steps.prevcap.outputs.pkg || steps.prev.outputs.state_pkg }}
+          PREV_DIGEST: ${{ steps.prevcap.outputs.digest || steps.prev.outputs.state_digest }}
+          PREV_REVISION: ${{ steps.prevcap.outputs.revision || steps.prev.outputs.revision }}
         run: |
           set -euo pipefail
           refuse() { echo "::error::the oldest supported client (${OLDEST_VERSION}, ${OLDEST_REF}) refuses this package or cannot be built; the feed keeps the last package. See cli/docs/knowledge-publisher.md."; exit 1; }
@@ -615,11 +623,43 @@ jobs:
               echo "- oldest supported client ${OLDEST_VERSION} (${OLDEST_REF}) refuses the package cleanly (engine capability change, exit 15) and verifies the previous package" >> "${GITHUB_STEP_SUMMARY}"
             fi
           else
-            "${out}/prufyx" db verify "${RUNNER_TEMP}/artifact/cncf-projects.tar" --profile cncf-projects \
-              "${obootstrap[@]}" \
-              --expected-package-digest "${PACKAGE_DIGEST}" --expected-revision "${REVISION}" --format json > "${out}/receipt.json" || refuse
-            jq -e '.status == "VERIFIED"' "${out}/receipt.json" > /dev/null || refuse
-            echo "- oldest supported client ${OLDEST_VERSION} (${OLDEST_REF}) accepts the package" >> "${GITHUB_STEP_SUMMARY}"
+            if "${out}/prufyx" db verify "${RUNNER_TEMP}/artifact/cncf-projects.tar" --profile cncf-projects \
+                "${obootstrap[@]}" \
+                --expected-package-digest "${PACKAGE_DIGEST}" --expected-revision "${REVISION}" --format json \
+                > "${out}/receipt.json" 2> "${out}/stderr.txt"; then
+              orc=0
+            else
+              orc=$?
+            fi
+            cat "${out}/stderr.txt" >&2
+            if [ "${orc}" = 0 ]; then
+              jq -e '.status == "VERIFIED"' "${out}/receipt.json" > /dev/null || refuse
+              echo "- oldest supported client ${OLDEST_VERSION} (${OLDEST_REF}) accepts the package" >> "${GITHUB_STEP_SUMMARY}"
+            else
+              # Mode state only: the pinned client already cannot read the
+              # package that is live (the engine capability moved in an earlier
+              # run). Both the candidate and that previous package must be
+              # refused with exit 15 and the capability cause. If it still
+              # reads the previous package, refusing the candidate would take
+              # the feed away from it, and the run fails.
+              capability_refusal() { # exit-code stderr-file
+                [ "$1" = 15 ] && grep -q "KNOWLEDGE CAPABILITY MISMATCH" "$2" && ! grep -q "upgrade prufyx to >=" "$2"
+              }
+              [ "${MODE}" = state ] || refuse
+              capability_refusal "${orc}" "${out}/stderr.txt" || refuse
+              [ -n "${PREV_PKG}" ] && [ -n "${PREV_DIGEST}" ] && [ -n "${PREV_REVISION}" ] || refuse
+              if "${out}/prufyx" db verify "${PREV_PKG}" --profile cncf-projects "${obootstrap[@]}" \
+                  --expected-package-digest "${PREV_DIGEST}" --expected-revision "${PREV_REVISION}" --format json \
+                  > "${out}/prev-receipt.json" 2> "${out}/prev-stderr.txt"; then
+                prc=0
+              else
+                prc=$?
+              fi
+              cat "${out}/prev-stderr.txt" >&2
+              capability_refusal "${prc}" "${out}/prev-stderr.txt" || refuse
+              echo "::warning::the oldest supported client cannot read the live package or this one (engine capability, exit 15); the oldest-client gate proves nothing about this package."
+              echo "- WARNING: oldest supported client ${OLDEST_VERSION} (${OLDEST_REF}) refuses both the live previous package and this one (engine capability, exit 15); this gate proved nothing about the new package" >> "${GITHUB_STEP_SUMMARY}"
+            fi
           fi
 
       - name: Upload the signed package
