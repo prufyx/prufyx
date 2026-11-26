@@ -7,7 +7,7 @@
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha16",
-      "digest": "sha256:a6bbad9c4edbecc0862700ab0e05f827e2fd2e50b82f5a547e39066c76fb0605"
+      "digest": "sha256:83142aa2092cf4df23ce9db7261f8659c4967db2c7a4a4c0b909213a0613462f"
     },
     "lines": {
       "capturedOn": "2026-10-31",
@@ -27,32 +27,32 @@
       "projects": 79,
       "pairs": 395,
       "a": 97,
-      "b": 19,
-      "s": 23,
+      "b": 24,
+      "s": 18,
       "g": 256,
       "listedChangelog": 18,
       "c1": 63,
       "c3": 20,
       "c5": 14,
-      "vcPairs": 0.2937,
-      "vcMean": 0.2937,
-      "sPairs": 0.0582,
+      "vcPairs": 0.3063,
+      "vcMean": 0.3063,
+      "sPairs": 0.0456,
       "rulesInWindow": 155
     },
     "priorityProjects": {
       "projects": 30,
       "pairs": 150,
       "a": 37,
-      "b": 7,
-      "s": 17,
+      "b": 11,
+      "s": 13,
       "g": 89,
       "listedChangelog": 9,
       "c1": 29,
       "c3": 8,
       "c5": 5,
-      "vcPairs": 0.2933,
-      "vcMean": 0.2933,
-      "sPairs": 0.1133,
+      "vcPairs": 0.32,
+      "vcMean": 0.32,
+      "sPairs": 0.0867,
       "rulesInWindow": 112
     },
     "communityCatalog": {
@@ -84,7 +84,7 @@
       {
         "family": "other",
         "a": 0,
-        "b": 16
+        "b": 21
       }
     ],
     "projects": [
@@ -1084,7 +1084,10 @@
           {
             "from": "1.13",
             "to": "1.14",
-            "status": "S",
+            "status": "B",
+            "families": [
+              "other"
+            ],
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
@@ -1114,11 +1117,11 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 1,
+        "b": 1,
+        "s": 0,
         "g": 4,
         "listedChangelog": 4,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 6,
@@ -1160,14 +1163,17 @@
           {
             "from": "1.20",
             "to": "1.21",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 1,
+        "b": 1,
+        "s": 0,
         "g": 4,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 7,
@@ -1800,7 +1806,10 @@
           {
             "from": "1.38",
             "to": "1.39",
-            "status": "S",
+            "status": "B",
+            "families": [
+              "other"
+            ],
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
@@ -1829,10 +1838,10 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 1,
+        "b": 1,
+        "s": 0,
         "g": 4,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 6,
@@ -2855,7 +2864,10 @@
           {
             "from": "2.19",
             "to": "2.20",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "2.20",
@@ -2889,10 +2901,10 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 1,
+        "b": 1,
+        "s": 0,
         "g": 4,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 6,
@@ -4699,7 +4711,10 @@
           {
             "from": "1.19",
             "to": "1.20",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "1.20",
@@ -4733,10 +4748,10 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 1,
+        "b": 1,
+        "s": 0,
         "g": 4,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 6,
@@ -6226,9 +6241,9 @@
         "project": "coredns",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 1,
+        "s": 0,
         "l": 4,
         "g": 0
       },
@@ -6236,9 +6251,9 @@
         "project": "cortex",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 1,
+        "s": 0,
         "l": 0,
         "g": 4,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6355,9 +6370,9 @@
         "project": "envoy",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 1,
+        "s": 0,
         "l": 0,
         "g": 4,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6538,9 +6553,9 @@
         "project": "jaeger",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 1,
+        "s": 0,
         "l": 0,
         "g": 4,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6871,9 +6886,9 @@
         "project": "opa",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 1,
+        "s": 0,
         "l": 0,
         "g": 4,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -7097,9 +7112,9 @@
       "projects": 79,
       "pairs": 395,
       "projectsWithAnswer": 54,
-      "ab": 111,
+      "ab": 116,
       "k8s": 5,
-      "s": 23,
+      "s": 18,
       "l": 18,
       "g": 238
     },
@@ -7114,5 +7129,5 @@
       "g": 41
     }
   },
-  "readmeBlockSha256": "be2a6df1ff640a440a85c0aca82e44dfcc28d2a70aacbdc1f831c5f819b981c3"
+  "readmeBlockSha256": "862df967d6a0ec36626027ac56c0cac41cbfb2d2eabe9eac0d14380278c0245f"
 }
