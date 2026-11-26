@@ -4797,6 +4797,43 @@
         },
         "name": "range-to-lower-boundary-outside-unknown",
         "status": "UNKNOWN"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/coredns/coredns",
+                "facts": [],
+                "version": "1.12.99"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/coredns/coredns",
+                "facts": [
+                  {
+                    "enumValue": "official",
+                    "id": "component.coredns.distribution",
+                    "state": "declared"
+                  },
+                  {
+                    "boolValue": true,
+                    "id": "component.coredns.federation_directive_present",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.14.8"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "range-from-lower-boundary-outside-unknown",
+        "status": "UNKNOWN"
       }
     ]
   },
@@ -6361,6 +6398,48 @@
           "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
         },
         "name": "range-to-lower-boundary-outside-unknown",
+        "status": "UNKNOWN"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/cortexproject/cortex",
+                "facts": [],
+                "version": "1.19.99"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/cortexproject/cortex",
+                "facts": [
+                  {
+                    "enumValue": "official_upstream",
+                    "id": "component.cortex.distribution",
+                    "state": "declared"
+                  },
+                  {
+                    "enumValue": "cortex",
+                    "id": "component.cortex.execution_surface",
+                    "state": "declared"
+                  },
+                  {
+                    "boolValue": true,
+                    "id": "component.cortex.removed_at_modifier_flag_present",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.21.2"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "range-from-lower-boundary-outside-unknown",
         "status": "UNKNOWN"
       }
     ],
@@ -11574,6 +11653,38 @@
           "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
         },
         "name": "range-to-lower-boundary-outside-unknown",
+        "status": "UNKNOWN"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.37.99"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [
+                  {
+                    "enumValue": "v2",
+                    "id": "component.envoy.xds_api_major",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.39.2"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "range-from-lower-boundary-outside-unknown",
         "status": "UNKNOWN"
       }
     ]
@@ -17374,6 +17485,48 @@
           "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
         },
         "name": "range-to-lower-boundary-outside-unknown",
+        "status": "UNKNOWN"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/jaegertracing/jaeger",
+                "facts": [],
+                "version": "2.18.99"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/jaegertracing/jaeger",
+                "facts": [
+                  {
+                    "boolValue": false,
+                    "id": "component.jaeger.explicit_config_provided",
+                    "state": "declared"
+                  },
+                  {
+                    "boolValue": true,
+                    "id": "component.jaeger.non_memory_storage_required",
+                    "state": "declared"
+                  },
+                  {
+                    "boolValue": true,
+                    "id": "component.jaeger.official_jaeger_distribution",
+                    "state": "declared"
+                  }
+                ],
+                "version": "2.20.1"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "range-from-lower-boundary-outside-unknown",
         "status": "UNKNOWN"
       }
     ],
@@ -31713,6 +31866,53 @@
           }
         },
         "status": "UNKNOWN"
+      },
+      {
+        "name": "range-from-lower-boundary-outside-unknown",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/linkerd/linkerd2",
+                "version": "2.12.99",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/linkerd/linkerd2",
+                "version": "2.14.1",
+                "facts": [
+                  {
+                    "id": "component.linkerd.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.linkerd.execution_surface",
+                    "state": "declared",
+                    "enumValue": "meshtls_authentication_crd"
+                  },
+                  {
+                    "id": "component.linkerd.mtls_identity_selector_empty",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.linkerd.schema_validation_required",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
       }
     ]
   },
@@ -34742,6 +34942,48 @@
         },
         "name": "range-to-lower-boundary-outside-unknown",
         "status": "UNKNOWN"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/open-policy-agent/opa",
+                "facts": [],
+                "version": "1.18.99"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/open-policy-agent/opa",
+                "facts": [
+                  {
+                    "boolValue": false,
+                    "id": "component.opa.modules_use_rego_v1_import",
+                    "state": "declared"
+                  },
+                  {
+                    "boolValue": false,
+                    "id": "component.opa.producer_v0_compatible",
+                    "state": "declared"
+                  },
+                  {
+                    "boolValue": true,
+                    "id": "component.opa.v0_consumers_remain",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.20.3"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "range-from-lower-boundary-outside-unknown",
+        "status": "UNKNOWN"
       }
     ],
     "project": "opa",
@@ -36292,6 +36534,64 @@
           }
         },
         "status": "UNKNOWN"
+      },
+      {
+        "name": "range-from-lower-boundary-outside-unknown",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/opencost/opencost",
+                "version": "1.118.99",
+                "facts": [
+                  {
+                    "id": "component.opencost.current_cloud_cost_enabled",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.opencost.current_provider_derived_source_selected",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.opencost.current_source_selection_complete",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/opencost/opencost",
+                "version": "1.120.1",
+                "facts": [
+                  {
+                    "id": "component.opencost.proposed_cloud_cost_enabled",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.opencost.proposed_source_selection_complete",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.opencost.target_cloud_integration_source_selected_and_declared_present",
+                    "state": "declared",
+                    "boolValue": false
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
       }
     ]
   },
@@ -36700,6 +37000,64 @@
           "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
         },
         "name": "range-to-lower-boundary-outside-unknown",
+        "status": "UNKNOWN"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/opencost/opencost",
+                "facts": [
+                  {
+                    "boolValue": true,
+                    "id": "component.opencost.current_cloud_cost_enabled",
+                    "state": "declared"
+                  },
+                  {
+                    "boolValue": true,
+                    "id": "component.opencost.current_provider_derived_source_selected",
+                    "state": "declared"
+                  },
+                  {
+                    "boolValue": true,
+                    "id": "component.opencost.current_source_selection_complete",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.119.99"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/opencost/opencost",
+                "facts": [
+                  {
+                    "boolValue": true,
+                    "id": "component.opencost.proposed_cloud_cost_enabled",
+                    "state": "declared"
+                  },
+                  {
+                    "boolValue": true,
+                    "id": "component.opencost.proposed_source_selection_complete",
+                    "state": "declared"
+                  },
+                  {
+                    "boolValue": false,
+                    "id": "component.opencost.target_cloud_integration_source_selected_and_declared_present",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.121.3"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "range-from-lower-boundary-outside-unknown",
         "status": "UNKNOWN"
       }
     ],
@@ -37577,6 +37935,68 @@
           }
         },
         "status": "UNKNOWN"
+      },
+      {
+        "name": "range-from-lower-boundary-outside-unknown",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/open-telemetry/opentelemetry-collector",
+                "version": "0.109.99",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/open-telemetry/opentelemetry-collector",
+                "version": "0.111.1",
+                "facts": [
+                  {
+                    "id": "component.opentelemetry.config_complete",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.opentelemetry.config_precedence_resolved",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.opentelemetry.distribution",
+                    "state": "declared",
+                    "enumValue": "official"
+                  },
+                  {
+                    "id": "component.opentelemetry.internal_metrics_localhost_remote_conflict",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.opentelemetry.internal_metrics_override_absent",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.opentelemetry.internal_metrics_remote_scrape_required",
+                    "state": "declared",
+                    "boolValue": true
+                  },
+                  {
+                    "id": "component.opentelemetry.telemetry_use_localhost_default_metrics_address_effective",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
       }
     ]
   },
@@ -37926,6 +38346,43 @@
               {
                 "component": "pkg:github/open-telemetry/opentelemetry-collector",
                 "version": "0.110.99",
+                "facts": [
+                  {
+                    "id": "component.opentelemetry.distribution",
+                    "state": "declared",
+                    "enumValue": "official"
+                  },
+                  {
+                    "id": "component.opentelemetry.logging_exporter_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "range-from-lower-boundary-outside-unknown",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/open-telemetry/opentelemetry-collector",
+                "version": "0.109.99",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/open-telemetry/opentelemetry-collector",
+                "version": "0.111.1",
                 "facts": [
                   {
                     "id": "component.opentelemetry.distribution",

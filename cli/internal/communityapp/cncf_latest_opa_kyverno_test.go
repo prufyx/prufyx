@@ -47,6 +47,11 @@ func TestLatestOPAExactOriginsGenericCLI(t *testing.T) {
 			{"conflict", "1.20.2", "conflict", "UNKNOWN", nil, ExitUnknown},
 			{"wrong-target", "1.20.3", "declared", "UNKNOWN", &falsity, ExitUnknown},
 		} {
+			// Control moved outside the reviewed OPA range (1.19-1.20) for the
+			// origin inside it: target 1.21.0.
+			if from == "1.19.1" && tc.name == "wrong-target" {
+				tc.to = "1.21.0"
+			}
 			t.Run(from+"/"+tc.name, func(t *testing.T) {
 				raw := latestOPAInput(t, from, tc.to, tc.state, tc.value)
 				path := writeCNCFFile(t, "opa-input.json", raw, 0o600)
@@ -56,6 +61,26 @@ func TestLatestOPAExactOriginsGenericCLI(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// The pair the wrong-target control used before the 1.19 to 1.20 line-wide
+// range: it is inside the range, so it is a decided range match.
+func TestLatestOPALineWideRangePairIsARangeMatch(t *testing.T) {
+	t.Parallel()
+	truth, falsity := true, false
+	for _, c := range []struct {
+		value  *bool
+		status string
+		want   int
+	}{{&truth, "PASS", ExitOK}, {&falsity, "BLOCKED", ExitBlocked}} {
+		raw := latestOPAInput(t, "1.19.1", "1.20.3", "declared", c.value)
+		path := writeCNCFFile(t, "opa-range.json", raw, 0o600)
+		code, output, stderr := runCNCFCLI(t, "check", "cncf", "--project", "opa", "--input", path, "--input-digest", cncfDigest(raw), "--now", "2026-09-12T09:34:00Z", "--format", "json")
+		if code != c.want || stderr != "" || !strings.Contains(output, `"assessment":"UNKNOWN"`) {
+			t.Fatalf("status=%s code=%d stderr=%q output=%s", c.status, code, stderr, output)
+		}
+		assertRangeClaim(t, output, "opa.v0-consumer-producer-option-at-1-20-2-from-1-19-1", c.status)
 	}
 }
 

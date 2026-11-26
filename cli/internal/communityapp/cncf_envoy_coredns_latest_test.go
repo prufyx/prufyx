@@ -39,12 +39,30 @@ func TestEnvoyLatestGenericInputAllExactOrigins(t *testing.T) {
 			})
 		}
 	}
-	for _, pair := range [][2]string{{"1.38.3", "1.39.1"}, {"1.38.4", "1.39.0"}} {
+	// Controls moved outside the reviewed Envoy range (1.38-1.39): an origin
+	// below it and a target past it.
+	for _, pair := range [][2]string{{"1.37.5", "1.39.1"}, {"1.38.4", "1.40.0"}} {
 		raw := input(pair[0], pair[1], "v2")
 		path := writeCNCFFile(t, "envoy-wrong-pair.json", raw, 0o600)
 		code, output, stderr := runCNCFCLI(t, "check", "cncf", "--project", "envoy", "--input", path, "--input-digest", cncfDigest(raw), "--now", "2026-09-12T09:01:00Z", "--format", "json")
 		if code != ExitUnknown || stderr != "" || !strings.Contains(output, "RULE_TRANSITION_NOT_REVIEWED") {
 			t.Fatalf("pair=%v code=%d stderr=%q output=%s", pair, code, stderr, output)
+		}
+	}
+	// The two pairs the wrong-pair control used before the 1.38 to 1.39
+	// line-wide range: both are inside it, so they are decided range matches.
+	for _, pair := range [][2]string{{"1.38.3", "1.39.1"}, {"1.38.4", "1.39.0"}} {
+		for _, c := range []struct {
+			major, status string
+			want          int
+		}{{"v2", "BLOCKED", ExitBlocked}, {"v3", "PASS", ExitOK}} {
+			raw := input(pair[0], pair[1], c.major)
+			path := writeCNCFFile(t, "envoy-range.json", raw, 0o600)
+			code, output, stderr := runCNCFCLI(t, "check", "cncf", "--project", "envoy", "--input", path, "--input-digest", cncfDigest(raw), "--now", "2026-09-12T09:01:00Z", "--format", "json")
+			if code != c.want || stderr != "" || !strings.Contains(output, `"assessment":"UNKNOWN"`) {
+				t.Fatalf("pair=%v code=%d stderr=%q output=%s", pair, code, stderr, output)
+			}
+			assertRangeClaim(t, output, "envoy.xds-v2-unsupported-at-1-39-1-from-1-38-4", c.status)
 		}
 	}
 }
@@ -86,12 +104,30 @@ func TestCoreDNSLatestGenericInputAllExactOrigins(t *testing.T) {
 			})
 		}
 	}
-	for _, pair := range [][2]string{{"1.13.1", "1.14.7"}, {"1.13.2", "1.14.6"}} {
+	// Controls moved outside the reviewed CoreDNS range (1.13-1.14): an origin
+	// below it and a target past it.
+	for _, pair := range [][2]string{{"1.12.3", "1.14.7"}, {"1.13.2", "1.15.0"}} {
 		raw := input(pair[0], pair[1], "official", "true")
 		path := writeCNCFFile(t, "coredns-wrong-pair.json", raw, 0o600)
 		code, output, stderr := runCNCFCLI(t, "check", "cncf", "--project", "coredns", "--input", path, "--input-digest", cncfDigest(raw), "--now", "2026-09-12T09:01:00Z", "--format", "json")
 		if code != ExitUnknown || stderr != "" || !strings.Contains(output, "RULE_TRANSITION_NOT_REVIEWED") {
 			t.Fatalf("pair=%v code=%d stderr=%q output=%s", pair, code, stderr, output)
+		}
+	}
+	// The two pairs the wrong-pair control used before the 1.13 to 1.14
+	// line-wide range: both are inside it, so they are decided range matches.
+	for _, pair := range [][2]string{{"1.13.1", "1.14.7"}, {"1.13.2", "1.14.6"}} {
+		for _, c := range []struct {
+			directive, status string
+			want              int
+		}{{"true", "BLOCKED", ExitBlocked}, {"false", "PASS", ExitOK}} {
+			raw := input(pair[0], pair[1], "official", c.directive)
+			path := writeCNCFFile(t, "coredns-range.json", raw, 0o600)
+			code, output, stderr := runCNCFCLI(t, "check", "cncf", "--project", "coredns", "--input", path, "--input-digest", cncfDigest(raw), "--now", "2026-09-12T09:01:00Z", "--format", "json")
+			if code != c.want || stderr != "" || !strings.Contains(output, `"assessment":"UNKNOWN"`) {
+				t.Fatalf("pair=%v code=%d stderr=%q output=%s", pair, code, stderr, output)
+			}
+			assertRangeClaim(t, output, "coredns.official-federation-absent-at-1-14-7-from-1-13-2", c.status)
 		}
 	}
 }
