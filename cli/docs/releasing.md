@@ -133,7 +133,13 @@ closed: any unreadable file, missing marker, unknown schema or unresolvable tag
 is a finding, every finding fails, and there is no warning mode. The exit code
 is the lowest failed class: 2 usage, 10 README block, 11 counts file, 12 notes,
 13 CHANGELOG, 14 site copy, 15 previous release, 16 prose numbers, 17 deny
-list, 18 labels, 19 tag binding.
+list, 18 labels, 19 tag binding, 20 base revision.
+
+`release-docs published --root .. --base <rev>` (a CI step on pull requests)
+guards published releases, which `check` skips: for every version tag, the
+generated block of its notes file and its CHANGELOG entry in `HEAD` must equal
+those in the base revision (not in the tag). It fails when no tag is visible,
+the clone is shallow or the base cannot be read.
 
 ```sh
 cd cli

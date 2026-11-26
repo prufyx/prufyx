@@ -125,6 +125,28 @@ jobs:
           fi
           go run ./cmd/prufyx-maintainer release-docs check --root .. --mode unreleased "${deny_args[@]}"
 
+      - name: Check published release notes are unchanged
+        # For every version tag, the generated block of its notes file and its
+        # CHANGELOG entry must equal the base branch. Fail closed: no base ref,
+        # a failed fetch of the base or the tags, or no visible tag fails the
+        # step. It runs before the baseline step below, whose shallow fetch
+        # makes the repository shallow. Pull requests only, as that step.
+        if: github.event_name == 'pull_request'
+        working-directory: cli
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BASE_REF}" ]; then
+            echo "::error::no base ref for this pull request, cannot compare the published release notes"
+            exit 1
+          fi
+          if ! git fetch --tags origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"; then
+            echo "::error::cannot fetch base ref ${BASE_REF} and the tags, cannot compare the published release notes"
+            exit 1
+          fi
+          go run ./cmd/prufyx-maintainer release-docs published --root .. --base "refs/remotes/origin/${BASE_REF}"
+
       - name: Check the coverage baseline is not lowered
         # The decided-pair and covered-project floors in
         # readme-baseline.json may not be lowered, and a project floor may not

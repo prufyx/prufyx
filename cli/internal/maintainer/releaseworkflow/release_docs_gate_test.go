@@ -172,6 +172,66 @@ func TestCIRunsTheReleaseDocsCheckWithoutAWayToSkipIt(t *testing.T) {
 	}
 }
 
+// The guard of published release text runs on every pull request, after the
+// full checkout and before the shallow fetch of the baseline step, and no
+// failure in it is swallowed.
+func TestCIRunsThePublishedNotesGuard(t *testing.T) {
+	const name = "Check published release notes are unchanged"
+	wf := loadWorkflow(t, "ci.yml")
+	at, baseline, found := -1, -1, 0
+	for job, def := range wf.Jobs {
+		for i, step := range def.Steps {
+			if step.Name != name {
+				continue
+			}
+			found++
+			if job != "lint-build" {
+				t.Errorf("the guard is in job %s, not lint-build", job)
+			}
+			at = i
+			if step.If != "github.event_name == 'pull_request'" || step.ContinueOnError != nil {
+				t.Errorf("the guard condition is %q, continue-on-error %v", step.If, step.ContinueOnError)
+			}
+			if step.Env["BASE_REF"] != "${{ github.base_ref }}" {
+				t.Errorf("BASE_REF is %q", step.Env["BASE_REF"])
+			}
+			for _, want := range []string{
+				"set -euo pipefail\n",
+				`if ! git fetch --tags origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"; then`,
+				"\ngo run ./cmd/prufyx-maintainer release-docs published --root .. --base \"refs/remotes/origin/${BASE_REF}\"\n",
+			} {
+				if !strings.Contains(step.Run, want) {
+					t.Errorf("the guard does not run %q", want)
+				}
+			}
+			for _, bad := range []string{"||", "set +e", "exit 0", "--depth", "--force", "--no-tags"} {
+				if strings.Contains(step.Run, bad) {
+					t.Errorf("the guard contains %q", bad)
+				}
+			}
+			if n := strings.Count(step.Run, "exit 1"); n != 2 {
+				t.Errorf("the guard has %d refusing exits, want 2", n)
+			}
+		}
+	}
+	if found != 1 {
+		t.Fatalf("ci.yml has %d %q steps", found, name)
+	}
+	for i, step := range wf.Jobs["lint-build"].Steps {
+		if strings.HasPrefix(step.Uses, "actions/checkout@") {
+			if step.With["fetch-depth"] != 0 {
+				t.Errorf("lint-build checks out with fetch-depth %v", step.With["fetch-depth"])
+			}
+		}
+		if step.Name == "Check the coverage baseline is not lowered" {
+			baseline = i
+		}
+	}
+	if baseline < 0 || at >= baseline {
+		t.Errorf("the guard (step %d) must run before the shallow baseline fetch (step %d)", at, baseline)
+	}
+}
+
 func workflowText(t *testing.T, file string) string {
 	t.Helper()
 	repo := repoRootForTest(t)

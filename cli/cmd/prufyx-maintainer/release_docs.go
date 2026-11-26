@@ -12,12 +12,15 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/releasedocs"
 )
 
-const releaseDocsUsage = "release-docs: usage: prufyx-maintainer release-docs check --root DIR --mode unreleased|release|cut [--tag TAG --previous TAG] [--site-counts FILE] [--deny-file FILE]"
+const releaseDocsUsage = "release-docs: usage: prufyx-maintainer release-docs check --root DIR --mode unreleased|release|cut [--tag TAG --previous TAG] [--site-counts FILE] [--deny-file FILE]\n       prufyx-maintainer release-docs published --root DIR --base REV"
 
 // runReleaseDocs is the release-docs gate: it fails (exit code of the lowest
 // failed class, see releasedocs.Code*) unless the generated coverage text and
 // the prose around it are consistent. It writes nothing.
 func runReleaseDocs(args []string, stdout io.Writer) error {
+	if len(args) > 0 && args[0] == "published" {
+		return runReleaseDocsPublished(args[1:], stdout)
+	}
 	if len(args) == 0 || args[0] != "check" {
 		return &commandError{code: 2, message: releaseDocsUsage}
 	}
@@ -40,6 +43,27 @@ func runReleaseDocs(args []string, stdout io.Writer) error {
 	if err != nil {
 		return &commandError{code: 2, message: "release-docs: " + err.Error(), err: err}
 	}
+	return reportReleaseDocs(res, *mode, stdout)
+}
+
+// runReleaseDocsPublished is the pull request guard: the text of a published
+// release may not differ from the base revision. It writes nothing.
+func runReleaseDocsPublished(args []string, stdout io.Writer) error {
+	flags := flag.NewFlagSet("release-docs published", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	root := flags.String("root", "", "repository root")
+	base := flags.String("base", "", "base revision of the pull request")
+	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {
+		return &commandError{code: 2, message: releaseDocsUsage, err: err}
+	}
+	res, err := releasedocs.Published(*root, *base)
+	if err != nil {
+		return &commandError{code: releasedocs.CodeUsage, message: "release-docs: " + err.Error() + "\n" + releaseDocsUsage, err: err}
+	}
+	return reportReleaseDocs(res, "published", stdout)
+}
+
+func reportReleaseDocs(res releasedocs.Result, what string, stdout io.Writer) error {
 	for _, n := range res.Notices {
 		fmt.Fprintln(stdout, n)
 	}
@@ -50,6 +74,6 @@ func runReleaseDocs(args []string, stdout io.Writer) error {
 		}
 		return &commandError{code: code, message: strings.TrimRight(b.String(), "\n")}
 	}
-	fmt.Fprintln(stdout, "release-docs: ok ("+*mode+")")
+	fmt.Fprintln(stdout, "release-docs: ok ("+what+")")
 	return nil
 }
