@@ -25,6 +25,7 @@
 /cli/internal/maintainer/releaseworkflow/release_docs_gate_test.go @airstand
 /scripts/release-dry-run.sh @airstand
 /cli/internal/maintainer/coveragereport/ @airstand
+/cli/internal/maintainer/releasenotes/ @airstand
 /cli/cmd/prufyx-maintainer/gate.go @airstand
 /cli/internal/strictjson/ @airstand
 /cli/internal/validation/ @airstand

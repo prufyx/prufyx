@@ -25,7 +25,7 @@ func (fakeGen) Blocks(string) ([]string, error) { return nil, nil }
 func (f fakeGen) Counts(string) ([]byte, error) { return f.counts, f.err }
 
 func regenOpts(e env, counts []byte) RegenOptions {
-	return RegenOptions{Root: e.root, Mode: ModeUnreleased, Generate: fakeGen{counts: counts}}
+	return RegenOptions{ReleaseBlocks: true, Root: e.root, Mode: ModeUnreleased, Generate: fakeGen{counts: counts}}
 }
 
 func curCounts(t *testing.T) []byte { return []byte(fixture(t, "counts-cur.json")) }
@@ -129,7 +129,7 @@ func TestRegenKeepsEverythingOutsideTheMarkers(t *testing.T) {
 func TestRegenRefusesWithoutAGitRepository(t *testing.T) {
 	dir := t.TempDir()
 	write(t, dir, "README.md", "x\n")
-	_, err := Regen(RegenOptions{Root: dir, Mode: ModeUnreleased, Generate: fakeGen{}})
+	_, err := Regen(RegenOptions{ReleaseBlocks: true, Root: dir, Mode: ModeUnreleased, Generate: fakeGen{}})
 	var re *RegenError
 	if !errors.As(err, &re) || re.Code != CodeTag {
 		t.Fatalf("got %v, want a typed tag error", err)
@@ -142,7 +142,7 @@ func TestRegenRefusesWithoutAGitRepository(t *testing.T) {
 func TestRegenRefusesASubdirectoryOfARepository(t *testing.T) {
 	e := build(t, rig{toCommit: "first"})
 	sub := filepath.Join(e.root, "cli")
-	_, err := Regen(RegenOptions{Root: sub, Mode: ModeUnreleased, Generate: fakeGen{counts: curCounts(t)}})
+	_, err := Regen(RegenOptions{ReleaseBlocks: true, Root: sub, Mode: ModeUnreleased, Generate: fakeGen{counts: curCounts(t)}})
 	var re *RegenError
 	if !errors.As(err, &re) || re.Code != CodeTag {
 		t.Fatalf("got %v", err)
@@ -242,7 +242,7 @@ func wantRefusedUnwritten(t *testing.T, root string, code int, contains string) 
 	notes := blank(readAll(t, root, notesRel()))
 	write(t, root, notesRel(), notes)
 	cl := readAll(t, root, "CHANGELOG.md")
-	_, err := Regen(RegenOptions{Root: root, Mode: ModeUnreleased, Generate: fakeGen{counts: curCounts(t)}})
+	_, err := Regen(RegenOptions{ReleaseBlocks: true, Root: root, Mode: ModeUnreleased, Generate: fakeGen{counts: curCounts(t)}})
 	var re *RegenError
 	if !errors.As(err, &re) || re.Code != code || !strings.Contains(re.Msg, contains) {
 		t.Fatalf("got %v, want code %d containing %q", err, code, contains)
@@ -347,7 +347,7 @@ func TestRegenRestoresAfterAGeneratorFailure(t *testing.T) {
 			for _, f := range []string{readmePath, knowledgegate.PreviewPath, releasenotes.CountsPath, notesRel(), "CHANGELOG.md"} {
 				before[f] = readAll(t, e.root, f)
 			}
-			_, err := Regen(RegenOptions{Root: e.root, Mode: ModeUnreleased, Generate: tc.gen})
+			_, err := Regen(RegenOptions{ReleaseBlocks: true, Root: e.root, Mode: ModeUnreleased, Generate: tc.gen})
 			var re *RegenError
 			if !errors.As(err, &re) || re.Code != tc.code || strings.Contains(err.Error(), "NOT restored") {
 				t.Fatalf("got %v", err)
@@ -378,7 +378,7 @@ func TestRegenReportsFilesItCannotRestore(t *testing.T) {
 		}
 		return nil, errors.New("boom")
 	}}
-	_, err := Regen(RegenOptions{Root: e.root, Mode: ModeUnreleased, Generate: gen})
+	_, err := Regen(RegenOptions{ReleaseBlocks: true, Root: e.root, Mode: ModeUnreleased, Generate: gen})
 	var re *RegenError
 	if !errors.As(err, &re) || re.Code != CodeCounts {
 		t.Fatalf("got %v", err)
@@ -535,7 +535,7 @@ func TestRegenWithTheTreeGeneratorThenCheck(t *testing.T) {
 	write(t, root, releasenotes.CountsPath, "{}\n")
 	chmod(t, root, readmePath, 0o600)
 
-	o := RegenOptions{Root: root, Mode: ModeUnreleased}
+	o := RegenOptions{ReleaseBlocks: true, Root: root, Mode: ModeUnreleased}
 	res := regenOK(t, o)
 	if len(res.Changed) != 5 {
 		t.Fatalf("changed %v, want README, preview, counts, notes and CHANGELOG", res.Changed)

@@ -72,9 +72,13 @@ func blockPaths() []string {
 
 // RegenOptions of one regeneration.
 type RegenOptions struct {
-	Root     string
-	Mode     string // only ModeUnreleased
-	Generate Generator
+	Root string
+	Mode string // only ModeUnreleased
+	// ReleaseBlocks also rewrites the generated blocks of the unpublished
+	// notes file and CHANGELOG entry; the release cut sets it. Without it no
+	// notes file and no CHANGELOG is written.
+	ReleaseBlocks bool
+	Generate      Generator
 }
 
 // RegenResult lists the files whose bytes changed, sorted.
@@ -93,22 +97,21 @@ type RegenError struct {
 
 func (e *RegenError) Error() string { return e.Msg }
 
-// Regen is the inverse of Check in unreleased mode: it writes what the check
-// compares. Order matters and is the one the check reads in: the README
-// block, the preview counts and the counts file first, then, for every notes
-// file whose tag is not published, the generated block of the notes file and
-// of the CHANGELOG entry, rendered by the check's own render. Only the
-// generated blocks (between the marker lines) and the counts file are
-// written; every other byte of every file is kept. It reads files and local
-// git objects only. When a step returns an error every file written so far is
-// restored; a restore failure is reported in the returned error. A killed
-// process restores nothing.
+// Regen writes what the check compares. By default that is what every change
+// must keep current: the README block, the preview counts and the counts file.
+// With ReleaseBlocks it then writes, for every notes file whose tag is not
+// published, the generated block of the notes file and of the CHANGELOG entry,
+// rendered by the check's own render. Only the generated blocks (between the
+// marker lines) and the counts file are written; every other byte of every
+// file is kept. It reads files and local git objects only. When a step returns
+// an error every file written so far is restored; a restore failure is
+// reported in the returned error. A killed process restores nothing.
 //
 // A notes file counts as unpublished when the local repository has no tag of
-// its name, so the tags must be fetched. Regen refuses a shallow clone, more
-// than one unpublished notes file, and an unpublished version that is not
-// higher than every local version tag. It cannot detect a checkout that lacks
-// only the newest tag while no later notes file exists.
+// its name, so the tags must be fetched. With ReleaseBlocks, Regen refuses a
+// shallow clone, more than one unpublished notes file, and an unpublished
+// version that is not higher than every local version tag. It cannot detect a
+// checkout that lacks only the newest tag while no later notes file exists.
 func Regen(o RegenOptions) (res RegenResult, err error) {
 	if o.Mode != ModeUnreleased {
 		return res, &UsageError{"--mode must be unreleased"}
@@ -150,7 +153,10 @@ func Regen(o RegenOptions) (res RegenResult, err error) {
 		}
 	}()
 
-	tags := c.unpublishedNotes()
+	var tags []string
+	if o.ReleaseBlocks {
+		tags = c.unpublishedNotes()
+	}
 	if len(c.res.Findings) > 0 {
 		return res, regenFailure(c.res.Findings)
 	}
@@ -195,7 +201,11 @@ func Regen(o RegenOptions) (res RegenResult, err error) {
 		return res, &RegenError{CodeCounts, werr.Error()}
 	}
 
-	// 2. Notes blocks and CHANGELOG entries.
+	// 2. Notes blocks and CHANGELOG entries, at the release cut only.
+	if !o.ReleaseBlocks {
+		res.Changed = w.changed()
+		return res, nil
+	}
 	changelogBytes, lerr := c.readRoot(changelogPath)
 	if lerr != nil {
 		return res, &RegenError{CodeChangelog, "CHANGELOG.md: " + lerr.Error()}

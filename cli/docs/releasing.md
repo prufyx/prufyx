@@ -26,10 +26,10 @@ attestation and the `SHA256SUMS` of a version must stay one-to-one.
    workflow, so the real boundary is a repository tag ruleset on `refs/tags/v*`
    (only the owner may create such tags).
 2. In the cut pull request, first run `release-docs regen --root .. --mode
-   unreleased` (see [Regenerating what the check
-   compares](#regenerating-what-the-check-compares)): data merges may have left
-   the generated blocks of the unreleased notes and CHANGELOG entry stale. Then
-   run `release-docs check --root .. --mode unreleased` **without**
+   unreleased --release-blocks` (see [Regenerating what the check
+   compares](#regenerating-what-the-check-compares)): data merges leave the
+   generated blocks of the unreleased notes and CHANGELOG entry stale. Then run
+   `release-docs check --root .. --mode unreleased` **without**
    `--blocks-base`, which requires every block to be current. Do not push a tag
    while another pull request that touches release notes or `CHANGELOG.md` is
    open for merge, and whoever merges one re-reads the tags of the canonical
@@ -110,11 +110,22 @@ attestation and the `SHA256SUMS` of a version must stay one-to-one.
    Create the environment before the first run. If it does not exist, GitHub
    creates the referenced environment automatically with no protection rules,
    and the approval gate does not exist.
-5. Create an annotated tag on that commit and push only the tag:
+5. Check out that commit with a clean tree. Before the tag exists, the strict
+   check must pass on it (it fails while any generated block is stale):
 
    ```sh
-   git fetch origin main
+   git fetch --tags origin main
+   git checkout --detach <full-40-character-commit>
+   (cd cli && go run ./cmd/prufyx-maintainer release-docs check --root .. --mode unreleased)
+   ```
+
+   Then create the annotated tag locally, run the `cut` check on it, and push
+   only the tag, and only when that check passed. If it fails, delete the local
+   tag, fix the tree in a pull request and start this step again.
+
+   ```sh
    git tag -a v0.0.1-alpha.1 <full-40-character-commit> -m "v0.0.1-alpha.1"
+   (cd cli && go run ./cmd/prufyx-maintainer release-docs check --root .. --mode cut --tag v0.0.1-alpha.1 --previous <prev> --deny-file <names> --site-counts <site copy>) &&
    git push origin v0.0.1-alpha.1
    ```
 
@@ -200,6 +211,9 @@ texts, inside the generated blocks too. The names of vendors and models are
 refused from the `--deny-file` list (one name per line, whole words,
 case-insensitive).
 
+The `[Unreleased]` entry of `CHANGELOG.md` is never regenerated, so in every
+mode its marker pair, when present, must be single and hold only white space.
+
 Every rendered block is also refused, in all modes and by `regen`, when it
 contains `<`, `](`, a control or invisible character other than a line break, or
 a line that starts a `## ` heading.
@@ -227,46 +241,58 @@ finding (exit 20 when no lower class fails). The README regions, the counts
 file, the headings, labels, previous release, markers, prose and deny list are
 checked as without the flag.
 
+Between a pull request and the cut, the text of an accepted stale block is not
+compared with the current data, and a new release's blocks are compared only
+when they are new or changed. The knowledge gate admits the counts file in an
+onboarding batch only as its regeneration, and does not admit the release notes
+or the CHANGELOG in a batch.
+
 CI takes the base from the event: the pull request base commit, the merge group
 base commit, the commit before a push, and the first parent of `HEAD` for the
 nightly and manual runs.
 
 Stale blocks cannot be released: the `release` and `cut` modes refuse
 `--blocks-base` and require every block to equal its regeneration, so a tag build
-fails until the cut pull request has run `regen`.
+fails until the cut pull request has run `regen --release-blocks`. Run the
+strict check before the tag push (step 5 of [Cutting a pre-release
+tag](#cutting-a-pre-release-tag)).
 
 ### Regenerating what the check compares
 
-`prufyx-maintainer release-docs regen --root <repo> --mode unreleased` is the
-inverse of `check --mode unreleased`: it writes every derived file the check
-compares, so a data change by a bot needs no hand commit.
+`prufyx-maintainer release-docs regen --root <repo> --mode unreleased` writes
+what every data change must keep current, so a change by a bot needs no hand
+commit. `--release-blocks`, for the release cut only, also writes the generated
+blocks of the release notes and the CHANGELOG.
 
 ```sh
 cd cli
 go run ./cmd/prufyx-maintainer release-docs regen --root .. --mode unreleased
+go run ./cmd/prufyx-maintainer release-docs regen --root .. --mode unreleased --release-blocks   # release cut
 ```
 
 It writes, in this order: the README generated regions and the preview rule
-counts (the generators of `coverage readme` and `coverage preview`),
+counts (the generators of `coverage readme` and `coverage preview`) and
 `cli/docs/generated/coverage-counts.json` (the file `coverage readme --json-out`
-writes), and then, for every `cli/docs/release-notes-<tag>.md` whose tag has no
-git tag yet, the block between the markers of that notes file and of the
-`## [<version>]` CHANGELOG entry (the output of `release-notes --omit-merged-prs`,
-at level 3 and level 4, rendered by the same code the check uses). The previous
-tag is the one the existing notes block names. The commit label in the block
-header is kept when it still names a commit in the history of `HEAD`, otherwise
-it becomes the short `HEAD` commit, so a second run changes nothing.
+writes). Without `--release-blocks` it stops there: no notes file and no
+CHANGELOG is written. With it, it then writes, for every
+`cli/docs/release-notes-<tag>.md` whose tag has no git tag yet, the block between
+the markers of that notes file and of the `## [<version>]` CHANGELOG entry (the
+output of `release-notes --omit-merged-prs`, at level 3 and level 4, rendered by
+the same code the check uses). The previous tag is the one the existing notes
+block names. The commit label in the block header is kept when it still names a
+commit in the history of `HEAD`, otherwise it becomes the short `HEAD` commit, so
+a second run changes nothing.
 
 Nothing else is written: text outside the markers is byte-identical, each
 rewritten file keeps its mode, and a link or special file (the file itself or a
 parent directory) is refused. The root must be the top level of a git work tree
-that has the previous tag (typed error, exit 19, otherwise); there is no network
-access.
+(with `--release-blocks`, one that has the previous tag); otherwise it stops with
+a typed error, exit 19. There is no network access.
 
-Fetch the tags before running it (`git fetch --tags`). A release counts as
+Fetch the tags before using `--release-blocks` (`git fetch --tags`). A release counts as
 unpublished when the local repository has no tag of its name, so published notes
 are protected only by the tags that are present. When a notes file has no local
-tag, `regen` refuses (exit 19) a shallow clone, more than one such notes file,
+tag, `regen --release-blocks` refuses (exit 19) a shallow clone, more than one such notes file,
 and a version that is not higher than every local version tag (so it cannot
 prepare a patch release of an older line). It cannot detect a checkout that
 lacks only the newest tag while no later notes file exists: there it rewrites
@@ -279,8 +305,8 @@ the message names the files that are not restored. A process that is killed
 restores nothing and may leave some files updated and a `.regen-*` temporary
 file.
 
-Run `check` afterwards. `regen` fixes only findings about generated content (the
-generated blocks and the counts file). Findings about anything else, such as
+Run `check` afterwards. `regen` fixes only findings about the generated content
+it writes. Findings about anything else, such as
 prose numbers, the deny list or hand-written labels, remain.
 
 Not written by `regen`, because they are inputs of the blocks above and must

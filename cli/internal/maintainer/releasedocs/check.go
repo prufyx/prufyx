@@ -3,9 +3,11 @@
 // Package releasedocs is the release-docs gate: it proves that the generated
 // coverage text of a tree (README block, counts file, release notes, CHANGELOG
 // entry) equals its regeneration and that the prose around it makes no number
-// or coverage claim the generator did not write. It reads files and git
-// objects only, writes nothing and fails closed: every problem is a finding,
-// and one finding fails the check. There is no warning mode.
+// or coverage claim the generator did not write. The one exception is the
+// unreleased mode with a blocks base, where a notes or CHANGELOG block may
+// instead be exactly the base commit's. The check reads files and git objects
+// only, writes nothing and fails closed: every problem is a finding, and one
+// finding fails the check. There is no warning mode.
 package releasedocs
 
 import (
@@ -325,6 +327,7 @@ func (c *checker) run() {
 		sections[strings.TrimPrefix(tag, "v")] = true
 	}
 	if err == nil {
+		c.checkUnreleasedEmpty(string(changelog))
 		scanned = append(scanned, c.changelogScans(string(changelog), sections)...)
 	}
 	readme, rerr := c.readRoot(readmePath)
@@ -335,6 +338,38 @@ func (c *checker) run() {
 	}
 	for _, s := range scanned {
 		c.scan(s)
+	}
+}
+
+// checkUnreleasedEmpty refuses text between marker lines in an [Unreleased]
+// entry. Nothing regenerates that block and the prose scan skips it, so it
+// must be empty: no marker at all, or one pair with only white space inside.
+func (c *checker) checkUnreleasedEmpty(doc string) {
+	locs := headingRe.FindAllStringSubmatchIndex(doc, -1)
+	for i, l := range locs {
+		if doc[l[2]:l[3]] != "Unreleased" {
+			continue
+		}
+		end := len(doc)
+		if i+1 < len(locs) {
+			end = locs[i+1][0]
+		}
+		section := doc[l[0]:end]
+		marked := false
+		for _, line := range strings.Split(section, "\n") {
+			if t := strings.TrimRight(line, " \r"); t == releasenotes.MarkerBegin || t == releasenotes.MarkerEnd {
+				marked = true
+			}
+		}
+		if !marked {
+			continue
+		}
+		block, err := blockOf(section)
+		if err != nil {
+			c.fail(CodeChangelog, "CHANGELOG.md [Unreleased]: %v", err)
+		} else if strings.TrimSpace(block) != "" {
+			c.fail(CodeChangelog, "CHANGELOG.md [Unreleased]: the generated block must be empty; its text is never compared with a regeneration")
+		}
 	}
 }
 

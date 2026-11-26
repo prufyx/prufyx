@@ -63,6 +63,9 @@ func defaultGatePaths() []string {
 		"cli/internal/maintainer/knowledgegate/",
 		"cli/internal/maintainer/mergepolicy/",
 		"cli/internal/maintainer/releasedocs/",
+		// The renderers behind the blocks and counts the gates compare.
+		"cli/internal/maintainer/releasenotes/",
+		"cli/internal/maintainer/coveragereport/",
 		"cli/internal/maintainer/verifyprworkflow/",
 		"cli/internal/maintainer/targetdraft/classify.go",
 		"cli/cmd/prufyx-maintainer/gate.go",

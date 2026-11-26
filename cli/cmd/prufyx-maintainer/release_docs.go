@@ -13,7 +13,7 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/maintainer/releasedocs"
 )
 
-const releaseDocsUsage = "release-docs: usage: prufyx-maintainer release-docs regen --root DIR --mode unreleased | release-docs check --root DIR --mode unreleased|release|cut [--tag TAG --previous TAG] [--site-counts FILE] [--deny-file FILE] [--blocks-base COMMIT (unreleased only)]"
+const releaseDocsUsage = "release-docs: usage: prufyx-maintainer release-docs regen --root DIR --mode unreleased [--release-blocks] | release-docs check --root DIR --mode unreleased|release|cut [--tag TAG --previous TAG] [--site-counts FILE] [--deny-file FILE] [--blocks-base COMMIT (unreleased only)]"
 
 // runReleaseDocs is the release-docs gate: it fails (exit code of the lowest
 // failed class, see releasedocs.Code*) unless the generated coverage text and
@@ -75,19 +75,20 @@ func runReleaseDocs(args []string, stdout io.Writer) error {
 	return nil
 }
 
-// runReleaseDocsRegen is the inverse of check in unreleased mode: it writes
-// the generated files the check compares (see releasedocs.Regen). It reads
-// files and local git objects only and writes only the generated blocks and
-// the counts file.
+// runReleaseDocsRegen writes the generated files the check compares (see
+// releasedocs.Regen): the README regions, the preview counts and the counts
+// file, and with --release-blocks also the generated blocks of the unreleased
+// notes file and CHANGELOG entry. It reads files and local git objects only.
 func runReleaseDocsRegen(args []string, stdout io.Writer) error {
 	flags := flag.NewFlagSet("release-docs regen", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	root := flags.String("root", "", "repository root (the top level of a git work tree with its tags)")
 	mode := flags.String("mode", "", "unreleased")
+	releaseBlocks := flags.Bool("release-blocks", false, "release cut only: also rewrite the unreleased notes and CHANGELOG blocks")
 	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {
 		return &commandError{code: 2, message: releaseDocsUsage, err: err}
 	}
-	res, err := releasedocs.Regen(releasedocs.RegenOptions{Root: *root, Mode: *mode})
+	res, err := releasedocs.Regen(releasedocs.RegenOptions{Root: *root, Mode: *mode, ReleaseBlocks: *releaseBlocks})
 	var usage *releasedocs.UsageError
 	if errors.As(err, &usage) {
 		return &commandError{code: releasedocs.CodeUsage, message: "release-docs: " + usage.Msg + "\n" + releaseDocsUsage}
@@ -102,7 +103,11 @@ func runReleaseDocsRegen(args []string, stdout io.Writer) error {
 	for _, p := range res.Changed {
 		fmt.Fprintf(stdout, "updated %s\n", p)
 	}
-	fmt.Fprintln(stdout, "release-docs: regenerated (unreleased)")
+	if *releaseBlocks {
+		fmt.Fprintln(stdout, "release-docs: regenerated (unreleased, with the release notes and CHANGELOG blocks)")
+	} else {
+		fmt.Fprintln(stdout, "release-docs: regenerated (unreleased; release notes and CHANGELOG not written, see --release-blocks)")
+	}
 	return nil
 }
 

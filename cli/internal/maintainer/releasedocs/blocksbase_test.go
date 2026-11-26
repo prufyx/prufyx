@@ -249,13 +249,6 @@ func TestABaseWithoutAUsableBlockGivesNoAllowance(t *testing.T) {
 	for name, breakBase := range map[string]func(string) string{
 		"no markers":  stripMarkers,
 		"two markers": func(s string) string { return s + releasenotes.MarkerBegin + "\n" },
-		"empty block": func(s string) string {
-			u, err := releasenotes.ReplaceBlock(s, "")
-			if err != nil {
-				panic(err)
-			}
-			return u
-		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			e := build(t, rig{})
@@ -271,6 +264,25 @@ func TestABaseWithoutAUsableBlockGivesNoAllowance(t *testing.T) {
 			wantFail(t, res, CodeChangelog, "differs from its regeneration")
 		})
 	}
+	t.Run("empty block", func(t *testing.T) {
+		e := build(t, rig{})
+		editSectionBlock(t, e.root, func(s string) string {
+			u, err := releasenotes.ReplaceBlock(s, "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			return u
+		})
+		base := commitAll(t, e.root, "empty entry block")
+		moveData(t, e.root)
+		commitAll(t, e.root, "data")
+		// Neither block may be taken from such a base.
+		res := check(t, e.withBase(base))
+		wantBothStale(t, res)
+		if stale(res) != 0 {
+			t.Fatalf("accepted from a base with an empty block: %+v", res)
+		}
+	})
 }
 
 func TestAnExecutableOrLinkedBaseFileIsRefused(t *testing.T) {
@@ -383,7 +395,7 @@ func TestHostileDataStringsAreRefusedByCheckAndRegen(t *testing.T) {
 			wantFail(t, check(t, e.opts(ModeUnreleased)), CodeNotes, "rendered block is refused")
 			wantFail(t, check(t, e.withBase(base)), CodeNotes, "rendered block is refused")
 			before := read(t, e.root, notesFile)
-			if _, err := Regen(RegenOptions{Root: e.root, Mode: ModeUnreleased, Generate: keepGen{}}); err == nil || !strings.Contains(err.Error(), "rendered block is refused") {
+			if _, err := Regen(RegenOptions{Root: e.root, Mode: ModeUnreleased, ReleaseBlocks: true, Generate: keepGen{}}); err == nil || !strings.Contains(err.Error(), "rendered block is refused") {
 				t.Fatalf("regen: %v", err)
 			}
 			if read(t, e.root, notesFile) != before {

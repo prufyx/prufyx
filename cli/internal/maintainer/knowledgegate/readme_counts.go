@@ -9,7 +9,12 @@ import "github.com/prufyx/prufyx/cli/internal/maintainer/coveragereport"
 // coverage block, all from the same data and clock the README block is
 // rendered from.
 func ReadmeCounts(root string) ([]byte, error) {
-	report, inventory, now, err := coverageReportOf(Tree{Root: root}, DefaultLayout().Onboarding.TablePath)
+	return countsOfTree(Tree{Root: root}, DefaultLayout().Onboarding.TablePath)
+}
+
+// countsOfTree is ReadmeCounts of a tree with its table at tablePath.
+func countsOfTree(t Tree, tablePath string) ([]byte, error) {
+	report, inventory, now, err := coverageReportOf(t, tablePath)
 	if err != nil {
 		return nil, err
 	}
