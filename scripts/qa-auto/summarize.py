@@ -197,7 +197,8 @@ if oracle_changed:
 oracle_rise = a.mode == "full" and oracle_changed and kept_design is not None and design > kept_design + max(5, -(-kept_design // 5))
 # growth beyond +20% (at least +5) of the last accepted full-run count, or past the hard cap, is a scanner regression until proven otherwise
 cap_breach = design > DESIGN_HARD_CAP or (a.mode == "full" and prev_design is not None and design > prev_design + max(5, -(-prev_design // 5)))
-unowned_cap_breach = unowned_n > UNOWNED_HARD_CAP or (a.mode == "full" and prev_unowned is not None and unowned_n > prev_unowned + max(5, -(-prev_unowned // 5)))
+# kept_unowned, not prev_unowned: a changed oracle resets the annotations, never the rise threshold over the kept baseline
+unowned_cap_breach = unowned_n > UNOWNED_HARD_CAP or (a.mode == "full" and kept_unowned is not None and unowned_n > kept_unowned + max(5, -(-kept_unowned // 5)))
 unowned_drop = a.mode == "full" and not seed_failed and prev_unowned is not None and prev_unowned > 0 and (unowned_n == 0 or (prev_unowned >= 10 and unowned_n * 2 < prev_unowned))
 unowned_rise = a.mode == "full" and prev_unowned is not None and unowned_n > prev_unowned
 design_rise = a.mode == "full" and prev_design is not None and design > prev_design
