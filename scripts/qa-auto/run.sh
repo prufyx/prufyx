@@ -192,8 +192,9 @@ PY
   bad=$(QA_GATE_REPOS=${QA_GATE_REPOS:-} python3 -I "$HERE/target_repos.py" --src "$RUN/src" --base "$base_sha" --changed "$RUN/changed")
   trc=$?
   if [ "$trc" = 4 ]; then
-    if base_maintainer; then
-      bad=$(QA_GATE_REPOS=${QA_GATE_REPOS:-} python3 -I "$HERE/target_repos.py" --src "$RUN/src" --base "$base_sha" --changed "$RUN/changed" \
+    # QA_TMP: the files handed to the sandboxed maintainer must be under QA_BOX_DIR, the only directory the sandbox mounts
+    if base_maintainer && mkdir -p "$RUN/tmp"; then
+      bad=$(QA_TMP="$RUN/tmp" QA_GATE_REPOS=${QA_GATE_REPOS:-} python3 -I "$HERE/target_repos.py" --src "$RUN/src" --base "$base_sha" --changed "$RUN/changed" \
         --maintainer "$RUN/bin/maintainer" --runner "${QA_RUNBOX:-}" --now "$(date -u +%Y-%m-%dT%H:%M:%SZ)")
       trc=$?
     else
