@@ -77,6 +77,10 @@ func defaultGatePaths() []string {
 		"cli/cmd/prufyx-maintainer/subprojects.go",
 		"cli/internal/maintainer/knowledgepacket/classify.go",
 		"cli/internal/maintainer/knowledgepacket/classify_overlay_test.go",
+		// The maintainer command: it dispatches the gate and the release
+		// checks, so any file of it, present or added later, can change what
+		// they run.
+		"cli/cmd/prufyx-maintainer/",
 	}
 }
 

@@ -94,6 +94,39 @@ func TestGatePathsDefaultList(t *testing.T) {
 	}
 }
 
+// Every file of the maintainer command is a gate file, an added one too, and
+// the directory has an owner line.
+func TestGatePathsMaintainerCommandDir(t *testing.T) {
+	t.Parallel()
+	l := DefaultLayout()
+	for _, p := range []string{
+		"cli/cmd/prufyx-maintainer/main.go", "cli/cmd/prufyx-maintainer/release_notes.go",
+		"cli/cmd/prufyx-maintainer/added_later.go", "cli/cmd/prufyx-maintainer/sub/dir/a.go",
+	} {
+		if !l.gatePath(p) {
+			t.Errorf("%s is not a gate path", p)
+		}
+		t.Run(p, func(t *testing.T) {
+			f := newGatePathFixture(t, p)
+			requireGatePathFail(t, f.run(t, "pr-42"))
+			f.sign(t, "pr-42")
+			requirePass(t, f.run(t, "pr-42"))
+		})
+	}
+	for _, p := range []string{"cli/cmd/prufyx-maintainer-x/main.go", "cli/cmd/prufyx-maintainer.go", "cli/cmd/prufyx-community/main.go"} {
+		if l.gatePath(p) {
+			t.Errorf("%s is a gate path", p)
+		}
+	}
+	raw, err := os.ReadFile(filepath.Join(repoRoot, ".github", "CODEOWNERS"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "\n/cli/cmd/prufyx-maintainer/ @airstand\n") {
+		t.Error("CODEOWNERS has no owner line for the maintainer command directory")
+	}
+}
+
 // A change that touches no gate file is not affected.
 func TestGatePathsUntouchedPasses(t *testing.T) {
 	t.Parallel()

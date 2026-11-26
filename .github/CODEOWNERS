@@ -75,6 +75,7 @@
 # class by design; pure regeneration PRs do not touch recipes.
 /cli/internal/maintainer/targetdraft/ @airstand
 /cli/cmd/prufyx-maintainer/main.go @airstand
+/cli/cmd/prufyx-maintainer/ @airstand
 /cli/knowledge/target-recipes/ @airstand
 
 # Workflows, repository settings and this file.
