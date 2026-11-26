@@ -129,6 +129,17 @@ trap 'exit 143' TERM INT
 log() { echo "qa-auto: $*" >&2; }
 t0=$(date +%s)
 
+# the maintainer tool compiled from the BASE tree (never from the head, which a mixed diff could have altered), run in the sandbox
+# (-s -w: the unstripped link exceeds the sandbox 256 MB /tmp). Built once per run into $RUN/bin/maintainer; false when it cannot be.
+base_maintainer() {
+  [ -f "$RUN/bin/maintainer" ] && return 0
+  mkdir -p "$RUN/basesrc"
+  git -C "$RUN/src" archive "$base_sha" cli 2>"$RUN/archive-base.log" | tar -x -C "$RUN/basesrc" 2>>"$RUN/archive-base.log" \
+    && [ -d "$RUN/basesrc/cli" ] \
+    && "$QA_DEVBOX" -w "$RUN/basesrc/cli" sh -c 'GOFLAGS=-mod=vendor go build -ldflags="-s -w" -o "$1/bin/maintainer" ./cmd/prufyx-maintainer' _ "$RUN" </dev/null >"$RUN/build-maintainer.log" 2>&1 9>&- \
+    && [ -f "$RUN/bin/maintainer" ]
+}
+
 # 1. source at sha (+ last green for the diff)
 git init -q "$RUN/src" && cd "$RUN/src" || exit 1
 git fetch -q --depth 1 "$QA_REPO_URL" "$sha:refs/qa-batch/head" && git checkout -q --detach refs/qa-batch/head \
@@ -175,49 +186,21 @@ sys.exit(1 if bad else 0)
 PY
   ) || { log "code change in bot batch (not data-only): $bad"; exit 3; }
   # a target-*.json decides which upstream repo the oracle clones: its repo must not change, and a new target may only name a
-  # repo already known at the base (another target's repo) or listed in QA_GATE_REPOS (comma list owner/name, added after review)
-  bad=$(QA_GATE_REPOS=${QA_GATE_REPOS:-} python3 -I - "$RUN/src" "$base_sha" "$RUN/changed" <<'PY'
-import json, os, re, subprocess, sys
-src, base, changed = sys.argv[1:]
-TD = "cli/internal/extract/crdversions/"
-def show(rev, path):
-    r = subprocess.run(["git", "-C", src, "show", f"{rev}:{path}"], capture_output=True, text=True)
-    return None if r.returncode else r.stdout
-def repo_of(txt):
-    r = json.loads(txt)["target"]["repo"]
-    r = r[len("github.com/"):] if r.startswith("github.com/") else r
-    if not re.fullmatch(r"[A-Za-z0-9_][\w.-]*/[A-Za-z0-9_][\w.-]*", r, re.A):
-        raise ValueError("bad repo")
-    return r
-try:
-    known = {x.strip() for x in os.environ.get("QA_GATE_REPOS", "").split(",") if x.strip()}
-    ls = subprocess.run(["git", "-C", src, "ls-tree", "-r", "--name-only", base, TD], capture_output=True, text=True, check=True).stdout.split()
-    for f in ls:
-        if re.fullmatch(re.escape(TD) + r"target-[\w.-]+\.json", f, re.A):
-            t = show(base, f)
-            if t:
-                try: known.add(repo_of(t))
-                except Exception: raise ValueError("base target unreadable")
-    bad = []
-    for p in open(changed).read().split("\n"):
-        if re.fullmatch(re.escape(TD) + r"target-[\w.-]+\.json", p, re.A):
-            head = show("HEAD", p)
-            if head is None:
-                continue  # deleted
-            hr = repo_of(head)
-            old = show(base, p)
-            if old is not None:
-                if repo_of(old) != hr:
-                    bad.append(f"{p}: repo changed")
-            elif hr not in known:
-                bad.append(f"{p}: new repo {hr} not known")
-    print(" ".join(bad[:10]))
-    sys.exit(1 if bad else 0)
-except Exception as e:
-    print(f"target check failed: {type(e).__name__}")
-    sys.exit(1)
-PY
-  ) || { log "code change in bot batch (target repo not trusted): $bad"; exit 3; }
+  # repo already known at the base (another target's repo), listed in QA_GATE_REPOS (comma list owner/name, added after review)
+  # or committed by a signed onboarding batch the head adds (target_repos.py: the signature is verified by the maintainer tool
+  # compiled from the BASE tree, and the batch must list the new target's bytes). Anything else is refused (exit 3).
+  bad=$(QA_GATE_REPOS=${QA_GATE_REPOS:-} python3 -I "$HERE/target_repos.py" --src "$RUN/src" --base "$base_sha" --changed "$RUN/changed")
+  trc=$?
+  if [ "$trc" = 4 ]; then
+    if base_maintainer; then
+      bad=$(QA_GATE_REPOS=${QA_GATE_REPOS:-} python3 -I "$HERE/target_repos.py" --src "$RUN/src" --base "$base_sha" --changed "$RUN/changed" \
+        --maintainer "$RUN/bin/maintainer" --runner "${QA_RUNBOX:-}" --now "$(date -u +%Y-%m-%dT%H:%M:%SZ)")
+      trc=$?
+    else
+      bad="new target repo not known and the base maintainer could not be prepared"; trc=1
+    fi
+  fi
+  [ "$trc" = 0 ] || { log "code change in bot batch (target repo not trusted): $bad"; exit 3; }
   [ -n "${QA_RUNBOX:-}" ] || { log "gate mode needs QA_RUNBOX (sandbox for head-built binaries): refusing"; exit 3; }
 elif [ -n "$lg" ] && git fetch -q --depth 1 "$QA_REPO_URL" "$lg" 2>/dev/null; then
   git diff --name-only FETCH_HEAD "$sha" >"$RUN/changed" 2>/dev/null || lg=""
@@ -451,11 +434,7 @@ if [ "$GATE" = 1 ]; then
   if [ "$rn" != 0 ]; then
     log "renewal check"
     rm -f "$OUT/renewal.cases.json"
-    mkdir -p "$RUN/basesrc"
-    if git -C "$RUN/src" archive "$base_sha" cli 2>"$RUN/archive-base.log" | tar -x -C "$RUN/basesrc" 2>>"$RUN/archive-base.log" \
-        && [ -d "$RUN/basesrc/cli" ] \
-        && "$QA_DEVBOX" -w "$RUN/basesrc/cli" sh -c 'GOFLAGS=-mod=vendor go build -ldflags="-s -w" -o "$1/bin/maintainer" ./cmd/prufyx-maintainer' _ "$RUN" </dev/null >"$RUN/build-maintainer.log" 2>&1 9>&- \
-        && [ -f "$HERE/renewal_check.py" ]; then
+    if base_maintainer && [ -f "$HERE/renewal_check.py" ]; then
       python3 -I "$HERE/renewal_check.py" --src "$RUN/src" --base "$base_sha" --head "$sha" --maintainer "$RUN/bin/maintainer" \
         --runner "${QA_RUNBOX:-}" --now "$QA_NOW" --out "$OUT/renewal.cases.json" >"$OUT/renewal.log" 2>&1 9>&- || log "renewal check crashed"
     else
