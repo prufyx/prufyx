@@ -268,7 +268,7 @@ func TestOnboardingRefusals(t *testing.T) {
 
 		// O6: the gate's own dry run.
 		{"O6 offline fixture source", signed(nil), func(o *Options) { o.Source = o.Source.(*obSource).FixtureReader }, "no upstream source that counts its requests"},
-		{"O6 over the REST budget", signed(func(t *testing.T, f *onboardingFixture, _ OnboardingRecord) { f.src.perList = OnboardingRESTBudget }), nil, "budget"},
+		{"O6 over the REST budget", signed(func(t *testing.T, f *onboardingFixture, _ OnboardingRecord) { f.src.perList = OnboardingRESTBudget }), nil, "ran out, used up: GitHub REST requests (used "},
 		{"O6 a scan finding the proposal did not see", signed(func(t *testing.T, f *onboardingFixture, _ OnboardingRecord) {
 			writeUpstream(t, f.upstream, obTo, "hack/stray-crd.yaml", obCRDDoc("stray.synthetic.example.io", "v1"))
 		}), nil, "the scan finds"},
