@@ -147,7 +147,7 @@ func chainHop(evaluate func([]byte) (Report, error), project string, inputRaw []
 func decidedClaims(report Report) int {
 	decided := 0
 	for _, claim := range report.Check.Claims {
-		if !claim.IsVerdictNeutral() && claim.ReasonCode != reasonTransitionNotReviewed {
+		if !claim.IsVerdictNeutral() && !claim.IsBoundaryCovered() && claim.ReasonCode != reasonTransitionNotReviewed {
 			decided++
 		}
 	}

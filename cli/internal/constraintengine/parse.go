@@ -143,7 +143,7 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 	if err := decodeStrict(raw, &document); err != nil {
 		return RuleSet{}, err
 	}
-	if (document.Schema != RulesSchema && document.Schema != RulesSchemaRanged && document.Schema != RulesSchemaSet && document.Schema != RulesSchemaNotice && document.Schema != RulesSchemaBasis && document.Schema != RulesSchemaSeverity && document.Schema != RulesSchemaCrossing && document.Schema != RulesSchemaChart && document.Schema != RulesSchemaChartNotice && document.Schema != RulesSchemaChartRanged) || !idRE.MatchString(document.Revision) || !idRE.MatchString(document.PolicyID) || !digestRE.MatchString(document.PolicyDigest) || len(document.Rules) > maxRules {
+	if (document.Schema != RulesSchema && document.Schema != RulesSchemaRanged && document.Schema != RulesSchemaSet && document.Schema != RulesSchemaNotice && document.Schema != RulesSchemaBasis && document.Schema != RulesSchemaSeverity && document.Schema != RulesSchemaCrossing && document.Schema != RulesSchemaChart && document.Schema != RulesSchemaChartNotice && document.Schema != RulesSchemaChartRanged && document.Schema != RulesSchemaBoundaryCovered) || !idRE.MatchString(document.Revision) || !idRE.MatchString(document.PolicyID) || !digestRE.MatchString(document.PolicyDigest) || len(document.Rules) > maxRules {
 		return RuleSet{}, fmt.Errorf("ruleset identity: %w", ErrInvalid)
 	}
 	ranged, setOperator, notice, basis, severity, crossing, chart, chartNotice, chartRanged := false, false, false, false, false, false, false, false, false
@@ -175,7 +175,10 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 	// schema (which also admits ranges); otherwise an exact-only schema never
 	// admits a range, and the ranged schema is never used without one. Every
 	// document has exactly one schema and one engine contract.
-	if document.Schema != requiredRulesSchema(ranged, setOperator, notice, basis, severity, crossing, chart, chartNotice, chartRanged) {
+	// The boundary-covered schema is chosen by the document alone and also
+	// admits every lower feature; it is meaningless without a range.
+	covered := document.Schema == RulesSchemaBoundaryCovered
+	if covered && !ranged || !covered && document.Schema != requiredRulesSchema(ranged, setOperator, notice, basis, severity, crossing, chart, chartNotice, chartRanged) {
 		return RuleSet{}, fmt.Errorf("ruleset schema does not match range, set, notice operator, basis, severity, crossing, chart, set notice or chart range use: %w", ErrInvalid)
 	}
 	if ranged || crossing {
@@ -191,7 +194,7 @@ func ParseRuleSet(raw []byte, registry Registry) (RuleSet, error) {
 	if err := validateCorpus(document); err != nil {
 		return RuleSet{}, err
 	}
-	return RuleSet{document: document, digest: digestJSON(document), registryDigest: registry.Digest(), ranged: ranged, setOperator: setOperator, notice: notice, basis: basis, severity: severity, crossing: crossing, chart: chart, chartNotice: chartNotice, chartRanged: chartRanged, seal: &ruleSetSeal{}}, nil
+	return RuleSet{document: document, digest: digestJSON(document), registryDigest: registry.Digest(), ranged: ranged, setOperator: setOperator, notice: notice, basis: basis, severity: severity, crossing: crossing, chart: chart, chartNotice: chartNotice, chartRanged: chartRanged, boundaryCovered: covered, seal: &ruleSetSeal{}}, nil
 }
 
 // validateCorpus admits a completeness attestation only when the document can

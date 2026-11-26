@@ -34,6 +34,9 @@ func Evaluate(input Input, rules RuleSet, now time.Time) (Report, error) {
 	for index, rule := range rules.document.Rules {
 		claims[index] = evaluateRule(input.document, rule, now)
 	}
+	if rules.boundaryCovered {
+		coverBoundaryClaims(input.document, rules.document.Rules, claims)
+	}
 	inputDigest, _ := input.Digest()
 	ruleDigest, _ := rules.Digest()
 	scope, assessment := buildScopeCompleteness(input.document, rules.document, claims, rules.engineDigest())
@@ -407,7 +410,7 @@ func issueReport(report Report) Report {
 // independently re-derive that same assessment. No block, no verdict —
 // however many claims passed. See legalAssessment.
 func MarshalReport(report Report) ([]byte, error) {
-	if report.seal == nil || report.Schema != ReportSchema || !legalAssessment(report) || report.InputAuthority != InputAuthority || report.RulesAuthority != RulesAuthority || scopeDigestFor(report.EngineContractDigest) == "" || !validClaimMatches(report) || !validSetClaims(report) || !validNoticeClaims(report) || !validBasisClaims(report) || !validSeverityClaims(report) || !validCrossingClaims(report) || !validReleaseBoundaryClaims(report) || !validChartClaims(report) || !validNoticeSetClaims(report) || !digestRE.MatchString(report.InputDigest) || !digestRE.MatchString(report.RuleSetDigest) || !digestRE.MatchString(report.PolicyDigest) || !digestRE.MatchString(report.RegistryDigest) || !validClaims(report.Claims) || !sameOmissions(report.Omissions, requiredOmissions(report.Assessment)) {
+	if report.seal == nil || report.Schema != ReportSchema || !legalAssessment(report) || report.InputAuthority != InputAuthority || report.RulesAuthority != RulesAuthority || scopeDigestFor(report.EngineContractDigest) == "" || !validClaimMatches(report) || !validSetClaims(report) || !validNoticeClaims(report) || !validBasisClaims(report) || !validSeverityClaims(report) || !validCrossingClaims(report) || !validReleaseBoundaryClaims(report) || !validCoveredClaims(report) || !validChartClaims(report) || !validNoticeSetClaims(report) || !digestRE.MatchString(report.InputDigest) || !digestRE.MatchString(report.RuleSetDigest) || !digestRE.MatchString(report.PolicyDigest) || !digestRE.MatchString(report.RegistryDigest) || !validClaims(report.Claims) || !sameOmissions(report.Omissions, requiredOmissions(report.Assessment)) {
 		return nil, ErrIntegrity
 	}
 	raw, err := json.Marshal(report)

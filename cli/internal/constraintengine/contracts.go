@@ -481,7 +481,9 @@ type RuleSet struct {
 	chart          bool
 	chartNotice    bool
 	chartRanged    bool
-	seal           *ruleSetSeal
+	// boundaryCovered is set by the schema alone (boundary_cover.go).
+	boundaryCovered bool
+	seal            *ruleSetSeal
 }
 type ruleSetSeal struct{}
 
@@ -533,6 +535,10 @@ type Claim struct {
 	// other claim omits it and serializes exactly as before the operator
 	// existed.
 	MissingMembers []string `json:"missingMembers,omitempty"`
+	// CoveringRuleID names the exact rule that answered a boundary question
+	// (boundary_cover.go). It is present only under the boundary-covered
+	// contract, so every other claim serializes exactly as before.
+	CoveringRuleID string `json:"coveringRuleId,omitempty"`
 }
 
 // SubjectMatch discloses a range match: the reviewed anchor pair and the
@@ -647,6 +653,9 @@ func EngineContractDigest() string { return engineContractDigest() }
 func EngineContractDigestRanged() string { return engineContractDigestRanged() }
 
 func (r RuleSet) engineDigest() string {
+	if r.boundaryCovered {
+		return engineContractDigestBoundaryCovered()
+	}
 	if r.chartRanged {
 		return engineContractDigestChartRanged()
 	}
@@ -720,6 +729,8 @@ func scopeDigestFor(engineDigest string) string {
 		return scopeContractDigestChartNotice()
 	case engineContractDigestChartRanged():
 		return scopeContractDigestChartRanged()
+	case engineContractDigestBoundaryCovered():
+		return scopeContractDigestBoundaryCovered()
 	}
 	return ""
 }

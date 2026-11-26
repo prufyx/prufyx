@@ -16,6 +16,9 @@ var exclusionReasons = map[string]struct{}{
 	// Only under the chart contract (validScopeCharts): the input declares
 	// no chart, or another chart, for the rule's component.
 	ReasonSubjectChartNotDeclared: {},
+	// Only under the boundary-covered contract, and only on a claim that
+	// carries a valid covering rule (validScopeBlock, validCoveredClaims).
+	ReasonBoundaryCoveredByExact: {},
 }
 
 // ruleApplicability decides, structurally, whether a reviewed rule belongs to
@@ -106,6 +109,9 @@ func buildScopeCompleteness(input inputDocument, rules ruleDocument, claims []Cl
 			continue
 		}
 		state, reason := ruleApplicability(input, declared, candidate)
+		if state == ApplicabilityUndetermined && reason == ReasonReleaseBoundaryNotReviewed && claims[position].ReasonCode == ReasonBoundaryCoveredByExact && engineDigest == engineContractDigestBoundaryCovered() {
+			state, reason = ApplicabilityNotApplicable, ReasonBoundaryCoveredByExact
+		}
 		if state == applicabilityOutOfScope {
 			outOfScope++
 			continue
@@ -293,7 +299,7 @@ func validScopeBlock(scope *ScopeCompleteness, claims []Claim, engineDigest stri
 	if !validScopeCharts(scope) {
 		return false
 	}
-	severityScope := scope.ContractDigest == scopeContractDigestSeverity() || scope.ContractDigest == scopeContractDigestCrossing() || scope.ContractDigest == scopeContractDigestChart() || scope.ContractDigest == scopeContractDigestChartNotice() || scope.ContractDigest == scopeContractDigestChartRanged()
+	severityScope := scope.ContractDigest == scopeContractDigestSeverity() || scope.ContractDigest == scopeContractDigestCrossing() || scope.ContractDigest == scopeContractDigestChart() || scope.ContractDigest == scopeContractDigestChartNotice() || scope.ContractDigest == scopeContractDigestChartRanged() || scope.ContractDigest == scopeContractDigestBoundaryCovered()
 	basisScope := scope.ContractDigest == scopeContractDigestBasis() || severityScope
 	statuses, reasons := make(map[string]string, len(claims)), make(map[string]string, len(claims))
 	for _, claim := range claims {
@@ -338,6 +344,9 @@ func validScopeBlock(scope *ScopeCompleteness, claims []Claim, engineDigest stri
 			// excludes the rule on declared evidence. Without this, relabelling
 			// an unresolved rule as not applicable would make the gate's own
 			// recomputation agree with the forgery.
+			if skipped.ReasonCode == ReasonBoundaryCoveredByExact && (scope.ContractDigest != scopeContractDigestBoundaryCovered() || reasons[skipped.RuleID] != ReasonBoundaryCoveredByExact) {
+				return false
+			}
 			_, exclusion := exclusionReasons[skipped.ReasonCode]
 			if exclusion != (skipped.Applicability == ApplicabilityNotApplicable) {
 				return false
