@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"os"
 	"strings"
 	"testing"
 )
@@ -34,6 +35,12 @@ func TestReleaseDocsRefusesBadUsage(t *testing.T) {
 		{"check", "--root", ".", "--mode", "unreleased", "--tag", "v1.0.0"},
 		{"check", "--root", ".", "--mode", "unreleased", "--mode", "release"},
 		{"check", "--root", ".", "--mode", "unreleased", "extra"},
+		{"check", "--root", ".", "--mode", "unreleased", "--blocks-base", ""},
+		{"check", "--root", ".", "--mode", "unreleased", "--blocks-base="},
+		{"check", "--root", ".", "--mode", "unreleased", "--blocks-base", "HEAD"},
+		{"check", "--root", ".", "--mode", "unreleased", "--blocks-base", "0000000000000000000000000000000000000000"},
+		{"check", "--root", ".", "--mode", "release", "--tag", "v1.0.0", "--previous", "v0.9.0", "--deny-file", "/nonexistent", "--blocks-base", "1111111111111111111111111111111111111111"},
+		{"regen", "--root", ".", "--mode", "unreleased", "--blocks-base", "1111111111111111111111111111111111111111"},
 	}
 	for _, args := range cases {
 		code, msg := docsExit(t, args...)
@@ -70,5 +77,20 @@ func TestReleaseDocsRegenRefusesOutsideAGitRepository(t *testing.T) {
 	code, msg := docsExit(t, "regen", "--root", t.TempDir(), "--mode", "unreleased")
 	if code != 19 || !strings.Contains(msg, "git work tree") {
 		t.Fatalf("exit %d: %s", code, msg)
+	}
+}
+
+func TestReleaseDocsCleansTheGitEnvironmentAndRestoresIt(t *testing.T) {
+	t.Setenv("GIT_DIR", "/nonexistent")
+	restore, err := hardenGitEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := os.LookupEnv("GIT_DIR"); ok || os.Getenv("GIT_NO_REPLACE_OBJECTS") != "1" || os.Getenv("GIT_CONFIG_GLOBAL") != os.DevNull {
+		t.Error("the environment is not cleaned")
+	}
+	restore()
+	if os.Getenv("GIT_DIR") != "/nonexistent" {
+		t.Error("the environment is not restored")
 	}
 }

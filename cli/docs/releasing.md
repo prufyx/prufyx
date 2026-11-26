@@ -25,7 +25,17 @@ attestation and the `SHA256SUMS` of a version must stay one-to-one.
    defense in depth only: the tagged commit carries its own copy of the
    workflow, so the real boundary is a repository tag ruleset on `refs/tags/v*`
    (only the owner may create such tags).
-2. Generate the CHANGELOG entry and the release notes from the tree diff, in
+2. In the cut pull request, first run `release-docs regen --root .. --mode
+   unreleased` (see [Regenerating what the check
+   compares](#regenerating-what-the-check-compares)): data merges may have left
+   the generated blocks of the unreleased notes and CHANGELOG entry stale. Then
+   run `release-docs check --root .. --mode unreleased` **without**
+   `--blocks-base`, which requires every block to be current. Do not push a tag
+   while another pull request that touches release notes or `CHANGELOG.md` is
+   open for merge, and whoever merges one re-reads the tags of the canonical
+   repository first.
+
+   Generate the CHANGELOG entry and the release notes from the tree diff, in
    a normal pull request, before tagging. Both state exactly what the release
    adds since the previous tag: projects added to the catalogue, rules per
    project, line attestations and Kubernetes minors, owner-approved onboarding
@@ -133,11 +143,12 @@ closed: any unreadable file, missing marker, unknown schema or unresolvable tag
 is a finding, every finding fails, and there is no warning mode. The exit code
 is the lowest failed class: 2 usage, 10 README block, 11 counts file, 12 notes,
 13 CHANGELOG, 14 site copy, 15 previous release, 16 prose numbers, 17 deny
-list, 18 labels, 19 tag binding.
+list, 18 labels, 19 tag binding, 20 blocks base.
 
 ```sh
 cd cli
 go run ./cmd/prufyx-maintainer release-docs check --root .. --mode unreleased
+go run ./cmd/prufyx-maintainer release-docs check --root .. --mode unreleased --blocks-base <40-digit base commit>
 go run ./cmd/prufyx-maintainer release-docs check --root .. --mode release --tag <tag> --previous <prev> --deny-file <names>
 go run ./cmd/prufyx-maintainer release-docs check --root .. --mode cut --tag <tag> --previous <prev> --deny-file <names> --site-counts <site copy>
 ```
@@ -153,6 +164,9 @@ Modes:
   tag. The vendor and model name list is read when `--deny-file` is given (CI
   passes the repository variable `RELEASE_DENY_NAMES` when it is set); when it
   is not given only that list is skipped and the output says so.
+  Without `--blocks-base` (the default, also of `make check`) every checked
+  block must equal its regeneration. CI passes `--blocks-base` (see [Stale
+  blocks between releases](#stale-blocks-between-releases)).
 - `release` (the `release-docs-gate` job of `release.yml`): everything above
   for `--tag`, plus: the checkout is the tagged commit with no modified tracked
   file, the previous release is strictly lower and an ancestor, the first
@@ -186,8 +200,40 @@ texts, inside the generated blocks too. The names of vendors and models are
 refused from the `--deny-file` list (one name per line, whole words,
 case-insensitive).
 
+Every rendered block is also refused, in all modes and by `regen`, when it
+contains `<`, `](`, a control or invisible character other than a line break, or
+a line that starts a `## ` heading.
+
 The check proves that the tree is consistent with its generator; it does not
 prove the generator right.
+
+### Stale blocks between releases
+
+A data change must keep the README generated regions and the counts file
+current. It does not have to rewrite the release notes or the CHANGELOG.
+`--blocks-base <commit>` (unreleased mode only) allows that and nothing else
+about the blocks: the generated block of an unpublished notes file, and of its
+CHANGELOG entry, passes when it equals the regeneration **or** is byte for byte
+the block that file or entry has at the base commit. Each accepted stale block is
+printed. A block edited in any other way fails.
+
+The base commit gives no allowance, so both blocks must equal their
+regeneration, unless it has both the notes file and the `## [<version>]`
+CHANGELOG entry, each with exactly one marker pair with text in it. A new notes
+file and a new or renamed entry must therefore be current. A value that is not a
+full commit id, or is all zeros, is a usage error. A base that is unknown, is
+`HEAD` itself, is not an ancestor of `HEAD`, or is read from a shallow clone is a
+finding (exit 20 when no lower class fails). The README regions, the counts
+file, the headings, labels, previous release, markers, prose and deny list are
+checked as without the flag.
+
+CI takes the base from the event: the pull request base commit, the merge group
+base commit, the commit before a push, and the first parent of `HEAD` for the
+nightly and manual runs.
+
+Stale blocks cannot be released: the `release` and `cut` modes refuse
+`--blocks-base` and require every block to equal its regeneration, so a tag build
+fails until the cut pull request has run `regen`.
 
 ### Regenerating what the check compares
 

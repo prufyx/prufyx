@@ -103,10 +103,13 @@ jobs:
           scripts/preview-coverage.sh --check
 
       - name: Check release docs
-        # The README coverage block, the counts file and, for every release
-        # notes file whose tag is not published yet, the notes block, the
-        # CHANGELOG entry and the prose around them must be what the
-        # generator writes (cli/docs/releasing.md). It runs before the
+        # The README coverage block and the counts file must be what the
+        # generator writes. For every release notes file whose tag is not
+        # published yet, the notes block and the CHANGELOG entry block must be
+        # what the generator writes or exactly what the base commit of this
+        # event has, and the prose around them is checked
+        # (cli/docs/releasing.md). The base comes from the event; a missing or
+        # malformed one fails the step. It runs before the
         # baseline step below, whose shallow fetch of the base branch cuts
         # the history this command needs. The vendor and model name list is
         # read from the repository variable RELEASE_DENY_NAMES when it is
@@ -115,15 +118,33 @@ jobs:
         working-directory: cli
         env:
           DENY_NAMES: ${{ vars.RELEASE_DENY_NAMES }}
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          GROUP_BASE: ${{ github.event.merge_group.base_sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
+          case "${EVENT}" in
+            pull_request) base="${PR_BASE}" ;;
+            merge_group) base="${GROUP_BASE}" ;;
+            push) base="${PUSH_BEFORE}" ;;
+            schedule|workflow_dispatch) base="$(git rev-parse --verify 'HEAD^1^{commit}')" ;;
+            *)
+              echo "::error::no blocks base is defined for the event ${EVENT}"
+              exit 1
+              ;;
+          esac
+          if ! [[ "${base}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::the blocks base of this ${EVENT} event is not a full commit id"
+            exit 1
+          fi
           deny_args=()
           if [ -n "${DENY_NAMES}" ]; then
             deny="${RUNNER_TEMP}/deny-names.txt"
             printf '%s\n' "${DENY_NAMES}" > "${deny}"
             deny_args=(--deny-file "${deny}")
           fi
-          go run ./cmd/prufyx-maintainer release-docs check --root .. --mode unreleased "${deny_args[@]}"
+          go run ./cmd/prufyx-maintainer release-docs check --root .. --mode unreleased --blocks-base "${base}" "${deny_args[@]}"
 
       - name: Check the coverage baseline is not lowered
         # The decided-pair and covered-project floors in

@@ -26,7 +26,8 @@ import (
 )
 
 // Modes. Unreleased is the CI mode: every committed notes file whose tag is
-// not published yet. Release is the tag job of the release workflow. Cut is
+// not published yet; with a blocks base its generated blocks may be stale, but
+// only as the base commit has them. Release is the tag job of the release workflow. Cut is
 // Release plus the site copy and the name list, run by the release manager
 // before the tag is pushed.
 const (
@@ -48,6 +49,7 @@ const (
 	CodeDeny      = 17
 	CodeLabels    = 18
 	CodeTag       = 19
+	CodeBase      = 20
 )
 
 const (
@@ -117,6 +119,11 @@ type Options struct {
 	Previous   string // release and cut
 	SiteCounts string // cut (mandatory); release and unreleased (optional)
 	DenyFile   string // release and cut (mandatory); unreleased (optional)
+	// BlocksBase (unreleased only, optional) is the full id of an ancestor
+	// commit of HEAD. A generated notes or CHANGELOG block that differs from
+	// its regeneration passes only when it is byte for byte the block of that
+	// commit. Without it every block must equal its regeneration.
+	BlocksBase string
 	Regenerate Regenerator
 }
 
@@ -160,6 +167,8 @@ type checker struct {
 	deny  []string
 	toRev string // revision of the tree under check ("" = the checked-out files)
 	bound bool   // release and cut: the checkout is the tagged commit
+	// baseProven: the blocks base passed provenBase.
+	baseProven bool
 }
 
 func (c *checker) fail(code int, format string, args ...any) {
@@ -186,6 +195,14 @@ func Check(o Options) (Result, error) {
 		}
 	default:
 		return Result{}, &UsageError{"--mode must be unreleased, release or cut"}
+	}
+	if o.BlocksBase != "" {
+		if o.Mode != ModeUnreleased {
+			return Result{}, &UsageError{"--blocks-base belongs to the unreleased mode"}
+		}
+		if !commitID.MatchString(o.BlocksBase) || o.BlocksBase == zeroCommit {
+			return Result{}, &UsageError{"--blocks-base must be the full 40 hexadecimal digit id of a commit"}
+		}
 	}
 	if o.Root == "" {
 		return Result{}, &UsageError{"--root is required"}
@@ -246,7 +263,7 @@ func readBounded(path string) ([]byte, error) {
 }
 
 func (c *checker) git(args ...string) (string, error) {
-	cmd := exec.Command("git", append([]string{"-C", c.root}, args...)...)
+	cmd := gitCommand(c.root, args...)
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	if err := cmd.Run(); err != nil {
@@ -258,7 +275,7 @@ func (c *checker) git(args ...string) (string, error) {
 // tagCommit resolves a published tag to its full commit; ok is false when
 // there is no such tag, err when git itself fails.
 func (c *checker) tagCommit(tag string) (sha string, ok bool, err error) {
-	cmd := exec.Command("git", "-C", c.root, "rev-parse", "-q", "--verify", "--end-of-options", "refs/tags/"+tag+"^{commit}")
+	cmd := gitCommand(c.root, "rev-parse", "-q", "--verify", "--end-of-options", "refs/tags/"+tag+"^{commit}")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	if err := cmd.Run(); err != nil {
@@ -277,6 +294,13 @@ func (c *checker) readRoot(rel string) ([]byte, error) {
 
 func (c *checker) run() {
 	c.checkGenerated()
+	if c.o.BlocksBase != "" {
+		if err := c.provenBase(); err != nil {
+			c.fail(CodeBase, "the blocks base %s cannot be used: %v", c.o.BlocksBase, err)
+		} else {
+			c.baseProven = true
+		}
+	}
 	if c.o.SiteCounts != "" {
 		c.checkSite()
 	}
@@ -479,16 +503,18 @@ func (c *checker) checkRelease(tag, changelog string, scanned *[]scanText) {
 	if !ok {
 		return
 	}
+	base, hasBase := c.releaseAtBase(name, version)
 	if updated, err := releasenotes.ReplaceBlock(doc, r3); err != nil {
 		c.fail(CodeNotes, "%s: %v", name, err)
-	} else if updated != doc {
+	} else if updated != doc && !(hasBase && c.keptFromBase(name, doc, base.notes)) {
 		c.fail(CodeNotes, "%s: the generated block differs from its regeneration", name)
 	}
 	if sectionOK {
+		what := "CHANGELOG.md [" + version + "]"
 		if updated, err := releasenotes.ReplaceBlock(section, r4); err != nil {
-			c.fail(CodeChangelog, "CHANGELOG.md [%s]: %v", version, err)
-		} else if updated != section {
-			c.fail(CodeChangelog, "CHANGELOG.md [%s]: the generated block differs from its regeneration", version)
+			c.fail(CodeChangelog, "%s: %v", what, err)
+		} else if updated != section && !(hasBase && c.keptFromBase(what, section, base.changelog)) {
+			c.fail(CodeChangelog, "%s: the generated block differs from its regeneration", what)
 		}
 	}
 	*scanned = append(*scanned, notesScan(name, doc))
@@ -592,6 +618,14 @@ func (c *checker) render(name, tag, prev, toCommit string) (r3, r4 string, ok bo
 	r4, err = releasenotes.Render(a, b, opts)
 	if err != nil {
 		c.fail(CodeChangelog, "%s: %v", name, err)
+		return
+	}
+	if err := guardBlock(r3); err != nil {
+		c.fail(CodeNotes, "%s: the rendered block is refused: %v", name, err)
+		return
+	}
+	if err := guardBlock(r4); err != nil {
+		c.fail(CodeChangelog, "%s: the rendered CHANGELOG block is refused: %v", name, err)
 		return
 	}
 	return r3, r4, true
