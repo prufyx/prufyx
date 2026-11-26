@@ -429,3 +429,24 @@ func TestSupportInventory_CommunityPackRefusesSetRules(t *testing.T) {
 		}
 	}
 }
+
+// The opt-in level is held only by a pack that declares it and has a rule the
+// feature test accepts.
+func TestSupportInventory_OptInLevelIsDeclared(t *testing.T) {
+	const covered = "prufyx.io/cncf-source-rule-pack/v1alpha16"
+	for _, c := range []struct {
+		name, schema string
+		feature      bool
+		want         bool
+	}{
+		{"declared with a range", covered, true, true},
+		{"declared without a range", covered, false, false},
+		{"not declared", "prufyx.io/cncf-source-rule-pack/v1alpha15", true, false},
+		{"no schema", "", true, false},
+	} {
+		got, err := declaresSchema(covered, func([]json.RawMessage) (bool, error) { return c.feature, nil })(map[string]any{"schema": c.schema, "entries": []any{}})
+		if err != nil || got != c.want {
+			t.Fatalf("%s: %v %v", c.name, got, err)
+		}
+	}
+}
