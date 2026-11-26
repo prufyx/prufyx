@@ -292,3 +292,104 @@ func TestPublishedIgnoresGitDirEnvironment(t *testing.T) {
 	t.Setenv("GIT_DIR", filepath.Join(other, ".git"))
 	wantFail(t, published(t, root, base), CodeChangelog, "1.1.0")
 }
+
+const (
+	betaDef   = "[1.1.0]: https://example.invalid/releases/v1.1.0"
+	milestone = "## 0.9.0-alpha.1 - 2025-10-01 (not published as a release)"
+	trailer   = "No release has been published yet."
+)
+
+// footerRig is a repository whose base CHANGELOG ends with tail, after the
+// oldest published entry (1.0.0, tagged v1.0.0).
+func footerRig(t *testing.T, tail string) (root, base string) {
+	t.Helper()
+	root = build(t, rig{tagCurrent: true}).root
+	write(t, root, changelogPath, read(t, root, changelogPath)+tail)
+	commitAll(t, root)
+	return root, git(t, root, "rev-parse", "HEAD")
+}
+
+type tailCase struct{ base, head string }
+
+func runTail(t *testing.T, tc tailCase) Result {
+	t.Helper()
+	root, base := footerRig(t, tc.base)
+	doc := read(t, root, changelogPath)
+	write(t, root, changelogPath, strings.TrimSuffix(doc, tc.base)+tc.head)
+	commitAll(t, root)
+	return published(t, root, base)
+}
+
+func TestPublishedAcceptsTextAfterTheOldestEntry(t *testing.T) {
+	other := "\n[Unreleased]: https://example.invalid/compare/v1.0.0...main\n"
+	links := other + betaDef + "\n"
+	newer := "\n[Unreleased]: https://example.invalid/compare/v1.1.0...main\n[1.2.0]: https://example.invalid/releases/v1.2.0\n" + betaDef + "\n"
+	section := "\n" + milestone + "\n\n- early\n"
+	for name, tc := range map[string]tailCase{
+		"footer added":                   {"", other},
+		"footer removed":                 {other, ""},
+		"other definitions changed":      {links, newer},
+		"footer with CRLF and spacing":   {links, "\n\n[Unreleased]: https://example.invalid/x\r\n\n" + betaDef + "\r\n\n"},
+		"real layout, definitions":       {section + links + "\n" + trailer + "\n", section + newer + "\n" + trailer + "\n"},
+		"real layout, trailing prose":    {section + links + "\n" + trailer + "\n", section + links},
+		"real layout, milestone section": {section + links, strings.Replace(section, "- early", "- reworded", 1) + links},
+	} {
+		t.Run(name, func(t *testing.T) {
+			wantPass(t, runTail(t, tc))
+		})
+	}
+}
+
+func TestPublishedRefusesTextAfterTheOldestEntry(t *testing.T) {
+	links := "\n" + betaDef + "\n"
+	section := "\n" + milestone + "\n\n- early\n"
+	for name, tc := range map[string]struct {
+		tailCase
+		version string
+	}{
+		"prose appended":               {tailCase{"", "\nRewritten.\n"}, "1.0.0"},
+		"prose after the footer":       {tailCase{links, links + "\nRewritten.\n"}, "1.0.0"},
+		"definition without a blank":   {tailCase{"", "[x]: https://example.invalid/x\n"}, "1.0.0"},
+		"definition with a title":      {tailCase{"", "\n[x]: https://example.invalid/x \"Rewritten\"\n"}, "1.0.0"},
+		"definition not https":         {tailCase{"", "\n[x]: rewritten\n"}, "1.0.0"},
+		"definition on two lines":      {tailCase{"", "\n[x]:\nhttps://example.invalid/x\n"}, "1.0.0"},
+		"indented definition":          {tailCase{"", "\n  [x]: https://example.invalid/x\n"}, "1.0.0"},
+		"inside an open fence":         {tailCase{"\n```\ncode\n", "\n```\ncode\n\n[x]: https://example.invalid/x\n"}, "1.0.0"},
+		"other heading":                {tailCase{"", "\n## Notes\n\nRewritten.\n"}, "1.0.0"},
+		"milestone without the words":  {tailCase{"", "\n## 0.9.0 - 2025-10-01\n\nRewritten.\n"}, "1.0.0"},
+		"milestone of a tagged one":    {tailCase{"", "\n## 1.0.0 - 2025-10-01 (not published as a release)\n\nRewritten.\n"}, "1.0.0"},
+		"published definition changed": {tailCase{links, "\n[1.1.0]: https://example.invalid/other\n"}, "1.1.0"},
+		"published definition removed": {tailCase{links, ""}, "1.1.0"},
+		"published definition added":   {tailCase{"", links}, "1.1.0"},
+		"published definition doubled": {tailCase{links, "\n[1.1.0]: https://example.invalid/other\n" + betaDef + "\n"}, "1.1.0"},
+		"changed after a milestone":    {tailCase{section + links, section + "\n[1.1.0]: https://example.invalid/other\n"}, "1.1.0"},
+		"quoted second definition":     {tailCase{section + links, section + links + "\n> [ 1.1.0 ]: https://example.invalid/other\n"}, "1.1.0"},
+		"listed definition of oldest":  {tailCase{section, section + "\n- [1.0.0]: https://example.invalid/other\n"}, "1.0.0"},
+		"destination on the next line": {tailCase{section + "\n[1.1.0]:\n[one]\n", section + "\n[1.1.0]:\n[two]\n"}, "1.1.0"},
+		"title on the next line":       {tailCase{section + links, section + links + "\"Rewritten\"\n"}, "1.1.0"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			wantFail(t, runTail(t, tc.tailCase), CodeChangelog, "CHANGELOG.md ["+tc.version+"]")
+		})
+	}
+}
+
+// A milestone heading put inside a published entry cuts it short.
+func TestPublishedRefusesAMilestoneInsideAnEntry(t *testing.T) {
+	root, base := publishedRig(t)
+	inEntry(t, root, "### Added", milestone+"\n\n### Added")
+	commitAll(t, root)
+	wantFail(t, published(t, root, base), CodeChangelog, "1.1.0")
+}
+
+// Letter case does not hide a second definition of a published version.
+func TestPublishedLinkDefinitionsIgnoreLetterCase(t *testing.T) {
+	root, _ := footerRig(t, "\n[1.2.0-rc.1]: https://example.invalid/a\n")
+	git(t, root, "tag", "v1.2.0-rc.1")
+	base := git(t, root, "rev-parse", "HEAD")
+	commitAll(t, root)
+	wantPass(t, published(t, root, base))
+	write(t, root, changelogPath, read(t, root, changelogPath)+"\n[1.2.0-RC.1]: https://example.invalid/b\n")
+	commitAll(t, root)
+	wantFail(t, published(t, root, base), CodeChangelog, "CHANGELOG.md [1.2.0-rc.1]")
+}

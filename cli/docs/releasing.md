@@ -137,9 +137,19 @@ list, 18 labels, 19 tag binding, 20 base revision.
 
 `release-docs published --root .. --base <rev>` (a CI step on pull requests)
 guards published releases, which `check` skips: for every version tag, the
-generated block of its notes file and its CHANGELOG entry in `HEAD` must equal
-those in the base revision (not in the tag). It fails when no tag is visible,
-the clone is shallow or the base cannot be read.
+generated block of its notes file, its CHANGELOG entry and every
+`[<version>]:` link definition in `HEAD` must equal those in the base revision
+(not in the tag). It fails when no tag is visible, the clone is shallow or the
+base cannot be read. Add the link definition of a release before it is tagged.
+
+An entry ends at the next `## [` heading, or at a heading of the exact form
+`## X.Y.Z - YYYY-MM-DD (not published as a release)` whose version has no tag.
+When an entry reaches the end of the file, a closing block that starts with a
+blank line and holds only blank lines and one-line `[label]: https://...`
+definitions is not part of it. This guard does not check the text from such a
+milestone heading to the next `## [` heading (including any text after the
+link definitions there), nor link definitions of other labels outside an
+entry.
 
 ```sh
 cd cli

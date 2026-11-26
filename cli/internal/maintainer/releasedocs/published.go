@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -20,11 +21,21 @@ import (
 // cannot be compared.
 const CodeBase = 20
 
+var (
+	// milestoneRe is the one unbracketed heading that ends a CHANGELOG entry:
+	// a development milestone that says it is not a release.
+	milestoneRe = regexp.MustCompile(`(?m)^## ([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?) - [0-9]{4}-[0-9]{2}-[0-9]{2} \(not published as a release\)\r?$`)
+	// footerRe is the one form of link reference definition that may follow
+	// the last entry of the CHANGELOG without being part of it.
+	footerRe = regexp.MustCompile(`^\[[^\[\]]+\]: https://[^\s<>]+$`)
+)
+
 // Published is the pull request guard for published release text. Check skips
 // every version that has a tag, so this compares, for each version tag of the
-// repository, the generated block of its notes file and its CHANGELOG entry in
-// the commit under check (HEAD) with the same text in the base revision. The
-// tag's own tree is not the reference: published text may already differ from
+// repository, the generated block of its notes file, its CHANGELOG entry (see
+// changelogEntries) and the link definitions of its version (see
+// linkDefinitions) in the commit under check (HEAD) with the same text in the
+// base revision. The tag's own tree is not the reference: published text may already differ from
 // it on the base branch. Both sides are read from git objects; nothing is
 // written. It fails closed: tags, base or a file that cannot be read are
 // findings. The error is a *UsageError for a missing option.
@@ -71,8 +82,11 @@ func (c *checker) published(base string) {
 	}
 	for _, tag := range versions {
 		version := strings.TrimPrefix(tag, "v")
-		if !slices.Equal(changelogEntries(string(oldLog), version), changelogEntries(string(newLog), version)) {
+		if !slices.Equal(changelogEntries(string(oldLog), version, versions), changelogEntries(string(newLog), version, versions)) {
 			c.fail(CodeChangelog, "CHANGELOG.md [%s]: the entry of the published release %s differs from the base", version, tag)
+		}
+		if !slices.Equal(linkDefinitions(string(oldLog), version), linkDefinitions(string(newLog), version)) {
+			c.fail(CodeChangelog, "CHANGELOG.md [%s]: the link definition of the published release %s differs from the base", version, tag)
 		}
 		c.publishedNotes(tag, baseSha, head)
 	}
@@ -156,10 +170,14 @@ func generatedBlock(doc string) (string, bool) {
 }
 
 // changelogEntries returns every "## [version]" entry, so that a removed or
-// repeated heading differs as much as a rewritten entry.
-func changelogEntries(doc, version string) []string {
+// repeated heading differs as much as a rewritten entry. An entry ends at the
+// next "## [" heading or at the next milestone heading whose version has no
+// tag. An entry that reaches the end of the document does not include the
+// link definition footer.
+func changelogEntries(doc, version string, tags []string) []string {
 	var out []string
 	locs := headingRe.FindAllStringSubmatchIndex(doc, -1)
+	milestones := milestoneRe.FindAllStringSubmatchIndex(doc, -1)
 	for i, l := range locs {
 		if doc[l[2]:l[3]] != version {
 			continue
@@ -168,7 +186,68 @@ func changelogEntries(doc, version string) []string {
 		if i+1 < len(locs) {
 			end = locs[i+1][0]
 		}
-		out = append(out, doc[l[0]:end])
+		for _, m := range milestones {
+			if m[0] > l[0] && m[0] < end && !slices.Contains(tags, "v"+doc[m[2]:m[3]]) {
+				end = m[0]
+			}
+		}
+		entry := doc[l[0]:end]
+		if end == len(doc) {
+			entry = withoutFooter(entry)
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
+// withoutFooter cuts the trailing lines of entry that are all blank or match
+// footerRe, from the first blank line among them: a definition that directly
+// follows text is part of that text. Nothing but blank lines and definitions is
+// ever cut, and nothing at all when a code fence is still open there.
+func withoutFooter(entry string) string {
+	lines := strings.SplitAfter(entry, "\n")
+	blank := func(l string) bool { return strings.Trim(l, " \t\r\n") == "" }
+	i := len(lines)
+	for i > 0 && (blank(lines[i-1]) || footerRe.MatchString(strings.TrimRight(lines[i-1], "\r\n"))) {
+		i--
+	}
+	for i < len(lines) && !blank(lines[i]) {
+		i++
+	}
+	fences := 0
+	for _, l := range lines[:i] {
+		if t := strings.TrimLeft(l, " "); strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~") {
+			fences++
+		}
+	}
+	if fences%2 != 0 {
+		return entry
+	}
+	return strings.Join(lines[:i], "")
+}
+
+// linkDefinitions returns, in order, every link definition of the label version
+// anywhere in doc, in any letter case, indented or quoted: its whole first line
+// and the lines that may continue it (a destination or a title).
+func linkDefinitions(doc, version string) []string {
+	re := regexp.MustCompile(`(?i)\[\s*` + regexp.QuoteMeta(version) + `\s*\]:`)
+	var out []string
+	for _, m := range re.FindAllStringIndex(doc, -1) {
+		start := strings.LastIndexByte(doc[:m[0]], '\n') + 1
+		first, rest, _ := strings.Cut(doc[m[1]:], "\n")
+		def := []string{strings.TrimRight(doc[start:m[1]]+first, "\r")}
+		// With nothing after the colon the next line is the destination,
+		// whatever it looks like.
+		wantDestination := strings.TrimSpace(first) == ""
+		for _, l := range strings.Split(rest, "\n") {
+			t := strings.TrimSpace(l)
+			if t == "" || (!wantDestination && strings.HasPrefix(t, "[")) {
+				break
+			}
+			wantDestination = false
+			def = append(def, strings.TrimRight(l, "\r"))
+		}
+		out = append(out, strings.Join(def, "\n"))
 	}
 	return out
 }
