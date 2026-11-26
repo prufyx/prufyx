@@ -82,13 +82,31 @@ func TestOpenCostNativeCheck_AllLatestOriginsAreRouted(t *testing.T) {
 func TestOpenCostNativeCheck_RejectsMalformedWrongPairAndWrongRoute(t *testing.T) {
 	t.Parallel()
 	path := writeCNCFFile(t, "opencost.json", opencostNativeInput("cloud_integration", "present"), 0o600)
-	code, stdout, stderr := runCNCFCLI(t, opencostNativeArgs(path, "1.119.0", "1.120.1")...)
+	// Control moved outside the reviewed OpenCost range (1.119-1.120): 1.121.0.
+	code, stdout, stderr := runCNCFCLI(t, opencostNativeArgs(path, "1.119.0", "1.121.0")...)
 	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
 		t.Fatalf("wrong pair code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
 	code, stdout, stderr = runCNCFCLI(t, "check", "cncf", "--project", "falco", "--native-resource", "PRIVATE-NOT-READ.json", "--from", "0.40.0", "--to", "0.41.0", "--now", "2026-09-19T00:00:00Z", "--format", "json")
 	if code != ExitUsage || strings.Contains(stderr, "PRIVATE-NOT-READ") || strings.Contains(stdout, "PRIVATE-NOT-READ") {
 		t.Fatalf("cross-project code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+}
+
+// The pair the wrong-pair control used before the 1.119 to 1.120 line-wide
+// range: it is inside the range, so it is a decided range match.
+func TestOpenCostNativeCheck_LineWideRangePairIsARangeMatch(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		source, presence, status string
+		want                     int
+	}{{"cloud_integration", "present", "PASS", ExitOK}, {"provider_derived", "absent", "BLOCKED", ExitBlocked}} {
+		path := writeCNCFFile(t, "opencost-range.json", opencostNativeInput(c.source, c.presence), 0o600)
+		code, stdout, stderr := runCNCFCLI(t, opencostNativeArgs(path, "1.119.0", "1.120.1")...)
+		if code != c.want || stderr != "" || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
+			t.Fatalf("source=%s code=%d stdout=%q stderr=%q", c.source, code, stdout, stderr)
+		}
+		assertRangeClaim(t, stdout, "opencost.cloud-cost-source-migration.1-119-to-1-120", c.status)
 	}
 }
 
