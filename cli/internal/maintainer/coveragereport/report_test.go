@@ -186,6 +186,9 @@ func TestEmbeddedPackBaseline(t *testing.T) {
 			// Only when the pack holds a review newer than its own clock:
 			// then the crossplane pair above moves from S to B.
 			want.B, want.S = want.B+1, want.S-1
+			// Thirteen whole-line target rules (falco, envoy, harbor, nats) reviewed
+			// at this clock move thirteen pairs from G to B; three of them count in C3.
+			want.B, want.G, want.C3 = want.B+13, want.G-13, want.C3+3
 			now = newest
 		}
 	}

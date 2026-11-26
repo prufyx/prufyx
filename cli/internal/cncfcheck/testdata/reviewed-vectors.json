@@ -10965,6 +10965,642 @@
     ]
   },
   {
+    "project": "envoy",
+    "ruleId": "envoy.xds-v2-unsupported.1-35-13-to-1-36-13",
+    "cases": [
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.35.13"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [
+                  {
+                    "enumValue": "v2",
+                    "id": "component.envoy.xds_api_major",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.36.13"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "v2-blocked",
+        "status": "BLOCKED"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.35.13"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [
+                  {
+                    "enumValue": "v3",
+                    "id": "component.envoy.xds_api_major",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.36.13"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "v3-pass",
+        "status": "PASS"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.35.13"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.36.13"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "missing",
+        "status": "UNKNOWN"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.35.13"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [
+                  {
+                    "id": "component.envoy.xds_api_major",
+                    "state": "conflict"
+                  }
+                ],
+                "version": "1.36.13"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "ambiguous-input",
+        "status": "UNKNOWN"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.35.13"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [
+                  {
+                    "enumValue": "v2",
+                    "id": "component.envoy.xds_api_major",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.39.0"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "wrong-target",
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "envoy",
+    "ruleId": "envoy.xds-v2-unsupported.1-36-13-to-1-37-11",
+    "cases": [
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.36.13"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [
+                  {
+                    "enumValue": "v2",
+                    "id": "component.envoy.xds_api_major",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.37.11"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "v2-blocked",
+        "status": "BLOCKED"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.36.13"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [
+                  {
+                    "enumValue": "v3",
+                    "id": "component.envoy.xds_api_major",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.37.11"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "v3-pass",
+        "status": "PASS"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.36.13"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.37.11"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "missing",
+        "status": "UNKNOWN"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.36.13"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [
+                  {
+                    "id": "component.envoy.xds_api_major",
+                    "state": "conflict"
+                  }
+                ],
+                "version": "1.37.11"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "ambiguous-input",
+        "status": "UNKNOWN"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.36.13"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [
+                  {
+                    "enumValue": "v2",
+                    "id": "component.envoy.xds_api_major",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.40.0"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "wrong-target",
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "envoy",
+    "ruleId": "envoy.xds-v2-unsupported.1-37-11-to-1-38-9",
+    "cases": [
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.37.11"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [
+                  {
+                    "enumValue": "v2",
+                    "id": "component.envoy.xds_api_major",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.38.9"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "v2-blocked",
+        "status": "BLOCKED"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.37.11"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [
+                  {
+                    "enumValue": "v3",
+                    "id": "component.envoy.xds_api_major",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.38.9"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "v3-pass",
+        "status": "PASS"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.37.11"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.38.9"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "missing",
+        "status": "UNKNOWN"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.37.11"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [
+                  {
+                    "id": "component.envoy.xds_api_major",
+                    "state": "conflict"
+                  }
+                ],
+                "version": "1.38.9"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "ambiguous-input",
+        "status": "UNKNOWN"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.37.11"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [
+                  {
+                    "enumValue": "v2",
+                    "id": "component.envoy.xds_api_major",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.41.0"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "wrong-target",
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "envoy",
+    "ruleId": "envoy.xds-v2-unsupported.1-39-6-to-1-40-2",
+    "cases": [
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.39.6"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [
+                  {
+                    "enumValue": "v2",
+                    "id": "component.envoy.xds_api_major",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.40.2"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "v2-blocked",
+        "status": "BLOCKED"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.39.6"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [
+                  {
+                    "enumValue": "v3",
+                    "id": "component.envoy.xds_api_major",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.40.2"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "v3-pass",
+        "status": "PASS"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.39.6"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.40.2"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "missing",
+        "status": "UNKNOWN"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.39.6"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [
+                  {
+                    "id": "component.envoy.xds_api_major",
+                    "state": "conflict"
+                  }
+                ],
+                "version": "1.40.2"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "ambiguous-input",
+        "status": "UNKNOWN"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [],
+                "version": "1.39.6"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/envoyproxy/envoy",
+                "facts": [
+                  {
+                    "enumValue": "v2",
+                    "id": "component.envoy.xds_api_major",
+                    "state": "declared"
+                  }
+                ],
+                "version": "1.43.0"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "wrong-target",
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
     "cases": [
       {
         "input": {
@@ -12419,6 +13055,1642 @@
             ]
           },
           "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "falco",
+    "ruleId": "falco.deprecated-cli-flags-removed.0-41-3-to-0-42-1",
+    "cases": [
+      {
+        "name": "declared-removed-flags-absent",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.41.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": false
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "declared-any-removed-flag-present",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.41.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "presence-missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.41.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "presence-unsupported",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.41.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "unsupported"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "presence-conflict",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.41.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "conflict"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "distribution-missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.41.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.1",
+                "facts": [
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "custom-build-outside-guard",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.41.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "custom_build"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "other-execution-surface",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.41.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "other"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "execution-surface-missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.41.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside-transition",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.39.2",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "falco",
+    "ruleId": "falco.deprecated-cli-flags-removed.0-42-1-to-0-43-1",
+    "cases": [
+      {
+        "name": "declared-removed-flags-absent",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.43.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": false
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "declared-any-removed-flag-present",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.43.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "presence-missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.43.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "presence-unsupported",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.43.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "unsupported"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "presence-conflict",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.43.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "conflict"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "distribution-missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.43.1",
+                "facts": [
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "custom-build-outside-guard",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.43.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "custom_build"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "other-execution-surface",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.43.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "other"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "execution-surface-missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.42.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.43.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside-transition",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.39.2",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.43.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "falco",
+    "ruleId": "falco.deprecated-cli-flags-removed.0-43-1-to-0-44-1",
+    "cases": [
+      {
+        "name": "declared-removed-flags-absent",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.43.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.44.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": false
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "declared-any-removed-flag-present",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.43.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.44.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "presence-missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.43.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.44.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "presence-unsupported",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.43.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.44.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "unsupported"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "presence-conflict",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.43.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.44.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "conflict"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "distribution-missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.43.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.44.1",
+                "facts": [
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "custom-build-outside-guard",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.43.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.44.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "custom_build"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "other-execution-surface",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.43.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.44.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "other"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "execution-surface-missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.43.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.44.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside-transition",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.39.2",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.44.1",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "falco",
+    "ruleId": "falco.deprecated-cli-flags-removed.0-44-1-to-0-45-2",
+    "cases": [
+      {
+        "name": "declared-removed-flags-absent",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.44.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.45.2",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": false
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "declared-any-removed-flag-present",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.44.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.45.2",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "presence-missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.44.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.45.2",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "presence-unsupported",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.44.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.45.2",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "unsupported"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "presence-conflict",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.44.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.45.2",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "conflict"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "distribution-missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.44.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.45.2",
+                "facts": [
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "custom-build-outside-guard",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.44.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.45.2",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "custom_build"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "other-execution-surface",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.44.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.45.2",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "other"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "execution-surface-missing",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.44.1",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.45.2",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "outside-transition",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.39.2",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/falcosecurity/falco",
+                "version": "0.45.2",
+                "facts": [
+                  {
+                    "id": "component.falco.distribution",
+                    "state": "declared",
+                    "enumValue": "official_upstream"
+                  },
+                  {
+                    "id": "component.falco.execution_surface",
+                    "state": "declared",
+                    "enumValue": "falco"
+                  },
+                  {
+                    "id": "component.falco.removed_040_cli_flags_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
         },
         "status": "UNKNOWN"
       }
@@ -14179,6 +16451,107 @@
   },
   {
     "project": "harbor",
+    "ruleId": "harbor.installer-with-chartmuseum-flag-removed.2-10-3-to-2-11-2",
+    "cases": [
+      {
+        "name": "removed option present",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.10.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.11.2",
+                "facts": [
+                  {
+                    "id": "component.harbor.installer_with_chartmuseum_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "removed option absent",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.10.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.11.2",
+                "facts": [
+                  {
+                    "id": "component.harbor.installer_with_chartmuseum_present",
+                    "state": "declared",
+                    "boolValue": false
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "fact unavailable",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.10.3",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.11.2",
+                "facts": [
+                  {
+                    "id": "component.harbor.installer_with_chartmuseum_present",
+                    "state": "unsupported"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "harbor",
     "ruleId": "harbor.installer-with-chartmuseum-flag-removed.2-10-to-2-15",
     "cases": [
       {
@@ -14264,6 +16637,107 @@
               {
                 "component": "pkg:github/goharbor/harbor",
                 "version": "2.15.2",
+                "facts": [
+                  {
+                    "id": "component.harbor.installer_with_chartmuseum_present",
+                    "state": "unsupported"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "harbor",
+    "ruleId": "harbor.installer-with-chartmuseum-flag-removed.2-11-2-to-2-12-4",
+    "cases": [
+      {
+        "name": "removed option present",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.11.2",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.12.4",
+                "facts": [
+                  {
+                    "id": "component.harbor.installer_with_chartmuseum_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "removed option absent",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.11.2",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.12.4",
+                "facts": [
+                  {
+                    "id": "component.harbor.installer_with_chartmuseum_present",
+                    "state": "declared",
+                    "boolValue": false
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "fact unavailable",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.11.2",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.12.4",
                 "facts": [
                   {
                     "id": "component.harbor.installer_with_chartmuseum_present",
@@ -14381,6 +16855,107 @@
   },
   {
     "project": "harbor",
+    "ruleId": "harbor.installer-with-chartmuseum-flag-removed.2-12-4-to-2-13-6",
+    "cases": [
+      {
+        "name": "removed option present",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.12.4",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.13.6",
+                "facts": [
+                  {
+                    "id": "component.harbor.installer_with_chartmuseum_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "removed option absent",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.12.4",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.13.6",
+                "facts": [
+                  {
+                    "id": "component.harbor.installer_with_chartmuseum_present",
+                    "state": "declared",
+                    "boolValue": false
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "fact unavailable",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.12.4",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.13.6",
+                "facts": [
+                  {
+                    "id": "component.harbor.installer_with_chartmuseum_present",
+                    "state": "unsupported"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "harbor",
     "ruleId": "harbor.installer-with-chartmuseum-flag-removed.2-12-to-2-15",
     "cases": [
       {
@@ -14466,6 +17041,107 @@
               {
                 "component": "pkg:github/goharbor/harbor",
                 "version": "2.15.2",
+                "facts": [
+                  {
+                    "id": "component.harbor.installer_with_chartmuseum_present",
+                    "state": "unsupported"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "harbor",
+    "ruleId": "harbor.installer-with-chartmuseum-flag-removed.2-13-6-to-2-14-6",
+    "cases": [
+      {
+        "name": "removed option present",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.13.6",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.14.6",
+                "facts": [
+                  {
+                    "id": "component.harbor.installer_with_chartmuseum_present",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "removed option absent",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.13.6",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.14.6",
+                "facts": [
+                  {
+                    "id": "component.harbor.installer_with_chartmuseum_present",
+                    "state": "declared",
+                    "boolValue": false
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "fact unavailable",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.13.6",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/goharbor/harbor",
+                "version": "2.14.6",
                 "facts": [
                   {
                     "id": "component.harbor.installer_with_chartmuseum_present",
@@ -30351,7 +33027,7 @@
             "components": [
               {
                 "component": "pkg:github/nats-io/nats-server",
-                "version": "2.11.0",
+                "version": "2.16.0",
                 "facts": []
               }
             ]
@@ -30360,7 +33036,7 @@
             "components": [
               {
                 "component": "pkg:github/nats-io/nats-server",
-                "version": "2.12.0",
+                "version": "2.17.0",
                 "facts": [
                   {
                     "id": "component.nats.selected_name_has_ascii_space",
@@ -30494,6 +33170,139 @@
               {
                 "component": "pkg:github/nats-io/nats-server",
                 "version": "2.14.5",
+                "facts": [
+                  {
+                    "id": "component.nats.selected_name_has_ascii_space",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "nats",
+    "ruleId": "nats.names-with-ascii-spaces-rejected.2-11-17-to-2-12-15",
+    "cases": [
+      {
+        "name": "selected-name-without-ascii-space",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.11.17",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.12.15",
+                "facts": [
+                  {
+                    "id": "component.nats.selected_name_has_ascii_space",
+                    "state": "declared",
+                    "boolValue": false
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "selected-name-with-ascii-space",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.11.17",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.12.15",
+                "facts": [
+                  {
+                    "id": "component.nats.selected_name_has_ascii_space",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "unresolved-selected-name",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.11.17",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.12.15",
+                "facts": [
+                  {
+                    "id": "component.nats.selected_name_has_ascii_space",
+                    "state": "unsupported"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "wrong-target",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.11.17",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.15.0",
                 "facts": [
                   {
                     "id": "component.nats.selected_name_has_ascii_space",
@@ -30760,6 +33569,139 @@
               {
                 "component": "pkg:github/nats-io/nats-server",
                 "version": "2.14.5",
+                "facts": [
+                  {
+                    "id": "component.nats.selected_name_has_ascii_space",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      }
+    ]
+  },
+  {
+    "project": "nats",
+    "ruleId": "nats.names-with-ascii-spaces-rejected.2-14-10-to-2-15-3",
+    "cases": [
+      {
+        "name": "selected-name-without-ascii-space",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.14.10",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.15.3",
+                "facts": [
+                  {
+                    "id": "component.nats.selected_name_has_ascii_space",
+                    "state": "declared",
+                    "boolValue": false
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "PASS"
+      },
+      {
+        "name": "selected-name-with-ascii-space",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.14.10",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.15.3",
+                "facts": [
+                  {
+                    "id": "component.nats.selected_name_has_ascii_space",
+                    "state": "declared",
+                    "boolValue": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "BLOCKED"
+      },
+      {
+        "name": "unresolved-selected-name",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.14.10",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.15.3",
+                "facts": [
+                  {
+                    "id": "component.nats.selected_name_has_ascii_space",
+                    "state": "unsupported"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "status": "UNKNOWN"
+      },
+      {
+        "name": "wrong-target",
+        "input": {
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.14.10",
+                "facts": []
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/nats-io/nats-server",
+                "version": "2.18.0",
                 "facts": [
                   {
                     "id": "component.nats.selected_name_has_ascii_space",

@@ -68,8 +68,8 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 	// other rules.
 	all := reviewedVectors(t)
 	batch := len(crdbatchids.IDs())
-	if len(all) != 257+batch {
-		t.Fatalf("the vector file holds %d vectors, want %d (228 + the 29 mechanical + the %d of the custom-resource batch)", len(all), 257+batch, batch)
+	if len(all) != 271+batch {
+		t.Fatalf("the vector file holds %d vectors, want %d (242 + the 29 mechanical + the %d of the custom-resource batch)", len(all), 271+batch, batch)
 	}
 	extra := 0
 	otherGeneration := map[string]bool{}
@@ -173,10 +173,10 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 			}
 		}
 	}
-	if len(b.pack.Entries) != 228+extra+shippedBatch+len(crdbatchids.Foreign())+crossingRules || len(vectors) != 228+extra+shippedBatch {
+	if len(b.pack.Entries) != 242+extra+shippedBatch+len(crdbatchids.Foreign())+crossingRules || len(vectors) != 242+extra+shippedBatch {
 		t.Fatal("unexpected reviewed rule or vector count")
 	}
-	if caseCount != 1120+4*extra+4*shippedBatch {
+	if caseCount != 1200+4*extra+4*shippedBatch {
 		t.Fatal("unexpected reviewed case count")
 	}
 	for _, vector := range vectors {
@@ -664,13 +664,13 @@ func TestCatalogueDoesNotInventCoverage(t *testing.T) {
 		t.Fatal("Linkerd source preview coverage missing or overstated")
 	}
 	nats, err := Catalog(false, "nats")
-	if err != nil || len(nats.Projects) != 1 || nats.Projects[0].SourceRuleCount != 6 || nats.Projects[0].GenericCoverage != "source_rule_preview" || nats.Projects[0].RuntimeReproduced != 0 {
+	if err != nil || len(nats.Projects) != 1 || nats.Projects[0].SourceRuleCount != 8 || nats.Projects[0].GenericCoverage != "source_rule_preview" || nats.Projects[0].RuntimeReproduced != 0 {
 		t.Fatal("NATS source preview coverage missing or overstated")
 	}
 	for _, want := range []struct {
 		slug  string
 		rules int
-	}{{"cortex", 7}, {"falco", 6}, {"karmada", 1}, {"kubeedge", 1}, {"kuma", 1}, {"spire", 2}, {"strimzi", 1 + crdbatchids.Count("strimzi")}} {
+	}{{"cortex", 7}, {"falco", 10}, {"karmada", 1}, {"kubeedge", 1}, {"kuma", 1}, {"spire", 2}, {"strimzi", 1 + crdbatchids.Count("strimzi")}} {
 		preview, err := Catalog(false, want.slug)
 		if err != nil || len(preview.Projects) != 1 || preview.Projects[0].SourceRuleCount != want.rules || preview.Projects[0].GenericCoverage != "source_rule_preview" || preview.Projects[0].RuntimeReproduced != 0 {
 			t.Fatalf("%s source preview coverage missing or overstated", want.slug)
