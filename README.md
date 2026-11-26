@@ -328,7 +328,7 @@ Generated on 2026-11-24 by `scripts/readme-coverage.sh` (do not edit this block 
 
 | Executable rules | Count |
 | --- | --- |
-| CNCF source rules, active | 253 across 54 projects (1 withdrawn, not used) |
+| CNCF source rules, active | 267 across 54 projects (1 withdrawn, not used) |
 | Rules for further, non-CNCF projects | 51 across 10 projects |
 | Projects with at least one executable check (a rule, a named check or a profile; says nothing about which upgrades it decides) | 68 |
 | Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 53 of 79 |
