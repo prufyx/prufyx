@@ -4,6 +4,7 @@ package knowledgegate
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
@@ -100,5 +101,55 @@ func TestBudgetSourceReadLimitAndRESTLimitStillHold(t *testing.T) {
 	b2 := &budgetSource{src: st2, stats: st2}
 	if _, err := b2.List(extract.RepoRef{}, "", ""); !errors.Is(err, errOnboardingBudget) {
 		t.Fatalf("listing at the REST budget: %v", err)
+	}
+}
+
+// A budget stop names the counter that was used up and the values of all
+// three; each of the three trips alone, and the first reason is kept.
+func TestBudgetRefusalNamesTheCounter(t *testing.T) {
+	t.Parallel()
+	read := func(b *budgetSource) error { _, err := b.Read(extract.RepoRef{}, "", ""); return err }
+	list := func(b *budgetSource) error { _, err := b.List(extract.RepoRef{}, "", ""); return err }
+	for name, tc := range map[string]struct {
+		api          int64
+		reads, lists int
+		call         func(*budgetSource) error
+		want         string
+	}{
+		"REST on a read":    {api: 250, call: read, want: "used up: GitHub REST requests (used 250 of 250 GitHub REST requests, 0 of 3000 reads, 0 of 10000 listings)"},
+		"REST on a listing": {api: 251, lists: 7, call: list, want: "used up: GitHub REST requests (used 251 of 250 GitHub REST requests, 0 of 3000 reads, 7 of 10000 listings)"},
+		"reads":             {api: 249, reads: 3000, call: read, want: "used up: reads (used 249 of 250 GitHub REST requests, 3000 of 3000 reads, 0 of 10000 listings)"},
+		"listings":          {api: 12, lists: 10000, call: list, want: "used up: listings (used 12 of 250 GitHub REST requests, 0 of 3000 reads, 10000 of 10000 listings)"},
+		"REST and listings": {api: 250, lists: 10000, call: list, want: "used up: GitHub REST requests and listings (used 250 of 250"},
+	} {
+		st := &budgetStub{api: tc.api}
+		b := &budgetSource{src: st, stats: st, reads: tc.reads, lists: tc.lists}
+		err := tc.call(b)
+		if !errors.Is(err, errOnboardingBudget) || !b.over || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("%s: over=%v err=%v", name, b.over, err)
+		}
+		st.api = 0
+		for _, again := range []func(*budgetSource) error{read, list} {
+			if next := again(b); !errors.Is(next, errOnboardingBudget) || next.Error() != err.Error() {
+				t.Fatalf("%s: a later call says %v, want %v", name, next, err)
+			}
+		}
+		if b.reads != tc.reads || b.lists != tc.lists {
+			t.Fatalf("%s: refused calls were counted", name)
+		}
+	}
+}
+
+// One REST request below the limit is admitted; at the limit nothing is.
+func TestBudgetRESTBoundary(t *testing.T) {
+	t.Parallel()
+	st := &budgetStub{api: OnboardingRESTBudget - 1}
+	b := &budgetSource{src: st, stats: st}
+	if _, err := b.List(extract.RepoRef{}, "", ""); err != nil || b.over || b.reason() != "" {
+		t.Fatalf("at 249: err=%v over=%v reason=%q", err, b.over, b.reason())
+	}
+	st.api = OnboardingRESTBudget
+	if _, err := b.List(extract.RepoRef{}, "", ""); !errors.Is(err, errOnboardingBudget) || !b.over {
+		t.Fatalf("at 250: err=%v over=%v", err, b.over)
 	}
 }

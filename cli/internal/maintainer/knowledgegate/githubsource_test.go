@@ -42,6 +42,12 @@ type fakeGitHub struct {
 	rest              int // api requests (commits and trees)
 	recursive         int // tree requests with ?recursive=1
 	raw               int // raw file requests
+	// realRoot serves the root tree under its real git id, as GitHub does.
+	realRoot bool
+	// onTree, when set, sees every tree request before it is answered and
+	// may change the entries (paths relative to the tree), mark the answer
+	// truncated, or fail it with a status other than 0.
+	onTree func(id string, recursive bool, out []map[string]string) (status int, entries []map[string]string, truncated bool)
 }
 
 func newFakeGitHub(root string) *fakeGitHub {
@@ -76,6 +82,15 @@ func (f *fakeGitHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		id := fakeTreeID(commit, "")
+		if f.realRoot {
+			entries, err := f.fixture.List(repo, commit, "")
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			gitOrder(entries)
+			id, _ = treeObjectID(entries)
+		}
 		f.mu.Lock()
 		f.trees[id] = [2]string{commit, ""}
 		f.mu.Unlock()
@@ -121,6 +136,14 @@ func (f *fakeGitHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err := emit(loc, "", entries); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
+		}
+		if f.onTree != nil {
+			status, changed, cut := f.onTree(parts[5], rec, out)
+			if status != 0 {
+				w.WriteHeader(status)
+				return
+			}
+			out, trunc = changed, trunc || cut
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"sha": parts[5], "tree": out, "truncated": trunc})
 	case len(parts) >= 5 && parts[0] == "raw":

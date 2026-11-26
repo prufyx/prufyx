@@ -54,21 +54,47 @@ type budgetSource struct {
 	reads int
 	lists int
 	over  bool
+	// why names the counters that were used up when the project went over,
+	// with the values of all three; set with over and not changed after.
+	why string
 }
 
 func (b *budgetSource) spend() error { return b.spendIn(&b.reads, OnboardingReadBudget) }
 
-// spendIn counts one call against counter n, whose limit is limit; the REST
-// limit applies to every kind of call.
+// spendIn counts one call against counter n (reads or lists), whose limit is
+// limit; the REST limit applies to every kind of call.
 func (b *budgetSource) spendIn(n *int, limit int) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.over || *n >= limit || b.stats.Stats().APIRequests-b.start >= OnboardingRESTBudget {
+	if !b.over {
+		rest := b.stats.Stats().APIRequests - b.start
+		if *n < limit && rest < OnboardingRESTBudget {
+			*n++
+			return nil
+		}
+		var out []string
+		if rest >= OnboardingRESTBudget {
+			out = append(out, "GitHub REST requests")
+		}
+		if *n >= limit {
+			if n == &b.lists {
+				out = append(out, "listings")
+			} else {
+				out = append(out, "reads")
+			}
+		}
 		b.over = true
-		return errOnboardingBudget
+		b.why = fmt.Sprintf("used up: %s (used %d of %d GitHub REST requests, %d of %d reads, %d of %d listings)",
+			strings.Join(out, " and "), rest, OnboardingRESTBudget, b.reads, OnboardingReadBudget, b.lists, OnboardingListBudget)
 	}
-	*n++
-	return nil
+	return fmt.Errorf("%w: %s", errOnboardingBudget, b.why)
+}
+
+// reason says what was used up, "" while the project is within its budget.
+func (b *budgetSource) reason() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.why
 }
 
 func (b *budgetSource) used() int64 { return b.stats.Stats().APIRequests - b.start }
@@ -164,7 +190,7 @@ func onboardingDryRun(ctx context.Context, src Source, concurrency int, target c
 		err = fmt.Errorf("the dry run used %d GitHub REST requests, over the budget of %d", b.used(), OnboardingRESTBudget)
 	}
 	if errors.Is(err, errOnboardingBudget) || b.over {
-		err = fmt.Errorf("the dry run's budget of %d GitHub REST requests, %d reads and %d listings ran out: refused, never admitted on a partial run", OnboardingRESTBudget, OnboardingReadBudget, OnboardingListBudget)
+		err = fmt.Errorf("the dry run's budget of %d GitHub REST requests, %d reads and %d listings ran out, %s: refused, never admitted on a partial run", OnboardingRESTBudget, OnboardingReadBudget, OnboardingListBudget, b.reason())
 	}
 	return used, err
 }

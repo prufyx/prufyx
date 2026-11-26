@@ -130,6 +130,11 @@ type GitHubSource struct {
 	blobs     map[string][]byte              // repo NUL blob id -> verified bytes (small files)
 	flights   map[string]*flight             // in-flight requests, by cache key
 	noRecurse map[string]bool                // repo NUL tree id -> GitHub truncated its recursive listing
+	// shallow marks the cached trees that were fetched one level only from
+	// upstream in this run and have subdirectories, so a recursive request
+	// would still bring something. It is read and written only with mu held,
+	// together with trees. A tree loaded from CacheDir is never marked.
+	shallow map[string]bool
 
 	nCommit, nTree, nRecursive, nTruncated, nRaw, nRawBytes, nRawHit atomic.Int64
 	nAPI, nDiskTree, nDiskBlob                                       atomic.Int64
@@ -412,6 +417,7 @@ func (g *GitHubSource) init() {
 	if g.roots == nil {
 		g.roots, g.trees = map[string]string{}, map[string][]extract.TreeEntry{}
 		g.blobs, g.flights, g.noRecurse = map[string][]byte{}, map[string]*flight{}, map[string]bool{}
+		g.shallow = map[string]bool{}
 	}
 }
 
@@ -675,49 +681,95 @@ func (g *GitHubSource) rootTree(ctx context.Context, repo extract.RepoRef, commi
 // set it asks GitHub for the whole subtree in one call and caches the
 // listing of every directory below it by tree id, so later lookups of any
 // of them (in this commit or any other commit sharing the tree) cost
-// nothing. A truncated recursive listing is not used: that tree alone is
-// then read one directory at a time.
+// nothing. That includes a tree this run has so far read one level only (on
+// the way to a deeper path): it is fetched once more, recursively, instead
+// of one request per directory below it. A truncated recursive listing is
+// not used: that tree alone is then read one directory at a time. Any other
+// failure of a recursive request is the caller's error, even when a one
+// level listing of the tree is already cached.
 func (g *GitHubSource) tree(ctx context.Context, repo extract.RepoRef, id string, recursive bool) ([]extract.TreeEntry, error) {
 	g.init()
 	key := repo.Key + "\x00" + id
-	lookup := func() ([]extract.TreeEntry, bool) {
+	// lookup returns the cached listing; owed says that a recursive request
+	// must be made before it answers this caller.
+	lookup := func() (e []extract.TreeEntry, ok, owed bool) {
 		g.mu.Lock()
 		defer g.mu.Unlock()
-		e, ok := g.trees[key]
-		return e, ok
+		e, ok = g.trees[key]
+		return e, ok, ok && recursive && g.shallow[key] && !g.noRecurse[key]
 	}
-	if cached, ok := lookup(); ok {
+	cached, ok, upgrade := lookup()
+	if ok && !upgrade {
 		return cached, nil
 	}
-	if entries, ok := g.diskLoadTree(id); ok {
-		g.mu.Lock()
-		g.trees[key] = entries
-		g.mu.Unlock()
-		g.nDiskTree.Add(1)
-		return entries, nil
-	}
-	g.mu.Lock()
-	skip := g.noRecurse[key]
-	g.mu.Unlock()
-	if recursive && !skip {
-		err := g.once("r\x00"+key, func() bool { _, ok := g.trees[key]; return ok }, func() error {
-			return g.fetchTree(ctx, repo, id, true)
-		})
-		if err == nil {
-			if cached, ok := lookup(); ok {
+	// The disk cache is consulted only for a tree not in memory: this run's
+	// one level listings are written there too and must not answer for the
+	// recursive request.
+	if !ok {
+		if entries, hit := g.diskLoadTree(id); hit {
+			g.mu.Lock()
+			_, held := g.trees[key]
+			if !held {
+				g.trees[key] = entries
+			}
+			g.mu.Unlock()
+			if !held {
+				g.nDiskTree.Add(1)
+				return entries, nil
+			}
+			// Another caller stored it meanwhile; judge that one.
+			if cached, _, upgrade = lookup(); !upgrade {
 				return cached, nil
 			}
-		} else if !errors.Is(err, errTruncated) {
+		}
+	}
+	if recursive {
+		// Done when no recursive request is owed: GitHub truncated this one
+		// before, or the listing is cached and is not a one level one. It
+		// runs with mu held.
+		done := func() bool {
+			if g.noRecurse[key] {
+				return true
+			}
+			_, ok := g.trees[key]
+			return ok && !g.shallow[key]
+		}
+		err := g.once("r\x00"+key, done, func() error {
+			return g.fetchTree(ctx, repo, id, true, upgrade)
+		})
+		if err != nil && !errors.Is(err, errTruncated) {
 			return nil, err
+		}
+		if cached, ok, _ := lookup(); ok {
+			return cached, nil
 		}
 	}
 	if err := g.once("t\x00"+key, func() bool { _, ok := g.trees[key]; return ok }, func() error {
-		return g.fetchTree(ctx, repo, id, false)
+		return g.fetchTree(ctx, repo, id, false, false)
 	}); err != nil {
 		return nil, err
 	}
-	cached, _ := lookup()
-	return cached, nil
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.trees[key], nil
+}
+
+// sameListing reports whether two listings of one tree hold the same entries
+// (name, mode, type and object id), whatever order they came in.
+func sameListing(a, b []extract.TreeEntry) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	a = append([]extract.TreeEntry(nil), a...)
+	b = append([]extract.TreeEntry(nil), b...)
+	gitOrder(a)
+	gitOrder(b)
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 var errTruncated = errors.New("listing truncated")
@@ -734,7 +786,10 @@ func gitOrder(entries []extract.TreeEntry) {
 	sort.SliceStable(entries, func(i, j int) bool { return k(entries[i]) < k(entries[j]) })
 }
 
-func (g *GitHubSource) fetchTree(ctx context.Context, repo extract.RepoRef, id string, recursive bool) error {
+// fetchTree asks upstream for one tree and caches what it answers. upgrade
+// says the caller already holds a one level listing of this tree and asks
+// for the recursive one.
+func (g *GitHubSource) fetchTree(ctx context.Context, repo extract.RepoRef, id string, recursive, upgrade bool) error {
 	key := repo.Key + "\x00" + id
 	owner, name := repo.OwnerName()
 	type treeEntry struct {
@@ -832,17 +887,86 @@ func (g *GitHubSource) fetchTree(ctx context.Context, repo extract.RepoRef, id s
 			}
 		}
 	}
+	return g.storeTrees(repo, id, recursive, upgrade, dirIDs, children)
+}
+
+// storeTrees caches the listings of one answer: dirIDs maps each directory of
+// it ("" is the requested tree id) to its tree id, children to its entries.
+// Everything is checked with the lock held before anything is written, to
+// memory or to disk, so a refused answer leaves no trace:
+//
+//   - a tree id already held (from any earlier request, the disk cache, or
+//     another directory of this answer) must list exactly the same entries;
+//   - an upgrade of a one level listing is stored only if every listing in it
+//     hashes to its own tree id (canonical modes only), so an entry left out
+//     below the requested tree is caught too.
+//
+// A listing already held is never replaced. A recursive answer settles every
+// tree it holds; a one level answer marks its tree as one level only when
+// the tree is new and has a subdirectory.
+func (g *GitHubSource) storeTrees(repo extract.RepoRef, id string, recursive, upgrade bool, dirIDs map[string]string, children map[string][]extract.TreeEntry) error {
+	dirs := make([]string, 0, len(dirIDs))
+	for dir := range dirIDs {
+		if recursive {
+			gitOrder(children[dir])
+		}
+		dirs = append(dirs, dir)
+	}
+	sort.Strings(dirs)
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	for dir, did := range dirIDs {
-		list := children[dir]
-		if recursive {
-			gitOrder(list)
+	upgrade = upgrade || (recursive && g.shallow[repo.Key+"\x00"+id])
+	fresh := map[string][]extract.TreeEntry{} // tree id -> listing to add
+	for _, dir := range dirs {
+		did, list := dirIDs[dir], children[dir]
+		if upgrade {
+			ordered := append([]extract.TreeEntry(nil), list...)
+			gitOrder(ordered)
+			if got, ok := treeObjectID(ordered); !ok || got != did {
+				return fmt.Errorf("tree %s of %s: the recursive listing of tree %s (directory %q) does not hash to its id", id, repo.Key, did, dir)
+			}
 		}
-		g.trees[repo.Key+"\x00"+did] = list
+		held, ok := g.trees[repo.Key+"\x00"+did]
+		if !ok {
+			held, ok = fresh[did]
+		}
+		if !ok {
+			fresh[did] = list
+			continue
+		}
+		if !sameListing(held, list) {
+			return fmt.Errorf("tree %s of %s: the listing of tree %s (directory %q) differs from the one already read", id, repo.Key, did, dir)
+		}
+	}
+	for _, dir := range dirs {
+		did := dirIDs[dir]
+		key := repo.Key + "\x00" + did
+		if recursive {
+			delete(g.shallow, key)
+		}
+		list, ok := fresh[did]
+		if !ok {
+			continue
+		}
+		delete(fresh, did)
+		g.trees[key] = list
+		if !recursive && hasSubtree(list) {
+			g.shallow[key] = true
+		}
 		g.diskStoreTree(did, list)
 	}
 	return nil
+}
+
+// hasSubtree reports whether a listing names a directory, that is, whether a
+// recursive listing of its tree would hold more than it does.
+func hasSubtree(list []extract.TreeEntry) bool {
+	for _, e := range list {
+		if e.Type == "tree" {
+			return true
+		}
+	}
+	return false
 }
 
 // dirTree walks from the commit's root tree to dir and returns its tree id.
