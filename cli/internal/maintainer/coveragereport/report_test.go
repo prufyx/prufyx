@@ -167,7 +167,10 @@ func TestEmbeddedPackBaseline(t *testing.T) {
 		// 2026-10-08 window, so the figures equal the pack without them.
 		// That snapshot lists no releases, so the release-scoped attestations
 		// decide nothing in it (24 A pairs fall back to B, S or G).
-		now, want = supersedeids.Clock(), fleetFigures{Projects: 55, Pairs: 275, A: 5, B: 2, S: 44, G: 224, C1: 53, C3: 1}
+		// Reviewed rules now carry a line-wide range that decides a pair of
+		// this window: S to B. Two batches of line-wide ranges (eight and
+		// twelve rules); the figures below are the measured ones.
+		now, want = supersedeids.Clock(), fleetFigures{Projects: 55, Pairs: 275, A: 5, B: 18, S: 28, G: 224, C1: 53, C3: 1}
 	} else if head.Revision != baseline {
 		// Only the reviewed generation is tied to the baseline revision: a
 		// bumped revision means a new baseline, which this file records.

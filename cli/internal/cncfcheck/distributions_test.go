@@ -302,7 +302,7 @@ func TestPackSchemaLevelDistributions(t *testing.T) {
 	// The distributions row is followed only by the served-list row, the
 	// crossing row, the community-catalog row, the chart row, the set
 	// notice row and the ranged chart row.
-	if rows := packFeatureLevels; rows[len(rows)-7].schema != packSchemaDistributions || rows[len(rows)-6].schema != packSchemaServedAPIs || rows[len(rows)-5].schema != packSchemaCrossing || rows[len(rows)-4].schema != packSchemaCommunity || rows[len(rows)-3].schema != packSchemaChart || rows[len(rows)-2].schema != packSchemaChartNotice || rows[len(rows)-1].schema != packSchemaChartRanged {
+	if rows := packFeatureLevels; rows[len(rows)-8].schema != packSchemaDistributions || rows[len(rows)-7].schema != packSchemaServedAPIs || rows[len(rows)-6].schema != packSchemaCrossing || rows[len(rows)-5].schema != packSchemaCommunity || rows[len(rows)-4].schema != packSchemaChart || rows[len(rows)-3].schema != packSchemaChartNotice || rows[len(rows)-2].schema != packSchemaChartRanged || rows[len(rows)-1].schema != packSchemaBoundaryCovered {
 		t.Fatalf("last levels %s %s %s %s", rows[len(rows)-4].schema, rows[len(rows)-3].schema, rows[len(rows)-2].schema, rows[len(rows)-1].schema)
 	}
 	// A binary that predates distributions rejects such a pack twice: the

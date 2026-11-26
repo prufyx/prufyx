@@ -6,8 +6,8 @@
     "window": 6,
     "pack": {
       "revision": "cncf-2026-09-13.8",
-      "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
-      "digest": "sha256:66926e8b4f2520d12ca2ac46299c9054d253964eea292b02e2961fdc5a8ca19d"
+      "schema": "prufyx.io/cncf-source-rule-pack/v1alpha16",
+      "digest": "sha256:a6bbad9c4edbecc0862700ab0e05f827e2fd2e50b82f5a547e39066c76fb0605"
     },
     "lines": {
       "capturedOn": "2026-10-31",
@@ -27,32 +27,32 @@
       "projects": 79,
       "pairs": 395,
       "a": 97,
-      "b": 3,
-      "s": 39,
+      "b": 19,
+      "s": 23,
       "g": 256,
       "listedChangelog": 18,
       "c1": 63,
       "c3": 20,
       "c5": 14,
-      "vcPairs": 0.2532,
-      "vcMean": 0.2532,
-      "sPairs": 0.0987,
+      "vcPairs": 0.2937,
+      "vcMean": 0.2937,
+      "sPairs": 0.0582,
       "rulesInWindow": 155
     },
     "priorityProjects": {
       "projects": 30,
       "pairs": 150,
       "a": 37,
-      "b": 2,
-      "s": 22,
+      "b": 7,
+      "s": 17,
       "g": 89,
       "listedChangelog": 9,
       "c1": 29,
       "c3": 8,
       "c5": 5,
-      "vcPairs": 0.26,
-      "vcMean": 0.26,
-      "sPairs": 0.1467,
+      "vcPairs": 0.2933,
+      "vcMean": 0.2933,
+      "sPairs": 0.1133,
       "rulesInWindow": 112
     },
     "communityCatalog": {
@@ -80,6 +80,11 @@
         "family": "kubernetes.removed_served_gvk",
         "a": 5,
         "b": 0
+      },
+      {
+        "family": "other",
+        "a": 0,
+        "b": 16
       }
     ],
     "projects": [
@@ -1523,7 +1528,10 @@
           {
             "from": "2.8",
             "to": "3.0",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "3.0",
@@ -1532,10 +1540,10 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 1,
+        "b": 1,
+        "s": 0,
         "g": 4,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 1,
@@ -1740,7 +1748,10 @@
           {
             "from": "3.10",
             "to": "4.0",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "4.0",
@@ -1749,10 +1760,10 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 1,
+        "b": 1,
+        "s": 0,
         "g": 4,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 1,
@@ -1858,7 +1869,10 @@
           {
             "from": "3.5",
             "to": "3.6",
-            "status": "S",
+            "status": "B",
+            "families": [
+              "other"
+            ],
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
@@ -1887,10 +1901,10 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 2,
+        "b": 1,
+        "s": 1,
         "g": 3,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 10,
@@ -2010,7 +2024,10 @@
           {
             "from": "0.40",
             "to": "0.41",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "0.41",
@@ -2054,10 +2071,10 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 1,
+        "b": 1,
+        "s": 0,
         "g": 4,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 6,
@@ -2133,7 +2150,10 @@
           {
             "from": "1.16",
             "to": "1.17",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "1.17",
@@ -2143,7 +2163,10 @@
           {
             "from": "1.18",
             "to": "1.19",
-            "status": "S",
+            "status": "B",
+            "families": [
+              "other"
+            ],
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
@@ -2173,11 +2196,11 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 3,
+        "b": 2,
+        "s": 1,
         "g": 2,
         "listedChangelog": 1,
-        "vc": 0,
+        "vc": 0.4,
         "vcA": 0,
         "covered": true,
         "validRules": 7,
@@ -2524,7 +2547,10 @@
           {
             "from": "2.14",
             "to": "2.15",
-            "status": "S",
+            "status": "B",
+            "families": [
+              "other"
+            ],
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
@@ -2538,10 +2564,10 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 1,
+        "b": 1,
+        "s": 0,
         "g": 4,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 7,
@@ -3086,14 +3112,17 @@
           {
             "from": "1.18",
             "to": "1.19",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 1,
+        "b": 1,
+        "s": 0,
         "g": 4,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 1,
@@ -3564,7 +3593,10 @@
           {
             "from": "1.18",
             "to": "1.19",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "1.19",
@@ -3588,10 +3620,10 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 1,
+        "b": 1,
+        "s": 0,
         "g": 4,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 1,
@@ -3831,14 +3863,17 @@
           {
             "from": "1.8",
             "to": "1.9",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 1,
+        "b": 1,
+        "s": 0,
         "g": 4,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 1,
@@ -4489,7 +4524,10 @@
           {
             "from": "2.10",
             "to": "2.11",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "2.11",
@@ -4499,7 +4537,10 @@
           {
             "from": "2.12",
             "to": "2.14",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "2.14",
@@ -4508,10 +4549,10 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 2,
+        "b": 2,
+        "s": 0,
         "g": 3,
-        "vc": 0,
+        "vc": 0.4,
         "vcA": 0,
         "covered": true,
         "validRules": 6,
@@ -4766,7 +4807,10 @@
           {
             "from": "1.17",
             "to": "1.18",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "1.18",
@@ -4794,11 +4838,11 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 1,
+        "b": 1,
+        "s": 0,
         "g": 4,
         "listedChangelog": 4,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 2,
@@ -5307,7 +5351,10 @@
           {
             "from": "1.10",
             "to": "1.11",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "1.11",
@@ -5322,7 +5369,10 @@
           {
             "from": "1.13",
             "to": "1.14",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "1.14",
@@ -5331,10 +5381,10 @@
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 2,
+        "b": 2,
+        "s": 0,
         "g": 3,
-        "vc": 0,
+        "vc": 0.4,
         "vcA": 0,
         "covered": true,
         "validRules": 2,
@@ -5629,15 +5679,18 @@
           {
             "from": "6.0",
             "to": "7.0",
-            "status": "S"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           }
         ],
         "a": 0,
-        "b": 0,
-        "s": 1,
+        "b": 1,
+        "s": 0,
         "g": 4,
         "listedChangelog": 1,
-        "vc": 0,
+        "vc": 0.2,
         "vcA": 0,
         "covered": true,
         "validRules": 1,
@@ -6247,9 +6300,9 @@
         "project": "distribution",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 1,
+        "s": 0,
         "l": 0,
         "g": 4,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6291,9 +6344,9 @@
         "project": "emissary-ingress",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 1,
+        "s": 0,
         "l": 0,
         "g": 4,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6313,9 +6366,9 @@
         "project": "etcd",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 2,
+        "s": 1,
         "l": 0,
         "g": 3,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6346,9 +6399,9 @@
         "project": "falco",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 1,
+        "s": 0,
         "l": 0,
         "g": 4,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6368,9 +6421,9 @@
         "project": "fluentd",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 2,
         "k8s": 0,
-        "s": 3,
+        "s": 1,
         "l": 1,
         "g": 1,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6431,9 +6484,9 @@
         "project": "harbor",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 1,
+        "s": 0,
         "l": 0,
         "g": 4,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6527,9 +6580,9 @@
         "project": "karmada",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 1,
+        "s": 0,
         "l": 0,
         "g": 4,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6624,9 +6677,9 @@
         "project": "kubeedge",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 1,
+        "s": 0,
         "l": 0,
         "g": 4,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6666,9 +6719,9 @@
         "project": "kubevirt",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 1,
+        "s": 0,
         "l": 0,
         "g": 4,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6786,9 +6839,9 @@
         "project": "nats",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 2,
         "k8s": 0,
-        "s": 2,
+        "s": 0,
         "l": 0,
         "g": 3,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6840,9 +6893,9 @@
         "project": "openfga",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 1,
+        "s": 0,
         "l": 4,
         "g": 0
       },
@@ -6936,9 +6989,9 @@
         "project": "spire",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 2,
         "k8s": 0,
-        "s": 2,
+        "s": 0,
         "l": 0,
         "g": 3,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -6989,9 +7042,9 @@
         "project": "the-update-framework-tuf",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 1,
         "k8s": 0,
-        "s": 1,
+        "s": 0,
         "l": 1,
         "g": 3,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -7044,9 +7097,9 @@
       "projects": 79,
       "pairs": 395,
       "projectsWithAnswer": 54,
-      "ab": 95,
+      "ab": 111,
       "k8s": 5,
-      "s": 39,
+      "s": 23,
       "l": 18,
       "g": 238
     },
@@ -7061,5 +7114,5 @@
       "g": 41
     }
   },
-  "readmeBlockSha256": "e31b73366c39ab4140d7a6cb4ca9a409a3de7ace18718cad400648ae3332f659"
+  "readmeBlockSha256": "be2a6df1ff640a440a85c0aca82e44dfcc28d2a70aacbdc1f831c5f819b981c3"
 }

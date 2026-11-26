@@ -140,6 +140,11 @@ func shippedSchemaLevel(t *testing.T) string {
 	if len(pack.Distributions) != 0 {
 		t.Fatal("the shipped pack carries a section shippedSchemaLevel does not state")
 	}
+	if pack.Schema == packSchemaBoundaryCovered {
+		// The shipped pack opts in to the boundary-covered contract by its
+		// declared schema (stated on purpose; see packFeatureLevels).
+		return packSchemaBoundaryCovered
+	}
 	for _, entry := range pack.Entries {
 		if crossing, err := constraintengine.AnyCrossingRule([]json.RawMessage{entry.Rule}); err != nil {
 			t.Fatal(err)

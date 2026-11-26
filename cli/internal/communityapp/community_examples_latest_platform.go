@@ -32,7 +32,10 @@ func (r runtime) runNATSLatestExample() (communityExampleResult, error) {
 			return communityExampleResult{}, fmt.Errorf("NATS %s literal-name witness did not produce scoped PASS", from)
 		}
 		unknownCode, report, err = r.checkNATSLatestExample(work, from, unknown)
-		if err != nil || unknownCode != ExitUnknown || !communityClaim(report, "UNKNOWN") {
+		// A hop that crosses a reviewed range's release boundary lists that
+		// range's own UNKNOWN claim beside the exact rule's: the include is
+		// unresolved, so every claim of the report must stay UNKNOWN.
+		if err != nil || unknownCode != ExitUnknown || !communityAllClaimsUnknown(report) {
 			return communityExampleResult{}, fmt.Errorf("NATS %s unresolved include did not remain UNKNOWN", from)
 		}
 	}

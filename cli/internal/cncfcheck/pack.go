@@ -368,6 +368,11 @@ const (
 	// packSchemaChartRanged is the level of a pack holding a chart rule
 	// with a range over two chart release lines.
 	packSchemaChartRanged = "prufyx.io/cncf-source-rule-pack/v1alpha15"
+	// packSchemaBoundaryCovered is the level of a pack that opts in to the
+	// boundary-covered rule contract (constraintengine boundary_cover.go). It
+	// is chosen by the pack schema alone, never inferred from rules, and
+	// needs at least one ranged rule. It also admits every lower feature.
+	packSchemaBoundaryCovered = "prufyx.io/cncf-source-rule-pack/v1alpha16"
 )
 
 // packFeature is one pack feature and the schema that introduced it.
@@ -405,6 +410,14 @@ var packFeatureLevels = []packFeature{
 	}},
 	{packSchemaChartRanged, func(_ rulePack, rules []json.RawMessage) (bool, error) {
 		return constraintengine.AnyChartRangedRule(rules)
+	}},
+	// The opt-in is the declared schema itself: present only when the pack
+	// says so and holds a range, so no existing pack changes level.
+	{packSchemaBoundaryCovered, func(pack rulePack, rules []json.RawMessage) (bool, error) {
+		if pack.Schema != packSchemaBoundaryCovered {
+			return false, nil
+		}
+		return constraintengine.AnyRanged(rules)
 	}},
 }
 
@@ -543,6 +556,16 @@ func (b bundle) ruleDocumentBytes(rules []json.RawMessage, corpus []string) ([]b
 	schema, err := constraintengine.RulesSchemaFor(rules)
 	if err != nil {
 		return nil, ErrIntegrity
+	}
+	// A pack that opted in carries every rule document under the covered
+	// schema, when the selection holds a range; a selection without one
+	// keeps its own schema and digest.
+	if b.pack.Schema == packSchemaBoundaryCovered {
+		if ranged, err := constraintengine.AnyRanged(rules); err != nil {
+			return nil, ErrIntegrity
+		} else if ranged {
+			schema = constraintengine.RulesSchemaBoundaryCovered
+		}
 	}
 	document.Schema = schema
 	if len(corpus) > 0 {

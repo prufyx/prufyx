@@ -92,12 +92,14 @@ func TestKubeEdgeDeclarationsPreserveIntentAndApplicabilityBoundaries(t *testing
 		{name: "partial argv stays unknown", selectorState: "declared", selectorValue: "legacy_profile_version", complete: false, distribution: "official_upstream", surface: "keadm_init", currentVersion: "1.18.0", wantCode: ExitUnknown, wantStatus: "UNKNOWN"},
 		{name: "custom build stays unknown", selectorState: "declared", selectorValue: "legacy_profile_version", complete: true, distribution: "custom_build", surface: "keadm_init", currentVersion: "1.18.0", wantCode: ExitUnknown, wantStatus: "UNKNOWN"},
 		{name: "other command stays unknown", selectorState: "declared", selectorValue: "legacy_profile_version", complete: true, distribution: "official_upstream", surface: "other", currentVersion: "1.18.0", wantCode: ExitUnknown, wantStatus: "UNKNOWN"},
-		{name: "wrong tuple stays unknown", selectorState: "declared", selectorValue: "legacy_profile_version", complete: true, distribution: "official_upstream", surface: "keadm_init", currentVersion: "1.18.1", wantCode: ExitUnknown, wantStatus: "UNKNOWN"},
+		{name: "line-wide range origin passes as a range match", selectorState: "declared", selectorValue: "kubeedge_version_flag_only", complete: true, distribution: "official_upstream", surface: "keadm_init", currentVersion: "1.18.1", wantCode: ExitOK, wantStatus: "PASS"},
+		// Control moved outside the reviewed KubeEdge range (1.18-1.19): 1.17.3.
+		{name: "wrong tuple stays unknown", selectorState: "declared", selectorValue: "legacy_profile_version", complete: true, distribution: "official_upstream", surface: "keadm_init", currentVersion: "1.17.3", wantCode: ExitUnknown, wantStatus: "UNKNOWN"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			raw := kubeEdgeExampleDeclaration(t, tc.selectorState, tc.selectorValue, tc.complete, tc.distribution, tc.surface, tc.currentVersion)
 			code, output, stderr := runKubeEdgeDeclaration(t, raw)
-			if code != tc.wantCode || stderr != "" || !strings.Contains(output, "\"status\":\""+tc.wantStatus+"\"") || !strings.Contains(output, "\"assessment\":\"UNKNOWN\"") || strings.Contains(output, "kubeedge-input.json") {
+			if code != tc.wantCode || stderr != "" || !strings.Contains(output, "\"status\":\""+tc.wantStatus+"\"") || !strings.Contains(output, "\"assessment\":\"UNKNOWN\"") || strings.Contains(output, "kubeedge-input.json") || strings.Contains(tc.name, "range match") && !strings.Contains(output, "\"mode\":\"range\"") {
 				t.Fatalf("code=%d stderr=%q output=%s", code, stderr, output)
 			}
 		})

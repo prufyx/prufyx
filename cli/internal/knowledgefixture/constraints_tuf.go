@@ -108,6 +108,8 @@ func syntheticTUFConstraintsBundle(revision string, now time.Time) ([]byte, erro
 	subject["to"], _ = json.Marshal(SyntheticTUFTo)
 	rule["subject"], _ = json.Marshal(subject)
 	rule["id"], _ = json.Marshal("synthetic.tuf-updater-bootstrap-keyword.101-to-102")
+	// One exact fictional pair, not the reviewed line range.
+	delete(rule, "range")
 	var evidence map[string]json.RawMessage
 	if json.Unmarshal(rule["evidence"], &evidence) != nil {
 		return nil, errors.New("synthetic TUF evidence is invalid")
