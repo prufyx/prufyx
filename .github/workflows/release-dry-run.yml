@@ -54,4 +54,7 @@ jobs:
       - name: Dry run
         env:
           KNOWLEDGE_ROOT_DIGEST: ${{ vars.KNOWLEDGE_ROOT_DIGEST }}
+          # Set on pull requests only; empty on workflow_dispatch, where every
+          # generated release docs block must be current.
+          BLOCKS_BASE: ${{ github.event.pull_request.base.sha }}
         run: scripts/release-dry-run.sh "${RUNNER_TEMP}/release-dry-run"

@@ -443,7 +443,7 @@ func TestCIStepPassesTheBaseOfItsEvent(t *testing.T) {
 		return string(out), err
 	}
 	all := []string{"PR_BASE=" + a, "GROUP_BASE=" + b, "PUSH_BEFORE=" + c}
-	for event, want := range map[string]string{"pull_request": a, "merge_group": b, "push": c, "schedule": parent, "workflow_dispatch": parent} {
+	for event, want := range map[string]string{"pull_request": a, "merge_group": b, "push": c, "schedule": parent} {
 		out, err := run(event, all...)
 		if err != nil || !strings.Contains(out, "release-docs check --root .. --mode unreleased --blocks-base "+want) {
 			t.Errorf("%s: %v %s", event, err, out)
@@ -460,4 +460,62 @@ func TestCIStepPassesTheBaseOfItsEvent(t *testing.T) {
 	if out, err := run("pull_request_target", all...); err == nil || strings.Contains(out, "ARGS") {
 		t.Errorf("an unknown event ran the check: %s", out)
 	}
+
+	// A manual run takes its base from the history, so it runs real git.
+	dispatch := func(dir string) (string, error) {
+		cmd := exec.Command("bash", "-c", "go() { printf 'ARGS %s\\n' \"$*\"; }\n"+script)
+		cmd.Dir = dir
+		cmd.Env = append(GitEnv(os.Environ()), "EVENT=workflow_dispatch", "DENY_NAMES=", "RUNNER_TEMP="+t.TempDir())
+		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
+	repo := t.TempDir()
+	git(t, repo, "init", "-q")
+	commit := func(msg string, parents ...string) string {
+		args := []string{"commit-tree", git(t, repo, "write-tree"), "-m", msg}
+		for _, p := range parents {
+			args = append(args, "-p", p)
+		}
+		return git(t, repo, args...)
+	}
+	at := func(head, main string) {
+		git(t, repo, "update-ref", "--no-deref", "HEAD", head)
+		git(t, repo, "update-ref", "refs/remotes/origin/main", main)
+	}
+	wantBase := func(name, want string) {
+		t.Helper()
+		out, err := dispatch(repo)
+		if err != nil || !strings.Contains(out, "--blocks-base "+want+"\n") {
+			t.Errorf("%s: want base %s: %v %s", name, want, err, out)
+		}
+	}
+	wantRefused := func(name string) {
+		t.Helper()
+		out, err := dispatch(repo)
+		if err == nil || strings.Contains(out, "ARGS") {
+			t.Errorf("%s ran the check: %s", name, out)
+		}
+	}
+	root := commit("root")
+	fork := commit("fork", root)
+	tip := commit("main moved", fork)
+	edit := commit("hand edit", fork)
+	later := commit("any later commit", edit)
+	at(later, tip)
+	wantBase("a branch with two commits", fork)
+	at(tip, tip)
+	wantBase("the tip of main", fork)
+	at(fork, tip)
+	wantBase("an older commit of main", root)
+	at(root, tip)
+	wantRefused("the root commit of main")
+	at(later, commit("unrelated"))
+	wantRefused("a branch unrelated to main")
+	left, right := commit("left", fork), commit("right", fork)
+	at(commit("cross one", left, right), commit("cross two", right, left))
+	wantRefused("a branch with two merge bases")
+	git(t, repo, "update-ref", "-d", "refs/remotes/origin/main")
+	// A local branch of the same short name is not main.
+	git(t, repo, "update-ref", "refs/heads/origin/main", fork)
+	wantRefused("a clone without origin/main")
 }

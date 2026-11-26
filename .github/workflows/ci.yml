@@ -128,7 +128,17 @@ jobs:
             pull_request) base="${PR_BASE}" ;;
             merge_group) base="${GROUP_BASE}" ;;
             push) base="${PUSH_BEFORE}" ;;
-            schedule|workflow_dispatch) base="$(git rev-parse --verify 'HEAD^1^{commit}')" ;;
+            schedule) base="$(git rev-parse --verify 'HEAD^1^{commit}')" ;;
+            workflow_dispatch)
+              # A branch is compared with where it left main, never with its
+              # own prior commit; only a commit that is in main's history
+              # uses its first parent. Several merge bases fail below.
+              head="$(git rev-parse --verify 'HEAD^{commit}')"
+              base="$(git merge-base --all refs/remotes/origin/main "${head}")"
+              if [ "${base}" = "${head}" ]; then
+                base="$(git rev-parse --verify 'HEAD^1^{commit}')"
+              fi
+              ;;
             *)
               echo "::error::no blocks base is defined for the event ${EVENT}"
               exit 1

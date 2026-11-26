@@ -4,6 +4,7 @@ package releaseworkflow
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -210,6 +211,66 @@ func TestReleaseDryRunPinsTheReleaseCommandLine(t *testing.T) {
 	}
 	if !strings.Contains(script, "--mode unreleased") || !strings.Contains(script, "RELEASE_TAG") {
 		t.Error("the dry run must run CI mode without RELEASE_TAG and release mode with it")
+	}
+}
+
+// A pull request run of the dry run may keep stale blocks only as its base
+// commit has them; every other run requires them current.
+func TestReleaseDryRunPassesBlocksBaseOnlyWhenSet(t *testing.T) {
+	wf, _, repo := loadDryRun(t)
+	found := 0
+	for _, job := range wf.Jobs {
+		for _, step := range job.Steps {
+			if strings.Contains(step.Run, "scripts/release-dry-run.sh") {
+				found++
+			}
+		}
+	}
+	line := "\n          BLOCKS_BASE: ${{ github.event.pull_request.base.sha }}\n"
+	yml := workflowText(t, "release-dry-run.yml")
+	if found != 1 || strings.Count(yml, line) != 1 || strings.Count(yml, "BLOCKS_BASE:") != 1 {
+		t.Error("the dry run step must set BLOCKS_BASE to the pull request base commit and nothing else")
+	}
+
+	raw, err := os.ReadFile(filepath.Join(repo, "scripts", "release-dry-run.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, rest, ok := strings.Cut(string(raw), "\nelse\n  deny_args=()\n")
+	if !ok {
+		t.Fatal("no CI mode branch")
+	}
+	branch, _, ok := strings.Cut(rest, "\nfi\n\n# 2. ")
+	if !ok {
+		t.Fatal("no end of the CI mode branch")
+	}
+	if strings.Count(string(raw), "--blocks-base \"") != 1 || !strings.Contains(branch, "--blocks-base \"") {
+		t.Error("--blocks-base belongs to the CI mode branch only")
+	}
+	base := strings.Repeat("a", 40)
+	for name, c := range map[string]struct {
+		env  []string
+		want string
+	}{
+		"unset":     {nil, ""},
+		"empty":     {[]string{"BLOCKS_BASE="}, ""},
+		"set":       {[]string{"BLOCKS_BASE=" + base}, " --blocks-base <" + base + ">"},
+		"malformed": {[]string{"BLOCKS_BASE=HEAD --mode x"}, " --blocks-base <HEAD --mode x>"},
+	} {
+		work := t.TempDir()
+		if err := os.Mkdir(filepath.Join(work, "cli"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		// go prints its arguments and fails, as a refusing check would.
+		stub := "set -uo pipefail\ngo() { printf ' <%s>' \"$@\"; return 1; }\nrecord() { echo \"RESULT $2\"; }\ntail_log() { cat \"$1\"; }\n" +
+			"root=\"$1\"; work=\"$1\"; logs=\"$1\"\ndeny_args=()\n"
+		cmd := exec.Command("bash", "-c", stub+branch, "bash", work)
+		cmd.Env = append([]string{"PATH=" + os.Getenv("PATH")}, c.env...)
+		out, err := cmd.CombinedOutput()
+		want := " <run> <./cmd/prufyx-maintainer> <release-docs> <check> <--root> <..> <--mode> <unreleased>" + c.want
+		if err != nil || !strings.Contains(string(out), "RESULT FAIL\n") || !strings.HasSuffix(strings.TrimRight(string(out), "\n"), want) {
+			t.Errorf("%s: want arguments %q: %v %s", name, want, err, out)
+		}
 	}
 }
 
