@@ -39,7 +39,8 @@ def show(src, rev, path):
 
 
 def repo_of(raw):
-    r = json.loads(raw)["target"]["repo"]
+    # strict UTF-8, no byte-order mark: json.loads on bytes would also guess UTF-16/32 and skip a BOM; on str it refuses U+FEFF
+    r = json.loads(raw.decode("utf-8"))["target"]["repo"]
     r = r[len("github.com/"):] if r.startswith("github.com/") else r
     if not re.fullmatch(r"[A-Za-z0-9_][\w.-]*/[A-Za-z0-9_][\w.-]*", r, re.A):
         raise ValueError("bad repo")

@@ -97,6 +97,59 @@ class Case(unittest.TestCase):
         self.r.commit()
         self.assertEqual(self.run_script([TD + "target-b.json"])[0], 0)
 
+    # every encoding json.loads would accept from bytes but strict UTF-8 without a byte-order mark must not
+    BAD_ENCODINGS = ("utf-8-sig", "utf-16", "utf-16-le", "utf-16-be", "utf-32", "utf-32-le", "utf-32-be")
+
+    def encoded(self, repo, enc):
+        return target(repo).decode().encode(enc)
+
+    def assert_unreadable(self, got):
+        rc, out = got
+        self.assertEqual(rc, 1, out)
+        self.assertIn("target check failed", out)
+
+    def test_encoded_new_target_for_known_repo_refused(self):
+        for enc in self.BAD_ENCODINGS:
+            with self.subTest(enc=enc):
+                self.r.write(TD + "target-b.json", self.encoded("o/a", enc))
+                self.r.commit()
+                self.assert_unreadable(self.run_script([TD + "target-b.json"]))
+
+    def test_encoded_rewrite_of_base_target_same_repo_refused(self):
+        for enc in self.BAD_ENCODINGS:
+            with self.subTest(enc=enc):
+                self.r.write(TD + "target-a.json", self.encoded("o/a", enc))
+                self.r.commit()
+                self.assert_unreadable(self.run_script([TD + "target-a.json"]))
+
+    def test_encoded_new_repo_refused_before_maintainer(self):
+        for enc in self.BAD_ENCODINGS:
+            with self.subTest(enc=enc):
+                self.r.write(TD + "target-new.json", self.encoded("o/new", enc))
+                self.r.commit()
+                ch = [TD + "target-new.json"]
+                self.assert_unreadable(self.run_script(ch))  # never exit 4
+                self.assert_unreadable(self.run_script(ch, env={"QA_GATE_REPOS": "o/new"}))
+
+    def test_encoded_new_repo_refused_even_when_signed(self):
+        self.r.write(BATCH, b"{}")
+        for enc in self.BAD_ENCODINGS:
+            with self.subTest(enc=enc):
+                t = self.encoded("o/new", enc)
+                self.r.write(TD + "target-new.json", t)
+                self.r.commit()
+                rep = {"batchId": "b", "schema": "x", "artifacts": [{"path": TD + "target-new.json", "digest": sha(t)}]}
+                self.assert_unreadable(self.run_script([TD + "target-new.json", BATCH], maint=True, report=rep))
+
+    def test_encoded_base_target_refused(self):
+        for enc in self.BAD_ENCODINGS:
+            with self.subTest(enc=enc):
+                self.r.write(TD + "target-a.json", self.encoded("o/a", enc))
+                self.base = self.r.commit()
+                self.r.write(TD + "target-b.json", target("o/a") + b"\n" * (1 + self.BAD_ENCODINGS.index(enc)))
+                self.r.commit()
+                self.assert_unreadable(self.run_script([TD + "target-b.json"]))
+
     def test_repo_change_refused(self):
         self.r.write(TD + "target-a.json", target("o/other"))
         self.r.commit()
