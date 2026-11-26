@@ -42,7 +42,17 @@ func TestHelperOutputRefusals(t *testing.T) {
 	}
 	for name, files := range cases {
 		t.Run(name, func(t *testing.T) {
-			p, proof := classPair(t, alpha, later, nil, files)
+			// The caller alone must not be the reason the pair is withheld.
+			from := map[string]string{"deploy/crds/a.yaml": alpha}
+			to := map[string]string{"deploy/crds/a.yaml": later, caller: files[caller]}
+			control := runSynth(t, attestingTarget(), newSynth(release{"v1.0.0", from}, release{"v1.1.0", to}))
+			cp, _ := pairOf(t, control, "1.0.0", "1.1.0")
+			if cp.Status != extract.PairDerived || len(cp.Rules) != 1 {
+				t.Fatalf("caller alone: %s %q rules %v", cp.Status, cp.Reason, cp.Rules)
+			}
+			to[helper] = files[helper]
+			out := runSynth(t, attestingTarget(), newSynth(release{"v1.0.0", from}, release{"v1.1.0", to}))
+			p, proof := pairOf(t, out, "1.0.0", "1.1.0")
 			if proof.To == nil || proof.To.Scan == nil {
 				t.Fatalf("missing scan: %+v", p)
 			}
@@ -50,7 +60,8 @@ func TestHelperOutputRefusals(t *testing.T) {
 			if f == nil || f.Class != ClassUnsupported || f.Reason != ReasonSourceTemplate {
 				t.Fatalf("helper finding: %+v", f)
 			}
-			if proof.Completeness.Attestable || p.Status != extract.PairWithheld || len(p.Rules) != 0 || !strings.Contains(p.Reason, helper) {
+			// Withholding an unread later source happens before completeness is built.
+			if proof.Completeness != nil || p.Status != extract.PairWithheld || p.Attestation == nil || p.Attestation.Status != extract.PairNotAttested || len(out.Attestations) != 0 || len(p.Rules) != 0 || !strings.Contains(p.Reason, helper+" is "+ClassUnsupported) {
 				t.Fatalf("pair %s %q; completeness %+v", p.Status, p.Reason, proof.Completeness)
 			}
 		})
