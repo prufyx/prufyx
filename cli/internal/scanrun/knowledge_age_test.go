@@ -135,7 +135,7 @@ func TestScanKnowledgeAgeNotInReport(t *testing.T) {
 		for _, clock := range ageClocks {
 			// The knowledge decides the removed CronJob at every clock (see
 			// ageKnowledge), so the compared reports carry a finding.
-			knowledge := ageKnowledge(t, clock.now)
+			knowledge := ageKnowledge(t, clock.name, clock.now)
 			unaged := knowledge
 			if unaged == nil {
 				unaged = LoadEmbeddedForTest(t)
@@ -144,6 +144,9 @@ func TestScanKnowledgeAgeNotInReport(t *testing.T) {
 			plain := scanAt(t, agelessKnowledge{unaged}, clock.now)
 			if aged.Exit != scanreport.ExitBlocked || plain.Exit != scanreport.ExitBlocked {
 				t.Fatalf("%s: exit %d and %d, want blocked", clock.name, aged.Exit, plain.Exit)
+			}
+			if clock.name == "after" && (expiredRules(t, knowledge, clock.now) < 1 || !strings.Contains(aged.KnowledgeAge, "expired")) {
+				t.Fatalf("after: no expired rule, note %q", aged.KnowledgeAge)
 			}
 			if plain.KnowledgeAge != "" {
 				t.Fatalf("knowledge without ages gave a note: %q", plain.KnowledgeAge)
