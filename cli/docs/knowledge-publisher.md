@@ -668,6 +668,20 @@ job fails with "the oldest supported client (...) refuses this package", the
 upload and the deploy do not run, and the feed keeps the last package. An
 unverifiable gate counts as a failed gate.
 
+**Pinned client already behind the live feed.** In mode `state` only, a
+refusal of the candidate also passes when the same pinned binary refuses the
+verified previous package too, and both refusals are exit `15` with
+`KNOWLEDGE CAPABILITY MISMATCH` and without a minimum-client message
+("upgrade prufyx to >="). The live package is already unreadable for that
+client, so refusing the candidate would protect nobody and would let the feed
+expire. In this case the gate proves nothing about the candidate with the pinned
+client: neither its content nor its signature and metadata path. Only the
+self-verification with the client of this tree covers the package, and the run
+summary carries a `WARNING` line. Every other outcome (any other exit code or
+message on either package, a previous package the client accepts, mode `first`
+or `recovery`) fails the run. Move the pin to a released client of the current
+capability to restore the full proof.
+
 **Feed evolution constraint.** `minClientVersion` protects only the index and
 project-target content: a client below it reads the field first and reports the
 package as too new instead of failing. The TUF role shape (the roles and their
