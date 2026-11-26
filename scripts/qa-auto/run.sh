@@ -267,7 +267,8 @@ if [ "$mode" = incremental ] && [ "$selmode" = none ] && [ "$GATE" = 0 ]; then
   python3 "$HERE/summarize.py" --dir "$OUT" --state "$QA_STATE" --sha "$sha" --mode none --note "no relevant change" "${adhoc_flag[@]}"
   rc=$?
   if [ "$ADHOC" = 0 ]; then
-    echo "$sha" >"$QA_STATE/last_checked"; [ $rc = 0 ] && echo "$sha" >"$QA_STATE/last_green"
+    case $rc in 0|2|4) echo "$sha" >"$QA_STATE/last_checked";; esac   # inconclusive: checked again, as after a full run
+    [ $rc = 0 ] && echo "$sha" >"$QA_STATE/last_green"
   fi
   exit $rc
 fi
