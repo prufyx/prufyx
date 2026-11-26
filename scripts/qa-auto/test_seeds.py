@@ -454,7 +454,7 @@ class RunShSeedFirst(unittest.TestCase):
         git("add", ".")
         git("commit", "-qm", "Synthetic data change")
         head = git("rev-parse", "HEAD")
-        for name in ("run.sh", "select_projects.py", "crdgvk.go") + tuple(qalib.ORACLE_FILES):
+        for name in ("run.sh", "select_projects.py", "target_repos.py", "crdgvk.go") + tuple(qalib.ORACLE_FILES):
             shutil.copy2(HERE / name, installed / name)
         (installed / "seeds.py").write_text(seeds_body)
         marker = root / "devbox-called"
