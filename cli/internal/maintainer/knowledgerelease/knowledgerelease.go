@@ -257,6 +257,9 @@ func buildProjectTargets(o Options) (built, error) {
 	if err := check(index.Bytes, raws, o.OldestClient); err != nil {
 		return built{}, fmt.Errorf("listed family: %v: %w", err, ErrRejected)
 	}
+	if err := cncfcheck.CheckOptInShipping(index.Bytes, raws, o.OldestClient); err != nil {
+		return built{}, fmt.Errorf("opt-in pack level: %v: %w", err, ErrRejected)
+	}
 	parsed, err := cncfcheck.ParseExternalIndex(index.Bytes)
 	if err != nil {
 		return built{}, ErrRejected

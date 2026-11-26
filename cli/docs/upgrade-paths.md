@@ -168,10 +168,23 @@ pack carries exactly the schema of the newest feature it uses:
 | the boundary-covered contract, which the pack declares itself and which needs at least one ranged rule | `prufyx.io/cncf-source-rule-pack/v1alpha16` |
 
 `v1alpha16` is the one opt-in level: no content puts a pack there. A change
-that raises a pack to it is admitted by the knowledge gate only together with a
-rule change of the same pack that carries an owner approval or a
-reattestation. A per-project external target keeps the level while its rules
-hold a range.
+that raises a pack to it is admitted by the knowledge gate only if the same
+change adds or alters the range of at least one existing rule of that pack,
+with an owner approval or a batch approval of that rule. A reattestation does
+not count, and neither does an approved rule whose range stays as it was. An
+owner approval binds the bytes of the rule it names, not the pack level. The
+oldest supported client (`cli/knowledge/oldest-supported-client.txt`) must
+also be `v0.1.0-beta.1` or later in both the base and the head of the change;
+a missing or unreadable pin refuses the raise. The gate refuses lowering the
+schema again. While a pack is at that level, the gate also fails any later
+change whose head pin is missing, unreadable or below `v0.1.0-beta.1`, whether
+or not the change touches the pack.
+
+A per-project external target keeps the level while its rules hold a range. An
+index that lists such a target names `v0.1.0-beta.1` or a later version as its
+`minClientVersion`, so an older client that reads that field asks to be
+upgraded. A publication build of such a package is refused while the oldest
+supported client is below `v0.1.0-beta.1` or unknown.
 
 So a pack with path policies and no notice rule, with or without line
 attestations, uses `v1alpha5`, and `v1alpha5` without path policies is refused. Binaries built

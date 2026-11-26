@@ -879,6 +879,7 @@ func (r *Report) packChecksWith(cls *Classification, opts Options, selectOpts fu
 		r.rulecheck(spec, h)
 		r.attestationRulecheck(spec, h)
 		r.pinnedCheck(spec, h)
+		r.optInPinCheck(spec, h, opts)
 		r.staggerCheck(spec, h, loosenedWeeks[spec.Name])
 		r.recordStaggerCheck(cls, spec, b, h, loosenedWeeks[spec.Name])
 		var want []byte

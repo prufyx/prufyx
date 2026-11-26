@@ -8,6 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+
+	"github.com/prufyx/prufyx/cli/internal/buildidentity"
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 )
 
 // The first attested update of a pack that holds an older schema must move
@@ -25,7 +28,20 @@ import (
 //     records, which the gate reads record by record, aside);
 //  4. every other change of the pack (rules, records) is admitted by its
 //     own rules: re-derivation, a reattestation statement or an approval;
-//  5. the change touches neither trust material nor a registry file.
+//  5. the change touches neither trust material nor a registry file;
+//  6. a level the pack reaches only by declaring it (PackSpec.OptInSchema)
+//     changes the answers of rules the change leaves alone, so at least one
+//     existing rule of the same pack must have its range added or altered in
+//     the same change, admitted by an owner approval or a batch approval of
+//     that rule. A reattestation or a re-derivation does not count, nor does
+//     an approved rule whose range stays as it was. The approval binds the
+//     bytes of that rule, not the pack level;
+//  7. for such a level, the oldest-supported-client pin of both the base and
+//     the head is at or above the version that reads it
+//     (cncfcheck.BoundaryCoveredFloor): publication builds refuse the level
+//     below it, so data that holds it would stop the whole feed. A missing or
+//     unreadable pin refuses. The head's pin is held to the same floor by
+//     every later run while the pack stays at the level (optInPinCheck).
 //
 // Any doubt refuses the change. The gate that decides is the one built from
 // the base branch (pull_request_target), so this admission takes effect only
@@ -121,6 +137,14 @@ func checkSchemaChange(cls *Classification, c *Change, changedPaths []string, op
 			return errors.New("a rule or record change of the pack is not admitted")
 		}
 	}
+	if spec.OptInSchema != nil && spec.OptInSchema(headSchema) {
+		if !ownerApprovedRangeChange(cls, c.Pack) {
+			return errors.New("an opt-in schema level is admitted only with an owner approval or a batch approval of an existing rule of the same pack whose range changes in the same change")
+		}
+		if err := optInClientFloor(opts); err != nil {
+			return err
+		}
+	}
 	for _, p := range changedPaths {
 		if opts.Layout.trustPath(p) {
 			return fmt.Errorf("trust material changed in the same change: %s", logSafe(p))
@@ -132,6 +156,79 @@ func checkSchemaChange(cls *Classification, c *Change, changedPaths []string, op
 		}
 	}
 	return nil
+}
+
+// optInClientFloor refuses unless the oldest-supported-client pin of both the
+// base and the head is at or above the version that reads an opt-in pack
+// level: no publication build carries the level while an older client is still
+// supported, so none is admitted either. A missing or unreadable pin refuses.
+func optInClientFloor(opts Options) error {
+	if err := optInPinFloor("base", opts.Base); err != nil {
+		return err
+	}
+	return optInPinFloor("head", opts.Head)
+}
+
+// optInPinFloor is optInClientFloor for one tree, named name in the refusal.
+func optInPinFloor(name string, tree Tree) error {
+	raw, err := tree.Read(OldestClientPinPath, 1024)
+	if err != nil {
+		return fmt.Errorf("the %s's oldest supported client pin: %v", name, err)
+	}
+	version, err := pinVersion(raw)
+	if err != nil {
+		return fmt.Errorf("the %s's oldest supported client pin: %v", name, err)
+	}
+	if !buildidentity.AtLeast(version, cncfcheck.BoundaryCoveredFloor) {
+		return fmt.Errorf("the %s still supports client %s, which cannot read an opt-in schema level: none is admitted before the oldest supported client is %s or later", name, version, cncfcheck.BoundaryCoveredFloor)
+	}
+	return nil
+}
+
+// optInPinCheck holds the pin for as long as the head's pack is at an opt-in
+// level, whether or not the change touches the pack: a later change that
+// lowers, removes or breaks the pin would otherwise stop every publication
+// build. A pack at any other level adds no check; a level that cannot be read
+// refuses.
+func (r *Report) optInPinCheck(spec PackSpec, h *loadedPack, opts Options) {
+	if spec.OptInSchema == nil {
+		return
+	}
+	name := "opt-in-client-pin/" + spec.Name
+	schema, err := memberString(h, "schema")
+	if err != nil {
+		r.add(name, false, "the pack's level cannot be read: %v", err)
+		return
+	}
+	if !spec.OptInSchema(schema) {
+		return
+	}
+	if err := optInPinFloor("head", opts.Head); err != nil {
+		r.add(name, false, "%v", err)
+		return
+	}
+	r.add(name, true, "the oldest supported client reads the pack's opt-in level")
+}
+
+// ownerApprovedRangeChange reports an admitted rule change of the pack that
+// rests on an owner approval and adds or alters the range of an existing
+// rule.
+func ownerApprovedRangeChange(cls *Classification, pack string) bool {
+	for _, o := range cls.Changes {
+		if o.Pack != pack || o.Member != "" || o.Section != "" || o.RuleID == "" || !o.OK {
+			continue
+		}
+		if o.Proof != ProofApproval && o.Proof != ProofBatchApproval {
+			continue
+		}
+		if o.base == nil || o.head == nil || len(o.head.Range) == 0 || string(o.head.Range) == "null" {
+			continue
+		}
+		if !sameAt(o.base.generic, o.head.generic, "rule", "range") {
+			return true
+		}
+	}
+	return false
 }
 
 // memberString reads a top-level member that must be a JSON string.

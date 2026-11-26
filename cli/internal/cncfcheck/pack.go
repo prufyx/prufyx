@@ -412,7 +412,10 @@ var packFeatureLevels = []packFeature{
 		return constraintengine.AnyChartRangedRule(rules)
 	}},
 	// The opt-in is the declared schema itself: present only when the pack
-	// says so and holds a range, so no existing pack changes level.
+	// says so and holds a range, so no existing pack changes level. A level
+	// appended after this one must carry the opt-in, or the declaration is
+	// lost. Leaving the level means a lower schema, which the knowledge gate
+	// refuses (a schema is only raised).
 	{packSchemaBoundaryCovered, func(pack rulePack, rules []json.RawMessage) (bool, error) {
 		if pack.Schema != packSchemaBoundaryCovered {
 			return false, nil
