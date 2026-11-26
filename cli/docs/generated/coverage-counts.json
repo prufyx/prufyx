@@ -2,7 +2,7 @@
   "schema": "prufyx.io/coverage-readme-counts/v2",
   "report": {
     "schema": "prufyx.io/coverage-report/v1",
-    "now": "2026-11-24T05:21:20Z",
+    "now": "2026-11-24T06:04:00Z",
     "window": 6,
     "pack": {
       "revision": "cncf-2026-09-13.8",
@@ -19,7 +19,7 @@
       "entries": 9,
       "clockOn": "2026-11-10"
     },
-    "clockAttestedAt": "2026-11-24T05:21:20Z",
+    "clockAttestedAt": "2026-11-24T06:04:00Z",
     "packProjectsCovered": 73,
     "crdVersionProjects": 87,
     "crdPublishedProjects": 42,
@@ -7061,5 +7061,5 @@
       "g": 41
     }
   },
-  "readmeBlockSha256": "e31b73366c39ab4140d7a6cb4ca9a409a3de7ace18718cad400648ae3332f659"
+  "readmeBlockSha256": "266febbab5365b3ac45c9d21eda6e9fc47e0a8cc558264a3f65893c8da5cd039"
 }
