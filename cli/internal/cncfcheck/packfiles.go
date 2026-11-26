@@ -171,6 +171,10 @@ func RequiredPackSchema(packRaw []byte) (string, error) {
 	return requiredPackSchema(pack)
 }
 
+// PackSchemaIsOptIn reports a schema level a pack reaches only by declaring
+// it: it changes how the engine answers rules the pack already holds.
+func PackSchemaIsOptIn(schema string) bool { return schema == packSchemaBoundaryCovered }
+
 // PackSchemaLevel is the level of a pack schema: the schemas ascend with the
 // features that introduced them (packFeatureLevels). ok is false for a
 // schema this binary does not know.

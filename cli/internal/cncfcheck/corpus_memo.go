@@ -41,6 +41,10 @@ func corpusKey(b bundle, rules []json.RawMessage, corpus []string) [sha256.Size]
 	write([]byte(b.pack.PolicyID))
 	write([]byte(b.pack.PolicyDigest))
 	write([]byte(b.registry.Digest()))
+	// The declared pack schema selects the rule document's contract
+	// (ruleDocumentBytes), so the same rules under another declaration are
+	// another document.
+	write([]byte(b.pack.Schema))
 	binary.BigEndian.PutUint64(length[:], uint64(len(corpus)))
 	h.Write(length[:])
 	for _, component := range corpus {
