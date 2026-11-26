@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:44a76532ccf4259eda9feb6c116fca718b8a98be1f966dbae88848f9108bc404",
+    "candidateDigest": "sha256:3f2518dfcbbef5a769fc78327475bcc01952691e2879db4b4d17e7b700e5ca6e",
+    "candidateId": "pr-822",
+    "decidedAt": "2026-11-26T05:38:03Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "community",
+    "ruleId": "argo-workflows.server-basehref.3-6-19-to-4-1-3"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "U1iSn1hT7B2Mp+jKMXPMHgEKl4kV8yxmZHeW4diFh6ZH4R9G/fK2C0BcSe/WCizsrkXZu27dqxJVo4F1o5CHDA=="
+}
