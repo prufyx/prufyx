@@ -174,17 +174,19 @@ with an owner approval or a batch approval of that rule. A reattestation does
 not count, and neither does an approved rule whose range stays as it was. An
 owner approval binds the bytes of the rule it names, not the pack level. The
 oldest supported client (`cli/knowledge/oldest-supported-client.txt`) must
-also be `v0.1.0-beta.1` or later in both the base and the head of the change;
-a missing or unreadable pin refuses the raise. The gate refuses lowering the
-schema again. While a pack is at that level, the gate also fails any later
-change whose head pin is missing, unreadable or below `v0.1.0-beta.1`, whether
-or not the change touches the pack.
+also be `v0.1.0-beta.3` or later in both the base and the head of the change; a
+missing or unreadable pin refuses the raise, and so does a pin file outside the
+form the publication workflow accepts. The gate refuses lowering the schema
+again. While a pack is at that level, the gate also fails any later change
+whose head pin is missing, unreadable, outside that form or below
+`v0.1.0-beta.3`, whether or not the change touches the pack. This floor is never
+below the one of the `changelog.listed_entries` attestation family.
 
 A per-project external target keeps the level while its rules hold a range. An
-index that lists such a target names `v0.1.0-beta.1` or a later version as its
+index that lists such a target names `v0.1.0-beta.3` or a later version as its
 `minClientVersion`, so an older client that reads that field asks to be
 upgraded. A publication build of such a package is refused while the oldest
-supported client is below `v0.1.0-beta.1` or unknown.
+supported client is below `v0.1.0-beta.3` or unknown.
 
 So a pack with path policies and no notice rule, with or without line
 attestations, uses `v1alpha5`, and `v1alpha5` without path policies is refused. Binaries built

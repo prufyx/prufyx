@@ -6,8 +6,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"os"
 	"testing"
 
+	"github.com/prufyx/prufyx/cli/internal/buildidentity"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
 
@@ -60,7 +62,8 @@ func TestOptInIndexNamesTheFloor(t *testing.T) {
 	}
 }
 
-// With the listed family in the same package the higher floor stays.
+// With the listed family in the same package its floor, never above the
+// opt-in floor, is not lowered.
 func TestOptInKeepsTheHigherFloor(t *testing.T) {
 	t.Parallel()
 	index, _, _, err := BuildExternalTargetsFromPackPinned(optInPack(t, recordSections{LineAttestations: mixedSection(t)}), "5", ListedFamilyFloor)
@@ -73,7 +76,7 @@ func TestOptInKeepsTheHigherFloor(t *testing.T) {
 func TestOptInExportRefusedBelowTheFloor(t *testing.T) {
 	t.Parallel()
 	pack := optInPack(t, recordSections{})
-	for _, oldest := range []string{"", "v0.0.1-alpha.1", "v0.1.0-beta.0"} {
+	for _, oldest := range []string{"", "v0.0.1-alpha.1", "v0.1.0-beta.0", "v0.1.0-beta.1", "v0.1.0-beta.2"} {
 		index, targets, _, err := BuildExternalTargetsFromPackPinned(pack, "5", oldest)
 		if !errors.Is(err, ErrOptInBelowFloor) || !errors.Is(err, ErrIntegrity) || index.Bytes != nil || targets != nil {
 			t.Fatalf("oldest %q: %v", oldest, err)
@@ -102,7 +105,7 @@ func TestCheckOptInFloorRefusals(t *testing.T) {
 	if !bytes.Contains(index.Bytes, member) {
 		t.Fatal("no floor member")
 	}
-	for _, replacement := range []string{"", `,"minClientVersion":"v0.1.0-beta.0"`, `,"minClientVersion":"latest"`} {
+	for _, replacement := range []string{"", `,"minClientVersion":"v0.1.0-beta.0"`, `,"minClientVersion":"v0.1.0-beta.2"`, `,"minClientVersion":"latest"`} {
 		if err := CheckOptInFloor(bytes.Replace(index.Bytes, member, []byte(replacement), 1), raws); err == nil {
 			t.Fatalf("floor %q accepted", replacement)
 		}
@@ -114,17 +117,70 @@ func TestCheckOptInFloorRefusals(t *testing.T) {
 	}
 }
 
-// The floor is a version above every release that predates the level and
-// above the oldest release this repository has published.
+// The floor is a version above the releases published before the level, and
+// never below the listed-family floor.
 func TestBoundaryCoveredFloorIsAboveEarlierReleases(t *testing.T) {
 	t.Parallel()
-	for _, earlier := range []string{"v0.0.1-alpha.1", "v0.1.0-beta.0"} {
+	if !atLeastVersion(BoundaryCoveredFloor, ListedFamilyFloor) {
+		t.Fatalf("the floor %s is below the listed-family floor %s", BoundaryCoveredFloor, ListedFamilyFloor)
+	}
+	for _, earlier := range []string{"v0.0.1-alpha.1", "v0.1.0-beta.0", "v0.1.0-beta.1", "v0.1.0-beta.2"} {
 		if atLeastVersion(earlier, BoundaryCoveredFloor) {
 			t.Fatalf("%s is not below the floor %s", earlier, BoundaryCoveredFloor)
 		}
 	}
 	if !atLeastVersion(BoundaryCoveredFloor, BoundaryCoveredFloor) {
 		t.Fatalf("floor %q is not a version", BoundaryCoveredFloor)
+	}
+}
+
+// optInFloorProblems lists every release tag that does not know the level and
+// is not below the floor: a client at it would pass the floor and fail the
+// package as an integrity error. A tag that knows the level may be on either
+// side, because a floor above it only refuses more.
+func optInFloorProblems(floor string, tags []releaseTag) []string {
+	var problems []string
+	for _, tag := range tags {
+		switch {
+		case !buildidentity.ValidVersion(tag.name):
+			problems = append(problems, tag.name+" is not a version")
+		case !tag.hasFamily && buildidentity.AtLeast(tag.name, floor):
+			problems = append(problems, tag.name+" predates the level but is not below the floor "+floor)
+		}
+	}
+	return problems
+}
+
+func TestOptInFloorProblems(t *testing.T) {
+	t.Parallel()
+	before := []releaseTag{{"v0.0.1-alpha.1", false}, {"v0.1.0-beta.0", false}}
+	later := append(append([]releaseTag(nil), before...), releaseTag{"v0.1.0-beta.1", true}, releaseTag{BoundaryCoveredFloor, true}, releaseTag{"v0.2.0", true})
+	if p := optInFloorProblems(BoundaryCoveredFloor, later); len(p) != 0 {
+		t.Fatalf("floor %s: %v", BoundaryCoveredFloor, p)
+	}
+	if p := optInFloorProblems("v0.1.0-beta.0", before); len(p) != 1 {
+		t.Fatalf("a floor lowered to the last released tag: %v", p)
+	}
+	for _, tag := range []releaseTag{{BoundaryCoveredFloor, false}, {"v0.2.0", false}, {"latest", true}} {
+		if p := optInFloorProblems(BoundaryCoveredFloor, []releaseTag{tag}); len(p) != 1 {
+			t.Fatalf("tag %+v: %v", tag, p)
+		}
+	}
+}
+
+// The floor is above every real release tag that does not hold the level. On
+// CI an unreadable tag list is a failure, never a pass; elsewhere the test is
+// skipped with the reason.
+func TestBoundaryCoveredFloorAgainstTheRealTags(t *testing.T) {
+	tags, reason := gitReleaseTags(t, "optinfloor.go")
+	if reason != "" {
+		if os.Getenv("CI") != "" {
+			t.Fatalf("CI cannot read the release tags: %s", reason)
+		}
+		t.Skip(reason)
+	}
+	if p := optInFloorProblems(BoundaryCoveredFloor, tags); len(p) != 0 {
+		t.Fatalf("floor %s: %v", BoundaryCoveredFloor, p)
 	}
 }
 

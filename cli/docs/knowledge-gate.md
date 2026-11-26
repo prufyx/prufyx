@@ -372,6 +372,7 @@ Run on every pack of the head, whatever the change:
 | `attestation/<pack>` | the committed corpus attestation differs from a regeneration from the head's pack |
 | `generated/…` | the committed support inventory differs from a regeneration from the head's files |
 | `block-only/<pack>` | an active rule has an unknown basis, or the engine does not evaluate its basis safely: consensus must be block-only and a lead verdict-neutral |
+| `opt-in-client-pin/<pack>` | (a pack at a level it reaches only by declaring it) the head's oldest-supported-client pin is missing, is not in the form the publication workflow accepts, or names a version below `cncfcheck.BoundaryCoveredFloor`, or the pack's level cannot be read. A pack at any other level has no such check (see [Commands](#commands), `gate classify`, for the level rules) |
 | `reattestation/<pack>` | the statement chain changed and the appended statement does not verify |
 | `tree` | the head holds a symbolic link or a special file under `cli/` |
 | `file-modes` | a knowledge file the automation may change has, or changes, an executable bit |
@@ -1569,6 +1570,28 @@ file. Only the CNCF pack has schema levels; every other pack refuses the change 
 before. The gate that decides is the one built from the base branch (see below), so
 this admission takes effect only for changes proposed after the code that holds it is
 in `main`: a pull request opened earlier is still judged by the old gate.
+
+A level that a pack reaches only by declaring it (today
+`prufyx.io/cncf-source-rule-pack/v1alpha16`, see
+[upgrade-paths.md](upgrade-paths.md#in-a-knowledge-pack)) changes the answers of
+rules the change leaves alone, so a raise to it is admitted only when, in
+addition to all of the above:
+
+1. at least one existing rule of the same pack has its `range` added or altered
+   in the same change, admitted by an owner approval or a batch approval of that
+   rule. A reattestation or a re-derivation does not count, nor does an approved
+   rule whose range stays as it was. The approval binds the bytes of that rule,
+   not the pack level;
+2. the oldest-supported-client pin
+   (`cli/knowledge/oldest-supported-client.txt`) of both the base and the head
+   names `cncfcheck.BoundaryCoveredFloor` (`v0.1.0-beta.3`) or a later version.
+   The file must hold exactly the lines `ref=<40-hex commit>` and
+   `version=vMAJOR.MINOR.PATCH[-pre.N]`, as the publication workflow requires; a
+   missing file or any other form refuses.
+
+While a pack stays at such a level, every later run holds the head's pin to the
+same floor and form (check `opt-in-client-pin/<pack>`, under
+[Pack checks](#pack-checks)).
 
 A `schema-level` change is never eligible for automatic merging. A downgrade is
 never admitted, so removing the last record that needs a schema level (which

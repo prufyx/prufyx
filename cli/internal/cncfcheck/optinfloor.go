@@ -10,14 +10,16 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
 )
 
-// BoundaryCoveredFloor is the first release whose clients know the opt-in
-// boundary-covered pack level. An older client fails a target at that level
-// as an integrity error, so a package that carries it names this version as
-// its minClientVersion, an older client reports the package as too new, and
-// no publication build carries it while the oldest supported client is below
-// this version. It is a build-time constant: raising it is a code change, and
-// it must be above every release cut before the one that ships the level.
-const BoundaryCoveredFloor = "v0.1.0-beta.1"
+// BoundaryCoveredFloor is the oldest client a package carrying the opt-in
+// boundary-covered pack level may be built for. A client that does not know
+// the level fails such a target as an integrity error, so a package that
+// carries it names this version as its minClientVersion, an older client
+// reports the package as too new, and no publication build carries it while
+// the oldest supported client is below this version. It is a build-time
+// constant: changing it is a code change. It must be above every release cut
+// before the one that ships the level (a test pins that) and is never below
+// ListedFamilyFloor; it may be above the first release that knows the level.
+const BoundaryCoveredFloor = ListedFamilyFloor
 
 // ErrOptInBelowFloor is joined with ErrIntegrity when a package would carry
 // the opt-in pack level while the oldest supported client is below
