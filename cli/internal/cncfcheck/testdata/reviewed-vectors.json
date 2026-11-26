@@ -4641,7 +4641,7 @@
                     "state": "declared"
                   }
                 ],
-                "version": "1.14.6"
+                "version": "1.15.0"
               }
             ]
           },
@@ -11123,7 +11123,7 @@
                     "state": "declared"
                   }
                 ],
-                "version": "1.39.0"
+                "version": "1.40.0"
               }
             ]
           },
@@ -33604,7 +33604,7 @@
                     "state": "declared"
                   }
                 ],
-                "version": "1.20.3"
+                "version": "1.21.0"
               }
             ]
           },
@@ -35044,7 +35044,7 @@
             "components": [
               {
                 "component": "pkg:github/opencost/opencost",
-                "version": "1.120.0",
+                "version": "1.119.0",
                 "facts": [
                   {
                     "id": "component.opencost.current_cloud_cost_enabled",

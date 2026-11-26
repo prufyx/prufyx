@@ -2646,7 +2646,7 @@
     },
     {
       "project": "coredns",
-      "description": "The finite CoreDNS 1.14.7 official plugin configuration contains no federation registration. This exact target-only declaration check leaves custom builds and unresolved Corefiles UNKNOWN and does not claim when the plugin changed or validate DNS behavior or a complete upgrade route.",
+      "description": "The finite CoreDNS 1.14.7 official plugin configuration contains no federation registration. This exact target-only declaration check leaves custom builds and unresolved Corefiles UNKNOWN and does not claim when the plugin changed or validate DNS behavior or a complete upgrade route. Whole-line, target only: plugin.cfg contains no federation entry at every 1.14 release (v1.14.0 to v1.14.7), searched at each release tag. This is a target check that does not say when the behaviour changed, so the range carries no release boundary.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -2722,7 +2722,39 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Remove federation from the declared effective Corefile for the official 1.14.7 distribution, or obtain separate evidence for a custom build; validate DNS behavior separately."
+        "nextAction": "Remove federation from the declared effective Corefile for the official 1.14.7 distribution, or obtain separate evidence for a custom build; validate DNS behavior separately.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "coredns-target-1-14-7-official-plugin-list"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "coredns-target-1-14-7-official-plugin-list"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "coredns-target-1-14-7-official-plugin-list"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "coredns-target-1-14-7-official-plugin-list"
+            }
+          ],
+          "from": {
+            "gte": "1.13.0",
+            "lt": "1.14.0"
+          },
+          "to": {
+            "gte": "1.14.0",
+            "lt": "1.15.0"
+          }
+        }
       }
     },
     {
@@ -3239,7 +3271,7 @@
       }
     },
     {
-      "description": "Target-only Cortex v1.21.1 argv constraint for one exact origin; it does not claim when removal occurred or prove whole-upgrade safety.",
+      "description": "Target-only Cortex v1.21.1 argv constraint for one exact origin; it does not claim when removal occurred or prove whole-upgrade safety. Whole-line, target only: pkg/querier/querier.go and cmd/cortex/Dockerfile are byte-identical to the cited files at every 1.21 release (v1.21.0 and v1.21.1), read at each release tag. This is a target check that does not say when the behaviour changed, so the range carries no release boundary.",
       "project": "cortex",
       "requiredFacts": [
         {
@@ -3333,6 +3365,38 @@
           "component": "pkg:github/cortexproject/cortex",
           "from": "1.20.1",
           "to": "1.21.1"
+        },
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "cortex-v1-21-target-02-querier-surface"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "cortex-v1-21-target-03-entrypoint"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "cortex-v1-21-target-02-querier-surface"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "cortex-v1-21-target-03-entrypoint"
+            }
+          ],
+          "from": {
+            "gte": "1.20.0",
+            "lt": "1.21.0"
+          },
+          "to": {
+            "gte": "1.21.0",
+            "lt": "1.22.0"
+          }
         }
       }
     },
@@ -4879,7 +4943,7 @@
     },
     {
       "project": "envoy",
-      "description": "Envoy 1.39.1 supports only xDS API v3 and rejects a v2 transport version. This exact target-only declaration check does not claim when support changed or validate bootstrap, resources, control-plane behavior, rollout, or a complete upgrade route.",
+      "description": "Envoy 1.39.1 supports only xDS API v3 and rejects a v2 transport version. This exact target-only declaration check does not claim when support changed or validate bootstrap, resources, control-plane behavior, rollout, or a complete upgrade route. Whole-line, target only: both cited ranges are byte-identical to the cited ranges at every 1.39 release (v1.39.0 to v1.39.6), read at each release tag. This is a target check that does not say when the behaviour changed, so the range carries no release boundary.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -4947,7 +5011,39 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Update the effective xDS configuration to v3 for the exact 1.39.1 target, then validate bootstrap/resource schemas and control-plane rollout separately."
+        "nextAction": "Update the effective xDS configuration to v3 for the exact 1.39.1 target, then validate bootstrap/resource schemas and control-plane rollout separately.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "envoy-target-1-39-1-api-version-contract"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "envoy-target-1-39-1-transport-version-guard"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "envoy-target-1-39-1-api-version-contract"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "envoy-target-1-39-1-transport-version-guard"
+            }
+          ],
+          "from": {
+            "gte": "1.38.0",
+            "lt": "1.39.0"
+          },
+          "to": {
+            "gte": "1.39.0",
+            "lt": "1.40.0"
+          }
+        }
       }
     },
     {
@@ -8153,7 +8249,7 @@
     },
     {
       "project": "jaeger",
-      "description": "Jaeger 2.20 target-only non-memory storage constraint for a reviewed 2.x origin. It applies only with explicit operator declarations of non-memory storage and the official proposed v2 distribution; it does not claim a v1 migration or direct-upgrade safety.",
+      "description": "Jaeger 2.20 target-only non-memory storage constraint for a reviewed 2.x origin. It applies only with explicit operator declarations of non-memory storage and the official proposed v2 distribution; it does not claim a v1 migration or direct-upgrade safety. Whole-line, target only: both cited files are byte-identical to the cited files at the only 2.20 release (v2.20.0); the 2.19 line has the single release v2.19.0. This is a target check that does not say when the behaviour changed, so the range carries no release boundary.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -8232,7 +8328,39 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "For the explicitly declared official v2 non-memory deployment, provide one non-empty local --config selection and review its content and backend separately."
+        "nextAction": "For the explicitly declared official v2 non-memory deployment, provide one non-empty local --config selection and review its content and backend separately.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "jaeger-v2-20-default-config-fallback"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "jaeger-v2-20-embedded-memory-storage"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "jaeger-v2-20-default-config-fallback"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "jaeger-v2-20-embedded-memory-storage"
+            }
+          ],
+          "from": {
+            "gte": "2.19.0",
+            "lt": "2.20.0"
+          },
+          "to": {
+            "gte": "2.20.0",
+            "lt": "2.21.0"
+          }
+        }
       }
     },
     {
@@ -15266,7 +15394,7 @@
     },
     {
       "project": "linkerd",
-      "description": "Linkerd stable 2.14 MeshTLSAuthentication adds minItems: 1 to each selector array; this admission-schema predicate is scoped to declared target validation intent and does not validate complete objects or runtime.",
+      "description": "Linkerd stable 2.14 MeshTLSAuthentication adds minItems: 1 to each selector array; this admission-schema predicate is scoped to declared target validation intent and does not validate complete objects or runtime. Whole-line: the cited CRD template is byte-identical to the cited 2.13 file at every stable-2.13 release (stable-2.13.0 to stable-2.13.7) and to the cited 2.14 file at every stable-2.14 release (stable-2.14.0 to stable-2.14.10), read at each release tag.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -15365,7 +15493,39 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Supply exactly one nonempty identities or identityRefs selector and validate the proposed object against the official target CRD schema; complete-object validity and runtime behavior remain unverified."
+        "nextAction": "Supply exactly one nonempty identities or identityRefs selector and validate the proposed object against the official target CRD schema; complete-object validity and runtime behavior remain unverified.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "source-526633fdeea3-36"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "source-a4bec904cc19-36"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "source-a4bec904cc19-36"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "source-a4bec904cc19-36"
+            }
+          ],
+          "from": {
+            "gte": "2.13.0",
+            "lt": "2.14.0"
+          },
+          "to": {
+            "gte": "2.14.0",
+            "lt": "2.15.0"
+          }
+        }
       }
     },
     {
@@ -16651,7 +16811,7 @@
       }
     },
     {
-      "description": "Target-only OPA 1.20.2 producer-mode constraint when explicitly declared v0 consumers remain and relevant modules do not use the rego.v1 import alternative. This does not identify a newly introduced break, inspect modules or bundles, or prove runtime or whole-upgrade safety.",
+      "description": "Target-only OPA 1.20.2 producer-mode constraint when explicitly declared v0 consumers remain and relevant modules do not use the rego.v1 import alternative. This does not identify a newly introduced break, inspect modules or bundles, or prove runtime or whole-upgrade safety. Whole-line, target only: the cited ranges of cmd/build.go, cmd/flags.go, v1/ast/parser.go and v1/ast/parser_ext.go are byte-identical to the cited ranges at every 1.20 release (v1.20.0 to v1.20.2), read at each release tag; only the version stamp differs per release. This is a target check that does not say when the behaviour changed, so the range carries no release boundary.",
       "project": "opa",
       "requiredFacts": [
         {
@@ -16774,6 +16934,38 @@
         "id": "opa.v0-consumer-producer-option-at-1-20-2-from-1-19-1",
         "nextAction": "Enable the effective OPA build producer --v0-compatible mode for the declared v0-consumer scenario, or review and declare the rego.v1 import alternative; independently verify policy and bundle compatibility.",
         "operator": "forbid_predicate_value",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "opa-target-1-20-2-build-v0-flag-call"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "opa-target-1-20-2-build-rego-mode"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "opa-target-1-20-2-build-compiler-mode"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "opa-target-1-20-2-rego-v1-import-guard"
+            }
+          ],
+          "from": {
+            "gte": "1.19.0",
+            "lt": "1.20.0"
+          },
+          "to": {
+            "gte": "1.20.0",
+            "lt": "1.21.0"
+          }
+        },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "subject": {
           "component": "pkg:github/open-policy-agent/opa",
@@ -17460,7 +17652,7 @@
     },
     {
       "project": "opencost",
-      "description": "OpenCost v1.120.0 no longer passes provider-derived configuration into cloud-cost initialization; this checks one caller-declared complete source selection for an enabled cloud-cost migration.",
+      "description": "OpenCost v1.120.0 no longer passes provider-derived configuration into cloud-cost initialization; this checks one caller-declared complete source selection for an enabled cloud-cost migration. Whole-line: at every 1.119 release (v1.119.0 to v1.119.2) InitializeCloudCost takes the provider configuration and builds the memory controller from it, and at every 1.120 release (v1.120.0 to v1.120.4) it takes only the router and builds the memory controller with nil, searched at each release tag; pkg/cloud/config/watcher.go lines 229-307 are byte-identical to the cited range at every 1.120 release.",
       "requiredFacts": [
         {
           "side": "current",
@@ -17605,11 +17797,43 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "For an enabled cloud-cost deployment that relied on provider-derived configuration, select and separately validate a target-supported cloud-integration JSON source before the exact transition; do not put credentials or provider values in this declaration."
+        "nextAction": "For an enabled cloud-cost deployment that relied on provider-derived configuration, select and separately validate a target-supported cloud-integration JSON source before the exact transition; do not put credentials or provider values in this declaration.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "opencost-v1-119-memory-controller-provider-config"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "opencost-v1-120-memory-controller-nil-config"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "opencost-v1-120-memory-controller-nil-config"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "opencost-v1-120-multicloud-source-paths"
+            }
+          ],
+          "from": {
+            "gte": "1.119.0",
+            "lt": "1.120.0"
+          },
+          "to": {
+            "gte": "1.120.0",
+            "lt": "1.121.0"
+          }
+        }
       }
     },
     {
-      "description": "OpenCost v1.120.4 already passes nil to cloud-cost initialization. This is a target revalidation constraint based only on a caller-declared complete current source selection and target cloud-integration selection; upstream origin source does not prove provider-derived reliance.",
+      "description": "OpenCost v1.120.4 already passes nil to cloud-cost initialization. This is a target revalidation constraint based only on a caller-declared complete current source selection and target cloud-integration selection; upstream origin source does not prove provider-derived reliance. Whole-line: InitializeCloudCost(router) with a nil configuration controller is present in pkg/cmd/costmodel/costmodel.go and pkg/costmodel/router.go at every 1.120 release (v1.120.0 to v1.120.4) and every 1.121 release (v1.121.0 to v1.121.5), searched at each release tag; pkg/costmodel/router.go lines 637-661 and pkg/cloud/config/watcher.go lines 229-350 are byte-identical to the cited ranges at every 1.121 release. The rule states a revalidation constraint, not a behaviour change, so the range carries no release boundary.",
       "project": "opencost",
       "requiredFacts": [
         {
@@ -17750,6 +17974,38 @@
         "id": "opencost.cloud-cost-source-migration.1-120-4-to-1-121-2",
         "nextAction": "If the caller independently confirms provider-derived reliance, select and validate a target cloud-integration JSON source before v1.121.2. This revalidation route does not claim v1.121.2 introduced nil initialization; do not include credentials.",
         "operator": "forbid_predicate_value",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "o-origin-1-120-4-cloud-cost-initialization"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "o-origin-1-120-4-cloud-cost-initialization"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "o-target-cloud-cost-initialization"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "o-target-source-priority-and-paths"
+            }
+          ],
+          "from": {
+            "gte": "1.120.0",
+            "lt": "1.121.0"
+          },
+          "to": {
+            "gte": "1.121.0",
+            "lt": "1.122.0"
+          }
+        },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "subject": {
           "component": "pkg:github/opencost/opencost",
@@ -18006,7 +18262,7 @@
     },
     {
       "project": "opentelemetry",
-      "description": "OpenTelemetry Collector 0.111.0 changes the internal metrics default from wildcard :8888 to localhost:8888 when the target feature gate is effective; this checks only a caller-declared non-loopback scrape requirement for a complete config with no service.telemetry.metrics override.",
+      "description": "OpenTelemetry Collector 0.111.0 changes the internal metrics default from wildcard :8888 to localhost:8888 when the target feature gate is effective; this checks only a caller-declared non-loopback scrape requirement for a complete config with no service.telemetry.metrics override. Whole-line: each of these lines has the single release v0.110.0 and v0.111.0 of the collector core; the cited files are byte-identical to the cited files at those releases.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -18132,12 +18388,44 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "For a caller-declared non-loopback scrape requirement, select an explicit target metrics bind or separately review feature-gate and network configuration; verify listener and scrape behavior separately."
+        "nextAction": "For a caller-declared non-loopback scrape requirement, select an explicit target metrics bind or separately review feature-gate and network configuration; verify listener and scrape behavior separately.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "otel-0.110.0-telemetry-factory"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "otel-0.111.0-telemetry-config"
+            },
+            {
+              "basis": "CHANGED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "otel-0.111.0-telemetry-config"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "otel-0.111.0-telemetry-factory"
+            }
+          ],
+          "from": {
+            "gte": "0.110.0",
+            "lt": "0.111.0"
+          },
+          "to": {
+            "gte": "0.111.0",
+            "lt": "0.112.0"
+          }
+        }
       }
     },
     {
       "project": "opentelemetry",
-      "description": "Logging exporter removal in the upstream Collector; this does not prove replacement exporter availability or telemetry delivery.",
+      "description": "Logging exporter removal in the upstream Collector; this does not prove replacement exporter availability or telemetry delivery. Whole-line: each of these lines has the single release v0.110.0 and v0.111.0 of the collector core; the cited files are byte-identical to the cited files at those releases.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -18253,7 +18541,39 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Replace the removed logging exporter with an available exporter such as debug and verify pipeline behavior separately."
+        "nextAction": "Replace the removed logging exporter with an available exporter such as debug and verify pipeline behavior separately.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "PREVIOUS_MINOR_LINE",
+              "bound": "from.gte",
+              "sourceId": "source-otel-old-logging-config-d6f568"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "source-otel-target-collector-config-080b765"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "source-otel-target-collector-config-080b765"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "source-otel-target-component-id-080b765"
+            }
+          ],
+          "from": {
+            "gte": "0.110.0",
+            "lt": "0.111.0"
+          },
+          "to": {
+            "gte": "0.111.0",
+            "lt": "0.112.0"
+          }
+        }
       }
     },
     {
