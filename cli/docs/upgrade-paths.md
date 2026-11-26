@@ -165,6 +165,13 @@ pack carries exactly the schema of the newest feature it uses:
 | a chart rule or a `require_set_member` rule ([contributing-rules.md](contributing-rules.md)) | `prufyx.io/cncf-source-rule-pack/v1alpha13` |
 | a set notice (`notice_set_member_present` or `notice_set_member_absent`, [contributing-rules.md](contributing-rules.md#set-notices)) | `prufyx.io/cncf-source-rule-pack/v1alpha14` |
 | a chart rule with a range ([contributing-rules.md](contributing-rules.md#ranged-chart-rules)) | `prufyx.io/cncf-source-rule-pack/v1alpha15` |
+| the boundary-covered contract, which the pack declares itself and which needs at least one ranged rule | `prufyx.io/cncf-source-rule-pack/v1alpha16` |
+
+`v1alpha16` is the one opt-in level: no content puts a pack there. A change
+that raises a pack to it is admitted by the knowledge gate only together with a
+rule change of the same pack that carries an owner approval or a
+reattestation. A per-project external target keeps the level while its rules
+hold a range.
 
 So a pack with path policies and no notice rule, with or without line
 attestations, uses `v1alpha5`, and `v1alpha5` without path policies is refused. Binaries built

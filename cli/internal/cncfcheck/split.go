@@ -829,6 +829,12 @@ func encodeExternalEnvelopeWithRecords(base bundle, revision, purpose string, en
 	}
 	pack := rulePack{Revision: revision, PolicyID: base.pack.PolicyID, PolicyDigest: base.pack.PolicyDigest, LandscapeFileDigest: base.pack.LandscapeFileDigest, RegistryDigest: base.pack.RegistryDigest, Entries: entries,
 		LineAttestations: records.LineAttestations, PathPolicies: records.PathPolicies, ServedAPIs: records.ServedAPIs}
+	// An opt-in level is declared, never inferred from content, so the
+	// source pack's declaration is carried over. requiredPackSchema drops it
+	// when these entries hold no range.
+	if PackSchemaIsOptIn(base.pack.Schema) {
+		pack.Schema = base.pack.Schema
+	}
 	pack.Schema, err = requiredPackSchema(pack)
 	if err != nil {
 		return nil, ErrIntegrity
