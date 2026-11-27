@@ -218,7 +218,7 @@
         "knowledgeOrigin": "embedded",
         "knowledgeRevision": "cncf-0000-00-00.0",
         "knowledgeDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-        "engineContractDigest": "sha256:0d46478e7a818c192fa57367bf17bf5a066ec7e414d0b745e0f900fd319fd463",
+        "engineContractDigest": "sha256:ddae9a60600415a2a294a3ac9a4a5d6d2348625bbb245e46d435d4d04a9c5fb4",
         "networkUsed": false,
         "omissions": [
           "node and kubelet version skew not evaluated",
