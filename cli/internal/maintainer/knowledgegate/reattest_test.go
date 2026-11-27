@@ -171,6 +171,7 @@ func newReattestFixture(t *testing.T) reattestFixture {
 			Baseline: evidencerepin.BaselineReleaseLine, BaselineMode: evidencerepin.BaselineModeReleaseLine, BaselineLine: "0.9", PinnedTag: "v0.9.0", BaselineTag: "v0.9.4",
 		}},
 	}
+	bindRecords(t, packRaw, wl.Citations)
 	if f.worklist, err = json.Marshal(wl); err != nil {
 		t.Fatal(err)
 	}
@@ -348,5 +349,22 @@ func TestGateReattestationRecordFiles(t *testing.T) {
 				t.Fatalf("knowledge-records ok=%v pass=%v: %s %v", c.OK, r.Passed(), c.Detail, failedChecks(r))
 			}
 		})
+	}
+}
+
+// bindRecords gives each citation the digest and line span its pack source
+// records, as evidence repin does.
+func bindRecords(t *testing.T, packRaw []byte, results []evidencerepin.ClassResult) {
+	t.Helper()
+	citations, err := evidencerepin.LoadCitations(synthPackPath, packRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range results {
+		for _, c := range citations {
+			if c.RuleID == results[i].RuleID && c.SourceID == results[i].SourceID {
+				results[i].OldDigest, results[i].OldStart, results[i].OldEnd = c.OldDigest, c.StartLine, c.EndLine
+			}
+		}
 	}
 }

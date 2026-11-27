@@ -100,7 +100,7 @@ func newReattestFixture(t *testing.T) reattestFixture {
 		Repos: []evidencerepin.RepoResolution{{Owner: "owner", Repo: "repo", Status: "RESOLVED", CurrentTag: "v1.2.3", CurrentCommit: commit, ResolvedAt: at.Add(-time.Hour).Format(time.RFC3339)}},
 		Citations: []evidencerepin.ClassResult{{
 			RulePack: reattestWorklistPackPath, RuleID: "rule-a", Project: "proj-a", SourceID: "rule-a-src",
-			Owner: "owner", Repo: "repo", Path: "VERSION", OldCommit: commit, NewCommit: commit, Class: evidencerepin.ClassFileIdentical,
+			Owner: "owner", Repo: "repo", Path: "VERSION", OldDigest: "sha256:" + strings.Repeat("cd", 32), OldStart: 1, OldEnd: 1, OldCommit: commit, NewCommit: commit, Class: evidencerepin.ClassFileIdentical,
 		}},
 	})
 	if err != nil {
@@ -523,7 +523,7 @@ func TestEvidenceReattestOwnerBaselineFlags(t *testing.T) {
 		}},
 		Citations: []evidencerepin.ClassResult{{
 			RulePack: reattestWorklistPackPath, RuleID: "rule-a", Project: "proj-a", SourceID: "rule-a-src",
-			Owner: "owner", Repo: "repo", Path: "VERSION", OldCommit: commit, NewCommit: entry.Commit, Class: evidencerepin.ClassFileIdentical,
+			Owner: "owner", Repo: "repo", Path: "VERSION", OldDigest: "sha256:" + strings.Repeat("cd", 32), OldStart: 1, OldEnd: 1, OldCommit: commit, NewCommit: entry.Commit, Class: evidencerepin.ClassFileIdentical,
 			Baseline: evidencerepin.BaselineOwnerChoice, BaselineTag: entry.Tag, BaselineEntryDigest: entry.Digest(),
 		}},
 	})

@@ -7,27 +7,34 @@
 // It re-resolves the existing rule packs' citations at each project's
 // current upstream release commit and classifies what happened to each one:
 //
-//   - NO_NEW_RELEASE        - no release since the citation's pinned commit
+//   - NO_NEW_RELEASE        - the baseline commit is the citation's own
+//     pinned commit, and the file read there matches the recorded
+//     contentDigest and holds the cited lines
 //   - FILE_IDENTICAL        - the whole file at the current release commit is
-//     byte-identical to the pinned revision, verified directly against the
-//     corpus's recorded contentDigest, which is a WHOLE-FILE digest, not a
-//     span digest; when the whole file is unchanged the cited span is
+//     byte-identical to the pinned revision: the file at the pinned commit
+//     is read and proven first, then the new file is compared with the
+//     recorded contentDigest, which is a WHOLE-FILE digest, not a span
+//     digest; when the whole file is unchanged the cited span is
 //     necessarily unchanged too
 //   - SPAN_IDENTICAL        - the file changed elsewhere, but after fetching
 //     the file at the citation's own pinned commit and confirming that
 //     fetch matches the recorded contentDigest, the cited span itself is
-//     byte-identical at the same line range in the new file
+//     byte-identical at the same line range in the new file and its bytes
+//     occur exactly once in each of the two files
 //   - SPAN_MOVED            - same span content found at a different line
 //     range in the new file
 //   - CONTENT_CHANGED       - path exists, cited span content differs and is
-//     not found anywhere else in the new file
+//     not found anywhere else in the new file; also a blank cited span, and
+//     a span unchanged at its range whose bytes occur more than once in
+//     either file, because neither proves the cited passage is intact
 //   - PATH_GONE             - path or repository no longer resolvable at the
 //     current release commit
 //   - CORPUS_DIGEST_MISMATCH - the file fetched at the citation's OWN pinned
-//     commit does not hash to the recorded contentDigest (or is not
-//     reachable there at all); this means the corpus record itself is
-//     wrong or the original capture was not faithful. It is a real
-//     integrity finding, reported separately, and is never batch-attestable
+//     commit does not hash to the recorded contentDigest, is not reachable
+//     there at all, or the cited lines are not inside the file that does
+//     hash to it; any of these means the corpus record itself is wrong or
+//     the original capture was not faithful. It is a real integrity
+//     finding, reported separately, and is never batch-attestable
 //
 // It is deterministic and involves no model anywhere. It reads rule packs
 // and network bytes and writes a worklist; it never writes to a rule pack
@@ -70,19 +77,26 @@ import (
 
 const (
 	// Schema identifies the worklist artifact this command produces.
-	Schema = "prufyx.io/evidence-repin-worklist/v2"
-	// SchemaV1 is the previous worklist schema, whose citations carry no
-	// baseline fields and were all compared with the latest release.
-	// Consumers may still read it, treating every citation as BaselineLatest.
+	Schema = "prufyx.io/evidence-repin-worklist/v3"
+	// SchemaV2 and SchemaV1 are earlier worklist schemas. Their citations
+	// carry no recorded contentDigest, and their producers reported
+	// unchanged classes without the proof this version requires, so
+	// "evidence reattest" prepares nothing from them; it reads them only to
+	// recompute an already signed statement. A v1 citation also carries no
+	// baseline fields: it was compared with the latest release
+	// (BaselineLatest).
+	SchemaV2 = "prufyx.io/evidence-repin-worklist/v2"
 	SchemaV1 = "prufyx.io/evidence-repin-worklist/v1"
 	// Authority states plainly what this output is and is not.
 	Authority = "LOCAL_MECHANICAL_CITATION_DRIFT_CLASSIFICATION_NOT_A_CLAIM"
 	// StateSchema identifies the resumable progress file.
-	StateSchema = "prufyx.io/evidence-repin-state/v2"
-	// stateSchemaV1 state files hold repository resolutions that remain
-	// valid; their citation results carry no baseline record and are
-	// discarded on load.
+	StateSchema = "prufyx.io/evidence-repin-state/v3"
+	// stateSchemaV1 and stateSchemaV2 state files hold repository
+	// resolutions that remain valid; their citation results are discarded
+	// on load (v1 records no baseline; a v1 or v2 result was recorded
+	// without the digest and span proof required now).
 	stateSchemaV1 = "prufyx.io/evidence-repin-state/v1"
+	stateSchemaV2 = "prufyx.io/evidence-repin-state/v2"
 
 	maxRulesBytes int64 = 16 << 20
 	// maxAPIBytes bounds one api.github.com response. A page of releases
@@ -757,6 +771,7 @@ type ClassResult struct {
 	Repo      string `json:"repo"`
 	Path      string `json:"path"`
 	OldCommit string `json:"oldCommit"`
+	OldDigest string `json:"oldDigest,omitempty"`
 	NewCommit string `json:"newCommit,omitempty"`
 	OldStart  int    `json:"oldStartLine"`
 	OldEnd    int    `json:"oldEndLine"`
@@ -871,18 +886,25 @@ func spanBytesAt(lines [][]byte, start, end int) ([]byte, bool) {
 // span digest (see the package doc comment), so this function never
 // compares a digest to a span; it compares the actual cited bytes, which is
 // the only reliable way to answer "is the cited span still intact" once the
-// containing file has changed. Equal bytes at the same range means the span
-// survived untouched (SPAN_IDENTICAL). Otherwise it searches the new file
-// for that exact span content at any offset (SPAN_MOVED), and failing that
-// concludes the content changed (CONTENT_CHANGED).
+// containing file has changed. Equal bytes at the same range mean the span
+// survived untouched (SPAN_IDENTICAL) only when those bytes occur exactly
+// once in each file: with a second occurrence, the cited passage may have
+// changed while another one slid into its lines, so the result is
+// CONTENT_CHANGED. Otherwise it searches the new file for that exact span
+// content at any offset (SPAN_MOVED), and failing that concludes the content
+// changed (CONTENT_CHANGED). A blank span identifies no passage and is
+// always CONTENT_CHANGED.
 func classifySpan(oldData []byte, start, end int, newData []byte) (class string, newStart, newEnd int) {
 	oldLines := bytes.Split(oldData, []byte{'\n'})
 	oldSpan, ok := spanBytesAt(oldLines, start, end)
-	if !ok {
+	if !ok || blank(oldSpan) {
 		return ClassContentChanged, 0, 0
 	}
 	newLines := bytes.Split(newData, []byte{'\n'})
 	if sameRange, ok := spanBytesAt(newLines, start, end); ok && bytes.Equal(sameRange, oldSpan) {
+		if countOverlapping(oldData, oldSpan) != 1 || countOverlapping(newData, oldSpan) != 1 {
+			return ClassContentChanged, 0, 0
+		}
 		return ClassSpanIdentical, start, end
 	}
 	spanCount := end - start + 1
@@ -896,13 +918,78 @@ func classifySpan(oldData []byte, start, end int, newData []byte) (class string,
 	return ClassContentChanged, 0, 0
 }
 
+// blank reports whether a cited span holds nothing but white space.
+func blank(span []byte) bool { return len(bytes.TrimSpace(span)) == 0 }
+
+// spanInFile reports whether lines [start,end] lie inside data, by the rule
+// of the citation check (maintainer/rulecheck): the span starts on a real
+// line, and may end on the empty position after a final newline.
+func spanInFile(data []byte, start, end int) bool {
+	slots := bytes.Count(data, []byte{'\n'}) + 1
+	lines := slots
+	if len(data) == 0 || data[len(data)-1] == '\n' {
+		lines--
+	}
+	return start >= 1 && end >= start && start <= lines && end <= slots
+}
+
+// verifyPinned reads the cited file at the citation's own pinned commit and
+// returns it with true only when the whole file hashes to the recorded
+// contentDigest and holds a non-blank cited span. Otherwise it sets the
+// result: CORPUS_DIGEST_MISMATCH when the record is wrong (other bytes, no
+// such path, lines outside the file), CONTENT_CHANGED for a blank span, and
+// PENDING when the file could not be read.
+func verifyPinned(ctx context.Context, result *ClassResult, citation Citation, blobFetcher sourcecapture.Fetcher) ([]byte, bool) {
+	oldPath := "/" + citation.Owner + "/" + citation.Repo + "/" + citation.OldCommit + "/" + citation.Path
+	oldFetch := blobFetcher.Fetch(ctx, oldPath)
+	switch oldFetch.Kind {
+	case "HTTP_200":
+		if sourcecorpus.SHA(oldFetch.Body) != citation.OldDigest {
+			result.Class = ClassCorpusDigestMismatch
+			size := len(oldFetch.Body)
+			result.ObservedDigest, result.ObservedSize = sourcecorpus.SHA(oldFetch.Body), &size
+			result.Detail = "file fetched at the citation's own pinned commit does not hash to the recorded contentDigest (observed " + result.ObservedDigest + ", " + strconv.Itoa(size) + " bytes; recorded " + citation.OldDigest + ")"
+			return nil, false
+		}
+		if !spanInFile(oldFetch.Body, citation.StartLine, citation.EndLine) {
+			result.Class = ClassCorpusDigestMismatch
+			result.Detail = "cited lines " + strconv.Itoa(citation.StartLine) + "-" + strconv.Itoa(citation.EndLine) + " are not inside the file with the recorded contentDigest"
+			return nil, false
+		}
+		if span, ok := spanBytesAt(bytes.Split(oldFetch.Body, []byte{'\n'}), citation.StartLine, citation.EndLine); !ok || blank(span) {
+			result.Class = ClassContentChanged
+			result.Detail = "the cited lines are blank and identify no passage"
+			return nil, false
+		}
+		return oldFetch.Body, true
+	case "HTTP_STATUS":
+		if oldFetch.StatusCode == 404 {
+			// The citation's own pinned commit is immutable; a 404
+			// there means the corpus recorded a URL that does not
+			// actually resolve, which is a corpus integrity problem,
+			// not ordinary drift.
+			result.Class = ClassCorpusDigestMismatch
+			result.Detail = "path not found at the citation's own pinned commit " + citation.OldCommit
+		} else {
+			result.Class = ClassPending
+			result.Detail = "old blob fetch returned status " + strconv.Itoa(oldFetch.StatusCode)
+		}
+	default:
+		result.Class = ClassPending
+		result.Detail = "old blob fetch " + oldFetch.Kind
+	}
+	return nil, false
+}
+
 // Classify resolves one citation against its project's current release
 // commit and blob fetcher, returning its drift classification. current is
 // the repo's resolved current release commit (possibly equal to the
-// citation's own OldCommit, in which case no fetch is needed).
+// citation's own OldCommit, in which case the file there must still be read
+// and must prove the record).
 //
-// blobFetcher is used for both the new blob (at currentCommit) and, when the
-// whole file changed, the citation's own old blob (at citation.OldCommit):
+// blobFetcher is used for the new blob (at currentCommit) and the citation's
+// own old blob (at citation.OldCommit), which every unchanged, moved or
+// changed class needs:
 // raw.githubusercontent.com is not subject to the GitHub API rate limit, so
 // this extra fetch is cheap, and callers that expect many citations to
 // share a file should pass a caching Fetcher (see BuildWorklist).
@@ -910,7 +997,7 @@ func Classify(ctx context.Context, citation Citation, currentCommit string, blob
 	result := ClassResult{
 		RulePack: citation.RulePack, RuleID: citation.RuleID, Project: citation.Project, SourceID: citation.SourceID,
 		Owner: citation.Owner, Repo: citation.Repo, Path: citation.Path,
-		OldCommit: citation.OldCommit, OldStart: citation.StartLine, OldEnd: citation.EndLine,
+		OldCommit: citation.OldCommit, OldDigest: citation.OldDigest, OldStart: citation.StartLine, OldEnd: citation.EndLine,
 	}
 	if currentCommit == "" {
 		result.Class = ClassPending
@@ -919,64 +1006,42 @@ func Classify(ctx context.Context, citation Citation, currentCommit string, blob
 	}
 	result.NewCommit = currentCommit
 	if currentCommit == citation.OldCommit {
-		result.Class = ClassNoNewRelease
+		if _, ok := verifyPinned(ctx, &result, citation, blobFetcher); ok {
+			result.Class = ClassNoNewRelease
+		}
 		return result
 	}
 	newPath := "/" + citation.Owner + "/" + citation.Repo + "/" + currentCommit + "/" + citation.Path
 	newFetch := blobFetcher.Fetch(ctx, newPath)
 	switch newFetch.Kind {
 	case "HTTP_200":
+		// Nothing is compared until the record is proven at the citation's
+		// own pinned commit: the file there must hash to the recorded
+		// contentDigest and hold a non-blank cited span. A wrong, blank or
+		// unreadable record is its own finding, whatever the new file
+		// looks like.
+		oldBody, ok := verifyPinned(ctx, &result, citation, blobFetcher)
+		if !ok {
+			return result
+		}
 		// contentDigest is a whole-file digest (see the package doc
 		// comment): when the whole new file still hashes to it, the file
 		// did not change at all, so the cited span is necessarily intact
-		// too. This is the cheap, batch-attestable case and needs no
-		// further fetch.
+		// too.
 		if sourcecorpus.SHA(newFetch.Body) == citation.OldDigest {
 			result.Class = ClassFileIdentical
 			return result
 		}
-		// The file changed. Fetch it at the citation's OWN pinned
-		// revision and verify that fetch actually matches the recorded
-		// contentDigest before trusting it as ground truth for the span
-		// comparison; if it doesn't, the corpus record itself is wrong
-		// and that is a finding in its own right, not a drift class.
-		oldPath := "/" + citation.Owner + "/" + citation.Repo + "/" + citation.OldCommit + "/" + citation.Path
-		oldFetch := blobFetcher.Fetch(ctx, oldPath)
-		switch oldFetch.Kind {
-		case "HTTP_200":
-			if sourcecorpus.SHA(oldFetch.Body) != citation.OldDigest {
-				result.Class = ClassCorpusDigestMismatch
-				size := len(oldFetch.Body)
-				result.ObservedDigest, result.ObservedSize = sourcecorpus.SHA(oldFetch.Body), &size
-				result.Detail = "file fetched at the citation's own pinned commit does not hash to the recorded contentDigest (observed " + result.ObservedDigest + ", " + strconv.Itoa(size) + " bytes; recorded " + citation.OldDigest + ")"
-				return result
+		class, newStart, newEnd := classifySpan(oldBody, citation.StartLine, citation.EndLine, newFetch.Body)
+		result.Class = class
+		if class == ClassSpanMoved {
+			result.NewStart, result.NewEnd = newStart, newEnd
+			// classifySpan takes the first match; a move is recorded only
+			// when EvaluateMove finds that same place to be the only one
+			// and every guard holds.
+			if ns, ne, reason := EvaluateMove(oldBody, citation.StartLine, citation.EndLine, newFetch.Body); reason == "" && ns == newStart && ne == newEnd {
+				result.MovedTo = &MovedTo{Commit: currentCommit, Path: citation.Path, StartLine: ns, EndLine: ne, ContentDigest: sourcecorpus.SHA(newFetch.Body)}
 			}
-			class, newStart, newEnd := classifySpan(oldFetch.Body, citation.StartLine, citation.EndLine, newFetch.Body)
-			result.Class = class
-			if class == ClassSpanMoved {
-				result.NewStart, result.NewEnd = newStart, newEnd
-				// classifySpan takes the first match; a move is recorded only
-				// when EvaluateMove finds that same place to be the only one
-				// and every guard holds.
-				if ns, ne, reason := EvaluateMove(oldFetch.Body, citation.StartLine, citation.EndLine, newFetch.Body); reason == "" && ns == newStart && ne == newEnd {
-					result.MovedTo = &MovedTo{Commit: currentCommit, Path: citation.Path, StartLine: ns, EndLine: ne, ContentDigest: sourcecorpus.SHA(newFetch.Body)}
-				}
-			}
-		case "HTTP_STATUS":
-			if oldFetch.StatusCode == 404 {
-				// The citation's own pinned commit is immutable; a 404
-				// there means the corpus recorded a URL that does not
-				// actually resolve, which is a corpus integrity problem,
-				// not ordinary drift.
-				result.Class = ClassCorpusDigestMismatch
-				result.Detail = "path not found at the citation's own pinned commit " + citation.OldCommit
-			} else {
-				result.Class = ClassPending
-				result.Detail = "old blob fetch returned status " + strconv.Itoa(oldFetch.StatusCode)
-			}
-		default:
-			result.Class = ClassPending
-			result.Detail = "old blob fetch " + oldFetch.Kind
 		}
 	case "HTTP_STATUS":
 		if newFetch.StatusCode == 404 {
@@ -1029,12 +1094,12 @@ func LoadState(path string) (*State, error) {
 		return nil, fmt.Errorf("%w: state file too large", errRejected)
 	}
 	state := newState()
-	if err := json.Unmarshal(raw, state); err != nil || (state.Schema != StateSchema && state.Schema != stateSchemaV1) {
+	if err := json.Unmarshal(raw, state); err != nil || (state.Schema != StateSchema && state.Schema != stateSchemaV2 && state.Schema != stateSchemaV1) {
 		return nil, fmt.Errorf("%w: decode state: %v", errRejected, err)
 	}
-	if state.Schema == stateSchemaV1 {
-		// Repository resolutions carry over; v1 citation results have no
-		// baseline record, so they are recomputed rather than resumed.
+	if state.Schema != StateSchema {
+		// Repository resolutions carry over; older citation results are
+		// recomputed rather than resumed.
 		state.Schema = StateSchema
 		state.Results = nil
 	}
@@ -1318,7 +1383,7 @@ var worklistLimitations = []string{
 	"it reads existing rule packs and writes only this worklist and an optional state file; it cannot modify a pack or a rule",
 	"a repository's \"current release commit\" is its latest release under one shared rule (" + latestrelease.Rule + "), the same rule the local mirror source applies; this is a proxy for \"upstream now\", not a guarantee of the true latest stable line",
 	"SPAN_MOVED, CONTENT_CHANGED, PATH_GONE, and CORPUS_DIGEST_MISMATCH all require a human reviewer, except that a SPAN_MOVED citation carrying a movedTo record (a unique, guarded move on its release line head) may be renewed by a human statement without a hand re-review of its bytes; this tool only narrows where reviewer time goes",
-	"CORPUS_DIGEST_MISMATCH means the file fetched at the citation's own pinned commit does not hash to the recorded contentDigest (or is not reachable there at all); this is a corpus integrity problem, not citation drift, and should be investigated separately",
+	"CORPUS_DIGEST_MISMATCH means the file fetched at the citation's own pinned commit does not hash to the recorded contentDigest or is not reachable there at all, or the cited lines are not inside the file that has that digest; this is a corpus integrity problem, not citation drift, and should be investigated separately",
 	"a repo resolution or citation classification resumed from --state is reported as current only if it is within --max-age of this run; an older entry is either recomputed or, when this run could not recompute it, kept and marked \"stale\": true rather than reported as fresh",
 	"a citation with \"baseline\": \"release_line\" was compared with the newest GitHub Release on the release line of the release tag proven to point at its pinned commit, not with the repository's most recent release; it answers whether the cited content changed in later releases of that line and says nothing about other release lines",
 	"a citation with \"baseline\": \"tag_line\" belongs to a repository without usable GitHub Releases; it was compared with the highest release tag (MAJOR.MINOR.PATCH, pre-releases excluded) on the line of the release tag that points at its pinned commit, from the repository's complete git ref listing; the line record has \"basis\": \"git_tags\"",
@@ -1467,7 +1532,7 @@ func BuildWorklistWithOptions(ctx context.Context, citations []Citation, project
 	for _, citation := range filtered {
 		citationKey := citation.key()
 		existing, hadExisting := state.Results[citationKey]
-		if hadExisting && existing.Class != ClassPending && existing.Class != ClassNoReleaseBaseline && isFresh(existing.ClassifiedAt, now(), maxAge) && resultMode(existing) == baselineMode && lineStillFresh(state, existing, now(), maxAge) && ownerChoiceStillHolds(existing, state.Repos[citation.repoKey()], buildOpts.Baselines) {
+		if hadExisting && sameRecord(existing, citation) && existing.Class != ClassPending && existing.Class != ClassNoReleaseBaseline && isFresh(existing.ClassifiedAt, now(), maxAge) && resultMode(existing) == baselineMode && lineStillFresh(state, existing, now(), maxAge) && ownerChoiceStillHolds(existing, state.Repos[citation.repoKey()], buildOpts.Baselines) {
 			// Still fresh: resume without reclassifying or re-stamping.
 			results = append(results, existing)
 			continue
@@ -1539,7 +1604,7 @@ func BuildWorklistWithOptions(ctx context.Context, citations []Citation, project
 				result.Baseline = BaselineLatest
 				result.BaselineNote = decision.note
 			}
-		case hadExisting && existing.Class != ClassPending && resultMode(existing) == baselineMode && ownerChoiceStillHolds(existing, resolution, buildOpts.Baselines):
+		case hadExisting && sameRecord(existing, citation) && existing.Class != ClassPending && resultMode(existing) == baselineMode && ownerChoiceStillHolds(existing, resolution, buildOpts.Baselines):
 			// The prior classification is stale, but this run cannot
 			// recompute it (its repo's resolution is itself stale and
 			// unrefreshed this run, typically due to an earlier rate
@@ -1713,6 +1778,15 @@ func ownerChoiceStillHolds(result ClassResult, repo RepoResolution, baselines *r
 	return ownerBaselineHeld(ob, result.Owner+"/"+result.Repo, baselines) && repo.Status == repoPendingAmbiguous && ob != nil && ob.EntryDigest == result.BaselineEntryDigest && ob.Commit == result.NewCommit && ob.Tag == result.BaselineTag
 }
 
+// sameRecord reports whether a stored result was computed for exactly this
+// citation. State keys only pack, rule and source, so a record edited since
+// is classified again.
+func sameRecord(result ClassResult, citation Citation) bool {
+	return result.Project == citation.Project && result.Owner == citation.Owner && result.Repo == citation.Repo && result.Path == citation.Path &&
+		result.OldCommit == citation.OldCommit && result.OldDigest == citation.OldDigest &&
+		result.OldStart == citation.StartLine && result.OldEnd == citation.EndLine
+}
+
 // resultMode is the baseline mode a result was computed under; a result
 // that predates the field was compared with the latest release.
 func resultMode(result ClassResult) string {
@@ -1726,7 +1800,7 @@ func pendingResult(citation Citation, detail string) ClassResult {
 	return ClassResult{
 		RulePack: citation.RulePack, RuleID: citation.RuleID, Project: citation.Project, SourceID: citation.SourceID,
 		Owner: citation.Owner, Repo: citation.Repo, Path: citation.Path,
-		OldCommit: citation.OldCommit, OldStart: citation.StartLine, OldEnd: citation.EndLine,
+		OldCommit: citation.OldCommit, OldDigest: citation.OldDigest, OldStart: citation.StartLine, OldEnd: citation.EndLine,
 		Class: ClassPending, Detail: detail,
 	}
 }

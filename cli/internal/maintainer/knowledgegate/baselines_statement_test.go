@@ -86,6 +86,7 @@ func newOwnerStatementFixture(t *testing.T) ownerStatementFixture {
 			Baseline: evidencerepin.BaselineOwnerChoice, BaselineMode: evidencerepin.BaselineModeReleaseLine, BaselineTag: f.entry.Tag, BaselineEntryDigest: f.entry.Digest(),
 		}},
 	}
+	bindRecords(t, packRaw, wl.Citations)
 	if f.worklist, err = json.Marshal(wl); err != nil {
 		t.Fatal(err)
 	}

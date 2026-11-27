@@ -488,8 +488,14 @@ including the mechanical-rule exclusion, `NOT_YET_DUE` and
   line derived from git tags (`baseline: tag_line`) as
   `TAG_LINE_BASELINE_NOT_AUTOMATABLE`; both are left to a human
   statement, whose path is unchanged. `verify` enforces the same rule on
-  the statement (V8). A v1 worklist, which predates baseline records, is
-  rejected.
+  the statement (V8). `prepare`, in either mode, accepts only a current
+  (`v3`) worklist, and so does the sample review; the independent worklist
+  (V9) must be `v3` too. `verify` recomputes a signed statement from a
+  retained earlier worklist (`v2` only, for an automated statement) only
+  when it is given no independent worklist and not `--structural-only`. That
+  audit is never the publish gate. The command still demands
+  `--rerun-worklist` for an automated statement that renews rules, so it does
+  not audit one over an earlier worklist.
 - **No sample.** `sampledForFullReview` is always empty, and must be: a
   human statement that renews rules without a reviewed sample, or an
   automated statement carrying a sample, is rejected.
@@ -547,7 +553,7 @@ one of: `WORKLIST_SCOPE_INCOMPLETE` and `CITATION_PENDING` (E2), `TAG_FALLBACK_B
 `CONSECUTIVE_BATCH_CYCLE_CAP` (E6), `EVIDENCE_NOT_ACTIVE` and
 `CORPUS_DIGEST_MISMATCH_IN_PROJECT` (E7), `SOURCE_WITHOUT_CITATION`,
 `CITATION_WITHOUT_SOURCE`, `DUPLICATE_CITATION_FOR_SOURCE`,
-`CITATION_COMMIT_DOES_NOT_MATCH_PINNED_SOURCE` (E1),
+`CITATION_COMMIT_DOES_NOT_MATCH_PINNED_SOURCE` and `CITATION_DOES_NOT_MATCH_PINNED_SOURCE` (E1, the worklist citation was classified for another commit, or for another repository, path, line span or `contentDigest`, than the source now records),
 `NOT_LATER_THAN_CURRENT` and `NOT_YET_DUE` (renewal timing, see above),
 `STAGGER_DEFERRED` (V7 cap), `MECHANICAL_RULE_EXCLUDED`, and, in automated
 mode only, `LATEST_BASELINE_NOT_AUTOMATABLE`, `TAG_LINE_BASELINE_NOT_AUTOMATABLE` and `REVIEWED_OUTSIDE_STATEMENT_CHAIN`.

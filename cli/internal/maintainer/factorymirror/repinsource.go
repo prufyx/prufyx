@@ -35,6 +35,8 @@ func mapReadError(err error) error {
 		return evidencerepin.ErrMirrorNotMirrored
 	case errors.Is(err, ErrRepoFrozen):
 		return evidencerepin.ErrMirrorFrozen
+	case errors.Is(err, ErrRefsUnavailable):
+		return fmt.Errorf("%w: %v", evidencerepin.ErrMirrorRefsUnavailable, err)
 	case errors.Is(err, ErrReleasesIncomplete):
 		return fmt.Errorf("%w: %v", evidencerepin.ErrMirrorReleasesUnusable, err)
 	case errors.Is(err, ErrBlobNotLocal):

@@ -366,7 +366,7 @@ func TestStoredOwnerChoiceNeedsThisRunsFile(t *testing.T) {
 			Owner: "example", Repo: "proj", Status: repoPendingAmbiguous, Detail: "ambiguous", ResolvedAt: stamp(-time.Hour),
 			OwnerBaseline: &OwnerBaseline{Tag: entry.Tag, Commit: entry.Commit, EntryDigest: entry.Digest()},
 		}
-		st.Results[c.key()] = ClassResult{RulePack: c.RulePack, RuleID: c.RuleID, SourceID: c.SourceID, Owner: "example", Repo: "proj", OldCommit: c.OldCommit, NewCommit: entry.Commit, Class: ClassFileIdentical, ClassifiedAt: stamp(-time.Hour), BaselineMode: BaselineModeLatest, Baseline: BaselineOwnerChoice, BaselineTag: entry.Tag, BaselineEntryDigest: entry.Digest()}
+		st.Results[c.key()] = ClassResult{RulePack: c.RulePack, RuleID: c.RuleID, SourceID: c.SourceID, Project: c.Project, Owner: "example", Repo: "proj", Path: c.Path, OldCommit: c.OldCommit, OldDigest: c.OldDigest, OldStart: c.StartLine, OldEnd: c.EndLine, NewCommit: entry.Commit, Class: ClassFileIdentical, ClassifiedAt: stamp(-time.Hour), BaselineMode: BaselineModeLatest, Baseline: BaselineOwnerChoice, BaselineTag: entry.Tag, BaselineEntryDigest: entry.Digest()}
 		w, err := BuildWorklistWithOptions(context.Background(), []Citation{limited, c}, nil, 0, st, f.api, f.blobs, fixedNow(), 72*time.Hour, nil, BaselineModeLatest, BuildOptions{Baselines: file})
 		if err != nil {
 			t.Fatal(err)
@@ -378,6 +378,9 @@ func TestStoredOwnerChoiceNeedsThisRunsFile(t *testing.T) {
 			}
 		}
 		if name == "same entry" {
+			if got.ClassifiedAt != stamp(-time.Hour) || got.Class != ClassFileIdentical {
+				t.Errorf("same entry: a result for the unchanged record is resumed: %+v", got)
+			}
 			continue
 		}
 		if got.Baseline == BaselineOwnerChoice || got.BaselineEntryDigest != "" {

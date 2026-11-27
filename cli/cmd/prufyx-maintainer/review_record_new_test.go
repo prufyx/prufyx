@@ -76,7 +76,7 @@ func newSampleCLIFixture(t *testing.T) sampleCLIFixture {
 			"rule": rule(id, f.at.Add(-30*24*time.Hour).Format(time.RFC3339), validUntil.Format(time.RFC3339), source(id+"-src", "repo-"+id, commit))})
 		citations = append(citations, evidencerepin.ClassResult{
 			RulePack: reattestWorklistPackPath, RuleID: id, Project: "proj-" + id, SourceID: id + "-src",
-			Owner: "owner", Repo: "repo-" + id, Path: "VERSION", OldCommit: commit, NewCommit: commit, Class: evidencerepin.ClassFileIdentical,
+			Owner: "owner", Repo: "repo-" + id, Path: "VERSION", OldDigest: "sha256:" + strings.Repeat("cd", 32), OldStart: 1, OldEnd: 1, OldCommit: commit, NewCommit: commit, Class: evidencerepin.ClassFileIdentical,
 		})
 		repos = append(repos, evidencerepin.RepoResolution{Owner: "owner", Repo: "repo-" + id, Status: "RESOLVED", CurrentTag: "v1.2.3", CurrentCommit: commit, ResolvedAt: f.at.Add(-time.Hour).Format(time.RFC3339)})
 	}

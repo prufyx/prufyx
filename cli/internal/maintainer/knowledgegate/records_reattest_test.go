@@ -120,7 +120,7 @@ func recordWorklist(t *testing.T, packRaw []byte, at time.Time) []byte {
 	for _, c := range citations {
 		wl.Citations = append(wl.Citations, evidencerepin.ClassResult{
 			RulePack: c.RulePack, RuleID: c.RuleID, Project: c.Project, SourceID: c.SourceID,
-			Owner: c.Owner, Repo: c.Repo, Path: c.Path, OldCommit: c.OldCommit, NewCommit: c.OldCommit, Class: evidencerepin.ClassFileIdentical,
+			Owner: c.Owner, Repo: c.Repo, Path: c.Path, OldCommit: c.OldCommit, OldDigest: c.OldDigest, OldStart: c.StartLine, OldEnd: c.EndLine, NewCommit: c.OldCommit, Class: evidencerepin.ClassFileIdentical,
 			Baseline: evidencerepin.BaselineReleaseLine, BaselineMode: evidencerepin.BaselineModeReleaseLine, BaselineLine: "0.9", PinnedTag: "v0.9.0", BaselineTag: "v0.9.4",
 		})
 		if !repos[c.Owner+"/"+c.Repo] {

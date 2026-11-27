@@ -601,6 +601,7 @@ func TestWeeklyBatchSimulationOnRealPacks(t *testing.T) {
 					})
 				}
 			}
+			bindSources(t, &wl, raw)
 			worklistRaw := marshalWorklist(t, wl)
 			res, err := Prepare(PrepareOptions{
 				WorklistRaw: worklistRaw, PackName: tc.pack, PackPath: tc.path, PackRaw: raw, Chain: f.chain(),

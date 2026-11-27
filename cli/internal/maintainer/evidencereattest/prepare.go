@@ -56,9 +56,13 @@ const (
 	reasonUnknownCitation          = "CITATION_WITHOUT_SOURCE"
 	reasonDuplicateCitation        = "DUPLICATE_CITATION_FOR_SOURCE"
 	reasonCitationCommitMismatch   = "CITATION_COMMIT_DOES_NOT_MATCH_PINNED_SOURCE"
-	reasonStaggerDeferred          = "STAGGER_DEFERRED"
-	reasonNotLaterThanCurrent      = "NOT_LATER_THAN_CURRENT"
-	reasonNotYetDue                = "NOT_YET_DUE"
+	// reasonCitationRecordMismatch: the citation was classified for another
+	// repository, path, line span or contentDigest than the source now
+	// records (the record was edited after the repin run).
+	reasonCitationRecordMismatch = "CITATION_DOES_NOT_MATCH_PINNED_SOURCE"
+	reasonStaggerDeferred        = "STAGGER_DEFERRED"
+	reasonNotLaterThanCurrent    = "NOT_LATER_THAN_CURRENT"
+	reasonNotYetDue              = "NOT_YET_DUE"
 	// reasonLatestBaselineNotAutomatable is automated mode only: a
 	// citation compared with the repository's latest release rather than
 	// with the newest release on its pinned tag's own release line. The
@@ -172,6 +176,11 @@ type PrepareOptions struct {
 	// new file (the worklist's movedTo digest) are here and every guard
 	// recomputes from them.
 	MovedBlobs map[string][]byte
+	// historicWorklist is set only by Verify, when it recomputes a statement
+	// with no independent worklist and not pre-sign, which is never the
+	// publish gate: the retained worklist may then be of an earlier schema.
+	// No caller outside this package can set it.
+	historicWorklist bool
 }
 
 // PrepareResult is everything Prepare produces.
@@ -196,6 +205,9 @@ type ruleCandidate struct {
 	Raw       json.RawMessage
 	Fields    ruleFields
 	Citations []evidencerepin.ClassResult
+	// digestUnrecorded marks citations from an earlier worklist schema,
+	// which carry no contentDigest. The zero value requires it to match.
+	digestUnrecorded bool
 }
 
 // matchesPack requires an exact match against the RulePack path as it
@@ -207,6 +219,11 @@ type ruleCandidate struct {
 // VerifyOptions.PackPath) when it differs from the on-disk path being read.
 func matchesPack(rulePackField, wantPath string) bool {
 	return rulePackField == wantPath
+}
+
+// knownWorklistSchema reports whether schema is one this package decodes.
+func knownWorklistSchema(schema string) bool {
+	return schema == evidencerepin.Schema || schema == evidencerepin.SchemaV2 || schema == evidencerepin.SchemaV1
 }
 
 // Prepare computes batch re-attestation eligibility from a retained
@@ -261,12 +278,19 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 		return PrepareResult{}, fmt.Errorf("%w: worklist size rejected", ErrRejected)
 	}
 	var wl evidencerepin.Worklist
-	if err := json.Unmarshal(opts.WorklistRaw, &wl); err != nil || (wl.Schema != evidencerepin.Schema && wl.Schema != evidencerepin.SchemaV1) {
+	if err := json.Unmarshal(opts.WorklistRaw, &wl); err != nil || !knownWorklistSchema(wl.Schema) {
 		return PrepareResult{}, fmt.Errorf("%w: decode worklist", ErrRejected)
 	}
-	// Automated mode needs the baseline records a v1 worklist predates.
-	if automated && wl.Schema != evidencerepin.Schema {
+	// Only the current schema records each citation's contentDigest and was
+	// classified with the proof it requires. Verify's recomputation of an
+	// already signed statement may read an earlier one; automated mode never
+	// reads v1, which predates baseline records.
+	older := wl.Schema != evidencerepin.Schema
+	if automated && older && !(opts.historicWorklist && wl.Schema == evidencerepin.SchemaV2) {
 		return PrepareResult{}, fmt.Errorf("%w: automated mode requires a current-schema worklist", ErrRejected)
+	}
+	if older && !opts.historicWorklist {
+		return PrepareResult{}, fmt.Errorf("%w: the worklist is older than the current schema; run \"evidence repin\" again", ErrRejected)
 	}
 	worklistDigest := sourcecorpus.SHA(opts.WorklistRaw)
 	var baselines *repinbaselines.File
@@ -347,6 +371,8 @@ func prepareWithChain(opts PrepareOptions, state chainState) (PrepareResult, err
 	}
 	for i := range candidates {
 		candidates[i].Citations = citationsByRule[candidates[i].RuleID]
+		// Only reachable for Verify's historic recomputation (see above).
+		candidates[i].digestUnrecorded = older
 	}
 
 	// Chain-derived per-rule state: which supplied review records are new
@@ -895,6 +921,13 @@ func evaluateEligibility(
 		}
 		if citation.OldCommit != source.Revision {
 			return reasonCitationCommitMismatch, false
+		}
+		// The class holds only for the record it was computed from.
+		owner, repository, _, path, parsed := evidencerepin.ParseCitationURL(source.URL)
+		if !parsed || citation.Owner != owner || citation.Repo != repository || citation.Path != path ||
+			citation.OldStart != source.StartLine || citation.OldEnd != source.EndLine ||
+			(!candidate.digestUnrecorded && citation.OldDigest != source.ContentDigest) {
+			return reasonCitationRecordMismatch, false
 		}
 		// A release-line baseline is never weaker than the latest-release
 		// baseline: it must also carry a mutually consistent pinned tag,

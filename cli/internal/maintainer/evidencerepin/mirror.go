@@ -77,6 +77,9 @@ var (
 	ErrMirrorPathNotFound     = errors.New("the path does not exist at that commit")
 	ErrMirrorNotAFile         = errors.New("the path is not a regular file")
 	ErrMirrorTooLarge         = errors.New("the file is too large")
+	// ErrMirrorRefsUnavailable: the mirror's last check of the repository did
+	// not succeed, or none has, so its recorded tags are not used.
+	ErrMirrorRefsUnavailable = errors.New("the mirror's last check of the repository did not succeed")
 )
 
 // MirrorRelease is one entry of a repository's release list, newest first.
@@ -115,7 +118,8 @@ type MirrorIndex struct {
 // must be strictly offline.
 type MirrorSource interface {
 	// Tags returns tag -> peeled commit. It fails with ErrMirrorFrozen
-	// while the repository has an unacknowledged alarm.
+	// while the repository has an unacknowledged alarm, and with
+	// ErrMirrorRefsUnavailable unless its last check succeeded.
 	Tags(owner, repo string) (map[string]string, error)
 	// Releases returns the release list when it is known and fresh, and
 	// ErrMirrorReleasesUnusable otherwise.
@@ -573,13 +577,10 @@ func annotateMirrorWorklist(wl *Worklist, src MirrorSource, notes mirrorNotes, n
 		repo := &wl.Repos[i]
 		key := repo.Owner + "/" + repo.Repo
 		ev := repoEvidence{}
-		if st, err := src.RepoStatus(repo.Owner, repo.Repo); err == nil {
+		// A repository whose last check did not succeed carries no evidence
+		// time: its tags are refused, so nothing about it is current.
+		if st, err := src.RepoStatus(repo.Owner, repo.Repo); err == nil && st.Status == "ok" {
 			ev.checkedAt = st.LastCheckedAt
-			if st.Status != "ok" {
-				// The last check failed: the recorded refs are the last good
-				// state, as old as the last time they changed.
-				ev.checkedAt = st.LastFetchedAt
-			}
 			ev.releasesAt = st.ReleasesFetchedAt
 		}
 		repo.Source, repo.MirrorCheckedAt, repo.MirrorReleasesAt = SourceMirror, ev.checkedAt, ev.releasesAt
