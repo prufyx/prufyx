@@ -143,7 +143,7 @@ func changelogGapReason(component, fromLine, toLine string, atts []lineattest.Li
 		}
 		for _, id := range a.RuleIDs {
 			r := byID[id]
-			if r == nil || !r.valid || !family.CoversLine(a.Component, r.tr, toLine) {
+			if r == nil || !r.valid || r.chartSubject() || !family.CoversLine(a.Component, r.tr, toLine) {
 				consider(GapRuleNotLineWide)
 				break
 			}

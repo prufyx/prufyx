@@ -392,7 +392,7 @@ func (c *completer) attested(slug string, r registration, pl ProjectLines, from,
 		}
 		for _, id := range a.RuleIDs {
 			rule := c.byID[id]
-			if rule == nil || rule.project != slug || !rule.valid || !family.CoversLine(r.component, rule.tr, to) {
+			if rule == nil || rule.project != slug || !rule.valid || rule.chartSubject() || !family.CoversLine(r.component, rule.tr, to) {
 				return false
 			}
 			var shape struct {
