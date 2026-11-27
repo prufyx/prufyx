@@ -39,7 +39,7 @@ func publicationTargets(built []cncfcheck.ExternalTarget) []Target {
 
 // downlevelProjectTargets is the embedded pack without the listed family and
 // without the declared opt-in level, so its index names no client floor. Use
-// it for refusal behaviour only, never to compare verdicts.
+// it for publication and refusal behaviour only, never to compare verdicts.
 func downlevelProjectTargets(t *testing.T, revision string) ([]byte, []Target) {
 	t.Helper()
 	const below = "v0.1.0-beta.0"

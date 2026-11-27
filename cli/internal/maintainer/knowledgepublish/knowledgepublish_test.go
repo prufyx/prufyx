@@ -393,9 +393,11 @@ type publicationTarget struct {
 
 // A small project fixture exercises the real publisher without a global
 // single envelope. A records-only project has no rules but retains evidence.
+// It comes from the downlevel pack: a pack without rules cannot state the
+// opt-in level.
 func recordsOnlyTarget(t *testing.T, revision string) publicationTarget {
 	t.Helper()
-	index, projects := embeddedProjectTargets(t, revision)
+	index, projects := downlevelProjectTargets(t, revision)
 	var document struct {
 		Schema     string                         `json:"schema"`
 		Revision   string                         `json:"revision"`
