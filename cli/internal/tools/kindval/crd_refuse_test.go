@@ -116,6 +116,7 @@ func TestInertKustomization(t *testing.T) {
 		"definition added":   list("a.yaml") + "---\n" + gadgets,
 		"empty file":         "",
 		"parse error":        "a: [\n",
+		"later parse error":  list("a.yaml") + "---\na: [\n",
 		"remote":             list("\"https://example.invalid/a.yaml\""),
 		"remote short":       list("github.com/f/f//a"),
 		"directory":          list("sub"),
