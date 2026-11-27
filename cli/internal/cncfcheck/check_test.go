@@ -176,7 +176,7 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 	if len(b.pack.Entries) != 228+extra+shippedBatch+len(crdbatchids.Foreign())+crossingRules || len(vectors) != 228+extra+shippedBatch {
 		t.Fatal("unexpected reviewed rule or vector count")
 	}
-	if caseCount != 1120+4*extra+4*shippedBatch {
+	if caseCount != 1132+4*extra+4*shippedBatch {
 		t.Fatal("unexpected reviewed case count")
 	}
 	for _, vector := range vectors {
@@ -827,7 +827,7 @@ func TestKarmadaVectorsParseAndStayBoundToTheirRule(t *testing.T) {
 		if vector.RuleID != ruleID {
 			continue
 		}
-		if vector.Project != "karmada" || len(vector.Cases) != 12 {
+		if vector.Project != "karmada" || len(vector.Cases) != 13 {
 			t.Fatal("Karmada vector identity/count changed")
 		}
 		for _, scenario := range vector.Cases {
@@ -841,8 +841,8 @@ func TestKarmadaVectorsParseAndStayBoundToTheirRule(t *testing.T) {
 			count++
 		}
 	}
-	if count != 12 {
-		t.Fatalf("Karmada reviewed vectors = %d, want 12", count)
+	if count != 13 {
+		t.Fatalf("Karmada reviewed vectors = %d, want 13", count)
 	}
 }
 
