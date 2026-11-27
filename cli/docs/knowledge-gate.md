@@ -1716,8 +1716,6 @@ A pull request run and a merge queue run verify a change and report the check
 named `Knowledge gate`. A scheduled or manual run re-derives what `main`
 already holds: its job is named `Knowledge re-derivation of main`, it no longer
 reports the `Knowledge gate` check, and it fails on any ref other than `main`.
-Scope limit: the workflow definition is taken from the run ref; a control
-outside this file is tracked separately.
 
 In a merge queue a `merge_group` run takes the workflow definition from the
 queued commit. It builds the gate from the group base, ties the group to exactly
