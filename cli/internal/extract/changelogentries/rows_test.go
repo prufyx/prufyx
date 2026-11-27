@@ -83,6 +83,25 @@ var rowsAddedLater = []Target{
 		HeadingPattern:   headingStyles["version-v-prefixed"],
 		BoundaryPatterns: []string{boundaryStyles["main-unreleased-parenthesised"]},
 	},
+	{
+		Component: "jaeger", Repo: extract.RepoRef{Key: "github.com/jaegertracing/jaeger"},
+		Form: FormFile, Path: "CHANGELOG.md",
+		HeadingPattern:   headingStyles["version-v-paren-date"],
+		BoundaryPatterns: []string{boundaryStyles["unreleased"]},
+	},
+	{
+		Component: "kube-state-metrics", Repo: extract.RepoRef{Key: "github.com/kubernetes/kube-state-metrics"},
+		Form: FormFile, Path: "CHANGELOG.md",
+		HeadingPattern:   headingStyles["version-v-slash-date"],
+		BoundaryPatterns: []string{boundaryStyles["unreleased"]},
+		InnerPatterns:    []InnerPattern{{Pattern: `^Note$`, FirstOnly: true}},
+	},
+	{
+		Component: "opentelemetry-collector", Repo: extract.RepoRef{Key: "github.com/open-telemetry/opentelemetry-collector"},
+		Form: FormFile, Path: "CHANGELOG.md",
+		HeadingPattern:   headingStyles["version-dual-second"],
+		BoundaryPatterns: []string{boundaryStyles["unreleased"]},
+	},
 }
 
 func TestShippedTableLoads(t *testing.T) {
@@ -142,6 +161,12 @@ func TestReviewedRows(t *testing.T) {
 						return "Release v" + v + " - " + strings.ReplaceAll(date, "-", "/")
 					case headingStyles["version-linked-paren-date"]:
 						return "[v" + v + "](https://" + row.Repo.Key + "/tree/v" + v + ") (" + date + ")"
+					case headingStyles["version-v-paren-date"]:
+						return "v" + v + " (" + date + ")"
+					case headingStyles["version-v-slash-date"]:
+						return "v" + v + " / " + date
+					case headingStyles["version-dual-second"]:
+						return "v9.9.9/v" + v
 					}
 					t.Fatalf("no sample heading for %q", row.HeadingPattern)
 					return ""
@@ -159,6 +184,8 @@ func TestReviewedRows(t *testing.T) {
 					boundary = "v1.3"
 				case boundaryStyles["prerelease-linked-paren-date"]:
 					boundary = "[v1.3.0-rc1](https://" + row.Repo.Key + "/tree/v1.3.0-rc1) (2026-02-01)"
+				case boundaryStyles["unreleased"]:
+					boundary = "Unreleased"
 				default:
 					t.Fatalf("no sample boundary for %q", row.BoundaryPatterns[0])
 				}
@@ -178,6 +205,13 @@ func TestReviewedRows(t *testing.T) {
 				m, err = BuildManifest(r, row, extract.Tag{Name: "v1.2.4", Commit: testCommit}, zeroDigest)
 				if err != nil || m.Withheld == nil || m.Entry != nil {
 					t.Fatalf("a missing version must be withheld: %v %+v", err, m)
+				}
+				// The other half of a dual heading never names an entry.
+				if row.HeadingPattern == headingStyles["version-dual-second"] {
+					m, err = BuildManifest(r, row, extract.Tag{Name: "v9.9.9", Commit: testCommit}, zeroDigest)
+					if err != nil || m.Withheld == nil || m.Entry != nil {
+						t.Fatalf("the first half of a dual heading must be withheld: %v %+v", err, m)
+					}
 				}
 			case FormPerVersionFile:
 				path := strings.Replace(row.Path, "{version}", "1.2.3", 1)
