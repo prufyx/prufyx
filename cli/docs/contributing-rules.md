@@ -661,6 +661,23 @@ Registered: `cli_flags_set` for `falco`, `thanos` and `cortex`, and `config_keys
 from the caller's input is unknown, never "not set". The facts only feed
 rules that block; a rule over them never passes a hop.
 
+## Declared-removal flag set facts
+
+These set facts hold the long names, without leading dashes and in lower case,
+of the flags one binary is started with. Values are not part of the set.
+
+| Fact | Binary |
+| --- | --- |
+| `component.crio.crio_cli_flags_set` | `crio` |
+| `component.etcd.server_cli_flags_set` | the etcd server |
+| `component.vitess.vtgate_cli_flags_set` | `vtgate` |
+| `component.vitess.vttablet_cli_flags_set` | `vttablet` |
+
+No published rule reads them yet. A set of these facts is never treated as
+complete, on either side, whatever the input declares: a rule over it can
+answer BLOCKED or UNKNOWN, never PASS. A set with an upper-case member is
+refused. `scan` does not read or fill these facts.
+
 ## Chart rules and `require_set_member`
 
 A rule may be about a Helm chart's own versions instead of the software the

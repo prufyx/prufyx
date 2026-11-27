@@ -505,6 +505,14 @@ func (b ExternalBundle) evaluate(project, selectedRuleID string, inputRaw []byte
 			report.NextAction = trustPolicyNextAction
 		}
 	}
+	if _, downgraded, _ := guardDeclaredRemovalSets(inputRaw); downgraded && rules.excluded == 0 {
+		for _, claim := range result.Claims {
+			if claim.ReasonCode == "RULE_SET_FACT_INCOMPLETE" {
+				report.NextAction = declaredRemovalNextAction
+				break
+			}
+		}
+	}
 	if deferred := deferredOf(b.pack, project); len(deferred) > 0 {
 		report.DeferredRules = deferred
 		report.NextAction = deferredNextAction + "; " + report.NextAction

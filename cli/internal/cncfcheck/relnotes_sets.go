@@ -219,6 +219,14 @@ func parseGuarded(raw []byte, registry constraintengine.Registry) (input constra
 	if err != nil {
 		return constraintengine.Input{}, false, ErrInvalid
 	}
+	guarded, removalDowngraded, err := guardDeclaredRemovalSets(guarded)
+	if errors.Is(err, ErrMemberSpelling) {
+		return constraintengine.Input{}, false, err
+	}
+	if err != nil {
+		return constraintengine.Input{}, false, ErrInvalid
+	}
+	downgraded = downgraded || removalDowngraded
 	if !downgraded {
 		return input, false, nil
 	}

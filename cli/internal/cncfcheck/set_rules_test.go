@@ -228,6 +228,12 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 	for _, f := range relnotesSetFacts() {
 		relnotes[f.id()] = true
 	}
+	// The declared-removal flag sets (declared_removal_sets_test.go):
+	// caller-supplied, no scan route, never read as complete.
+	removal := map[string]bool{}
+	for _, f := range declaredRemovalFacts() {
+		removal[f.id] = true
+	}
 	sets := 0
 	for _, definition := range compiledDefinitions() {
 		if definition.Type != constraintengine.FactSet {
@@ -235,6 +241,8 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 		}
 		if relnotes[definition.ID] {
 			// checked by TestRelnotesSetFactsRegistered
+		} else if removal[definition.ID] {
+			// checked by TestDeclaredRemovalFactsRegisteredAndGuarded
 		} else if charts[definition.ID] {
 			// a chart values-path fact; the extractor test checks its component
 		} else if gates[definition.ID] {
@@ -246,8 +254,8 @@ func TestEmbeddedKnowledgeSetRulesReadCustomResourceSets(t *testing.T) {
 		}
 		sets++
 	}
-	if sets != len(crd)+len(gates)+len(charts)+len(relnotes) {
-		t.Fatalf("%d set facts registered, %d custom-resource projects, %d feature-gate facts, %d chart values-path facts and %d relnotes facts", sets, len(crd), len(gates), len(charts), len(relnotes))
+	if sets != len(crd)+len(gates)+len(charts)+len(relnotes)+len(removal) {
+		t.Fatalf("%d set facts registered, %d custom-resource projects, %d feature-gate facts, %d chart values-path facts, %d relnotes facts and %d declared-removal facts", sets, len(crd), len(gates), len(charts), len(relnotes), len(removal))
 	}
 	// Every registered feature-gate fact is one the adapter can supply; the
 	// flag sets stay unregistered until a published rule consumes them.
