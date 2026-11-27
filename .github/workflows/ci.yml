@@ -214,10 +214,18 @@ jobs:
           go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
 
-      # The oldest supported client is built from its pinned commit and run
-      # against a package that carries the listed family: it must exit 15
-      # (too new), not fail the package as an integrity error.
-      - name: Pinned client refuses the listed family as too new
+      # The oldest-supported-client pin and every client floor
+      # (cli/docs/knowledge-publisher.md):
+      #   1. the pin is the legacy one or a proved release;
+      #   2. the legacy client, a fixed ref, refuses packages that name a floor
+      #      as too new (exit 15), not as an integrity error;
+      #   3. the client of the checked-out commit admits every floor feature,
+      #      and a client without a feature's read does not (always);
+      #   4. a pin other than the legacy one: its client admits every floor it
+      #      reaches and refuses the others as too new.
+      # Every named test must print its pass line: a skip, or a name that
+      # matches nothing, fails the step.
+      - name: Pinned client and client floors
         if: ${{ matrix.group == 'core-commands' }}
         working-directory: cli
         run: |
@@ -226,12 +234,46 @@ jobs:
           [ "$(grep -c '' "${pin}")" = 2 ] || { echo "${pin} must hold exactly two lines" >&2; exit 1; }
           ref="$(sed -n '1p' "${pin}")"
           [[ "${ref}" =~ ^ref=[0-9a-f]{40}$ ]] || { echo "the ref line of ${pin} is not a 40-hex commit" >&2; exit 1; }
-          src="${RUNNER_TEMP}/pinned-client"
-          mkdir -m 700 "${src}"
+          work="${RUNNER_TEMP}/client-floors"
+          mkdir -m 700 "${work}"
+          require_pass() {
+            local log="$1" name
+            shift
+            for name in "$@"; do
+              grep -qE "^--- PASS: ${name} \(" "${log}" || { echo "::error::${name} did not pass" >&2; exit 1; }
+            done
+          }
           # Archive from the repository root: run inside cli/, git archive
           # would only hold the cli/ subtree and drop the cli/ prefix.
-          git -C "${GITHUB_WORKSPACE}" archive "${ref#ref=}" | tar -x -C "${src}"
-          PRUFYX_PINNED_CLIENT_SRC="${src}" go test -timeout 40m -count=1 -run TestOldestClientRefusesListedFamilyTooNew -v ./internal/maintainer/knowledgerelease/
+          source_of() {
+            mkdir -m 700 "$2"
+            git -C "${GITHUB_WORKSPACE}" archive "$1" | tar -x -C "$2"
+          }
+          # The fixture writer of a source tree, run with that tree's code.
+          write_fixtures() {
+            (cd "$1/cli" && PRUFYX_FLOOR_FIXTURE_DIR="$2" go test -timeout 40m -count=1 -run '^TestWriteFloorFixtures$' -v ./internal/maintainer/knowledgerelease/) 2>&1 | tee "$2.log"
+            require_pass "$2.log" TestWriteFloorFixtures
+          }
+
+          go test -count=1 -run '^(TestOldestSupportedClientPinProof|TestListedFamilyFloorIsAboveTheOtherFloorsAndThePin|TestListedFamilyFloorAgainstTheRealTags|TestProviderFactsAreNotPublishable)$' -v ./internal/cncfcheck/ 2>&1 | tee "${work}/pin-proof.log"
+          require_pass "${work}/pin-proof.log" TestOldestSupportedClientPinProof TestListedFamilyFloorIsAboveTheOtherFloorsAndThePin TestListedFamilyFloorAgainstTheRealTags TestProviderFactsAreNotPublishable
+
+          legacy_ref="0a58fd2c5741d82cb9cd0c84deadad9eb627370f"
+          source_of "${legacy_ref}" "${work}/legacy"
+          PRUFYX_LEGACY_CLIENT_SRC="${work}/legacy" go test -timeout 40m -count=1 -run '^(TestOldestClientRefusesListedFamilyTooNew|TestOldestClientRefusesOptInTooNew)$' -v ./internal/maintainer/knowledgerelease/ 2>&1 | tee "${work}/legacy.log"
+          require_pass "${work}/legacy.log" TestOldestClientRefusesListedFamilyTooNew TestOldestClientRefusesOptInTooNew
+
+          source_of HEAD "${work}/head"
+          write_fixtures "${work}/head" "${work}/head-fixtures"
+          PRUFYX_FLOOR_RUN=head PRUFYX_PINNED_CLIENT_SRC="${work}/head" PRUFYX_FLOOR_FIXTURE_DIR="${work}/head-fixtures" go test -timeout 40m -count=1 -run '^(TestPinnedClientAdmitsReachedFloors|TestAdmitCheckRefusesClientLackingFeature)$' -v ./internal/maintainer/knowledgerelease/ 2>&1 | tee "${work}/head.log"
+          require_pass "${work}/head.log" TestPinnedClientAdmitsReachedFloors TestAdmitCheckRefusesClientLackingFeature
+
+          if ! printf 'ref=%s\nversion=v0.1.0-beta.0\n' "${legacy_ref}" | cmp -s - "${pin}"; then
+            source_of "${ref#ref=}" "${work}/pinned"
+            write_fixtures "${work}/pinned" "${work}/pinned-fixtures"
+            PRUFYX_FLOOR_RUN=pin PRUFYX_PINNED_CLIENT_SRC="${work}/pinned" PRUFYX_FLOOR_FIXTURE_DIR="${work}/pinned-fixtures" go test -timeout 40m -count=1 -run '^TestPinnedClientAdmitsReachedFloors$' -v ./internal/maintainer/knowledgerelease/ 2>&1 | tee "${work}/pinned.log"
+            require_pass "${work}/pinned.log" TestPinnedClientAdmitsReachedFloors
+          fi
 
       - name: Test
         working-directory: cli

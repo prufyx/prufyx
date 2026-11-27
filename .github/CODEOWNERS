@@ -77,6 +77,17 @@
 /cli/cmd/prufyx-maintainer/main.go @airstand
 /cli/knowledge/target-recipes/ @airstand
 
+# The oldest-supported-client pin, the checks that hold it, the publish-side
+# floor checks and every version comparison. Every pin change also needs the
+# owner's recorded approval (cli/docs/knowledge-publisher.md).
+/cli/knowledge/oldest-supported-client.txt @airstand
+/cli/internal/maintainer/knowledgerelease/ @airstand
+/cli/internal/maintainer/knowledgepinguard/ @airstand
+/cli/internal/maintainer/releaseworkflow/knowledge_publish_yml_test.go @airstand
+/cli/cmd/prufyx-maintainer/knowledge_pin_guard.go @airstand
+/cli/internal/maintainer/knowledgepublish/ @airstand
+/cli/internal/buildidentity/ @airstand
+
 # Workflows, repository settings and this file.
 /.github/ @airstand
 /.github/workflows/verify-pr.yml @airstand

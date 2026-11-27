@@ -435,9 +435,9 @@ func TestListedFamilyFloorAgainstTheRealTags(t *testing.T) {
 	}
 }
 
-// The floor is a version above the other client floors and above the oldest
-// supported client: the family would otherwise ship to a client that does not
-// know it, and the floor would not guard it.
+// The floor is a version above the other client floors, and the oldest
+// supported client is either the legacy one below it or a proved release: the
+// family would otherwise ship to a client that does not know it.
 func TestListedFamilyFloorIsAboveTheOtherFloorsAndThePin(t *testing.T) {
 	if !buildidentity.ValidVersion(ListedFamilyFloor) {
 		t.Fatalf("floor %q is not a version", ListedFamilyFloor)
@@ -455,8 +455,9 @@ func TestListedFamilyFloorIsAboveTheOtherFloorsAndThePin(t *testing.T) {
 	if len(lines) != 2 || !strings.HasPrefix(lines[1], "version=") {
 		t.Fatalf("pin file %q", raw)
 	}
-	pin := strings.TrimPrefix(lines[1], "version=")
-	if !buildidentity.ValidVersion(pin) || buildidentity.AtLeast(pin, ListedFamilyFloor) {
-		t.Fatalf("the oldest supported client %s is not below the floor %s: the family would ship to it and the floor would not guard it", pin, ListedFamilyFloor)
+	// A pin at or above the floor ships the family to it, so it must be a
+	// proved release that holds the family (pinproof_test.go).
+	if p := pinProblems(clientFloors(), raw, pinRepoRoot); len(p) != 0 {
+		t.Fatalf("pin %q: %s", raw, strings.Join(p, "; "))
 	}
 }

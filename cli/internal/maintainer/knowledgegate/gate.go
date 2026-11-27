@@ -424,6 +424,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 		return nil, err
 	}
 	r.add("tree", len(special) == 0, "%d links or special files under %s/%s", len(special), cliDir, listDetail(special))
+	r.clientPinOnlyCheck()
 
 	// Statements appended to a chain are verified whether or not a rule
 	// change needs them: the chain is published knowledge too.
@@ -879,6 +880,7 @@ func (r *Report) packChecksWith(cls *Classification, opts Options, selectOpts fu
 		r.rulecheck(spec, h)
 		r.attestationRulecheck(spec, h)
 		r.pinnedCheck(spec, h)
+		r.pinnedClientPinCheck(spec, h, opts)
 		r.optInPinCheck(spec, h, opts)
 		r.staggerCheck(spec, h, loosenedWeeks[spec.Name])
 		r.recordStaggerCheck(cls, spec, b, h, loosenedWeeks[spec.Name])

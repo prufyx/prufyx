@@ -165,6 +165,39 @@ func pinnedClientFloor(opts Options) error {
 	return nil
 }
 
+// pinnedClientPinCheck holds the pin for as long as the head's pack holds a
+// pinned lease (withdrawn rules included: the field is still there), whether or
+// not the change touches the rule or the pin. A published pack with a pinned
+// lease names no minimum client, so a later change that lowers, removes or
+// breaks the pin must be refused here. A pack without one adds no check.
+func (r *Report) pinnedClientPinCheck(spec PackSpec, h *loadedPack, opts Options) {
+	pinned := 0
+	for _, id := range h.Order {
+		if h.Entries[id].Evidence.Lease == constraintengine.LeasePinned {
+			pinned++
+		}
+	}
+	if pinned == 0 {
+		return
+	}
+	name := "pinned-client-pin/" + spec.Name
+	raw, err := opts.Head.Read(OldestClientPinPath, 1024)
+	if err != nil {
+		r.add(name, false, "the head's oldest supported client pin: %v", err)
+		return
+	}
+	version, err := publishPinVersion(raw)
+	if err != nil {
+		r.add(name, false, "the head's oldest supported client pin: %v", err)
+		return
+	}
+	if !buildidentity.AtLeast(version, cncfcheck.PinnedLeaseMinClientVersion) {
+		r.add(name, false, "the head still supports client %s, which cannot read a pinned lease, while the pack holds %d pinned rules: the oldest supported client must be %s or later", version, pinned, cncfcheck.PinnedLeaseMinClientVersion)
+		return
+	}
+	r.add(name, true, "the oldest supported client reads the pack's %d pinned rules", pinned)
+}
+
 // pinnedCheck is the per-pack check that every pinned rule of the head still
 // meets the fixed-version predicate and its fixed window, changed or not.
 // A pack without a pinned rule adds no check.

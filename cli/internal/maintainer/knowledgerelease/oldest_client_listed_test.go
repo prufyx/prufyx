@@ -16,27 +16,35 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgepinguard"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgepublish"
 )
 
 // pinnedClientSourceEnv names a directory that holds the source tree of the
-// oldest supported client (the commit in cli/knowledge/oldest-supported-client.txt,
-// for example from `git archive`). The test builds that client with the release
-// version stamp and runs it against signed packages; it is an integration test
-// (it compiles two more programs) and is skipped when the variable is unset.
+// client under test of the admit tests (floor_admit_test.go): the archive of
+// the checked-out commit, or of the pinned ref.
 const pinnedClientSourceEnv = "PRUFYX_PINNED_CLIENT_SRC"
 
-func pinFileVersion(t *testing.T) string {
+// legacyClientSourceEnv names a directory that holds the source tree of the
+// client from before every floor: the ref of knowledgepinguard.LegacyPin, for
+// example from `git archive`. The ref and version are fixed, not read from the
+// pin file, so these tests keep proving the refusal after the pin moves. They
+// are integration tests (they compile more programs) and are skipped when the
+// variable is unset; CI requires their pass lines.
+const legacyClientSourceEnv = "PRUFYX_LEGACY_CLIENT_SRC"
+
+// legacyClientCLI is the cli directory of the legacy client source.
+func legacyClientCLI(t *testing.T) string {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "knowledge", "oldest-supported-client.txt"))
-	if err != nil {
-		t.Fatal(err)
+	src := os.Getenv(legacyClientSourceEnv)
+	if src == "" {
+		t.Skipf("integration test: set %s to the source tree of the legacy client", legacyClientSourceEnv)
 	}
-	lines := strings.Split(strings.TrimSuffix(string(raw), "\n"), "\n")
-	if len(lines) != 2 || !strings.HasPrefix(lines[1], "version=") {
-		t.Fatalf("pin file %q", raw)
+	cli := filepath.Join(src, "cli")
+	if _, err := os.Stat(filepath.Join(cli, "go.mod")); err != nil {
+		t.Fatalf("%s=%s holds no cli/go.mod: %v", legacyClientSourceEnv, src, err)
 	}
-	return strings.TrimPrefix(lines[1], "version=")
+	return cli
 }
 
 // buildClient builds program of the Go module whose cli directory is cliDir,
@@ -59,13 +67,18 @@ type clientRun struct {
 
 func runVerify(t *testing.T, client, tarPath string, o Options, revision string) clientRun {
 	t.Helper()
+	return runClient(t, client, tarPath, o.Root, o.RootDigest, revision)
+}
+
+func runClient(t *testing.T, client, tarPath, root, rootDigest, revision string) clientRun {
+	t.Helper()
 	raw, err := os.ReadFile(tarPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256(raw)
 	cmd := exec.Command(client, "db", "verify", tarPath, "--profile", "cncf-projects",
-		"--bootstrap-root", o.Root, "--bootstrap-root-digest", o.RootDigest,
+		"--bootstrap-root", root, "--bootstrap-root-digest", rootDigest,
 		"--expected-package-digest", "sha256:"+hex.EncodeToString(sum[:]), "--expected-revision", revision, "--format", "json")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -82,27 +95,19 @@ func runVerify(t *testing.T, client, tarPath string, o Options, revision string)
 	return run
 }
 
-// TestOldestClientRefusesListedFamilyTooNew builds the pinned oldest supported
-// client with its release stamp and runs `db verify` on packages signed with
-// the same root:
+// TestOldestClientRefusesListedFamilyTooNew builds the legacy client with its
+// release stamp and runs `db verify` on packages signed with the same root:
 //   - a package that carries the listed family and names the floor: exit 15,
 //     "too new", never an integrity failure (exit 3);
-//   - the control, a package the pinned client's own release tool built
+//   - the control, a package the legacy client's own release tool built
 //     without the family: exit 0;
 //   - the same family package read by a client at the floor: exit 0.
 //
 // It also records what the pinned client does with a family package that does
 // not name the floor (the defect the floor closes): a refusal for another cause (engine capability) at best.
 func TestOldestClientRefusesListedFamilyTooNew(t *testing.T) {
-	src := os.Getenv(pinnedClientSourceEnv)
-	if src == "" {
-		t.Skipf("integration test: set %s to the source tree of the oldest supported client", pinnedClientSourceEnv)
-	}
-	pinCLI := filepath.Join(src, "cli")
-	if _, err := os.Stat(filepath.Join(pinCLI, "go.mod")); err != nil {
-		t.Fatalf("%s=%s holds no cli/go.mod: %v", pinnedClientSourceEnv, src, err)
-	}
-	pinVersion := pinFileVersion(t)
+	pinCLI := legacyClientCLI(t)
+	pinVersion := knowledgepinguard.LegacyVersion
 	bin := t.TempDir()
 	pinned, pinnedMaintainer, floorClient := filepath.Join(bin, "pinned"), filepath.Join(bin, "pinned-maintainer"), filepath.Join(bin, "at-floor")
 	buildClient(t, pinCLI, "prufyx-community", pinVersion, pinned)
@@ -177,4 +182,34 @@ func TestOldestClientRefusesListedFamilyTooNew(t *testing.T) {
 	if got.code == 0 || strings.Contains(got.stderr, "upgrade prufyx to >=") {
 		t.Fatalf("without the floor the pinned client exited %d with %q", got.code, got.stderr)
 	}
+}
+
+// A package at the opt-in pack level names the floor, so the legacy client
+// reports it as too new, never as an integrity failure.
+func TestOldestClientRefusesOptInTooNew(t *testing.T) {
+	cli := legacyClientCLI(t)
+	client := filepath.Join(t.TempDir(), "legacy")
+	buildClient(t, cli, "prufyx-community", knowledgepinguard.LegacyVersion, client)
+	dir := filepath.Join(t.TempDir(), "fixtures")
+	writeFloorFixtures(t, dir, time.Now())
+	set, err := loadFloorFixtures(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, feature := range floorFeatures() {
+		if feature.name != floorOptInLevel {
+			continue
+		}
+		pkg, _, err := signedFeature(set, feature)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := verifyWith(t, client)(set, pkg)
+		t.Logf("legacy %s, opt-in package: %s", knowledgepinguard.LegacyVersion, describeRun(got))
+		if err := refusedAsTooNew(got, feature.version); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	t.Fatal("no opt-in floor")
 }

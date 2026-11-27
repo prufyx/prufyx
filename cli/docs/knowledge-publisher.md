@@ -720,18 +720,18 @@ that does not know the family would fail the package as an integrity failure
   target;
 - the publisher refuses a package that carries the family without that floor,
   with a lower one, or while the pin is below it, and the oldest-client gate
-  never accepts exit `15` for a package that names a minimum client (its message names the minimum, "upgrade
-  prufyx to >= ..."): once the pin is at or above the floor the pinned client must exit `0`.
+  never accepts a refusal that names a minimum client ("upgrade prufyx to >=
+  ..."). Once the pin is at or above the floor, the pinned client must exit `0`
+  on such a package, or, across an engine capability change only, refuse it for
+  the capability without naming a minimum (see "Engine capability change"). A
+  data change that needs a floor is not merged while the last publish run
+  summary carries the `WARNING` that the gate proved nothing with the pinned
+  client.
 
-The pinned-client behaviour is proved in CI, not by hand: the test job
-builds the client at the commit in `cli/knowledge/oldest-supported-client.txt`
-(`git archive` of that ref, `PRUFYX_PINNED_CLIENT_SRC`) and runs
-`TestOldestClientRefusesListedFamilyTooNew`, which needs that client to exit
-`15` ("upgrade prufyx to >= ...") on a package that carries the family, and `0`
-on a package it built itself. The floor is also checked against the real release
-tags of the checkout (`TestListedFamilyFloorAgainstTheRealTags`): a tag that
-predates the family must be below the floor, a tag that holds it at or above;
-on CI an unreadable tag list fails the job.
+The floor is also checked against the real release tags of the checkout
+(`TestListedFamilyFloorAgainstTheRealTags`): a tag that predates the family
+must be below the floor, a tag that holds it at or above; on CI an unreadable
+tag list fails the job.
 
 L counts and the README coverage block are repository knowledge: they are
 computed from the repository, and a client receives the records only from the
@@ -744,6 +744,82 @@ Until the first beta tag exists, `ref` is a commit of `main`. After the
 `ref` and `version` to the new oldest supported release. Changing
 `cli/knowledge/**` runs the publish workflow, which then proves the new pin
 accepts the package.
+
+### Client floors and the pin proof
+
+A client floor is the first release that reads a feature. There are four:
+
+| Floor | Version | Held at the pinned ref | Minimum named by |
+|---|---|---|---|
+| `ProviderFactsMinClientVersion` | `v0.1.0-beta.1` | `distributions.go` | no builder; provider facts are not publishable |
+| `PinnedLeaseMinClientVersion` | `v0.1.0-beta.2` | `lease.go` | no builder |
+| `ListedFamilyFloor` | `v0.1.0-beta.3` | `listedfloor.go` | the builder |
+| `BoundaryCoveredFloor` | `v0.1.0-beta.3` | `listedfloor.go`, `optinfloor.go` | the builder |
+
+The first-beta pin passes while it is below every floor. Any other pin, below a
+floor or not, passes only if all of these hold, offline, in the checkout
+(`TestOldestSupportedClientPinProof`; anything unreadable is a failure):
+
+- `ref` is on the first-parent line of `origin/main`;
+- the tag `version` is exactly `ref`;
+- for every floor the version reaches, each file in the table is a regular file
+  at `ref`, and the commit that added it is an ancestor of `ref`.
+
+`distributions.go` exists below its floor too, so for provider facts the proof
+is the version, the tag and `main` only; safety rests on the publisher refusing
+distribution records.
+
+The CI step "Pinned client and client floors" (job `Test (core-commands)`)
+requires the pass line of every test it names:
+
+- the pin proof;
+- the legacy client (a fixed ref, not the pin) exits `15`, "upgrade prufyx to
+  >= ...", on a package that names the listed-family or the opt-in floor;
+- on every run, the fixture writer (`TestWriteFloorFixtures`,
+  `PRUFYX_FLOOR_FIXTURE_DIR`) in an archive of the checked-out commit, and the
+  client built from that archive, at the highest floor, admits every floor
+  feature (exit `0`); a client with one feature's read removed does not;
+- for a pin other than the first-beta one, the writer in an archive of `ref`,
+  and the client built from `ref` with the pin version: for every floor it
+  reaches it exits `0` on the packages its own tree wrote and on this tree's
+  (or, for this tree's only, `15` for a different engine capability without
+  naming a minimum); for every other floor it exits `15` naming that floor.
+
+The writer's test name and package, the variable, the manifest schema and the
+capability mismatch text do not change once a pinned release holds them: a
+change turns CI red until a new release is cut and pinned.
+
+A published package with a pinned lease names no minimum client. The knowledge
+gate admits a pinned lease only while the pin of base and head is at or above
+its floor, and refuses any change whose head holds a pinned rule under a lower,
+missing or unreadable pin. These gate checks are the only protection of older
+clients for that field.
+
+**A pin change is made alone.** The knowledge gate, built from the base, refuses
+a change of the pin file together with any other path. Each pin change also
+needs the owner's recorded approval, and before it merges
+`prufyx-maintainer knowledge-publish pin-guard`, built from the base, must exit
+`0` on the pin file of its final head (record the head commit and the exit
+code; any other result, or no run, blocks the merge). To move a pin back, first
+revert the data that needs the floor, then make the pin-only change; if a
+publish used the higher pin, publication also needs the owner-only
+`allow_pin_downgrade` input.
+
+**Before any release tag is pushed**, on the exact commit to be tagged:
+
+1. The commit is on the first-parent line of `origin/main`.
+2. No tag below `v0.1.0-beta.3` names a commit that holds `listedfloor.go` or
+   `optinfloor.go`, and the `v0.1.0-beta.3` commit holds both and the fixture
+   writer.
+3. In a scratch clone with all tags, whose `origin/main` is fetched from the
+   hosted repository (a clone of a local repository would trust that
+   repository's local `main`), create the same annotated tag locally and run
+   the full test suite with `-count=1`.
+4. In that clone, with `CI=1`, set the pin file (not committed) to the commit
+   and the new tag and run the whole CI step above with `matrix.group`
+   `core-commands`: every named test passes.
+
+Any failure or check not run means the tag is not pushed.
 
 **Recovery when the ref cannot be built** (for example the toolchain moved on
 or the commit is unreachable): the gate fails every run and nothing is
