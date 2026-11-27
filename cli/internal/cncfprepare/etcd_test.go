@@ -163,30 +163,35 @@ func TestPrepareEtcdLatestAllExactOriginsAndHopPrecedence(t *testing.T) {
 				t.Fatalf("report=%+v err=%v", report, err)
 			}
 			exact := "etcd.experimental-flags-unsupported." + strings.ReplaceAll(from, ".", "-") + "-to-3-7-1"
-			// An origin that skips a minor line is also blocked by the hop
-			// rule of its pair; that rule says nothing about the flag.
+			// An origin that skips a minor line has exactly three more claims:
+			// the hop rule of its pair blocks; the line range of the 3.6.14
+			// rule stays UNKNOWN and names the exact rule that answers it; the
+			// 3.5 to 3.6 range stays UNKNOWN because this hop is outside it.
+			// The adjacent origin has none of them.
 			skip := "etcd.direct-minor-skip." + strings.ReplaceAll(from, ".", "-") + "-to-3-7-1"
-			wantSkip := 1
+			extra := 1
 			if from == "3.6.14" {
-				wantSkip = 0
+				extra = 0
 			}
-			blocked, skipped := 0, 0
+			blocked, skipped, covered, unreviewed := 0, 0, 0, 0
 			for _, claim := range report.Check.Claims {
 				switch {
-				// The one extra claim allowed: a line range whose boundary
-				// question the exact rule of this pair answers. It stays
-				// UNKNOWN and names that rule.
-				case claim.Status == "UNKNOWN" && claim.CoveringRuleID == exact:
 				case claim.Status == "BLOCKED" && claim.RuleID == exact:
 					blocked++
 				case claim.Status == "BLOCKED" && claim.RuleID == skip:
 					skipped++
+				case claim.Status == "UNKNOWN" && claim.RuleID == "etcd.experimental-flags-unsupported.3-6-14-to-3-7-1" &&
+					claim.ReasonCode == "RULE_BOUNDARY_COVERED_BY_EXACT_RULE" && claim.CoveringRuleID == exact:
+					covered++
+				case claim.Status == "UNKNOWN" && claim.RuleID == "etcd.v2-proxy-flags-removed.3-6" &&
+					claim.ReasonCode == "RULE_RELEASE_BOUNDARY_NOT_REVIEWED" && claim.CoveringRuleID == "":
+					unreviewed++
 				default:
 					t.Fatalf("claim=%+v", claim)
 				}
 			}
-			if blocked != 1 || skipped != wantSkip {
-				t.Fatalf("want one claim blocking the removed flag and %d blocking the hop: report=%+v", wantSkip, report)
+			if blocked != 1 || skipped != extra || covered != extra || unreviewed != extra {
+				t.Fatalf("blocked=%d skipped=%d covered=%d unreviewed=%d, want 1 and %d of each other: report=%+v", blocked, skipped, covered, unreviewed, extra, report)
 			}
 		})
 		t.Run(from+"/replacement", func(t *testing.T) {
