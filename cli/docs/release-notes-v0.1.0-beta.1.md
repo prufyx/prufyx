@@ -24,7 +24,7 @@ that a whole upgrade is safe.
 
 <!-- release-notes:begin -->
 
-Changes from `v0.1.0-beta.0` (70f67cac4a3b) to `v0.1.0-beta.1` (dfbd1a91e16b), computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.
+Changes from `v0.1.0-beta.0` (70f67cac4a3b) to `v0.1.0-beta.1` (481c5dd4fd57), computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.
 
 ### Summary
 
@@ -53,7 +53,7 @@ The figures for `v0.1.0-beta.0` in this section are approximate: that release ha
 
 ### Coverage since the previous release
 
-previous = tag `v0.1.0-beta.0`, commit 70f67cac4a3b, counts sha256 `db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3`; current counts sha256 `90a5b556d38e2fa34f35020fbe5c4dafd349901901418a51aa462d96c4e198d1`.
+previous = tag `v0.1.0-beta.0`, commit 70f67cac4a3b, counts sha256 `db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3`; current counts sha256 `3c525070eb38b1605fa4af31a5756bfa559332c5dddbfb3280805fd523df2019`.
 
 The counts carry the number of valid rules per project, not rule ids, so rules added are the per-project change of that number.
 
@@ -269,10 +269,11 @@ Versions listed in line attestations; not an upgrade verdict.
 - `submariner-io/submariner`: 11 newly covered versions: 0.22.0, 0.22.1, 0.22.2, 0.23.1, 0.23.2, 0.23.3, 0.23.4, 0.24.0, 0.24.1, 0.24.2, 0.25.0
 - `theupdateframework/python-tuf`: 23 newly covered versions: 0.11.0, 0.11.1, 0.12.0, 0.12.1, 0.12.2, 0.13.0, 0.14.0, 0.15.0, 0.16.0, 0.17.0, 0.18.0, 0.18.1, 0.19.0, 0.20.0, 1.0.0, 1.1.0, 2.0.0, 2.1.0, 3.0.0, 3.1.0, 3.1.1, 5.0.0, 5.1.0
 
-### Re-derived line attestations (4)
+### Re-derived line attestations (5)
 
 - `cert-manager/cert-manager`: lines 1.20, 1.21; extractor 2.7.0 -> 2.16.0
 - `dapr/dapr`: lines 1.14, 1.15, 1.16, 1.17, 1.18, 1.19; extractor 2.7.0 -> 2.8.0
+- `kubernetes/kubernetes`: lines 1.20, 1.21, 1.23, 1.24, 1.26, 1.28, 1.29, 1.30, 1.31, 1.32, 1.33, 1.34, 1.35, 1.36; extractor 1.3.0 -> 1.3.0
 - `kubeswift-io/kubeswift`: lines 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.10, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.20, 0.21; extractor 2.7.0 -> 2.16.0
 - `openkruise/kruise`: lines 1.8, 1.9; extractor 2.7.0 -> 2.15.0
 
