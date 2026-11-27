@@ -21,9 +21,9 @@ import (
 // of these facts is held to it, including a rule of a newer external bundle.
 // A fact listed here must be registered as a set in the same change.
 const (
-	factCRIOFlags          = "component.crio.crio_cli_flags_set"
-	factEtcdServerFlags    = "component.etcd.server_cli_flags_set"
-	factVitessVTGateFlags  = "component.vitess.vtgate_cli_flags_set"
+	factCRIOFlags           = "component.crio.crio_cli_flags_set"
+	factEtcdServerFlags     = "component.etcd.server_cli_flags_set"
+	factVitessVTGateFlags   = "component.vitess.vtgate_cli_flags_set"
 	factVitessVTTabletFlags = "component.vitess.vttablet_cli_flags_set"
 )
 
