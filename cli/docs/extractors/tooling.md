@@ -39,8 +39,9 @@ merged into the pack:
   merge, whoever wrote the other rule. The same holds for an attestation with
   the same component, line and fact family. The one exception is
   `--renew-attestations`: it renews mechanical rules and attestations that
-  the same extractor derived at an earlier build, replacing them in place under
-  the conditions in [line attestations: renewal](../line-attestations.md#renewal).
+  the same extractor derived earlier, at an earlier build or, with only the
+  times moved, at the same build, replacing them in place under the conditions
+  in [line attestations: renewal](../line-attestations.md#renewal).
   It does not combine with `--withdraw`, `--rules-only` or `--quiet-lines-only`.
 - The result is rendered with the pack's members in their fixed order, entries
   sorted by project and rule id, two-space indentation and a final newline.

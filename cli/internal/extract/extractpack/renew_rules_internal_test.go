@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 )
 
 func rEntry(mut func(rule, ev map[string]any)) json.RawMessage {
@@ -56,9 +57,9 @@ func TestRuleRenewablePredicate(t *testing.T) {
 		{"other extractor id", base, with(func(rule, ev map[string]any) {
 			ev["extractor"] = map[string]any{"id": "z", "version": "1", "codeDigest": "sha256:new"}
 		}), false},
-		{"same build", base, with(func(rule, ev map[string]any) {
+		{"same build, only the times moved", base, with(func(rule, ev map[string]any) {
 			ev["extractor"] = map[string]any{"id": "x.y", "version": "1", "codeDigest": "sha256:old"}
-		}), false},
+		}), true},
 		{"derivedAt equal", base, with(func(rule, ev map[string]any) {
 			ev["derivedAt"], ev["reviewedAt"] = "2026-10-01T00:00:00Z", "2026-10-01T00:00:00Z"
 		}), false},
@@ -78,7 +79,7 @@ func TestRuleRenewablePredicate(t *testing.T) {
 			ev["sources"] = []any{map[string]any{"id": "s1"}, map[string]any{"id": "s9"}}
 		}), false},
 	} {
-		if got := ruleRenewable(c.old, c.nw); got != c.renewable {
+		if got := ruleRenewable(c.old, c.nw, time.Date(2026, 10, 4, 0, 0, 0, 0, time.UTC)); got != c.renewable {
 			t.Errorf("%s: ruleRenewable = %v, want %v", c.name, got, c.renewable)
 		}
 	}
@@ -105,7 +106,7 @@ func TestAuditRuleRenewalRows(t *testing.T) {
 		{"appended, replaced and added", []json.RawMessage{old}, []json.RawMessage{nw, nw}, ids, ids, false, true},
 		{"renewed body changed", []json.RawMessage{old}, []json.RawMessage{rEntry(func(r, e map[string]any) { newer(r, e); r["severity"] = "low" })}, nil, ids, false, true},
 	} {
-		err := audit(mkPack(c.base...), mkPack(c.head...), c.allowed, c.renewed, nil, c.withdraw)
+		err := audit(mkPack(c.base...), mkPack(c.head...), c.allowed, c.renewed, nil, c.withdraw, time.Time{})
 		if c.refused != (err != nil) {
 			t.Errorf("%s: err = %v, want refusal %v", c.name, err, c.refused)
 		}

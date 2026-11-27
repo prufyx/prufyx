@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/checkroutemetadata"
+	"github.com/prufyx/prufyx/cli/internal/currentbundle"
 	"github.com/prufyx/prufyx/cli/internal/imageidentity"
 	"github.com/prufyx/prufyx/cli/internal/localcollector"
 )
@@ -80,6 +82,16 @@ func TestImageRegistryMakesProjectsObservableWithFailClosedVersions(t *testing.T
 				t.Fatalf("%s must stay not observable: %+v", c.Project, c)
 			}
 		}
+	}
+}
+
+// A check whose only image record has expired is indeterminate, and says why:
+// it is never read as an absent component.
+func TestExpiredImageRecordLeavesTheCheckIndeterminate(t *testing.T) {
+	route := checkroutemetadata.Check{Project: "cloudnativepg"}
+	got := classify(route, currentbundle.CurrentBundle{}, false, "", time.Date(2031, 1, 1, 0, 0, 0, 0, time.UTC))
+	if got.Applicability != IndeterminateNotObservable || got.Project != "cloudnativepg" || !strings.Contains(got.Reason, "image registry") || !strings.Contains(got.Reason, "unknown") {
+		t.Fatalf("%+v", got)
 	}
 }
 

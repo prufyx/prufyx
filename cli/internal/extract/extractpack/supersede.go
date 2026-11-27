@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/extract"
@@ -464,7 +465,7 @@ func auditSupersede(base, final *Pack, removed, added map[string]bool) error {
 			return fmt.Errorf("%w: rule %s is not in the pack", ErrForeignChange, id)
 		}
 	}
-	if err := audit(rest, final, added, nil, nil, false); err != nil {
+	if err := audit(rest, final, added, nil, nil, false, time.Time{}); err != nil {
 		return err
 	}
 	for name, bv := range base.Members {

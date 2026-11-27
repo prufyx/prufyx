@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
@@ -82,7 +83,7 @@ func TestAuditRefusesForeignChanges(t *testing.T) {
 			// tightening, and is refused even when its id is allowed.
 			c.want = true
 		}
-		err := audit(b, c.head(), c.allowed, nil, nil, c.withdraw)
+		err := audit(b, c.head(), c.allowed, nil, nil, c.withdraw, time.Time{})
 		if c.want != (err != nil) {
 			t.Errorf("%s: err = %v, want refusal %v", c.name, err, c.want)
 		}
@@ -146,7 +147,7 @@ func TestAuditAttestationRows(t *testing.T) {
 		{"an existing attestation replaced", withAtts(a), withAtts(b), map[string]bool{keyB: true}, true},
 	}
 	for _, r := range rows {
-		err := audit(r.base, r.head, nil, nil, r.allowed, false)
+		err := audit(r.base, r.head, nil, nil, r.allowed, false, time.Time{})
 		if r.refused != (err != nil) {
 			t.Errorf("%s: err = %v, want refusal %v", r.name, err, r.refused)
 		}
@@ -183,7 +184,7 @@ func TestAuditSchemaRows(t *testing.T) {
 		b, h := mkPack(entry("a", "active", "")), mkPack(entry("a", "active", ""))
 		b.Members["schema"], _ = json.Marshal(r.from)
 		h.Members["schema"], _ = json.Marshal(r.to)
-		err := audit(b, h, nil, nil, nil, r.withdraw)
+		err := audit(b, h, nil, nil, nil, r.withdraw, time.Time{})
 		if r.refused != (err != nil) {
 			t.Errorf("%s: err = %v, want refusal %v", r.name, err, r.refused)
 		}
@@ -247,7 +248,7 @@ func TestAuditRenewalRows(t *testing.T) {
 		{"reviewed basis", func(m map[string]any) { rederived(m); m["evidence"].(map[string]any)["basis"] = "reviewed" }, map[string]bool{keyA: true}, true},
 	}
 	for _, r := range rows {
-		err := audit(with(a), with(variant(t, a, r.edit)), nil, nil, r.allowed, false)
+		err := audit(with(a), with(variant(t, a, r.edit)), nil, nil, r.allowed, false, time.Time{})
 		if r.refused != (err != nil) {
 			t.Errorf("%s: err = %v, want refusal %v", r.name, err, r.refused)
 		}

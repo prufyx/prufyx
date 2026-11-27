@@ -20,7 +20,7 @@ func cmdApply(args []string, existing []string, stdout, stderr io.Writer) (int, 
 	var withdraw, rulesOnly, quietOnly, renew bool
 	f.BoolVar(&rulesOnly, "rules-only", false, "apply the run's rules only: no attestations, no schema change")
 	f.BoolVar(&quietOnly, "quiet-lines-only", false, "apply only the run's empty-list line attestations for lines the pack holds no rule for; no rules")
-	f.BoolVar(&renew, "renew-attestations", false, "renew mechanical rules and attestations: replace the pack's mechanical attestations and rules of the same extractor that the run re-derived at a newer build (attestations: same scope, completeness and rule ids, releases may only grow; rules: identical but for the provenance fields, same source ids; later derivedAt)")
+	f.BoolVar(&renew, "renew-attestations", false, "renew mechanical rules and attestations: replace the pack's mechanical attestations and rules of the same extractor that the run re-derived (attestations: same scope, completeness and rule ids, releases may only grow; rules at a newer build: identical but for the provenance fields, same source ids; rules at the same build: only derivedAt, reviewedAt and validUntil move, at most 90 days; later derivedAt)")
 	f.StringVar(&runDir, "out", "", "run output directory (from extract run)")
 	f.StringVar(&pack, "pack", "", "rule pack file to edit in place")
 	f.BoolVar(&withdraw, "withdraw", false, "withdraw the rules the run no longer produces instead of adding its rules")
