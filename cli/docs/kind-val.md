@@ -74,6 +74,42 @@ claims. Files are repository paths, fetched from
 `https://raw.githubusercontent.com/<owner>/<name>/<commit>/<path>`; only
 `kind: CustomResourceDefinition` documents are installed.
 
+### What a cited file may hold
+
+A release is read completely or not at all: nothing in a cited file is dropped
+silently.
+
+- Empty and comment-only documents are ignored.
+- Every other document is a mapping whose `apiVersion` (`version` or
+  `group/version`) and `kind` are non-empty strings.
+- A `CustomResourceDefinition` is in the `apiextensions.k8s.io` group and has
+  `metadata.name`, `spec.group`, `spec.names.kind` and at least one version,
+  each with a name.
+- These objects may sit next to definitions; they are not applied, and the file
+  record counts them in `skipped` by `group/Kind` (`/ConfigMap` for the core
+  group): core `ConfigMap`, `Namespace`, `Secret`, `Service`,
+  `ServiceAccount`; `apps` `DaemonSet`, `Deployment`, `StatefulSet`; `batch`
+  `CronJob`, `Job`; `rbac.authorization.k8s.io` `ClusterRole`,
+  `ClusterRoleBinding`, `Role`, `RoleBinding`;
+  `admissionregistration.k8s.io` `MutatingWebhookConfiguration`,
+  `ValidatingWebhookConfiguration`, `ValidatingAdmissionPolicy`,
+  `ValidatingAdmissionPolicyBinding`; `policy` `PodDisruptionBudget`;
+  `networking.k8s.io` `NetworkPolicy`; `autoscaling`
+  `HorizontalPodAutoscaler`; `scheduling.k8s.io` `PriorityClass`.
+- A file named `kustomization.yaml`, `kustomization.yml` or `Kustomization`
+  must be one `kustomize.config.k8s.io/v1beta1` `Kustomization` with only
+  `apiVersion`, `kind` and a non-empty `resources` list, each entry a relative
+  path to another cited file. It is recorded (no definitions, counted in
+  `skipped`) and not applied.
+
+Anything else refuses the release: any other object (including `List`,
+`APIService` and custom resources), a definition name that appears more than
+once in the release, a file other than such a kustomization that holds no
+definition, or a release with no definition at all. A pair then records a
+`from:` or `to:` error (`install-failed`); a release checked on its own is
+`release-unavailable`. The error text names the position (file and document,
+counted from 1) and the cause, not the document's content.
+
 `kindval claims --lines ...` derives the `k8s-served-api` and `k8s-removal`
 claims from the removal table built into the binary
 (`internal/k8sremovals`): a version removed at line L is not served by L or

@@ -380,6 +380,9 @@ type FetchedFile struct {
 	Path   string `json:"path"`
 	SHA256 string `json:"sha256"`
 	CRDs   int    `json:"crds"`
+	// Skipped counts, by "group/Kind", the documents of the file that were
+	// not applied.
+	Skipped map[string]int `json:"skipped,omitempty"`
 }
 
 // ObjectTry is the server's answer to a dry-run create of a minimal object
