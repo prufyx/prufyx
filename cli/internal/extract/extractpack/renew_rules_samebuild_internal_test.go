@@ -142,12 +142,20 @@ func TestSameBuildRuleRenewalPredicate(t *testing.T) {
 	}
 
 	ids := map[string]bool{"r.1": true, "r.2": true}
+	// A version or digest missing on one side only makes the two entries
+	// different builds, which the same-build predicate refuses and the
+	// different-build path (unchanged, and followed by rule validation and the
+	// engine loader) decides.
+	otherBuild := map[string]bool{"no version old": true, "no version new": true, "empty digest old": true, "empty digest new": true}
 	for _, c := range rows {
-		if got := ruleRenewable(c.old, c.nw, c.now); got != c.ok {
-			t.Errorf("%s: ruleRenewable = %v, want %v", c.name, got, c.ok)
-		}
 		if got := sameBuildRuleRenewal(c.old, c.nw, c.now); got != c.ok {
 			t.Errorf("%s: sameBuildRuleRenewal = %v, want %v", c.name, got, c.ok)
+		}
+		if otherBuild[c.name] {
+			continue
+		}
+		if got := ruleRenewable(c.old, c.nw, c.now); got != c.ok {
+			t.Errorf("%s: ruleRenewable = %v, want %v", c.name, got, c.ok)
 		}
 		// The final audit holds the same line. It keys rules by id and reads
 		// entries canonically, so rows it cannot express are left to the

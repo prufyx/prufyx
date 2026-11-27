@@ -138,7 +138,8 @@ func TestRenewRulesSameBuildAuditRefusesAMisbehavingStep(t *testing.T) {
 			var m map[string]any
 			_ = json.Unmarshal(e, &m)
 			if m["rule"].(map[string]any)["id"] == rep.RenewedRules[0] {
-				ruleEv(m)["sources"].([]any)[0].(map[string]any)["url"] = "https://example.invalid/moved"
+				source := ruleEv(m)["sources"].([]any)[0].(map[string]any)
+				source["endLine"] = source["endLine"].(float64) + 1
 				head.Entries[i], _ = json.Marshal(m)
 			}
 		}

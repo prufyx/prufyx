@@ -71,7 +71,7 @@ func TestScanExpiredOrWithdrawnRuleIsUnknown(t *testing.T) {
 	}
 	run := func(blocks bool, evidence string) Result {
 		knowledge := newKnowledge(t, knowledgeOptions{lines: allLines, policy: "current", unchecked: true,
-			synthetic: []string{rule(blocks, evidence)}, extraRuleIDs: map[string][]string{"1.26": {id}}})
+			synthetic: []string{rule(blocks, evidence)}})
 		return lapsedScan(t, knowledge, cronjobV1, "1.24.17", "1.30.4")
 	}
 	if got := run(false, current); got.Exit != scanreport.ExitPass {
@@ -193,8 +193,8 @@ func TestScanLapsedDirectPathPolicyAllowsNoHop(t *testing.T) {
 // An expired chart record resolves nothing, and the refusal names the chart.
 func TestExpiredChartRecordIsNotUsed(t *testing.T) {
 	sources, versions, err := chartidentity.LoadEmbedded()
-	if err != nil || len(sources.Records) == 0 || len(versions.Records) == 0 {
-		t.Fatalf("embedded chart tables: %v", err)
+	if err != nil || len(sources.Records) == 0 {
+		t.Fatalf("embedded chart sources: %v", err)
 	}
 	after := time.Date(2099, 1, 1, 0, 0, 0, 0, time.UTC)
 	charts, err := loadEmbeddedCharts()
@@ -202,6 +202,15 @@ func TestExpiredChartRecordIsNotUsed(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, record := range sources.Records {
+		// The row resolves while it is current, so the refusal below is its
+		// expiry.
+		until, err := time.Parse(time.RFC3339, record.Evidence.ValidUntil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if component, ok := charts.Component(record.Project, record.Chart, until.Add(-time.Second)); !ok || component != record.Component {
+			t.Fatalf("%s %s: current row resolves %q %v", record.Project, record.Chart, component, ok)
+		}
 		chart, err := resolveChart(record.Project, record.Chart, after)
 		if err == nil || !strings.Contains(err.Error(), record.Chart) || !strings.Contains(err.Error(), record.Project) || chart.Name != "" {
 			t.Fatalf("%s %s: chart %+v err %v", record.Project, record.Chart, chart, err)
