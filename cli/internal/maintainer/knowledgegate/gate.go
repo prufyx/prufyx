@@ -211,6 +211,9 @@ type Report struct {
 	// baselineApprovalsUsed names (by approval id) the baseline approval
 	// files this change's baseline check admitted entries with.
 	baselineApprovalsUsed map[string]bool
+	// floorApprovalsUsed names (by project slug) the target floor approvals
+	// the target floor check used.
+	floorApprovalsUsed map[string]bool
 
 	// alarmKinds runs parallel to Alarms.
 	alarmKinds []string
@@ -645,6 +648,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 	r.gatePathCheck(opts, loadKeys)
 	r.modeCheck(opts)
 	r.baselineApprovalsUsed = r.baselinesCheck(opts, loadKeys, approvals)
+	r.floorApprovalsUsed = r.targetFloorCheck(cls, opts, loadKeys, approvals)
 	r.recordCheck(cls, statements, opts)
 	r.onboardingRecordsCheck(opts, onboarding)
 	r.citationCheck(ctx, cls, opts)

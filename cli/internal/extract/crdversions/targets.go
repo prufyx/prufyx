@@ -69,6 +69,14 @@ type Target struct {
 	// MinFrom is the first earlier line (major, minor) a pair may start
 	// from.
 	MinFrom [2]int
+	// DerivedFrom is the lowest line whose pairs the pipeline derived: every
+	// pair in [DerivedFrom, MinFrom) carries an attestation or a recorded
+	// stop. It is at most MinFrom and defaults to it (DerivedFromSet false).
+	// It is never evidence: no code may read "a line at or above DerivedFrom"
+	// as an attestation. Lowering it, like lowering MinFrom, widens what the
+	// pipeline claims and needs the owner's approval (knowledgegate).
+	DerivedFrom    [2]int
+	DerivedFromSet bool
 	// Paths are the CRD manifest locations, read at every tag of a line.
 	Paths []PathSpec
 	// Exclude lists the parts of the repository whose CRD-like files the
@@ -383,6 +391,7 @@ type targetJSON struct {
 	// ReleaseScheme replaces tagPrefixes; see Target.
 	ReleaseScheme        string                    `json:"releaseScheme,omitempty"`
 	MinFrom              string                    `json:"minFrom"`
+	DerivedFrom          string                    `json:"derivedFrom,omitempty"`
 	Attest               bool                      `json:"attest"`
 	ProfileAttestation   bool                      `json:"profileAttestation,omitempty"`
 	Paths                []pathJSON                `json:"paths"`
@@ -596,6 +605,19 @@ func (tj targetJSON) target() (Target, error) {
 	}
 	t.MinFrom[0], _ = strconv.Atoi(m[1])
 	t.MinFrom[1], _ = strconv.Atoi(m[2])
+	t.DerivedFrom = t.MinFrom
+	if tj.DerivedFrom != "" {
+		dm := lineRE.FindStringSubmatch(tj.DerivedFrom)
+		if dm == nil {
+			return t, fmt.Errorf("derivedFrom %q is not major.minor", tj.DerivedFrom)
+		}
+		t.DerivedFrom[0], _ = strconv.Atoi(dm[1])
+		t.DerivedFrom[1], _ = strconv.Atoi(dm[2])
+		t.DerivedFromSet = true
+		if t.DerivedFrom[0] > t.MinFrom[0] || (t.DerivedFrom[0] == t.MinFrom[0] && t.DerivedFrom[1] > t.MinFrom[1]) {
+			return t, fmt.Errorf("derivedFrom %s is above minFrom %s", tj.DerivedFrom, tj.MinFrom)
+		}
+	}
 	if len(tj.Paths) == 0 {
 		return t, fmt.Errorf("no paths")
 	}

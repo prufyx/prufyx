@@ -213,6 +213,12 @@ func (r ApprovalRecord) validate() error {
 		if !approvalRepoScopeRE.MatchString(r.Scope) {
 			return errors.New("approval record field out of range")
 		}
+	case ApprovalSubjectTargetFloor:
+		// The scope is the project slug and equals the rule id; the base
+		// may be absent (a new target with a derivedFrom below its minFrom).
+		if !approvalFloorScopeRE.MatchString(r.Scope) || r.Scope != r.RuleID || r.Pack != TargetFloorApprovalPack {
+			return errors.New("approval record field out of range")
+		}
 	case ApprovalSubjectRegistry:
 		if r.Scope != RegistryApprovalScope || r.RuleID != RegistryApprovalID || r.BaseDigest == ApprovalBaseAbsent {
 			return errors.New("approval record field out of range")
