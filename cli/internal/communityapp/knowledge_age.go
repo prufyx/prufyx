@@ -214,8 +214,8 @@ func replaceNow(args []string, value string) ([]string, bool) {
 }
 
 // batchEmbeddedAge is the end dates of the embedded evidence a batch can use:
-// the CNCF pack (rules, line attestations, served-API lists, path policies)
-// and the community project pack, for items of either kind.
+// the CNCF pack (rules, line attestations, served-API lists, path policies,
+// distribution records) and the community project pack, for items of either kind.
 func batchEmbeddedAge() ([]knowledgeage.Source, error) {
 	cncf, err := cncfcheck.EmbeddedEvidenceAge()
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/distribution"
 	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
 )
 
@@ -91,6 +92,40 @@ func sectionEnds(section json.RawMessage) ([]time.Time, error) {
 	return ends, nil
 }
 
+// distributionEnds lists the end dates of the active evidence in the
+// optional distribution section: its identity records and its applicability
+// statements, each of which stops being current at its own end date.
+// Withdrawn evidence never counts. A section that cannot be parsed strictly
+// is an error, so a gate built on this fails closed.
+func distributionEnds(section json.RawMessage) ([]time.Time, error) {
+	if len(section) == 0 {
+		return nil, nil
+	}
+	parsed, err := distribution.Parse(section)
+	if err != nil {
+		return nil, ErrIntegrity
+	}
+	evidence := make([]distribution.Evidence, 0, len(parsed.Records)+len(parsed.Applicability))
+	for _, record := range parsed.Records {
+		evidence = append(evidence, record.Evidence)
+	}
+	for _, statement := range parsed.Applicability {
+		evidence = append(evidence, statement.Evidence)
+	}
+	var ends []time.Time
+	for _, item := range evidence {
+		if item.State != distribution.StateActive {
+			continue
+		}
+		end, err := time.Parse(time.RFC3339, item.ValidUntil)
+		if err != nil {
+			return nil, ErrIntegrity
+		}
+		ends = append(ends, end.UTC())
+	}
+	return ends, nil
+}
+
 // strictRuleEnds is activeRuleEnds, except that an unparseable date is an
 // error instead of being left out.
 func strictRuleEnds(entries []Entry) ([]time.Time, error) {
@@ -133,8 +168,9 @@ func EmbeddedKnowledgeAge() ([]knowledgeage.Source, error) {
 }
 
 // EmbeddedEvidenceAge is the end dates of all evidence the embedded pack
-// carries: its active rules and its applicable line attestations, served-API
-// lists and path policies, everything that makes an answer UNKNOWN or not
+// carries: its active rules, its applicable line attestations, served-API
+// lists and path policies, and its active distribution records and
+// applicability statements, everything that makes an answer UNKNOWN or not
 // current once it ends. Unlike EmbeddedKnowledgeAge it fails on a date it
 // cannot parse, so a release gate built on it fails closed.
 func EmbeddedEvidenceAge() ([]knowledgeage.Source, error) {
@@ -153,6 +189,11 @@ func EmbeddedEvidenceAge() ([]knowledgeage.Source, error) {
 		}
 		ends = append(ends, more...)
 	}
+	distributions, err := distributionEnds(b.pack.Distributions)
+	if err != nil {
+		return nil, err
+	}
+	ends = append(ends, distributions...)
 	return []knowledgeage.Source{{ID: "embedded", Expiries: ends, Pinned: pinnedRuleReviews(b.pack.Entries)}}, nil
 }
 

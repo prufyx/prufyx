@@ -3,9 +3,10 @@
 // Package releasefreshness is the release gate that refuses a tag whose
 // embedded knowledge would expire too soon after the release. It reads the
 // end dates of the active evidence the binary carries (rules, project rules,
-// line attestations, served-API lists, path policies, image and chart
-// identity) through the same code the binary uses at run time, and compares the earliest one with the tagged
-// commit's date plus a minimum number of days.
+// line attestations, served-API lists, path policies, distribution records
+// and applicability statements, image and chart identity) through the same
+// code the binary uses at run time, and compares the earliest one with the
+// tagged commit's date plus a minimum number of days.
 package releasefreshness
 
 import (
