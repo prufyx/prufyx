@@ -486,6 +486,10 @@ func TestPinnedClientAdmitsReachedFloors(t *testing.T) {
 	t.Logf("%s run: client %s admitted", cfg.mode, cfg.version)
 }
 
+// integrityRefusal is the whole of what the client prints for a package it
+// refuses as an integrity failure: no reason of capability or minimum follows.
+const integrityRefusal = "prufyx: knowledge package verification failed"
+
 // lackingRead removes one feature's read from a copy of the client source: one
 // exact replacement, and the refusal that client then gives.
 type lackingRead struct {
@@ -499,18 +503,18 @@ func lackingReads() []lackingRead {
 		{
 			floor: floorPinnedLease, file: "internal/constraintengine/lease.go",
 			old: "\tcase LeasePinned:\n\tdefault:\n", new: "\tdefault:\n",
-			exit: 3, message: "integrity",
+			exit: 3, message: integrityRefusal,
 		},
 		{
 			floor: floorListedFamily, file: "internal/cncfcheck/external_records.go",
 			old:  "if _, err := admitAttestations(section, true, pack.Entries); err != nil {",
 			new:  "if _, err := admitAttestations(section, true, pack.Entries); err != nil || bytes.Contains(section, []byte(\"changelog.listed_entries\")) {",
-			exit: 3, message: "integrity",
+			exit: 3, message: integrityRefusal,
 		},
 		{
 			floor: floorOptInLevel, file: "internal/cncfcheck/external.go",
 			old: "if !validPackSchema(packValue) || ", new: "if packValue.Schema == packSchemaBoundaryCovered || !validPackSchema(packValue) || ",
-			exit: 3, message: "integrity",
+			exit: 3, message: integrityRefusal,
 		},
 	}
 }
@@ -559,7 +563,9 @@ func lackingProblems(lacking floorVerify, set floorFixtures, feature clientFloor
 		return append(problems, "no feature package")
 	}
 	run := lacking(set, pkg)
-	if run.code != want.exit || !strings.Contains(run.stderr, want.message) || strings.Contains(run.stderr, capabilityMismatchText) || strings.Contains(run.stderr, upgradeToText) {
+	// The whole message is compared, so it names neither a capability nor a
+	// minimum client.
+	if run.code != want.exit || strings.TrimSpace(run.stderr) != want.message {
 		problems = append(problems, fmt.Sprintf("the modified client must refuse the feature with exit %d %q: %s", want.exit, want.message, describeRun(run)))
 	}
 	if admitA(lacking, set, feature) == nil {
@@ -870,17 +876,17 @@ func TestLackingProblemsRefusesOtherAnswers(t *testing.T) {
 			return control
 		}
 	}
-	refusal := clientRun{code: 3, stderr: "integrity"}
+	refusal := clientRun{code: 3, stderr: integrityRefusal + "\n"}
 	if p := lackingProblems(answer(good, refusal), set, feature, want); len(p) != 0 {
 		t.Fatalf("control: %q", p)
 	}
 	for name, v := range map[string]floorVerify{
 		"control refused":     answer(refusal, refusal),
 		"feature admitted":    answer(good, good),
-		"another exit":        answer(good, clientRun{code: 15, stderr: "integrity"}),
+		"another exit":        answer(good, clientRun{code: 15, stderr: integrityRefusal}),
 		"another message":     answer(good, clientRun{code: 3, stderr: "other"}),
-		"capability mismatch": answer(good, clientRun{code: 3, stderr: "integrity " + capabilityMismatchText}),
-		"names a minimum":     answer(good, clientRun{code: 3, stderr: "integrity " + upgradeToText}),
+		"capability mismatch": answer(good, clientRun{code: 3, stderr: integrityRefusal + "; " + capabilityMismatchText}),
+		"names a minimum":     answer(good, clientRun{code: 3, stderr: integrityRefusal + "; " + upgradeToText}),
 	} {
 		if p := lackingProblems(v, set, feature, want); len(p) == 0 {
 			t.Errorf("%s accepted", name)
