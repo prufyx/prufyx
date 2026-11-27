@@ -29,6 +29,7 @@ type workflow struct {
 	On          map[string]any    `yaml:"on"`
 	Permissions map[string]string `yaml:"permissions"`
 	Jobs        map[string]struct {
+		Name        string            `yaml:"name"`
 		Permissions map[string]string `yaml:"permissions"`
 		Env         map[string]string `yaml:"env"`
 		Outputs     map[string]string `yaml:"outputs"`
@@ -469,6 +470,113 @@ func TestWorkflowMergeGroup(t *testing.T) {
 	}
 	if strings.Contains(all, `"merge_group" ] ||`) {
 		t.Fatal("merge_group must not take the re-derivation path")
+	}
+}
+
+// Only the two events that verify a change may report the required context.
+// A scheduled or manual run, and any other event, gets another name, so its
+// success can never stand for the verification of a pull request.
+func TestWorkflowRequiredContextName(t *testing.T) {
+	t.Parallel()
+	raw, err := os.ReadFile(workflowPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wf workflow
+	if err := yaml.Unmarshal(raw, &wf); err != nil {
+		t.Fatal(err)
+	}
+	const want = "${{ (github.event_name == 'pull_request_target' || github.event_name == 'merge_group') && 'Knowledge gate' || 'Knowledge re-derivation of main' }}"
+	if got := wf.Jobs["gate"].Name; got != want {
+		t.Fatalf("gate job name = %q, want %q", got, want)
+	}
+	for id, job := range wf.Jobs {
+		if id != "gate" && strings.Contains(job.Name, "Knowledge gate") {
+			t.Fatalf("job %s can report the required context: %q", id, job.Name)
+		}
+	}
+}
+
+// Runs the real "Resolve the base" script: a scheduled or manual run passes on
+// main only, and an event the workflow does not know fails. A refused run
+// resolves no base.
+func TestResolveBaseRefusesRunsOffMain(t *testing.T) {
+	t.Parallel()
+	raw, err := os.ReadFile(workflowPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wf workflow
+	if err := yaml.Unmarshal(raw, &wf); err != nil {
+		t.Fatal(err)
+	}
+	steps := wf.Jobs["gate"].Steps
+	if len(steps) == 0 || steps[0].ID != "base" || steps[0].If != "" {
+		t.Fatal("the first step must resolve the base, unconditionally")
+	}
+	script := steps[0].Run
+	head := strings.Repeat("a", 40)
+	group := strings.Repeat("b", 40)
+	// A stand-in git: the tip of main for the pull request mode.
+	bin := t.TempDir()
+	fake := "#!/bin/sh\nprintf '%s\\trefs/heads/main\\n' " + group + "\n"
+	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(fake), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		event, ref, head string
+		base             string // "" means the step must fail
+	}{
+		{"schedule", "refs/heads/main", head, head},
+		{"workflow_dispatch", "refs/heads/main", head, head},
+		{"pull_request_target", "refs/heads/main", head, group},
+		{"merge_group", "refs/heads/gh-readonly-queue/main/pr-1-" + group, head, group},
+		{"workflow_dispatch", "refs/heads/topic", head, ""},
+		{"workflow_dispatch", "refs/heads/main-2", head, ""},
+		{"workflow_dispatch", "refs/heads/Main", head, ""},
+		{"workflow_dispatch", "refs/heads/topic/refs/heads/main", head, ""},
+		{"workflow_dispatch", "refs/tags/main", head, ""},
+		{"workflow_dispatch", "main", head, ""},
+		{"workflow_dispatch", "", head, ""},
+		{"schedule", "refs/heads/topic", head, ""},
+		{"schedule", "", head, ""},
+		{"push", "refs/heads/main", head, ""},
+		{"pull_request", "refs/heads/main", head, ""},
+		{"repository_dispatch", "refs/heads/main", head, ""},
+		{"", "refs/heads/main", head, ""},
+		{"workflow_dispatch", "refs/heads/main", "abc", ""},
+	}
+	for _, c := range cases {
+		dir := t.TempDir()
+		envFile, outFile := filepath.Join(dir, "env"), filepath.Join(dir, "output")
+		cmd := exec.Command("bash", "-c", script)
+		cmd.Dir = dir
+		cmd.Env = []string{
+			"PATH=" + bin + string(os.PathListSeparator) + os.Getenv("PATH"),
+			"GITHUB_EVENT_NAME=" + c.event, "GITHUB_REF=" + c.ref, "GITHUB_REPOSITORY=example/repo",
+			"GITHUB_ENV=" + envFile, "GITHUB_OUTPUT=" + outFile,
+			"HEAD_SHA=" + c.head, "PR_BASE_SHA=" + group, "MQ_BASE_SHA=" + group,
+		}
+		out, err := cmd.CombinedOutput()
+		env, _ := os.ReadFile(envFile)
+		output, _ := os.ReadFile(outFile)
+		name := fmt.Sprintf("event %q ref %q head %q", c.event, c.ref, c.head)
+		if c.base == "" {
+			if err == nil {
+				t.Errorf("%s: passed, want failure: %s", name, out)
+			}
+			if strings.Contains(string(env), "BASE_SHA=") || len(output) != 0 {
+				t.Errorf("%s: a refused run resolved a base: %q %q", name, env, output)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("%s: %v: %s", name, err, out)
+			continue
+		}
+		if !strings.Contains(string(env), "BASE_SHA="+c.base+"\n") || string(output) != "sha="+c.base+"\n" {
+			t.Errorf("%s: base = %q %q, want %s", name, env, output, c.base)
+		}
 	}
 }
 

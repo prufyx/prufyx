@@ -4,7 +4,8 @@
 the published knowledge — the rule packs, their corpus attestations, the
 generated support inventory and the reattestation records — before it can
 merge. The `Knowledge gate` workflow (`.github/workflows/knowledge-gate.yml`)
-runs it on every pull request to `main` and once a day on `main`.
+runs it on every pull request to `main`, in the merge queue and once a day on
+`main`.
 
 The gate compares two trees of the repository: the **base** the change is
 proposed against and the proposed **head**. It is built from the base and only
@@ -135,9 +136,9 @@ pack content; they read what `main` holds.
 
 | Path | Gate in the workflow | Where the renewal is classified, re-derived and limited |
 |---|---|---|
-| Pull request into `main` (maintainer) | `.github/workflows/knowledge-gate.yml:21` (`pull_request_target`, no path filter), `gate classify` at `:218`, `gate verify` at `:264` | `classify.go:236` marks the change `remediation-text` (a loosening `modify`); `gate.go:582-587` (`freshDerivation`, `derivedAt` within 24 hours); `rederive.go:131,153` (extractor id, version and code digest equal the gate's); `rederive.go:115` (byte-identical to the gate's own extractor output, otherwise `rule differs from what extractor ... derives`); `gate.go:359` (loosening cap) |
-| Automation export pull request | the same workflow and steps; author and sender matter only for automatic merge (`BOT_LOGIN`, `knowledge-gate.yml:51`), never for the proof | the same functions; there is no separate admission path for rules |
-| Scheduled and manual runs of the gate | `knowledge-gate.yml:24,26` | re-derivation of a slice of `main` (`RederiveAll`, `gate.go:628`): a check of what is already merged, not a way in |
+| Pull request into `main` (maintainer) | `.github/workflows/knowledge-gate.yml` (`pull_request_target`, no path filter; `gate classify`, `gate verify`) | `classify.go:236` marks the change `remediation-text` (a loosening `modify`); `gate.go:582-587` (`freshDerivation`, `derivedAt` within 24 hours); `rederive.go:131,153` (extractor id, version and code digest equal the gate's); `rederive.go:115` (byte-identical to the gate's own extractor output, otherwise `rule differs from what extractor ... derives`); `gate.go:359` (loosening cap) |
+| Automation export pull request | the same workflow and steps; author and sender matter only for automatic merge (`BOT_LOGIN`, `knowledge-gate.yml`), never for the proof | the same functions; there is no separate admission path for rules |
+| Scheduled and manual runs of the gate (job `Knowledge re-derivation of main`, `main` only) | `knowledge-gate.yml` (`schedule`, `workflow_dispatch`) | re-derivation of a slice of `main` (`RederiveAll`, `gate.go:628`): a check of what is already merged, not a way in |
 | Release (tag `v*`) | `.github/workflows/release.yml:4` | none: it builds from a tag on `main` and changes no pack; it checks the pinned root and the age of the embedded knowledge only |
 | Knowledge publish (push to `main`, schedule, manual) | `.github/workflows/knowledge-publish.yml:28-41` | none: it signs and publishes what `main` holds and does not re-run the gate; it relies on the required check above, so a change that bypassed the ruleset would not be re-derived here |
 | Onboarding bundles | `.github/workflows/onboard-bundles.yml:10` | not a pack path: it validates `contrib/onboard-bundles/**` only |
@@ -1709,12 +1710,21 @@ upstream projects with an installation token of a read-only GitHub App
 900. The App's private key (`KNOWLEDGE_GATE_APP_PRIVATE_KEY`) reaches only the
 pinned `actions/create-github-app-token` step; no run step sees a secret. The
 only other secret in the workflow belongs to the separate `Gate alarms` job.
-On the daily run it adds `--rederive-all`.
+On the daily run and on a manual run it adds `--rederive-all`.
 
-It does not run for a merge queue: a `merge_group` run would use the workflow
-definition of the queued commit. Pull requests must instead be up to date with
-`main` before they merge (branch protection "require branches to be up to
-date"), so the merged tree is the tree the gate checked.
+A pull request run and a merge queue run verify a change and report the check
+named `Knowledge gate`. A scheduled or manual run re-derives what `main`
+already holds: its job is named `Knowledge re-derivation of main`, it no longer
+reports the `Knowledge gate` check, and it fails on any ref other than `main`.
+Scope limit: the workflow definition is taken from the run ref; a control
+outside this file is tracked separately.
+
+In a merge queue a `merge_group` run takes the workflow definition from the
+queued commit. It builds the gate from the group base, ties the group to exactly
+one pull request and its head, checks the group head against the group base and
+fails on any gap. It refuses a group that changes the gate's own files; the
+protection for those is the pull request run, whose definition comes from the
+base branch.
 
 Repository variables: `REATTEST_TRUST_ROOT_DIGEST` (the pinned trust root
 digest; unset means no statement is accepted), `WEB_APPROVAL_KEYS_DIGEST` (the
