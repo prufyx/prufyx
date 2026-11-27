@@ -191,9 +191,10 @@ class SpecTest(unittest.TestCase):
                 ids = [c["id"] for c in spec.cases(pair, side)]
                 self.assertEqual(len(ids), len(set(ids)))
             argv = [c["argv"] for c in spec.cases(pair, "to") if c["kind"] == "T1"]
+            first = len(conf.get("command", []))
             for item in conf["items"]:
                 flag = "-" + item["name"]
-                self.assertTrue(any(a[0] == "-" + flag for a in argv))
+                self.assertTrue(any(a[first] == "-" + flag for a in argv))
                 self.assertTrue(any(a[-1] == flag for a in argv))
 
     def test_shards_partition(self):
@@ -248,6 +249,153 @@ class FetchTest(unittest.TestCase):
         text = ("o\trefs/tags/v1.0.0\np\trefs/tags/v1.0.0^{}\nq\trefs/tags/v1.0.1-rc.0\n"
                 "r\trefs/tags/v1.0.1\ns\trefs/tags/v1.10.0\n")
         self.assertEqual(fetch.final_tags(text, "1.0"), {"v1.0.0": "p", "v1.0.1": "r"})
+
+
+THANOS = "thanos-0.37-0.38"
+PREFIX = "error parsing commandline arguments: [/usr/local/bin/thanos query --x]: "
+
+
+class ThanosTest(unittest.TestCase):
+    """The kingpin templates, the subcommand and the release asset route."""
+
+    def judged(self, token, style, stderr, **changes):
+        changes.setdefault("exit_code", 1)
+        result = judge.classify("kingpin", spec.PAIRS[THANOS]["ready"],
+                                obs(stderr=stderr, **changes))
+        case = {"expect": "rejected", "token": token, "style": style}
+        return judge.case_problem("kingpin", case, result)
+
+    def test_exact_rejection_passes(self):
+        for prefix in (PREFIX, "thanos: error: "):
+            self.assertIsNone(self.judged(
+                "store", "long", prefix + "unknown long flag '--store'\n"))
+            self.assertIsNone(self.judged(
+                "s", "short", prefix + "unknown short flag '-s'\n"))
+
+    def test_everything_else_fails(self):
+        good = "thanos: error: unknown long flag '--store'\n"
+        ready = 'level=info msg="changing probe status" status=ready\n'
+        for name, changes in {
+                "exit code alone": dict(stderr=""),
+                "help dump": dict(stderr="usage: thanos query\n  --store=<store>\n"),
+                "other token": dict(stderr=good.replace("store", "rule")),
+                "longer token": dict(stderr=good.replace("store", "store-strict")),
+                "negation": dict(stderr=good.replace("--store", "--no-store")),
+                "short template": dict(stderr="thanos: error: unknown short flag '-s'\n"),
+                "two tokens": dict(stderr=good + good.replace("store", "rule")),
+                "no prefix": dict(stderr="unknown long flag '--store'\n"),
+                "foreign prefix": dict(stderr="level=warn msg=x: " + good[len("thanos: "):]),
+                "trailing text": dict(stderr=good.rstrip() + " ignored\n"),
+                "other error": dict(stderr="thanos: error: expected argument for flag "
+                                           "'--store'\n"),
+                "exit zero": dict(exit_code=0, stderr=good),
+                "ready as well": dict(stderr=good + ready),
+                "timeout": dict(timed_out=True, stderr=good),
+                "truncated": dict(truncated=True, stderr=good),
+                "crash": dict(stderr="panic: boom\n" + good)}.items():
+            with self.subTest(name):
+                self.assertIsNotNone(self.judged("store", "long", **changes))
+        for name, stderr in {
+                "other letter": "thanos: error: unknown short flag '-r'\n",
+                "long template": good,
+                "whole word": "thanos: error: unknown short flag '-store'\n"}.items():
+            with self.subTest(name):
+                self.assertIsNotNone(self.judged("s", "short", stderr))
+
+    def test_ready_marker(self):
+        pattern = spec.PAIRS[THANOS]["ready"]
+        for status, want in (("ready", "READY"), ("healthy", "OTHER"),
+                             ("not-ready", "OTHER")):
+            line = 'level=info msg="changing probe status" status=%s\n' % status
+            self.assertEqual(
+                judge.classify("kingpin", pattern, obs(stderr=line))["class"], want)
+
+    def test_version(self):
+        commit = "0123456789" * 4
+        good = "thanos, version 0.38.0 (branch: HEAD, revision: %s)\n" % commit
+
+        def problem(text, **changes):
+            return judge.version_problem("thanos", "v0.38.0", commit,
+                                         obs(stdout=text, **changes))
+
+        self.assertIsNone(problem(good))
+        for text in (good.replace("0.38.0", "0.38.1"),
+                     good.replace(commit, "f" * 40),
+                     good.replace(commit, commit[:4]),
+                     good.replace(commit, commit + "-modified"),
+                     good.replace("thanos,", "prometheus,"),
+                     good + good.replace("0.38.0", "0.37.0"), ""):
+            self.assertIsNotNone(problem(text), text)
+        self.assertIsNotNone(problem(good, exit_code=1))
+
+    def test_cases_run_the_subcommand(self):
+        for side in ("from", "to"):
+            for case in spec.cases(THANOS, side):
+                if case["kind"] == "version":
+                    self.assertEqual(case["argv"], ["--version"])
+                else:
+                    self.assertEqual(case["argv"][0], "query", case["id"])
+        short = [c for c in spec.cases(THANOS, "to")
+                 if c["kind"] in ("T1", "T2") and c["style"] == "short"]
+        self.assertTrue(short)
+        self.assertTrue(all(len(c["token"]) == 1 for c in short))
+        self.assertEqual(sorted(i["name"] for i in spec.PAIRS[THANOS]["items"]),
+                         ["exemplar", "metadata", "rule", "store", "store-strict", "target"])
+
+    def test_retained_items_are_not_removed_ones(self):
+        names = {i["name"] for i in spec.PAIRS[THANOS]["items"]}
+        for item in spec.PAIRS[THANOS]["items"]:
+            for token in item["retained"]:
+                self.assertNotIn(token[2:].split("=")[0], names)
+
+    def test_pinned_releases(self):
+        pinned = fetch.load_releases()["thanos"]
+        self.assertEqual([r["tag"] for r in pinned["0.37"]],
+                         ["v0.37.0", "v0.37.1", "v0.37.2"])
+        self.assertEqual([r["tag"] for r in pinned["0.38"]], ["v0.38.0"])
+
+
+class AssetTest(unittest.TestCase):
+    """The release asset route with a stand-in for the network."""
+
+    def fetch_with(self, replies):
+        saved = fetch.http_get, fetch.signature_state, fetch.tar_member
+        fetch.http_get = lambda url, headers=None: replies.get(
+            url.rsplit("/", 1)[1], (404, None, b""))
+        fetch.signature_state = lambda urls: []
+        fetch.tar_member = lambda data, path: path.encode()
+        try:
+            return fetch.release_asset("thanos", "v0.38.0", "amd64")
+        finally:
+            fetch.http_get, fetch.signature_state, fetch.tar_member = saved
+
+    def test_asset(self):
+        name = "thanos-0.38.0.linux-amd64.tar.gz"
+        sums = ("%s  %s\n" % (fetch.sha256(b"data"), name)).encode()
+        good = {"sha256sums.txt": (200, None, sums), name: (200, None, b"data")}
+        binary, record = self.fetch_with(good)
+        self.assertEqual(binary, b"thanos-0.38.0.linux-amd64/thanos")
+        self.assertIsNone(check._artifact_problem(record))
+        for replies in ({**good, name: (200, None, b"other")},
+                        {"sha256sums.txt": good["sha256sums.txt"]}):
+            with self.assertRaises(fetch.Withhold):
+                self.fetch_with(replies)
+        self.assertIsNone(self.fetch_with({name: good[name]}))
+
+    def test_unlisted_thanos_asset_has_no_fallback(self):
+        saved = fetch.release_asset
+        fetch.release_asset = lambda project, tag, arch: None
+        try:
+            with self.assertRaisesRegex(fetch.Withhold, "checksum file"):
+                fetch.prepare("thanos", "v0.38.0", "amd64", {}, {})
+        finally:
+            fetch.release_asset = saved
+
+    def test_unknown_project_refused(self):
+        with self.assertRaises(fetch.Withhold):
+            fetch.asset_names("other", "v1.0.0", "amd64")
+        with self.assertRaises(fetch.Withhold):
+            fetch.synthetic_files("other")
 
 
 class CheckerTest(unittest.TestCase):

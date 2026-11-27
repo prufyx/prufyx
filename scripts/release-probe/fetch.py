@@ -182,11 +182,23 @@ def signature_state(urls):
     return published
 
 
-def etcd_asset(tag, arch):
+def asset_names(project, tag, arch):
+    """(checksum file, asset, binary path inside the asset) as upstream names
+    them."""
+    if project == "etcd":
+        name = "etcd-%s-linux-%s.tar.gz" % (tag, arch)
+        return "SHA256SUMS", name, name[:-len(".tar.gz")] + "/etcd"
+    if project == "thanos":
+        stem = "thanos-%s.linux-%s" % (tag[1:], arch)
+        return "sha256sums.txt", stem + ".tar.gz", stem + "/thanos"
+    raise Withhold("no release asset naming for " + project)
+
+
+def release_asset(project, tag, arch):
     """(binary bytes, record), or None when upstream lists no checksum."""
-    base = "https://github.com/etcd-io/etcd/releases/download/%s/" % tag
-    name = "etcd-%s-linux-%s.tar.gz" % (tag, arch)
-    status, _, sums = http_get(base + "SHA256SUMS")
+    base = "%s/releases/download/%s/" % (spec.REPOSITORIES[project], tag)
+    sums_name, name, member = asset_names(project, tag, arch)
+    status, _, sums = http_get(base + sums_name)
     if status == 401:
         raise Withhold("checksum file needs credentials")
     listed = parse_sums(sums.decode("utf-8", "replace"), name) if status == 200 else None
@@ -196,13 +208,13 @@ def etcd_asset(tag, arch):
     if status != 200:
         raise Withhold("asset listed in the checksum file is missing: " + name)
     digest = verify_sha256(data, listed)
-    published = signature_state([base + name + ".asc", base + "SHA256SUMS.asc"])
+    published = signature_state([base + name + ".asc", base + sums_name + ".asc"])
     if published:
         raise Withhold("upstream publishes a signature that is not verified: "
                        + "; ".join(published))
-    binary = tar_member(data, name[:-len(".tar.gz")] + "/etcd")
+    binary = tar_member(data, member)
     return binary, {"route": "asset", "artifact_url": base + name, "artifact_sha256": digest,
-                    "checksum_source": base + "SHA256SUMS",
+                    "checksum_source": base + sums_name,
                     "checksum_file_sha256": sha256(sums), "checksum_listed": listed,
                     "checksum_result": "match", "signature": "none published",
                     "base_image": "scratch (empty)", "binary_sha256": sha256(binary)}
@@ -331,17 +343,31 @@ def synthetic_files(project):
                                b"initial-cluster: default=http://localhost:2380\n",
             "/probe/tls/ca.pem": throwaway_ca(),
         }
-    return {"/probe/vtconfig.yaml": b"{}\n"}
+    if project == "vitess":
+        return {"/probe/vtconfig.yaml": b"{}\n"}
+    if project == "thanos":
+        return {
+            "/probe/endpoints.yml": b"endpoints:\n- address: 127.0.0.1:15998\n",
+            "/probe/query.args": b"--query.replica-label=probe\n",
+        }
+    raise Withhold("no synthetic files for " + project)
+
+
+def entrypoint(project):
+    return next(p["entrypoint"] for p in spec.PAIRS.values() if p["project"] == project)
 
 
 def prepare(project, tag, arch, files, notes):
     """The fetch record of one release, including the probe image id."""
     staged = {path: (data, 0o644) for path, data in files.items()}
     record = {}
-    asset = etcd_asset(tag, arch) if project == "etcd" else None
+    asset = release_asset(project, tag, arch) if project in ("etcd", "thanos") else None
+    if asset is None and project == "thanos":
+        # Upstream publishes checksums for these lines: no other route.
+        raise Withhold("no release asset listed in the upstream checksum file")
     if asset:
         binary, record = asset
-        staged["/usr/local/bin/etcd"] = (binary, 0o755)
+        staged[entrypoint(project)] = (binary, 0o755)
         image = build_image("scratch", arch, staged, "%s-%s-%s" % (project, tag, arch))
         info = json.loads(engine.docker("image", "inspect", image).stdout)[0]
     else:
@@ -368,9 +394,7 @@ def prepare(project, tag, arch, files, notes):
                                      "official image pinned by manifest digest",
                   "checksum_result": "digest pin", "upstream": checksum_note,
                   "base_image": pinned,
-                  "binary_sha256": image_file_sha256(
-                      image, next(p["entrypoint"] for p in spec.PAIRS.values()
-                                  if p["project"] == project))}
+                  "binary_sha256": image_file_sha256(image, entrypoint(project))}
     config = info.get("Config", {})
     names = [e.split("=", 1)[0] for e in config.get("Env") or []]
     record.update({

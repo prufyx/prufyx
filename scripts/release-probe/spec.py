@@ -12,8 +12,11 @@ TIME_LIMIT_SECONDS = 60
 OUTPUT_LIMIT_BYTES = 256 * 1024
 
 # Bogus names. The pflag one starts with the same letter as the item it
-# controls, so the single dash template names the same shorthand letter.
-BOGUS = {"goflag": "probe-bogus-item", "pflag": "tzz-probe-bogus"}
+# controls, so the single dash template names the same shorthand letter. The
+# kingpin one starts with a letter the probed command does not register as a
+# shorthand.
+BOGUS = {"goflag": "probe-bogus-item", "pflag": "tzz-probe-bogus",
+         "kingpin": "zz-probe-bogus"}
 
 ETCD_CA = "/probe/tls/ca.pem"
 
@@ -97,8 +100,53 @@ PAIRS["vitess-20-21"]["contexts"] = {
     "twopc": _VTTABLET_BASE + ["--twopc_enable", "--twopc_abandon_age=1"],
 }
 
+_THANOS_QUERY_BASE = [
+    "--http-address=127.0.0.1:10902",
+    "--grpc-address=127.0.0.1:10901",
+]
+_THANOS_ENDPOINT = "127.0.0.1:15999"
+
+
+def _thanos_item(name, retained):
+    return _item(name, _THANOS_ENDPOINT, ["--%s=%s" % (retained, _THANOS_ENDPOINT)])
+
+
+PAIRS["thanos-0.37-0.38"] = {
+    "project": "thanos",
+    "binary": "thanos query",
+    "entrypoint": "/usr/local/bin/thanos",
+    # The subcommand. Every case but the version one starts with it.
+    "command": ["query"],
+    "parser": "kingpin",
+    "from": "0.37",
+    "to": "0.38",
+    # Logged by the gRPC server actor, which runs only after flag parsing.
+    "ready": r'msg="changing probe status" status=ready',
+    "contexts": {
+        "base": _THANOS_QUERY_BASE,
+        # Endpoint config file mode.
+        "sd-config": _THANOS_QUERY_BASE
+        + ["--endpoint.sd-config-file=/probe/endpoints.yml"],
+        "distributed": _THANOS_QUERY_BASE + ["--query.mode=distributed"],
+        # The parser expands @file into further arguments.
+        "args-file": _THANOS_QUERY_BASE + ["@/probe/query.args"],
+    },
+    "from_context": "base",
+    "to_contexts": ["base", "sd-config", "distributed", "args-file"],
+    "items": [
+        _thanos_item("store", "endpoint"),
+        _thanos_item("store-strict", "endpoint-strict"),
+        _thanos_item("rule", "endpoint"),
+        _thanos_item("target", "endpoint"),
+        _thanos_item("metadata", "endpoint"),
+        _thanos_item("exemplar", "endpoint"),
+    ],
+    "excluded": {},
+}
+
 REPOSITORIES = {
     "etcd": "https://github.com/etcd-io/etcd",
+    "thanos": "https://github.com/thanos-io/thanos",
     "vitess": "https://github.com/vitessio/vitess",
 }
 
@@ -152,13 +200,22 @@ def cases(pair, side):
     """The full case list of one release on one side ('from' or 'to')."""
     conf = PAIRS[pair]
     bogus = BOGUS[conf["parser"]]
+    command = conf.get("command", [])
+
+    def named(name, style):
+        """The token the parser's message names. kingpin reads a single dash
+        word as shorthand letters and names only the first one."""
+        if conf["parser"] == "kingpin" and style == "short":
+            return name[0]
+        return name
+
     out = [_case("version", "version", None, ["--version"], "version")]
     if side == "from":
         ctx = conf["from_context"]
         base = conf["contexts"][ctx]
-        out.append(_case(ctx + "/F0", "F0", ctx, list(base), "ready"))
+        out.append(_case(ctx + "/F0", "F0", ctx, command + base, "ready"))
         for item in conf["items"]:
-            with_item = base + ["--%s=%s" % (item["name"], item["value"])]
+            with_item = command + base + ["--%s=%s" % (item["name"], item["value"])]
             out.append(_case("%s/F1/%s" % (ctx, item["name"]), "F1", ctx,
                              with_item, "ready", item=item["name"]))
             out.append(_case("%s/FB/%s" % (ctx, item["name"]), "FB", ctx,
@@ -169,20 +226,22 @@ def cases(pair, side):
         raise ValueError("unknown side %r" % side)
     for ctx in conf["to_contexts"]:
         base = conf["contexts"][ctx]
-        out.append(_case(ctx + "/T0", "T0", ctx, list(base), "ready"))
+        out.append(_case(ctx + "/T0", "T0", ctx, command + base, "ready"))
         for style, dash in (("long", "--"), ("short", "-")):
             out.append(_case("%s/T2/%s" % (ctx, style), "T2", ctx,
-                             base + [dash + bogus + "=x"], "rejected",
-                             token=bogus, style=style))
+                             command + base + [dash + bogus + "=x"], "rejected",
+                             token=named(bogus, style), style=style))
         for item in conf["items"]:
             out.append(_case("%s/T3/%s" % (ctx, item["name"]), "T3", ctx,
-                             base + item["retained"], "ready", item=item["name"]))
+                             command + base + item["retained"], "ready",
+                             item=item["name"]))
             for name in spellings(item["name"]):
                 for fid, style, argv in forms(item, name):
                     for pos in ("first", "last"):
-                        full = argv + base if pos == "first" else base + argv
+                        full = command + (argv + base if pos == "first"
+                                          else base + argv)
                         out.append(_case(
                             "%s/T1/%s/%s/%s/%s" % (ctx, item["name"], name, fid, pos),
                             "T1", ctx, full, "rejected",
-                            item=item["name"], token=name, style=style))
+                            item=item["name"], token=named(name, style), style=style))
     return out

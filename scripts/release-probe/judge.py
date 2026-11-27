@@ -10,6 +10,10 @@ import spec
 _GOFLAG = re.compile(r"^flag provided but not defined: -(\S+)[ \t\r]*$", re.M)
 _PFLAG_LONG = re.compile(r"unknown flag: --([^\s\"'\\]+)")
 _PFLAG_SHORT = re.compile(r"unknown shorthand flag: '(.)' in -([^\s\"'\\]+)")
+# The whole message, only after one of the two prefixes the program prints.
+_KINGPIN = re.compile(
+    r"(?:^thanos: error: |^error parsing commandline arguments: .*\]: )"
+    r"unknown (long flag '--|short flag '-)([^'\n]*)'[ \t\r]*$", re.M)
 _CRASH = re.compile(r"^(panic: |fatal error: )|SIGSEGV", re.M)
 
 
@@ -27,6 +31,10 @@ def unknown_tokens(parser, text):
             if token[:1] != m.group(1):
                 token = "?" + token
             found.add(("short", token))
+    elif parser == "kingpin":
+        for m in _KINGPIN.finditer(text):
+            style = "long" if m.group(1).startswith("long") else "short"
+            found.add((style, m.group(2)))
     else:
         raise ValueError("unknown parser %r" % parser)
     return sorted(list(t) for t in found)
@@ -75,6 +83,11 @@ def version_problem(project, tag, commit, obs):
         commits = re.findall(r"^Git SHA: (\S+)[ \t\r]*$", text, re.M)
     elif project == "vitess":
         found = re.findall(r"Version: (\d\S*) .*?\(?Git revision (\S+)", text)
+        versions = [v for v, _ in found]
+        commits = [c for _, c in found]
+    elif project == "thanos":
+        found = re.findall(r"^thanos, version (\S+) \(branch: [^,\n]*, "
+                           r"revision: ([0-9a-f]+)\)[ \t\r]*$", text, re.M)
         versions = [v for v, _ in found]
         commits = [c for _, c in found]
     else:

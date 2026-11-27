@@ -118,6 +118,16 @@
    {"tag": "v3.5.36", "commit": "a5f37e35a47bf71c01a1708deaba210374335f1b"}
   ]
  },
+ "thanos": {
+  "0.37": [
+   {"tag": "v0.37.0", "commit": "889d52763023d1bd6356c36268afc8bcdae93298"},
+   {"tag": "v0.37.1", "commit": "e0812e2f46f81af3324686d910d885d8f2751d46"},
+   {"tag": "v0.37.2", "commit": "18291a78d4c62acb1f1af8d41b4197031a57380f"}
+  ],
+  "0.38": [
+   {"tag": "v0.38.0", "commit": "0439da0dd291735c36bb515c03e9dfa0012c76c9"}
+  ]
+ },
  "vitess": {
   "20.0": [
    {"tag": "v20.0.0", "commit": "8aeb274f6c8eeb1d0e80e17ab6b0ab10a01f60dc"},

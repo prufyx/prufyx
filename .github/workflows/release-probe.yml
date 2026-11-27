@@ -72,6 +72,8 @@ jobs:
           - { pair: etcd-3.4-3.5, arch: arm64, runner: ubuntu-24.04-arm, shard: 3, shards: 6 }
           - { pair: etcd-3.4-3.5, arch: arm64, runner: ubuntu-24.04-arm, shard: 4, shards: 6 }
           - { pair: etcd-3.4-3.5, arch: arm64, runner: ubuntu-24.04-arm, shard: 5, shards: 6 }
+          - { pair: thanos-0.37-0.38, arch: amd64, runner: ubuntu-24.04, shard: 0, shards: 1 }
+          - { pair: thanos-0.37-0.38, arch: arm64, runner: ubuntu-24.04-arm, shard: 0, shards: 1 }
           - { pair: vitess-20-21, arch: amd64, runner: ubuntu-24.04, shard: 0, shards: 1 }
           - { pair: vitess-20-21, arch: arm64, runner: ubuntu-24.04-arm, shard: 0, shards: 1 }
     runs-on: ${{ matrix.runner }}
