@@ -21,9 +21,10 @@ import (
 const (
 	ciSlowIf = "github.event_name != 'pull_request' || vars.CI_FAST_PR != 'true'"
 	// ciRunsOn is the only runs-on a job that may move off the hosted
-	// runner carries: self-hosted labels only for events that cannot come
-	// from a fork.
-	ciRunsOn = "${{ (github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON(vars.CI_RUNNER_LABELS || '\"ubuntu-24.04\"') || 'ubuntu-24.04' }}"
+	// runner carries: self-hosted labels only for a pull request from this
+	// repository. Every other event stays hosted, so no self-hosted job can
+	// write a cache in the scope of the default branch.
+	ciRunsOn = "${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && fromJSON(vars.CI_RUNNER_LABELS || '\"ubuntu-24.04\"') || 'ubuntu-24.04' }}"
 	ciHosted = "ubuntu-24.04"
 	// ciWatchdog is the hosted job that ends a run stuck behind an offline
 	// self-hosted runner.
@@ -32,9 +33,12 @@ const (
 
 // ciMovable are the only jobs allowed to read CI_RUNNER_LABELS.
 var ciMovable = map[string]bool{
-	"test-core": true, "test-knowledgegate": true, "test-synthetic-a": true, "test-synthetic-b": true,
-	"test-synthetic-knowledgegate": true, "race": true, "staticcheck": true, "govulncheck": true,
+	"test-core": true, "staticcheck": true, "govulncheck": true,
 }
+
+// ciStaticcheckBin is where the job installs staticcheck and calls it from: a
+// self-hosted runner may be non-root with read-only system directories.
+const ciStaticcheckBin = `"$RUNNER_TEMP/bin/staticcheck"`
 
 // ciSlowJobs are the suites kept off the required pull request run.
 var ciSlowJobs = []string{"test-synthetic-a", "test-synthetic-b", "test-synthetic-knowledgegate"}
@@ -95,7 +99,7 @@ func ciSplitProblems(raw []byte) []string {
 			}
 		default:
 			if runs != ciHosted {
-				problems = append(problems, "job "+id+" must stay on "+ciHosted+" (hosted); only the test shards, race, staticcheck and govulncheck may move")
+				problems = append(problems, "job "+id+" must stay on "+ciHosted+" (hosted); only test-core, staticcheck and govulncheck may move")
 			}
 		}
 		if id != ciWatchdog && (strings.Contains(runs, "self-hosted") || strings.Contains(string(text), "self-hosted")) {
@@ -108,6 +112,7 @@ func ciSplitProblems(raw []byte) []string {
 			problems = append(problems, "job "+id+" mentions CI_FAST_PR but is not a slow suite")
 		}
 	}
+	problems = append(problems, ciStaticcheckProblems(wf.Jobs["staticcheck"])...)
 	// The fan-in lists the same jobs twice: the fast set must succeed, the
 	// slow set may be skipped only in a fast pull request run.
 	var fan *ciSplitJob
@@ -186,6 +191,35 @@ func ciSplitProblems(raw []byte) []string {
 	return problems
 }
 
+// ciStaticcheckProblems requires the digest check, the install under
+// RUNNER_TEMP and every call by that full path.
+func ciStaticcheckProblems(job ciSplitJob) []string {
+	var lines []string
+	for _, st := range job.Steps {
+		for _, l := range strings.Split(st.Run, "\n") {
+			lines = append(lines, strings.TrimSpace(l))
+		}
+	}
+	all := "\n" + strings.Join(lines, "\n") + "\n"
+	var problems []string
+	for _, want := range []string{
+		`echo "${STATICCHECK_SHA256}  staticcheck_linux_amd64.tar.gz" | sha256sum -c -`,
+		`install -m 0755 staticcheck/staticcheck ` + ciStaticcheckBin,
+		ciStaticcheckBin + ` -checks='SA*' ./... || status=1`,
+		ciStaticcheckBin + ` -checks='SA*' -tags parityreview ./... || status=1`,
+	} {
+		if !strings.Contains(all, "\n"+want+"\n") {
+			problems = append(problems, "staticcheck job lacks the line "+want)
+		}
+	}
+	for _, l := range lines {
+		if strings.HasPrefix(l, "staticcheck ") || strings.Contains(l, "/usr/") || strings.Contains(l, "sudo ") {
+			problems = append(problems, "staticcheck job must not use PATH lookup, system directories or sudo: "+l)
+		}
+	}
+	return problems
+}
+
 func TestCIFastSlowSplit(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "ci.yml"))
 	if err != nil {
@@ -195,7 +229,29 @@ func TestCIFastSlowSplit(t *testing.T) {
 		t.Error(p)
 	}
 	text := string(raw)
+	guard := "github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository"
+	widen := func(event string) string {
+		wider := strings.Replace(ciRunsOn, guard, "(github.event_name == '"+event+"' || "+guard+")", 1)
+		return strings.Replace(text, ciRunsOn, wider, 1)
+	}
+	heavy := func(before string) string {
+		return strings.Replace(text, before+"    runs-on: ubuntu-24.04\n", before+"    runs-on: "+ciRunsOn+"\n", 1)
+	}
 	broken := map[string]string{
+		"push may move":               widen("push"),
+		"nightly may move":            widen("schedule"),
+		"manual run may move":         widen("workflow_dispatch"),
+		"merge queue may move":        widen("merge_group"),
+		"fork may move":               strings.Replace(text, ciRunsOn, strings.Replace(ciRunsOn, " && github.event.pull_request.head.repo.full_name == github.repository", "", 1), 1),
+		"knowledgegate moved":         heavy("    name: Test (knowledgegate ${{ matrix.shard }}/4)\n"),
+		"synthetic a moved":           heavy("    name: Test (synthetic knowledge, cncfcheck and community)\n"),
+		"synthetic b moved":           heavy("    name: Test (synthetic knowledge, extract, scan and release)\n"),
+		"synthetic gate moved":        heavy("    name: Test (synthetic knowledge, knowledgegate ${{ matrix.shard }}/3)\n"),
+		"race moved":                  heavy("    if: needs.race-plan.outputs.matrix != '[]'\n"),
+		"staticcheck into system dir": strings.Replace(text, "staticcheck/staticcheck "+ciStaticcheckBin, "staticcheck/staticcheck /usr/local/bin/staticcheck", 1),
+		"staticcheck digest dropped":  strings.Replace(text, "| sha256sum -c -\n          tar -xzf staticcheck_linux", "\n          tar -xzf staticcheck_linux", 1),
+		"staticcheck from PATH":       strings.Replace(text, ciStaticcheckBin+" -checks='SA*' ./...", "staticcheck -checks='SA*' ./...", 1),
+		"tagged run from PATH":        strings.Replace(text, ciStaticcheckBin+" -checks='SA*' -tags", "staticcheck -checks='SA*' -tags", 1),
 		"guard dropped from a shard":   strings.Replace(text, ciRunsOn, "${{ fromJSON(vars.CI_RUNNER_LABELS || '\"ubuntu-24.04\"') }}", 1),
 		"self-hosted literal":          strings.Replace(text, ciRunsOn, "[self-hosted, pfspot]", 1),
 		"secret scan moved":            strings.Replace(text, "  gitleaks:\n    name: Secret scan (gitleaks)\n    runs-on: ubuntu-24.04", "  gitleaks:\n    name: Secret scan (gitleaks)\n    runs-on: "+ciRunsOn, 1),
