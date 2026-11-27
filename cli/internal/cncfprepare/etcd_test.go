@@ -162,20 +162,22 @@ func TestPrepareEtcdLatestAllExactOriginsAndHopPrecedence(t *testing.T) {
 			if err != nil || len(report.Check.Claims) == 0 {
 				t.Fatalf("report=%+v err=%v", report, err)
 			}
+			exact := "etcd.experimental-flags-unsupported." + strings.ReplaceAll(from, ".", "-") + "-to-3-7-1"
 			blocked := 0
 			for _, claim := range report.Check.Claims {
-				// A reviewed line range that does not cover the declared pair
-				// only says so; it decides nothing for this pair.
-				if claim.ReasonCode == "RULE_RELEASE_BOUNDARY_NOT_REVIEWED" && claim.Status == "UNKNOWN" {
+				// The one extra claim allowed: a line range whose boundary
+				// question the exact rule of this pair answers. It stays
+				// UNKNOWN and names that rule.
+				if claim.Status == "UNKNOWN" && claim.CoveringRuleID == exact {
 					continue
 				}
-				if claim.Status != "BLOCKED" {
+				if claim.Status != "BLOCKED" || claim.RuleID != exact {
 					t.Fatalf("claim=%+v", claim)
 				}
 				blocked++
 			}
-			if blocked == 0 {
-				t.Fatalf("no claim blocks the removed flag: report=%+v", report)
+			if blocked != 1 {
+				t.Fatalf("want exactly one claim blocking the removed flag: report=%+v", report)
 			}
 		})
 		t.Run(from+"/replacement", func(t *testing.T) {

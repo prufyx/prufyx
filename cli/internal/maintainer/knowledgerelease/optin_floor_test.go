@@ -24,8 +24,11 @@ func TestReleaseRefusesTheOptInLevelBelowItsFloor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pack := bytes.Replace(raw, []byte(`"`+shipped+`"`), []byte(`"prufyx.io/cncf-source-rule-pack/v1alpha16"`), 1)
-	if bytes.Equal(pack, raw) {
+	const optIn = "prufyx.io/cncf-source-rule-pack/v1alpha16"
+	pack := bytes.Replace(raw, []byte(`"`+shipped+`"`), []byte(`"`+optIn+`"`), 1)
+	// The shipped pack may already state the opt-in level; only then may the
+	// replacement leave it unchanged.
+	if shipped != optIn && bytes.Equal(pack, raw) {
 		t.Fatalf("the shipped pack does not state %s", shipped)
 	}
 	// Without line attestations the listed family's own floor cannot be the
@@ -33,6 +36,9 @@ func TestReleaseRefusesTheOptInLevelBelowItsFloor(t *testing.T) {
 	var members map[string]json.RawMessage
 	if err := json.Unmarshal(pack, &members); err != nil {
 		t.Fatal(err)
+	}
+	if string(members["schema"]) != `"`+optIn+`"` {
+		t.Fatalf("the pack under test states %s, not the opt-in level", members["schema"])
 	}
 	delete(members, "lineAttestations")
 	if pack, err = json.Marshal(members); err != nil {
