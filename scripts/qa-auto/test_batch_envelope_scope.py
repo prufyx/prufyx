@@ -357,11 +357,14 @@ class BatchScopeTests(unittest.TestCase):
                 batch.environment_contract()
 
     def test_interior_proof_pair_uses_pinned_commits_and_moved_tag_blocks(self):
+        # like the oracle's own clones, the directory prepare() opens must itself be a Git directory (it uses --git-dir)
         upstream = self.root / "git" / "sample.git"
-        upstream.mkdir(parents=True)
+        upstream.parent.mkdir(parents=True)
+        work = self.root / "upstream"
+        work.mkdir()
         def git(*args):
-            return subprocess.check_output(["git", "-C", str(upstream), *args], text=True, stderr=subprocess.PIPE).strip()
-        git("init", "-q")
+            return subprocess.check_output(["git", "-C", str(work), *args], text=True, stderr=subprocess.PIPE).strip()
+        git("init", "-q", "--separate-git-dir", str(upstream))
         git("remote", "add", "origin", "https://github.com/example/sample.git")
         git("config", "user.name", "Spas Atanasov")
         git("config", "user.email", "11156623+airstand@users.noreply.github.com")
@@ -369,8 +372,8 @@ class BatchScopeTests(unittest.TestCase):
         for minor in (0, 1):
             for patch_number in (0, 1, 2):
                 tag = f"v1.{minor}.{patch_number}"
-                (upstream / "deploy").mkdir(exist_ok=True)
-                (upstream / "deploy/crds.yaml").write_text(tag + "\n")
+                (work / "deploy").mkdir(exist_ok=True)
+                (work / "deploy/crds.yaml").write_text(tag + "\n")
                 git("add", ".")
                 git("commit", "-qm", "Source fixture " + tag)
                 pins[tag] = git("rev-parse", "HEAD")
