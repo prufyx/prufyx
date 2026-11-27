@@ -14,6 +14,7 @@ package knowledgerelease
 
 import (
 	"bytes"
+	"crypto"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -26,6 +27,9 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
+	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgesign"
+	"github.com/sigstore/sigstore/pkg/signature"
+	"github.com/theupdateframework/go-tuf/v2/metadata"
 )
 
 const (
@@ -215,8 +219,53 @@ func floorTestAddsMinimum(name string) bool {
 	return name == floorProviderFacts || name == floorPinnedLease
 }
 
+// floorKeys is projectsFixture with the writer's clock: the throwaway root is
+// signed again so that it expires relative to now, not to the wall clock the
+// key tool reads.
+func floorKeys(t *testing.T, now time.Time) Options {
+	t.Helper()
+	o := projectsFixture(t)
+	o.Now = now.UTC().Truncate(time.Second)
+	raw, err := os.ReadFile(o.Root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := metadata.Root().FromBytes(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := os.ReadFile(filepath.Join(filepath.Dir(o.Root), "root.key.pem"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	private, err := knowledgesign.DecryptPrivateKey(encoded, []byte(testRootPassphrase))
+	if err != nil {
+		t.Fatal(err)
+	}
+	signer, err := signature.LoadSigner(private, crypto.Hash(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root.Signed.Expires = o.Now.Add(300 * 24 * time.Hour)
+	root.ClearSignatures()
+	if _, err := root.Sign(signer); err != nil {
+		t.Fatal(err)
+	}
+	if raw, err = root.ToBytes(false); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(o.Root, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	o.RootDigest = cncfcheck.TargetDigest(raw)
+	if err := knowledgesign.ValidateRoot(raw, o.RootDigest); err != nil {
+		t.Fatal(err)
+	}
+	return o
+}
+
 // writeFloorFixtures signs the fixture packages into dir, which must not hold
-// anything yet.
+// anything yet. Every date, the root expiry included, comes from now.
 func writeFloorFixtures(t *testing.T, dir string, now time.Time) floorManifest {
 	t.Helper()
 	if !filepath.IsAbs(dir) {
@@ -228,8 +277,7 @@ func writeFloorFixtures(t *testing.T, dir string, now time.Time) floorManifest {
 	if held, err := os.ReadDir(dir); err != nil || len(held) != 0 {
 		t.Fatalf("the fixture directory %s must be empty: %d entries, %v", dir, len(held), err)
 	}
-	keys := projectsFixture(t)
-	keys.Now = now.UTC().Truncate(time.Second)
+	keys := floorKeys(t, now)
 	write := func(name string, raw []byte) {
 		if err := os.WriteFile(filepath.Join(dir, name), raw, 0o600); err != nil {
 			t.Fatal(err)
@@ -309,7 +357,26 @@ func TestWriteFloorFixtures(t *testing.T) {
 // The written packages verify with this tree, carry exactly their own feature,
 // and the control carries none.
 func TestFloorFixtureWriterOutput(t *testing.T) {
-	now := time.Now().UTC().Truncate(time.Second)
+	checkFloorFixtureWriter(t, time.Now().UTC().Truncate(time.Second))
+}
+
+// verifyFloorFixture verifies one written package at the clock at.
+func verifyFloorFixture(set floorFixtures, path string, at time.Time) error {
+	index, _, err := signedMembers(path)
+	if err != nil {
+		return err
+	}
+	_, err = knowledge.VerifyConstraintsProjects(knowledge.VerifyRequest{
+		PackagePath: path, BootstrapRootPath: set.root(), BootstrapRootDigest: set.manifest.RootDigest,
+		ExpectedRevision: set.manifest.Revision, ExpectedBundleDigest: cncfcheck.TargetDigest(index), Now: at,
+	})
+	return err
+}
+
+// checkFloorFixtureWriter runs the whole writer at the clock now and checks
+// every package it wrote at that clock.
+func checkFloorFixtureWriter(t *testing.T, now time.Time) floorFixtures {
+	t.Helper()
 	dir := filepath.Join(t.TempDir(), "fixtures")
 	writeFloorFixtures(t, dir, now)
 	set, err := loadFloorFixtures(dir)
@@ -318,14 +385,7 @@ func TestFloorFixtureWriterOutput(t *testing.T) {
 	}
 	verify := func(path string) {
 		t.Helper()
-		index, _, err := signedMembers(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := knowledge.VerifyConstraintsProjects(knowledge.VerifyRequest{
-			PackagePath: path, BootstrapRootPath: set.root(), BootstrapRootDigest: set.manifest.RootDigest,
-			ExpectedRevision: set.manifest.Revision, ExpectedBundleDigest: cncfcheck.TargetDigest(index), Now: now,
-		}); err != nil {
+		if err := verifyFloorFixture(set, path, now); err != nil {
 			t.Fatalf("%s does not verify: %v", path, err)
 		}
 	}
@@ -361,12 +421,20 @@ func TestFloorFixtureWriterOutput(t *testing.T) {
 			t.Fatalf("the control carries %s", feature.name)
 		}
 	}
+	return set
 }
 
-// The synthetic inputs are made from the writer's clock alone: ten years from
-// now the builder admits them and a release would not be expired.
+// The writer and its synthetic inputs are made from the writer's clock alone:
+// ten years from now the whole writer signs every package and each verifies,
+// the builder admits the inputs and a release would not be expired.
 func TestFloorFixtureInputsDoNotExpire(t *testing.T) {
 	future := time.Now().UTC().AddDate(10, 0, 0).Truncate(time.Second)
+	checkFloorFixtureWriter(t, future)
+	// Control: packages written today are refused at that clock.
+	today := checkFloorFixtureWriter(t, time.Now().UTC().Truncate(time.Second))
+	if err := verifyFloorFixture(today, today.control(), future); err == nil {
+		t.Fatal("setup: a package written today verifies ten years from now")
+	}
 	check := func(inputs, release time.Time, feature clientFloorFeature) error {
 		index, _, _, err := cncfcheck.BuildExternalTargetsFromPackPinned(syntheticFloorPack(t, inputs, feature.name), "91", feature.version)
 		if err != nil {

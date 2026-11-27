@@ -22,6 +22,8 @@ var pinnedNow = time.Date(2026, 11, 10, 0, 0, 0, 0, time.UTC)
 
 const testPassphrase = "throwaway release test passphrase 1"
 
+const testRootPassphrase = "root key passphrase 123456"
+
 // fixture creates throwaway keys in t.TempDir(); nothing here is a real key.
 func fixture(t *testing.T) Options {
 	t.Helper()
@@ -33,7 +35,7 @@ func fixture(t *testing.T) Options {
 		t.Fatal(err)
 	}
 	keys := filepath.Join(parent, "keys")
-	init, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: keys, RootExpires: time.Now().UTC().Add(300 * 24 * time.Hour).Format(time.RFC3339), RootPassphrase: []byte("root key passphrase 123456"), Passphrase: []byte(testPassphrase)})
+	init, err := knowledgesign.Init(knowledgesign.InitOptions{KeyDir: keys, RootExpires: time.Now().UTC().Add(300 * 24 * time.Hour).Format(time.RFC3339), RootPassphrase: []byte(testRootPassphrase), Passphrase: []byte(testPassphrase)})
 	if err != nil {
 		t.Fatal(err)
 	}
