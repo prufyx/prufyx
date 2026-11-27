@@ -7,7 +7,7 @@ Prufyx checks a planned upgrade against upstream evidence and returns
 file, and line range it relies on, and says how it was established.
 
 <!-- basis-counts:begin -->
-Of the 318 active rules shipped today, 274 with basis `reviewed`, 44 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 390 release-line attestations and served-API lists are separate records: 390 with basis `mechanical`.
+Of the 318 active rules shipped today, 274 with basis `reviewed`, 44 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 394 release-line attestations and served-API lists are separate records: 394 with basis `mechanical`.
 <!-- basis-counts:end -->
 
 Each rule states which way it was established, and
@@ -334,7 +334,7 @@ Generated on 2026-11-27 by `scripts/readme-coverage.sh` (do not edit this block 
 | Projects with a rule or attestation that decides at least one of their last five minor upgrades (A, B or S below) | 53 of 79 |
 | Projects catalogued with retained public sources | 58 (11 of them source-only, no check) |
 | Projects with reviewed CRD targets (a reviewed `crd.custom_resource_versions` target) | 87 |
-| Projects with a published CRD rule or line attestation | 42 |
+| Projects with a published CRD rule or line attestation | 43 |
 
 Version-coverage by form, over the last five minor upgrades of each of the 79 CNCF-catalog projects of the snapshot (395 upgrades between consecutive release lines). Each upgrade is counted once, under its strongest form, in this order: A/B decided, then k8s served-API, then S, then L, then G. Only A/B is called decided: a valid rule or attestation covers every version of both release lines. k8s served-API is an answer from the Kubernetes served-API family alone. S is a rule for one exact version pair only. L is listed, not judged: the change is listed, the answer is ATTENTION, never PASS. G is a gap, with its reason. There is no total over the forms.
 
@@ -402,7 +402,7 @@ Projects with an answer of any form (A/B, k8s served-API, S or L): 54 of 79 in t
 | kyverno | release-line fleet | 5 | 1 | 0 | 1 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
 | linkerd | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
 | loki | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
-| longhorn | release-line fleet | 5 | 3 | 0 | 0 | 0 | 2 | NOT_DECIDED_FOR_THIS_PAIR |
+| longhorn | release-line fleet | 5 | 2 | 0 | 0 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
 | metallb | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
 | metrics-server | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
 | nats | release-line fleet | 5 | 2 | 0 | 2 | 0 | 1 | NOT_DECIDED_FOR_THIS_PAIR |
