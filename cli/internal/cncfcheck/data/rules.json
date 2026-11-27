@@ -4839,6 +4839,362 @@
       }
     },
     {
+      "project": "envoy",
+      "description": "Envoy 1.36 supports only xDS API v3 and rejects a v2 transport version. This target-line declaration check does not claim when support changed or validate bootstrap, resources, control-plane behavior, rollout, or a complete upgrade route. Whole-line: the v2 transport rejection (the checkTransportVersion guard in source/common/config/utility.h, the v3-only condition and the removal message) and the V2 enum value in config_source.proto are the same in every 1.35 release (v1.35.0 to v1.35.13) and every 1.36 release (v1.36.0 to v1.36.13), searched at each release tag. This is a target check that does not say when the behavior changed, so the range carries no release boundary.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.envoy.xds_api_major",
+          "component": "pkg:github/envoyproxy/envoy",
+          "type": "enum",
+          "enumTokens": [
+            "v2",
+            "v3"
+          ],
+          "description": "Declared xDS API major required by the proposed bootstrap/control-plane contract. This does not parse bootstrap files, scan resource type URLs, or validate schemas."
+        }
+      ],
+      "rule": {
+        "id": "envoy.xds-v2-unsupported.1-35-13-to-1-36-13",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/envoyproxy/envoy",
+          "from": "1.35.13",
+          "to": "1.36.13"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/envoyproxy/envoy",
+          "factId": "component.envoy.xds_api_major",
+          "enumValue": "v2"
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-26T05:00:00Z",
+          "validUntil": "2027-02-09T12:00:00Z",
+          "sources": [
+            {
+              "id": "envoy-v1-35-13-transport-version-guard",
+              "url": "https://github.com/envoyproxy/envoy/blob/adb998f2875986005be294d10231a9c9a497e30d/source/common/config/utility.h",
+              "revision": "adb998f2875986005be294d10231a9c9a497e30d",
+              "contentDigest": "sha256:fa419afeca8b2c63adb8c4e27a8e0b97bfe2b969aec9a8693d4267c9d6ced93e",
+              "startLine": 150,
+              "endLine": 169
+            },
+            {
+              "id": "envoy-v1-36-13-transport-version-guard",
+              "url": "https://github.com/envoyproxy/envoy/blob/eb0a95ba450a3e29a9a8e75f672e2c294493eea2/source/common/config/utility.h",
+              "revision": "eb0a95ba450a3e29a9a8e75f672e2c294493eea2",
+              "contentDigest": "sha256:42322b71862e05e3707bfb4c2491fe0c3ccb60083475bda1b399641cb05ff90e",
+              "startLine": 150,
+              "endLine": 169
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Update the effective xDS configuration to v3 for the 1.36 line, then validate bootstrap/resource schemas and control-plane rollout separately.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "envoy-v1-35-13-transport-version-guard"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "envoy-v1-35-13-transport-version-guard"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "envoy-v1-36-13-transport-version-guard"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "envoy-v1-36-13-transport-version-guard"
+            }
+          ],
+          "from": {
+            "gte": "1.35.0",
+            "lt": "1.36.0"
+          },
+          "to": {
+            "gte": "1.36.0",
+            "lt": "1.37.0"
+          }
+        }
+      }
+    },
+    {
+      "project": "envoy",
+      "description": "Envoy 1.37 supports only xDS API v3 and rejects a v2 transport version. This target-line declaration check does not claim when support changed or validate bootstrap, resources, control-plane behavior, rollout, or a complete upgrade route. Whole-line: the v2 transport rejection (the checkTransportVersion guard in source/common/config/utility.h, the v3-only condition and the removal message) and the V2 enum value in config_source.proto are the same in every 1.36 release (v1.36.0 to v1.36.13) and every 1.37 release (v1.37.0 to v1.37.11), searched at each release tag. This is a target check that does not say when the behavior changed, so the range carries no release boundary.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.envoy.xds_api_major",
+          "component": "pkg:github/envoyproxy/envoy",
+          "type": "enum",
+          "enumTokens": [
+            "v2",
+            "v3"
+          ],
+          "description": "Declared xDS API major required by the proposed bootstrap/control-plane contract. This does not parse bootstrap files, scan resource type URLs, or validate schemas."
+        }
+      ],
+      "rule": {
+        "id": "envoy.xds-v2-unsupported.1-36-13-to-1-37-11",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/envoyproxy/envoy",
+          "from": "1.36.13",
+          "to": "1.37.11"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/envoyproxy/envoy",
+          "factId": "component.envoy.xds_api_major",
+          "enumValue": "v2"
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-26T05:00:00Z",
+          "validUntil": "2027-02-23T12:00:00Z",
+          "sources": [
+            {
+              "id": "envoy-v1-36-13-transport-version-guard",
+              "url": "https://github.com/envoyproxy/envoy/blob/eb0a95ba450a3e29a9a8e75f672e2c294493eea2/source/common/config/utility.h",
+              "revision": "eb0a95ba450a3e29a9a8e75f672e2c294493eea2",
+              "contentDigest": "sha256:42322b71862e05e3707bfb4c2491fe0c3ccb60083475bda1b399641cb05ff90e",
+              "startLine": 150,
+              "endLine": 169
+            },
+            {
+              "id": "envoy-v1-37-11-transport-version-guard",
+              "url": "https://github.com/envoyproxy/envoy/blob/0ce6eee982e6df4a873b28184b396eeacfad938f/source/common/config/utility.h",
+              "revision": "0ce6eee982e6df4a873b28184b396eeacfad938f",
+              "contentDigest": "sha256:42322b71862e05e3707bfb4c2491fe0c3ccb60083475bda1b399641cb05ff90e",
+              "startLine": 150,
+              "endLine": 169
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Update the effective xDS configuration to v3 for the 1.37 line, then validate bootstrap/resource schemas and control-plane rollout separately.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "envoy-v1-36-13-transport-version-guard"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "envoy-v1-36-13-transport-version-guard"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "envoy-v1-37-11-transport-version-guard"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "envoy-v1-37-11-transport-version-guard"
+            }
+          ],
+          "from": {
+            "gte": "1.36.0",
+            "lt": "1.37.0"
+          },
+          "to": {
+            "gte": "1.37.0",
+            "lt": "1.38.0"
+          }
+        }
+      }
+    },
+    {
+      "project": "envoy",
+      "description": "Envoy 1.38 supports only xDS API v3 and rejects a v2 transport version. This target-line declaration check does not claim when support changed or validate bootstrap, resources, control-plane behavior, rollout, or a complete upgrade route. Whole-line: the v2 transport rejection (the checkTransportVersion guard in source/common/config/utility.h, the v3-only condition and the removal message) and the V2 enum value in config_source.proto are the same in every 1.37 release (v1.37.0 to v1.37.11) and every 1.38 release (v1.38.0 to v1.38.9), searched at each release tag. This is a target check that does not say when the behavior changed, so the range carries no release boundary.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.envoy.xds_api_major",
+          "component": "pkg:github/envoyproxy/envoy",
+          "type": "enum",
+          "enumTokens": [
+            "v2",
+            "v3"
+          ],
+          "description": "Declared xDS API major required by the proposed bootstrap/control-plane contract. This does not parse bootstrap files, scan resource type URLs, or validate schemas."
+        }
+      ],
+      "rule": {
+        "id": "envoy.xds-v2-unsupported.1-37-11-to-1-38-9",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/envoyproxy/envoy",
+          "from": "1.37.11",
+          "to": "1.38.9"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/envoyproxy/envoy",
+          "factId": "component.envoy.xds_api_major",
+          "enumValue": "v2"
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-26T05:00:00Z",
+          "validUntil": "2027-01-19T12:00:00Z",
+          "sources": [
+            {
+              "id": "envoy-v1-37-11-transport-version-guard",
+              "url": "https://github.com/envoyproxy/envoy/blob/0ce6eee982e6df4a873b28184b396eeacfad938f/source/common/config/utility.h",
+              "revision": "0ce6eee982e6df4a873b28184b396eeacfad938f",
+              "contentDigest": "sha256:42322b71862e05e3707bfb4c2491fe0c3ccb60083475bda1b399641cb05ff90e",
+              "startLine": 150,
+              "endLine": 169
+            },
+            {
+              "id": "envoy-v1-38-9-transport-version-guard",
+              "url": "https://github.com/envoyproxy/envoy/blob/17e27840396c1fa3196f184fcb5db1ab13850504/source/common/config/utility.h",
+              "revision": "17e27840396c1fa3196f184fcb5db1ab13850504",
+              "contentDigest": "sha256:42322b71862e05e3707bfb4c2491fe0c3ccb60083475bda1b399641cb05ff90e",
+              "startLine": 150,
+              "endLine": 169
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Update the effective xDS configuration to v3 for the 1.38 line, then validate bootstrap/resource schemas and control-plane rollout separately.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "envoy-v1-37-11-transport-version-guard"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "envoy-v1-37-11-transport-version-guard"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "envoy-v1-38-9-transport-version-guard"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "envoy-v1-38-9-transport-version-guard"
+            }
+          ],
+          "from": {
+            "gte": "1.37.0",
+            "lt": "1.38.0"
+          },
+          "to": {
+            "gte": "1.38.0",
+            "lt": "1.39.0"
+          }
+        }
+      }
+    },
+    {
+      "project": "envoy",
+      "description": "Envoy 1.40 supports only xDS API v3 and rejects a v2 transport version. This target-line declaration check does not claim when support changed or validate bootstrap, resources, control-plane behavior, rollout, or a complete upgrade route. Whole-line: the v2 transport rejection (the checkTransportVersion guard in source/common/config/utility.h, the v3-only condition and the removal message) and the V2 enum value in config_source.proto are the same in every 1.39 release (v1.39.0 to v1.39.6) and every 1.40 release (v1.40.0 to v1.40.2), searched at each release tag. This is a target check that does not say when the behavior changed, so the range carries no release boundary.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.envoy.xds_api_major",
+          "component": "pkg:github/envoyproxy/envoy",
+          "type": "enum",
+          "enumTokens": [
+            "v2",
+            "v3"
+          ],
+          "description": "Declared xDS API major required by the proposed bootstrap/control-plane contract. This does not parse bootstrap files, scan resource type URLs, or validate schemas."
+        }
+      ],
+      "rule": {
+        "id": "envoy.xds-v2-unsupported.1-39-6-to-1-40-2",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/envoyproxy/envoy",
+          "from": "1.39.6",
+          "to": "1.40.2"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/envoyproxy/envoy",
+          "factId": "component.envoy.xds_api_major",
+          "enumValue": "v2"
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-26T05:00:00Z",
+          "validUntil": "2027-02-09T12:00:00Z",
+          "sources": [
+            {
+              "id": "envoy-v1-39-6-transport-version-guard",
+              "url": "https://github.com/envoyproxy/envoy/blob/aacd0340210b536e99ec44ebe59ab9d16b259552/source/common/config/utility.h",
+              "revision": "aacd0340210b536e99ec44ebe59ab9d16b259552",
+              "contentDigest": "sha256:fcd481fb09019cbee31a3d66aee2e9c401d03f842e573443e3f1f7895c3e7105",
+              "startLine": 151,
+              "endLine": 170
+            },
+            {
+              "id": "envoy-v1-40-2-transport-version-guard",
+              "url": "https://github.com/envoyproxy/envoy/blob/b2d89e0ae53916f28770771fbdd49c5c99c5c5a2/source/common/config/utility.h",
+              "revision": "b2d89e0ae53916f28770771fbdd49c5c99c5c5a2",
+              "contentDigest": "sha256:fcd481fb09019cbee31a3d66aee2e9c401d03f842e573443e3f1f7895c3e7105",
+              "startLine": 151,
+              "endLine": 170
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Update the effective xDS configuration to v3 for the 1.40 line, then validate bootstrap/resource schemas and control-plane rollout separately.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "envoy-v1-39-6-transport-version-guard"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "envoy-v1-39-6-transport-version-guard"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "envoy-v1-40-2-transport-version-guard"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "envoy-v1-40-2-transport-version-guard"
+            }
+          ],
+          "from": {
+            "gte": "1.39.0",
+            "lt": "1.40.0"
+          },
+          "to": {
+            "gte": "1.40.0",
+            "lt": "1.41.0"
+          }
+        }
+      }
+    },
+    {
       "description": "etcd supports one minor release at a time; this exact direct skip is blocked without a claim about cluster health or a complete staged route.",
       "project": "etcd",
       "requiredFacts": [],
@@ -5552,6 +5908,494 @@
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "nextAction": "For the exact 0.40.0 to 0.42.0 transition, replace any declared removed Falco 0.40 CLI spelling with a target-supported configuration mechanism, then review the explicit proposed argv separately. Supply an explicit declaration when that argv is unknown."
+      }
+    },
+    {
+      "project": "falco",
+      "description": "Falco 0.42 rejects the five CLI spellings deprecated in 0.40 and removed in 0.41 (-A, -b/--print-base64, -S/--snaplen) for the official Falco executable; this is a target-line check that does not say when they were removed, and it covers only an operator-declared proposed argv presence predicate. Whole-line: the five spellings are absent from the option table of every 0.41 release (0.41.0 to 0.41.3) and every 0.42 release (0.42.0 to 0.42.1), read at each release tag.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.falco.distribution",
+          "component": "pkg:github/falcosecurity/falco",
+          "type": "enum",
+          "enumTokens": [
+            "custom_build",
+            "official_upstream"
+          ],
+          "description": "Declared distribution identity for the proposed Falco executable. This source rule applies only to the reviewed official upstream distribution and does not prove image provenance or runtime identity."
+        },
+        {
+          "side": "proposed",
+          "id": "component.falco.execution_surface",
+          "component": "pkg:github/falcosecurity/falco",
+          "type": "enum",
+          "enumTokens": [
+            "falco",
+            "other"
+          ],
+          "description": "Declared proposed executable surface. This rule applies only to the Falco executable itself; other command surfaces remain outside the reviewed parser evidence."
+        },
+        {
+          "side": "proposed",
+          "id": "component.falco.removed_040_cli_flags_present",
+          "component": "pkg:github/falcosecurity/falco",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether an operator-declared explicit effective proposed Falco argv contains any of -A, -b, --print-base64, -S, or --snaplen. Declare false only when this bounded set is definitely absent. Wrappers, expansion, implicit entrypoints, images, defaults, and runtime behavior are not inferred."
+        }
+      ],
+      "rule": {
+        "id": "falco.deprecated-cli-flags-removed.0-41-3-to-0-42-1",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/falcosecurity/falco",
+          "from": "0.41.3",
+          "to": "0.42.1"
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/falcosecurity/falco",
+            "factId": "component.falco.distribution",
+            "enumValue": "official_upstream"
+          },
+          {
+            "side": "proposed",
+            "component": "pkg:github/falcosecurity/falco",
+            "factId": "component.falco.execution_surface",
+            "enumValue": "falco"
+          }
+        ],
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/falcosecurity/falco",
+          "factId": "component.falco.removed_040_cli_flags_present",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-26T05:00:00Z",
+          "validUntil": "2027-01-19T12:00:00Z",
+          "sources": [
+            {
+              "id": "falco-0-41-3-options",
+              "url": "https://github.com/falcosecurity/falco/blob/d26e0f77b8409b1506efaac4dac7164e71f2ee76/userspace/falco/app/options.cpp",
+              "revision": "d26e0f77b8409b1506efaac4dac7164e71f2ee76",
+              "contentDigest": "sha256:657bae3d86a80c2e5e9b074898e04a5aacf15bbe29bc27b2aa58b8a6768e9b30",
+              "startLine": 92,
+              "endLine": 132
+            },
+            {
+              "id": "falco-0-42-1-options",
+              "url": "https://github.com/falcosecurity/falco/blob/4ea91437df18290f33ac4dca6414b4bdbcba5892/userspace/falco/app/options.cpp",
+              "revision": "4ea91437df18290f33ac4dca6414b4bdbcba5892",
+              "contentDigest": "sha256:657bae3d86a80c2e5e9b074898e04a5aacf15bbe29bc27b2aa58b8a6768e9b30",
+              "startLine": 92,
+              "endLine": 132
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Replace any declared removed Falco CLI spelling (-A, -b, --print-base64, -S, --snaplen) with a target-supported mechanism for 0.42, then review the explicit argv separately. Declare the argv when unknown.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "falco-0-41-3-options"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "falco-0-41-3-options"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "falco-0-42-1-options"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "falco-0-42-1-options"
+            }
+          ],
+          "from": {
+            "gte": "0.41.0",
+            "lt": "0.42.0"
+          },
+          "to": {
+            "gte": "0.42.0",
+            "lt": "0.43.0"
+          }
+        }
+      }
+    },
+    {
+      "project": "falco",
+      "description": "Falco 0.43 rejects the five CLI spellings deprecated in 0.40 and removed in 0.41 (-A, -b/--print-base64, -S/--snaplen) for the official Falco executable; this is a target-line check that does not say when they were removed, and it covers only an operator-declared proposed argv presence predicate. Whole-line: the five spellings are absent from the option table of every 0.42 release (0.42.0 to 0.42.1) and every 0.43 release (0.43.0 to 0.43.1), read at each release tag.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.falco.distribution",
+          "component": "pkg:github/falcosecurity/falco",
+          "type": "enum",
+          "enumTokens": [
+            "custom_build",
+            "official_upstream"
+          ],
+          "description": "Declared distribution identity for the proposed Falco executable. This source rule applies only to the reviewed official upstream distribution and does not prove image provenance or runtime identity."
+        },
+        {
+          "side": "proposed",
+          "id": "component.falco.execution_surface",
+          "component": "pkg:github/falcosecurity/falco",
+          "type": "enum",
+          "enumTokens": [
+            "falco",
+            "other"
+          ],
+          "description": "Declared proposed executable surface. This rule applies only to the Falco executable itself; other command surfaces remain outside the reviewed parser evidence."
+        },
+        {
+          "side": "proposed",
+          "id": "component.falco.removed_040_cli_flags_present",
+          "component": "pkg:github/falcosecurity/falco",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether an operator-declared explicit effective proposed Falco argv contains any of -A, -b, --print-base64, -S, or --snaplen. Declare false only when this bounded set is definitely absent. Wrappers, expansion, implicit entrypoints, images, defaults, and runtime behavior are not inferred."
+        }
+      ],
+      "rule": {
+        "id": "falco.deprecated-cli-flags-removed.0-42-1-to-0-43-1",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/falcosecurity/falco",
+          "from": "0.42.1",
+          "to": "0.43.1"
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/falcosecurity/falco",
+            "factId": "component.falco.distribution",
+            "enumValue": "official_upstream"
+          },
+          {
+            "side": "proposed",
+            "component": "pkg:github/falcosecurity/falco",
+            "factId": "component.falco.execution_surface",
+            "enumValue": "falco"
+          }
+        ],
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/falcosecurity/falco",
+          "factId": "component.falco.removed_040_cli_flags_present",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-26T05:00:00Z",
+          "validUntil": "2027-02-09T12:00:00Z",
+          "sources": [
+            {
+              "id": "falco-0-42-1-options",
+              "url": "https://github.com/falcosecurity/falco/blob/4ea91437df18290f33ac4dca6414b4bdbcba5892/userspace/falco/app/options.cpp",
+              "revision": "4ea91437df18290f33ac4dca6414b4bdbcba5892",
+              "contentDigest": "sha256:657bae3d86a80c2e5e9b074898e04a5aacf15bbe29bc27b2aa58b8a6768e9b30",
+              "startLine": 92,
+              "endLine": 132
+            },
+            {
+              "id": "falco-0-43-1-options",
+              "url": "https://github.com/falcosecurity/falco/blob/ce1de5597be047f9cd48a131794ac35bdfa5f97a/userspace/falco/app/options.cpp",
+              "revision": "ce1de5597be047f9cd48a131794ac35bdfa5f97a",
+              "contentDigest": "sha256:fe1788817fda2e68278eb23bbdadb191d73853e108c80f0ee186acc4b3b8814b",
+              "startLine": 92,
+              "endLine": 132
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Replace any declared removed Falco CLI spelling (-A, -b, --print-base64, -S, --snaplen) with a target-supported mechanism for 0.43, then review the explicit argv separately. Declare the argv when unknown.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "falco-0-42-1-options"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "falco-0-42-1-options"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "falco-0-43-1-options"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "falco-0-43-1-options"
+            }
+          ],
+          "from": {
+            "gte": "0.42.0",
+            "lt": "0.43.0"
+          },
+          "to": {
+            "gte": "0.43.0",
+            "lt": "0.44.0"
+          }
+        }
+      }
+    },
+    {
+      "project": "falco",
+      "description": "Falco 0.44 rejects the five CLI spellings deprecated in 0.40 and removed in 0.41 (-A, -b/--print-base64, -S/--snaplen) for the official Falco executable; this is a target-line check that does not say when they were removed, and it covers only an operator-declared proposed argv presence predicate. Whole-line: the five spellings are absent from the option table of every 0.43 release (0.43.0 to 0.43.1) and every 0.44 release (0.44.0 to 0.44.1), read at each release tag.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.falco.distribution",
+          "component": "pkg:github/falcosecurity/falco",
+          "type": "enum",
+          "enumTokens": [
+            "custom_build",
+            "official_upstream"
+          ],
+          "description": "Declared distribution identity for the proposed Falco executable. This source rule applies only to the reviewed official upstream distribution and does not prove image provenance or runtime identity."
+        },
+        {
+          "side": "proposed",
+          "id": "component.falco.execution_surface",
+          "component": "pkg:github/falcosecurity/falco",
+          "type": "enum",
+          "enumTokens": [
+            "falco",
+            "other"
+          ],
+          "description": "Declared proposed executable surface. This rule applies only to the Falco executable itself; other command surfaces remain outside the reviewed parser evidence."
+        },
+        {
+          "side": "proposed",
+          "id": "component.falco.removed_040_cli_flags_present",
+          "component": "pkg:github/falcosecurity/falco",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether an operator-declared explicit effective proposed Falco argv contains any of -A, -b, --print-base64, -S, or --snaplen. Declare false only when this bounded set is definitely absent. Wrappers, expansion, implicit entrypoints, images, defaults, and runtime behavior are not inferred."
+        }
+      ],
+      "rule": {
+        "id": "falco.deprecated-cli-flags-removed.0-43-1-to-0-44-1",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/falcosecurity/falco",
+          "from": "0.43.1",
+          "to": "0.44.1"
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/falcosecurity/falco",
+            "factId": "component.falco.distribution",
+            "enumValue": "official_upstream"
+          },
+          {
+            "side": "proposed",
+            "component": "pkg:github/falcosecurity/falco",
+            "factId": "component.falco.execution_surface",
+            "enumValue": "falco"
+          }
+        ],
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/falcosecurity/falco",
+          "factId": "component.falco.removed_040_cli_flags_present",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-26T05:00:00Z",
+          "validUntil": "2027-02-23T12:00:00Z",
+          "sources": [
+            {
+              "id": "falco-0-43-1-options",
+              "url": "https://github.com/falcosecurity/falco/blob/ce1de5597be047f9cd48a131794ac35bdfa5f97a/userspace/falco/app/options.cpp",
+              "revision": "ce1de5597be047f9cd48a131794ac35bdfa5f97a",
+              "contentDigest": "sha256:fe1788817fda2e68278eb23bbdadb191d73853e108c80f0ee186acc4b3b8814b",
+              "startLine": 92,
+              "endLine": 132
+            },
+            {
+              "id": "falco-0-44-1-options",
+              "url": "https://github.com/falcosecurity/falco/blob/f1ac5eb1a1c9da9f797f799121ab700263621443/userspace/falco/app/options.cpp",
+              "revision": "f1ac5eb1a1c9da9f797f799121ab700263621443",
+              "contentDigest": "sha256:9c4cf007db11d1235c41b792556614b2475f9aa1da05d8cf8c29a8356142bcbb",
+              "startLine": 134,
+              "endLine": 174
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Replace any declared removed Falco CLI spelling (-A, -b, --print-base64, -S, --snaplen) with a target-supported mechanism for 0.44, then review the explicit argv separately. Declare the argv when unknown.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "falco-0-43-1-options"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "falco-0-43-1-options"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "falco-0-44-1-options"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "falco-0-44-1-options"
+            }
+          ],
+          "from": {
+            "gte": "0.43.0",
+            "lt": "0.44.0"
+          },
+          "to": {
+            "gte": "0.44.0",
+            "lt": "0.45.0"
+          }
+        }
+      }
+    },
+    {
+      "project": "falco",
+      "description": "Falco 0.45 rejects the five CLI spellings deprecated in 0.40 and removed in 0.41 (-A, -b/--print-base64, -S/--snaplen) for the official Falco executable; this is a target-line check that does not say when they were removed, and it covers only an operator-declared proposed argv presence predicate. Whole-line: the five spellings are absent from the option table of every 0.44 release (0.44.0 to 0.44.1) and every 0.45 release (0.45.0 to 0.45.2), read at each release tag.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.falco.distribution",
+          "component": "pkg:github/falcosecurity/falco",
+          "type": "enum",
+          "enumTokens": [
+            "custom_build",
+            "official_upstream"
+          ],
+          "description": "Declared distribution identity for the proposed Falco executable. This source rule applies only to the reviewed official upstream distribution and does not prove image provenance or runtime identity."
+        },
+        {
+          "side": "proposed",
+          "id": "component.falco.execution_surface",
+          "component": "pkg:github/falcosecurity/falco",
+          "type": "enum",
+          "enumTokens": [
+            "falco",
+            "other"
+          ],
+          "description": "Declared proposed executable surface. This rule applies only to the Falco executable itself; other command surfaces remain outside the reviewed parser evidence."
+        },
+        {
+          "side": "proposed",
+          "id": "component.falco.removed_040_cli_flags_present",
+          "component": "pkg:github/falcosecurity/falco",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether an operator-declared explicit effective proposed Falco argv contains any of -A, -b, --print-base64, -S, or --snaplen. Declare false only when this bounded set is definitely absent. Wrappers, expansion, implicit entrypoints, images, defaults, and runtime behavior are not inferred."
+        }
+      ],
+      "rule": {
+        "id": "falco.deprecated-cli-flags-removed.0-44-1-to-0-45-2",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/falcosecurity/falco",
+          "from": "0.44.1",
+          "to": "0.45.2"
+        },
+        "appliesWhen": [
+          {
+            "side": "proposed",
+            "component": "pkg:github/falcosecurity/falco",
+            "factId": "component.falco.distribution",
+            "enumValue": "official_upstream"
+          },
+          {
+            "side": "proposed",
+            "component": "pkg:github/falcosecurity/falco",
+            "factId": "component.falco.execution_surface",
+            "enumValue": "falco"
+          }
+        ],
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/falcosecurity/falco",
+          "factId": "component.falco.removed_040_cli_flags_present",
+          "boolValue": true
+        },
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-26T05:00:00Z",
+          "validUntil": "2027-01-19T12:00:00Z",
+          "sources": [
+            {
+              "id": "falco-0-44-1-options",
+              "url": "https://github.com/falcosecurity/falco/blob/f1ac5eb1a1c9da9f797f799121ab700263621443/userspace/falco/app/options.cpp",
+              "revision": "f1ac5eb1a1c9da9f797f799121ab700263621443",
+              "contentDigest": "sha256:9c4cf007db11d1235c41b792556614b2475f9aa1da05d8cf8c29a8356142bcbb",
+              "startLine": 134,
+              "endLine": 174
+            },
+            {
+              "id": "falco-0-45-2-options",
+              "url": "https://github.com/falcosecurity/falco/blob/7625e203c17c88c91fa1b1b8e2937907f22a1523/userspace/falco/app/options.cpp",
+              "revision": "7625e203c17c88c91fa1b1b8e2937907f22a1523",
+              "contentDigest": "sha256:9c4cf007db11d1235c41b792556614b2475f9aa1da05d8cf8c29a8356142bcbb",
+              "startLine": 134,
+              "endLine": 174
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Replace any declared removed Falco CLI spelling (-A, -b, --print-base64, -S, --snaplen) with a target-supported mechanism for 0.45, then review the explicit argv separately. Declare the argv when unknown.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "falco-0-44-1-options"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "falco-0-44-1-options"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "falco-0-45-2-options"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "falco-0-45-2-options"
+            }
+          ],
+          "from": {
+            "gte": "0.44.0",
+            "lt": "0.45.0"
+          },
+          "to": {
+            "gte": "0.45.0",
+            "lt": "0.46.0"
+          }
+        }
       }
     },
     {
@@ -6790,6 +7634,101 @@
     },
     {
       "project": "harbor",
+      "description": "Harbor 2.11 target installer rejects docker-compose installer --with-chartmuseum. This checks only one complete caller-selected literal installer argv. Whole-line: make/install.sh is byte-identical (sha256 e9cb425aa63b) at every 2.10 release (v2.10.0 to v2.10.3) and every 2.11 release (v2.11.0 to v2.11.2), and does not parse the option. This is a target check that does not say when the option was removed, so the range carries no release boundary.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.harbor.installer_with_chartmuseum_present",
+          "component": "pkg:github/goharbor/harbor",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the selected complete Harbor installer argv contains the target-rejected --with-chartmuseum option."
+        }
+      ],
+      "rule": {
+        "id": "harbor.installer-with-chartmuseum-flag-removed.2-10-3-to-2-11-2",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/goharbor/harbor",
+          "from": "2.10.3",
+          "to": "2.11.2"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/goharbor/harbor",
+          "factId": "component.harbor.installer_with_chartmuseum_present",
+          "boolValue": true
+        },
+        "appliesWhen": [],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-26T05:00:00Z",
+          "validUntil": "2027-02-23T12:00:00Z",
+          "sources": [
+            {
+              "id": "harbor-v2-10-3-installer-parser",
+              "url": "https://github.com/goharbor/harbor/blob/c8c11b46b205728c3f3b66f1dd5a5a3329b31493/make/install.sh",
+              "revision": "c8c11b46b205728c3f3b66f1dd5a5a3329b31493",
+              "contentDigest": "sha256:e9cb425aa63b9c3d8e60ac2398222d8b055d4984b6f249cf3420bd00e50e8110",
+              "startLine": 24,
+              "endLine": 35
+            },
+            {
+              "id": "harbor-v2-11-2-installer-guidance",
+              "url": "https://github.com/goharbor/harbor/blob/35f09d557e9832189a3612a0584ea5a81cd1c5b0/make/install.sh",
+              "revision": "35f09d557e9832189a3612a0584ea5a81cd1c5b0",
+              "contentDigest": "sha256:e9cb425aa63b9c3d8e60ac2398222d8b055d4984b6f249cf3420bd00e50e8110",
+              "startLine": 10,
+              "endLine": 13
+            },
+            {
+              "id": "harbor-v2-11-2-installer-parser",
+              "url": "https://github.com/goharbor/harbor/blob/35f09d557e9832189a3612a0584ea5a81cd1c5b0/make/install.sh",
+              "revision": "35f09d557e9832189a3612a0584ea5a81cd1c5b0",
+              "contentDigest": "sha256:e9cb425aa63b9c3d8e60ac2398222d8b055d4984b6f249cf3420bd00e50e8110",
+              "startLine": 24,
+              "endLine": 35
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove --with-chartmuseum from the selected Harbor installer argv for the 2.11 line. This does not execute the installer or assess chart, database, or runtime migration.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "harbor-v2-10-3-installer-parser"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "harbor-v2-10-3-installer-parser"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "harbor-v2-11-2-installer-parser"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "harbor-v2-11-2-installer-parser"
+            }
+          ],
+          "from": {
+            "gte": "2.10.0",
+            "lt": "2.11.0"
+          },
+          "to": {
+            "gte": "2.11.0",
+            "lt": "2.12.0"
+          }
+        }
+      }
+    },
+    {
+      "project": "harbor",
       "description": "Harbor 2.15.2 target installer rejects docker-compose installer --with-chartmuseum. This checks only one complete caller-selected literal installer argv.",
       "requiredFacts": [
         {
@@ -6841,6 +7780,101 @@
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "nextAction": "Remove --with-chartmuseum from the selected Harbor installer argv for this exact target pair. This does not execute the installer or assess chart, database, or runtime migration."
+      }
+    },
+    {
+      "project": "harbor",
+      "description": "Harbor 2.12 target installer rejects docker-compose installer --with-chartmuseum. This checks only one complete caller-selected literal installer argv. Whole-line: make/install.sh is byte-identical (sha256 e9cb425aa63b) at every 2.11 release (v2.11.0 to v2.11.2) and every 2.12 release (v2.12.0 to v2.12.4), and does not parse the option. This is a target check that does not say when the option was removed, so the range carries no release boundary.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.harbor.installer_with_chartmuseum_present",
+          "component": "pkg:github/goharbor/harbor",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the selected complete Harbor installer argv contains the target-rejected --with-chartmuseum option."
+        }
+      ],
+      "rule": {
+        "id": "harbor.installer-with-chartmuseum-flag-removed.2-11-2-to-2-12-4",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/goharbor/harbor",
+          "from": "2.11.2",
+          "to": "2.12.4"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/goharbor/harbor",
+          "factId": "component.harbor.installer_with_chartmuseum_present",
+          "boolValue": true
+        },
+        "appliesWhen": [],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-26T05:00:00Z",
+          "validUntil": "2027-01-19T12:00:00Z",
+          "sources": [
+            {
+              "id": "harbor-v2-11-2-installer-parser",
+              "url": "https://github.com/goharbor/harbor/blob/35f09d557e9832189a3612a0584ea5a81cd1c5b0/make/install.sh",
+              "revision": "35f09d557e9832189a3612a0584ea5a81cd1c5b0",
+              "contentDigest": "sha256:e9cb425aa63b9c3d8e60ac2398222d8b055d4984b6f249cf3420bd00e50e8110",
+              "startLine": 24,
+              "endLine": 35
+            },
+            {
+              "id": "harbor-v2-12-4-installer-guidance",
+              "url": "https://github.com/goharbor/harbor/blob/6b4981d4dd46a20481be5a3a7cdf435bc20f4dcb/make/install.sh",
+              "revision": "6b4981d4dd46a20481be5a3a7cdf435bc20f4dcb",
+              "contentDigest": "sha256:e9cb425aa63b9c3d8e60ac2398222d8b055d4984b6f249cf3420bd00e50e8110",
+              "startLine": 10,
+              "endLine": 13
+            },
+            {
+              "id": "harbor-v2-12-4-installer-parser",
+              "url": "https://github.com/goharbor/harbor/blob/6b4981d4dd46a20481be5a3a7cdf435bc20f4dcb/make/install.sh",
+              "revision": "6b4981d4dd46a20481be5a3a7cdf435bc20f4dcb",
+              "contentDigest": "sha256:e9cb425aa63b9c3d8e60ac2398222d8b055d4984b6f249cf3420bd00e50e8110",
+              "startLine": 24,
+              "endLine": 35
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove --with-chartmuseum from the selected Harbor installer argv for the 2.12 line. This does not execute the installer or assess chart, database, or runtime migration.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "harbor-v2-11-2-installer-parser"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "harbor-v2-11-2-installer-parser"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "harbor-v2-12-4-installer-parser"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "harbor-v2-12-4-installer-parser"
+            }
+          ],
+          "from": {
+            "gte": "2.11.0",
+            "lt": "2.12.0"
+          },
+          "to": {
+            "gte": "2.12.0",
+            "lt": "2.13.0"
+          }
+        }
       }
     },
     {
@@ -6900,6 +7934,101 @@
     },
     {
       "project": "harbor",
+      "description": "Harbor 2.13 target installer rejects docker-compose installer --with-chartmuseum. This checks only one complete caller-selected literal installer argv. Whole-line: make/install.sh is byte-identical (sha256 e9cb425aa63b) at every 2.12 release (v2.12.0 to v2.12.4) and every 2.13 release (v2.13.0 to v2.13.6), and does not parse the option. This is a target check that does not say when the option was removed, so the range carries no release boundary.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.harbor.installer_with_chartmuseum_present",
+          "component": "pkg:github/goharbor/harbor",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the selected complete Harbor installer argv contains the target-rejected --with-chartmuseum option."
+        }
+      ],
+      "rule": {
+        "id": "harbor.installer-with-chartmuseum-flag-removed.2-12-4-to-2-13-6",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/goharbor/harbor",
+          "from": "2.12.4",
+          "to": "2.13.6"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/goharbor/harbor",
+          "factId": "component.harbor.installer_with_chartmuseum_present",
+          "boolValue": true
+        },
+        "appliesWhen": [],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-26T05:00:00Z",
+          "validUntil": "2027-02-09T12:00:00Z",
+          "sources": [
+            {
+              "id": "harbor-v2-12-4-installer-parser",
+              "url": "https://github.com/goharbor/harbor/blob/6b4981d4dd46a20481be5a3a7cdf435bc20f4dcb/make/install.sh",
+              "revision": "6b4981d4dd46a20481be5a3a7cdf435bc20f4dcb",
+              "contentDigest": "sha256:e9cb425aa63b9c3d8e60ac2398222d8b055d4984b6f249cf3420bd00e50e8110",
+              "startLine": 24,
+              "endLine": 35
+            },
+            {
+              "id": "harbor-v2-13-6-installer-guidance",
+              "url": "https://github.com/goharbor/harbor/blob/4efe985802ed60dfb2813a19ec89c9ce49e5f169/make/install.sh",
+              "revision": "4efe985802ed60dfb2813a19ec89c9ce49e5f169",
+              "contentDigest": "sha256:e9cb425aa63b9c3d8e60ac2398222d8b055d4984b6f249cf3420bd00e50e8110",
+              "startLine": 10,
+              "endLine": 13
+            },
+            {
+              "id": "harbor-v2-13-6-installer-parser",
+              "url": "https://github.com/goharbor/harbor/blob/4efe985802ed60dfb2813a19ec89c9ce49e5f169/make/install.sh",
+              "revision": "4efe985802ed60dfb2813a19ec89c9ce49e5f169",
+              "contentDigest": "sha256:e9cb425aa63b9c3d8e60ac2398222d8b055d4984b6f249cf3420bd00e50e8110",
+              "startLine": 24,
+              "endLine": 35
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove --with-chartmuseum from the selected Harbor installer argv for the 2.13 line. This does not execute the installer or assess chart, database, or runtime migration.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "harbor-v2-12-4-installer-parser"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "harbor-v2-12-4-installer-parser"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "harbor-v2-13-6-installer-parser"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "harbor-v2-13-6-installer-parser"
+            }
+          ],
+          "from": {
+            "gte": "2.12.0",
+            "lt": "2.13.0"
+          },
+          "to": {
+            "gte": "2.13.0",
+            "lt": "2.14.0"
+          }
+        }
+      }
+    },
+    {
+      "project": "harbor",
       "description": "Harbor 2.15.2 target installer rejects docker-compose installer --with-chartmuseum. This checks only one complete caller-selected literal installer argv.",
       "requiredFacts": [
         {
@@ -6951,6 +8080,101 @@
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "nextAction": "Remove --with-chartmuseum from the selected Harbor installer argv for this exact target pair. This does not execute the installer or assess chart, database, or runtime migration."
+      }
+    },
+    {
+      "project": "harbor",
+      "description": "Harbor 2.14 target installer rejects docker-compose installer --with-chartmuseum. This checks only one complete caller-selected literal installer argv. Whole-line: make/install.sh is byte-identical (sha256 e9cb425aa63b) at every 2.13 release (v2.13.0 to v2.13.6) and every 2.14 release (v2.14.0 to v2.14.6), and does not parse the option. This is a target check that does not say when the option was removed, so the range carries no release boundary.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.harbor.installer_with_chartmuseum_present",
+          "component": "pkg:github/goharbor/harbor",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether the selected complete Harbor installer argv contains the target-rejected --with-chartmuseum option."
+        }
+      ],
+      "rule": {
+        "id": "harbor.installer-with-chartmuseum-flag-removed.2-13-6-to-2-14-6",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/goharbor/harbor",
+          "from": "2.13.6",
+          "to": "2.14.6"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/goharbor/harbor",
+          "factId": "component.harbor.installer_with_chartmuseum_present",
+          "boolValue": true
+        },
+        "appliesWhen": [],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-26T05:00:00Z",
+          "validUntil": "2027-02-23T12:00:00Z",
+          "sources": [
+            {
+              "id": "harbor-v2-13-6-installer-parser",
+              "url": "https://github.com/goharbor/harbor/blob/4efe985802ed60dfb2813a19ec89c9ce49e5f169/make/install.sh",
+              "revision": "4efe985802ed60dfb2813a19ec89c9ce49e5f169",
+              "contentDigest": "sha256:e9cb425aa63b9c3d8e60ac2398222d8b055d4984b6f249cf3420bd00e50e8110",
+              "startLine": 24,
+              "endLine": 35
+            },
+            {
+              "id": "harbor-v2-14-6-installer-guidance",
+              "url": "https://github.com/goharbor/harbor/blob/f435c95078d017ec48cd185e393a47d1ba4c6e65/make/install.sh",
+              "revision": "f435c95078d017ec48cd185e393a47d1ba4c6e65",
+              "contentDigest": "sha256:e9cb425aa63b9c3d8e60ac2398222d8b055d4984b6f249cf3420bd00e50e8110",
+              "startLine": 10,
+              "endLine": 13
+            },
+            {
+              "id": "harbor-v2-14-6-installer-parser",
+              "url": "https://github.com/goharbor/harbor/blob/f435c95078d017ec48cd185e393a47d1ba4c6e65/make/install.sh",
+              "revision": "f435c95078d017ec48cd185e393a47d1ba4c6e65",
+              "contentDigest": "sha256:e9cb425aa63b9c3d8e60ac2398222d8b055d4984b6f249cf3420bd00e50e8110",
+              "startLine": 24,
+              "endLine": 35
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove --with-chartmuseum from the selected Harbor installer argv for the 2.14 line. This does not execute the installer or assess chart, database, or runtime migration.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "harbor-v2-13-6-installer-parser"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "harbor-v2-13-6-installer-parser"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "harbor-v2-14-6-installer-parser"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "harbor-v2-14-6-installer-parser"
+            }
+          ],
+          "from": {
+            "gte": "2.13.0",
+            "lt": "2.14.0"
+          },
+          "to": {
+            "gte": "2.14.0",
+            "lt": "2.15.0"
+          }
+        }
       }
     },
     {
@@ -15208,6 +16432,125 @@
     },
     {
       "project": "nats",
+      "description": "At the NATS 2.12 target line, the official parser rejects ASCII spaces in directly declared server, cluster, and gateway names. This target-only check evaluates submitted literal names without claiming when that behavior was introduced or resolving includes, variables, defaults, startup, connectivity, or whole-upgrade compatibility. Whole-line: the space check on server, cluster and gateway names is present in every 2.11 release (v2.11.0 to v2.11.17) and every 2.12 release (v2.12.0 to v2.12.15), read at each release tag. This is a target check that does not say when the check was added, so the range carries no release boundary.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.nats.selected_name_has_ascii_space",
+          "component": "pkg:github/nats-io/nats-server",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether any explicitly selected literal server_name, cluster.name, or gateway.name contains an ASCII space. Missing, duplicate, dynamic, or unsupported configuration leaves the fact unavailable."
+        }
+      ],
+      "rule": {
+        "id": "nats.names-with-ascii-spaces-rejected.2-11-17-to-2-12-15",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/nats-io/nats-server",
+          "from": "2.11.17",
+          "to": "2.12.15"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/nats-io/nats-server",
+          "factId": "component.nats.selected_name_has_ascii_space",
+          "boolValue": true
+        },
+        "appliesWhen": [],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-26T05:00:00Z",
+          "validUntil": "2027-01-19T12:00:00Z",
+          "sources": [
+            {
+              "id": "nats-2-11-17-cluster-name-space-rejection",
+              "url": "https://github.com/nats-io/nats-server/blob/0f192db71455eaca7f1fef14548a239845f24b96/server/opts.go",
+              "revision": "0f192db71455eaca7f1fef14548a239845f24b96",
+              "contentDigest": "sha256:3676d0d9660724eede782c46c2346d42fd73310e536b944864bbabef1f7fa82e",
+              "startLine": 1830,
+              "endLine": 1835
+            },
+            {
+              "id": "nats-2-11-17-gateway-name-space-rejection",
+              "url": "https://github.com/nats-io/nats-server/blob/0f192db71455eaca7f1fef14548a239845f24b96/server/opts.go",
+              "revision": "0f192db71455eaca7f1fef14548a239845f24b96",
+              "contentDigest": "sha256:3676d0d9660724eede782c46c2346d42fd73310e536b944864bbabef1f7fa82e",
+              "startLine": 2070,
+              "endLine": 2075
+            },
+            {
+              "id": "nats-2-11-17-server-name-space-rejection",
+              "url": "https://github.com/nats-io/nats-server/blob/0f192db71455eaca7f1fef14548a239845f24b96/server/opts.go",
+              "revision": "0f192db71455eaca7f1fef14548a239845f24b96",
+              "contentDigest": "sha256:3676d0d9660724eede782c46c2346d42fd73310e536b944864bbabef1f7fa82e",
+              "startLine": 1007,
+              "endLine": 1012
+            },
+            {
+              "id": "nats-2-12-15-cluster-name-space-rejection",
+              "url": "https://github.com/nats-io/nats-server/blob/8460a428cf3b27c8627595d630f1ccad55786d13/server/opts.go",
+              "revision": "8460a428cf3b27c8627595d630f1ccad55786d13",
+              "contentDigest": "sha256:5d46c2c61a3fabd1b2ec8038e7edfdc02dd201f828f474dd3dd4759361897d6c",
+              "startLine": 1920,
+              "endLine": 1925
+            },
+            {
+              "id": "nats-2-12-15-gateway-name-space-rejection",
+              "url": "https://github.com/nats-io/nats-server/blob/8460a428cf3b27c8627595d630f1ccad55786d13/server/opts.go",
+              "revision": "8460a428cf3b27c8627595d630f1ccad55786d13",
+              "contentDigest": "sha256:5d46c2c61a3fabd1b2ec8038e7edfdc02dd201f828f474dd3dd4759361897d6c",
+              "startLine": 2170,
+              "endLine": 2175
+            },
+            {
+              "id": "nats-2-12-15-server-name-space-rejection",
+              "url": "https://github.com/nats-io/nats-server/blob/8460a428cf3b27c8627595d630f1ccad55786d13/server/opts.go",
+              "revision": "8460a428cf3b27c8627595d630f1ccad55786d13",
+              "contentDigest": "sha256:5d46c2c61a3fabd1b2ec8038e7edfdc02dd201f828f474dd3dd4759361897d6c",
+              "startLine": 1067,
+              "endLine": 1072
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove ASCII spaces from each selected literal server, cluster, or gateway name before proposing the 2.12 line; validate all unselected configuration and runtime behavior separately.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "nats-2-11-17-server-name-space-rejection"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "nats-2-11-17-server-name-space-rejection"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "nats-2-12-15-server-name-space-rejection"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "nats-2-12-15-server-name-space-rejection"
+            }
+          ],
+          "from": {
+            "gte": "2.11.0",
+            "lt": "2.12.0"
+          },
+          "to": {
+            "gte": "2.12.0",
+            "lt": "2.13.0"
+          }
+        }
+      }
+    },
+    {
+      "project": "nats",
       "description": "At the exact NATS 2.14.6 target, the official parser rejects ASCII spaces in directly declared server, cluster, and gateway names. This target-only check evaluates submitted literal names without claiming when that behavior was introduced or resolving includes, variables, defaults, startup, connectivity, or whole-upgrade compatibility.",
       "requiredFacts": [
         {
@@ -15394,6 +16737,125 @@
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "nextAction": "Remove ASCII spaces from each selected literal server, cluster, or gateway name before proposing the exact 2.14.6 target; validate all unselected configuration and runtime behavior separately."
+      }
+    },
+    {
+      "project": "nats",
+      "description": "At the NATS 2.15 target line, the official parser rejects ASCII spaces in directly declared server, cluster, and gateway names. This target-only check evaluates submitted literal names without claiming when that behavior was introduced or resolving includes, variables, defaults, startup, connectivity, or whole-upgrade compatibility. Whole-line: the space check on server, cluster and gateway names is present in every 2.14 release (v2.14.0 to v2.14.10) and every 2.15 release (v2.15.0 to v2.15.3), read at each release tag. This is a target check that does not say when the check was added, so the range carries no release boundary.",
+      "requiredFacts": [
+        {
+          "side": "proposed",
+          "id": "component.nats.selected_name_has_ascii_space",
+          "component": "pkg:github/nats-io/nats-server",
+          "type": "bool",
+          "enumTokens": null,
+          "description": "Whether any explicitly selected literal server_name, cluster.name, or gateway.name contains an ASCII space. Missing, duplicate, dynamic, or unsupported configuration leaves the fact unavailable."
+        }
+      ],
+      "rule": {
+        "id": "nats.names-with-ascii-spaces-rejected.2-14-10-to-2-15-3",
+        "operator": "forbid_predicate_value",
+        "subject": {
+          "component": "pkg:github/nats-io/nats-server",
+          "from": "2.14.10",
+          "to": "2.15.3"
+        },
+        "condition": {
+          "side": "proposed",
+          "component": "pkg:github/nats-io/nats-server",
+          "factId": "component.nats.selected_name_has_ascii_space",
+          "boolValue": true
+        },
+        "appliesWhen": [],
+        "evidence": {
+          "state": "active",
+          "reviewedAt": "2026-11-26T05:00:00Z",
+          "validUntil": "2027-02-09T12:00:00Z",
+          "sources": [
+            {
+              "id": "nats-2-14-10-cluster-name-space-rejection",
+              "url": "https://github.com/nats-io/nats-server/blob/d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc/server/opts.go",
+              "revision": "d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc",
+              "contentDigest": "sha256:bf3efb2d05b8266e3e2e1affe8a8f85d5721cb751d1c90abf980e3718bf3fd04",
+              "startLine": 2049,
+              "endLine": 2054
+            },
+            {
+              "id": "nats-2-14-10-gateway-name-space-rejection",
+              "url": "https://github.com/nats-io/nats-server/blob/d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc/server/opts.go",
+              "revision": "d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc",
+              "contentDigest": "sha256:bf3efb2d05b8266e3e2e1affe8a8f85d5721cb751d1c90abf980e3718bf3fd04",
+              "startLine": 2299,
+              "endLine": 2304
+            },
+            {
+              "id": "nats-2-14-10-server-name-space-rejection",
+              "url": "https://github.com/nats-io/nats-server/blob/d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc/server/opts.go",
+              "revision": "d3b938b8e7045e2fba2d218eb14118ebf2e4e9dc",
+              "contentDigest": "sha256:bf3efb2d05b8266e3e2e1affe8a8f85d5721cb751d1c90abf980e3718bf3fd04",
+              "startLine": 1173,
+              "endLine": 1178
+            },
+            {
+              "id": "nats-2-15-3-cluster-name-space-rejection",
+              "url": "https://github.com/nats-io/nats-server/blob/2a9066eb57ff4aa50d8e6a979bdfbd6a8b9db251/server/opts.go",
+              "revision": "2a9066eb57ff4aa50d8e6a979bdfbd6a8b9db251",
+              "contentDigest": "sha256:7f05e66f8e552552b5056cb5b7b9c428d4ecafbfc1369fac44fa7e4b9d37b515",
+              "startLine": 2056,
+              "endLine": 2061
+            },
+            {
+              "id": "nats-2-15-3-gateway-name-space-rejection",
+              "url": "https://github.com/nats-io/nats-server/blob/2a9066eb57ff4aa50d8e6a979bdfbd6a8b9db251/server/opts.go",
+              "revision": "2a9066eb57ff4aa50d8e6a979bdfbd6a8b9db251",
+              "contentDigest": "sha256:7f05e66f8e552552b5056cb5b7b9c428d4ecafbfc1369fac44fa7e4b9d37b515",
+              "startLine": 2311,
+              "endLine": 2316
+            },
+            {
+              "id": "nats-2-15-3-server-name-space-rejection",
+              "url": "https://github.com/nats-io/nats-server/blob/2a9066eb57ff4aa50d8e6a979bdfbd6a8b9db251/server/opts.go",
+              "revision": "2a9066eb57ff4aa50d8e6a979bdfbd6a8b9db251",
+              "contentDigest": "sha256:7f05e66f8e552552b5056cb5b7b9c428d4ecafbfc1369fac44fa7e4b9d37b515",
+              "startLine": 1180,
+              "endLine": 1185
+            }
+          ]
+        },
+        "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
+        "nextAction": "Remove ASCII spaces from each selected literal server, cluster, or gateway name before proposing the 2.15 line; validate all unselected configuration and runtime behavior separately.",
+        "range": {
+          "bounds": [
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.gte",
+              "sourceId": "nats-2-14-10-server-name-space-rejection"
+            },
+            {
+              "basis": "UPGRADE_FROM_SERIES",
+              "bound": "from.lt",
+              "sourceId": "nats-2-14-10-server-name-space-rejection"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.gte",
+              "sourceId": "nats-2-15-3-server-name-space-rejection"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "nats-2-15-3-server-name-space-rejection"
+            }
+          ],
+          "from": {
+            "gte": "2.14.0",
+            "lt": "2.15.0"
+          },
+          "to": {
+            "gte": "2.15.0",
+            "lt": "2.16.0"
+          }
+        }
       }
     },
     {

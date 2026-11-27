@@ -18,7 +18,7 @@ func TestNATSNativeConfigChecksSelectedLiteralNames(t *testing.T) {
 		{"selected cluster name with space blocks", `{"cluster":{"name":"edge cluster"}}`, "2.10.0", "2.11.0", ExitBlocked, "REVIEWED_SOURCE_CONSTRAINT"},
 		{"all selected names without spaces pass", `{"server_name":"edge","gateway":{"name":"edge-gateway"}}`, "2.10.0", "2.11.0", ExitOK, "REVIEWED_SOURCE_CONSTRAINT"},
 		{"include stays unknown", `{"include":"private.conf","server_name":"edge"}`, "2.10.0", "2.11.0", ExitUnknown, "RULE_FACT_UNAVAILABLE"},
-		{"wrong pair stays unknown", `{"server_name":"edge node"}`, "2.11.0", "2.12.0", ExitUnknown, "RULE_TRANSITION_NOT_REVIEWED"},
+		{"wrong pair stays unknown", `{"server_name":"edge node"}`, "2.16.0", "2.17.0", ExitUnknown, "RULE_TRANSITION_NOT_REVIEWED"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

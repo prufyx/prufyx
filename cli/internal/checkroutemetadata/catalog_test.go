@@ -107,7 +107,7 @@ func TestDiscoverCompleteEmbeddedIdentityCatalog(t *testing.T) {
 			relnotes++
 		}
 	}
-	if result.Schema != Schema || len(result.Checks) != 279+kubernetesExtra()+len(crdbatchIDs())+len(crdbatchids.Foreign())+relnotes {
+	if result.Schema != Schema || len(result.Checks) != 293+kubernetesExtra()+len(crdbatchIDs())+len(crdbatchids.Foreign())+relnotes {
 		t.Fatalf("catalog schema/count = %q/%d", result.Schema, len(result.Checks))
 	}
 	if result.Scope.SourceEvidenceFreshness != "NOT_EVALUATED" {
