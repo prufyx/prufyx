@@ -344,6 +344,21 @@ Through the offline factory mirror (or a fixture tree), never the network.
   `preserveUnknownFields` are not read or normalised. The `v1beta2` version of
   the API group and v1beta1 definitions anywhere else (the full-tree scan,
   fragments) keep their earlier handling.
+- **Inert Helm helpers.** A `.tpl` under a chart's `templates/` may be
+  recorded as `no-definition` under `static-helper-empty-v1`. The reader
+  parses every helper definition and root, without rendering or evaluating
+  conditions. Only ASCII whitespace, comments, literal `fail` actions and
+  read-only `.Values` conditions whose branches satisfy the same rule are
+  admitted. The complete pinned chart must contain no other template actions,
+  duplicate definitions, subcharts, dependency declarations or ignore file.
+  Regular paths and Git blob identities are checked; all source reads retain
+  their pinned commit and content digests. Limits are 16 KiB per helper, 2,048
+  AST nodes, depth 16, 200 chart entries and 512 KiB total chart bytes.
+  Other output, calls, mutation, missing proof and literal `<no value>` remain
+  unsupported. This profile does not resolve `.Files.Get` or `tpl`, establish
+  file visibility, infer defaults or assert installation/rendering success.
+  Literal CRD facts and citations still come from the existing manifest
+  reader and full-tree comparison.
 - **The whole repository tree (full-tree scan).** Every directory is listed
   (none is skipped), and every file outside the listed paths of these kinds is
   read: `*.yaml`, `*.yml`, `*.json` and files named `Kustomization`; template,

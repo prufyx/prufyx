@@ -2062,6 +2062,12 @@ func (x *Extractor) classifyFile(r extract.PinnedReader, repo extract.RepoRef, c
 		if info.words == 0 {
 			return fd, false, nil
 		}
+		if ok, err := readStaticHelper(r, repo, commit, f.path); err != nil {
+			return fd, false, err
+		} else if ok {
+			fd.Class, fd.Reason, fd.Detail = ClassNoDefinition, ReasonNoDefinition, staticHelperProfile+": complete pinned chart checked; helper root and all definitions emit only whitespace or fail, without execution"
+			return placed(fd, f.at), true, nil
+		}
 		fd.Class, fd.Reason, fd.Detail = ClassUnsupported, ReasonSourceTemplate, "a template, jsonnet or cue source that names the CustomResourceDefinition kind: it is not read"
 		return placed(fd, f.at), true, nil
 	case kindGo:
