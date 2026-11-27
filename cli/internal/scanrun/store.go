@@ -221,6 +221,12 @@ func (k *Store) NewestServedLine(component string, now time.Time) (string, bool)
 	return k.snapshot.NewestServedLine(component, now)
 }
 
+// NewestRecordLine is the newest line a served list or line review of the
+// database's targets names for the component.
+func (k *Store) NewestRecordLine(component string) (string, error) {
+	return k.snapshot.NewestRecordLine(component)
+}
+
 // Component returns the subject component of a catalog project.
 func (k *Store) Component(slug string) (string, bool) { return k.snapshot.Component(slug) }
 

@@ -136,7 +136,11 @@ served-API list. It is the newest line Prufyx can evaluate. It is **not** the
 newest release: a newer line may exist, and the patch is not resolved. The
 plan prints the chosen version in a note, and the scan input records the
 target source `newest-covered`. If no line is current (the lists expired) or
-the component has no such lists, the command refuses; it never guesses. It
+the component has no such lists, the command refuses; it never guesses. If a
+list, review or rule in the knowledge names a newer line than the chosen one
+(for example because the newest list expired or was removed), the plan adds a
+`LINE_NOT_ATTESTED` gap naming both lines and cannot be `PASS`. A line that
+nothing in the knowledge names any more cannot be detected. It
 cannot be combined with an explicit `--to` for the same component.
 
 ## `latest`

@@ -780,7 +780,8 @@ Labels on a workload's pod template are read too. Rules:
   keeps its chart versions.
 - Two different versions, or a usable version beside an unusable signal
   (`latest`, a pre-release such as `1.2.0-rc1`, a two-part or non-version
-  tag, a chart version with no reviewed application version), detect nothing
+  tag, a chart version with no reviewed application version or with no current
+  reviewed chart source), detect nothing
   and add a `VERSION_CONFLICT` gap. Only unusable signals leave the version
   undeclared (`VERSION_NOT_DETECTED`).
 - A detected version is shown with `currentSource: "detected"` in the

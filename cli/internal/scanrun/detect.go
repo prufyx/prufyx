@@ -23,7 +23,10 @@ import (
 //   - helm.sh/chart "<chart>-<chart version>" where the chart is named like
 //     the project (a project's other charts, such as a gateway chart, say
 //     nothing about its control plane) and the reviewed chart table maps
-//     that chart version to an application version.
+//     that chart version to an application version. Without a usable
+//     reviewed chart source and a current mapping (expired, withdrawn,
+//     removed or never reviewed) the label is an unusable signal: it is
+//     never ignored.
 //
 // Only the labels of workloads (apps/v1 Deployment, StatefulSet, DaemonSet
 // and their pod templates) are read; a CRD, ConfigMap or Job label is not
@@ -43,8 +46,6 @@ const (
 
 // chartLookup is the reviewed chart knowledge detection reads.
 type chartLookup interface {
-	// Charts lists the usable chart names of the project.
-	Charts(slug string, now time.Time) []string
 	// Component is the single component the project's chart resolves to.
 	Component(slug, chart string, now time.Time) (string, bool)
 	// AppVersion is the application version the reviewed table gives for a
@@ -60,10 +61,6 @@ type embeddedCharts struct {
 func loadEmbeddedCharts() (embeddedCharts, error) {
 	sources, versions, err := chartidentity.LoadEmbedded()
 	return embeddedCharts{sources: sources, versions: versions}, err
-}
-
-func (e embeddedCharts) Charts(slug string, now time.Time) []string {
-	return e.sources.ProjectChart(slug, "", now).Charts
 }
 
 func (e embeddedCharts) Component(slug, chart string, now time.Time) (string, bool) {
@@ -140,12 +137,6 @@ func labelSets(document intake.Document) []map[string]string {
 func detectVersions(documents []intake.Document, slugs []string, charts chartLookup, now time.Time) map[string]detection {
 	out := map[string]detection{}
 	for _, slug := range slugs {
-		var names []string
-		for _, name := range charts.Charts(slug, now) {
-			if name == slug {
-				names = append(names, name)
-			}
-		}
 		sets := 0
 		type seen struct{ version, signal string }
 		var found []seen
@@ -162,26 +153,22 @@ func detectVersions(documents []intake.Document, slugs []string, charts chartLoo
 						}
 					}
 				}
-				value := labels[labelHelmChart]
-				for _, name := range names {
-					rest, ok := strings.CutPrefix(value, name+"-")
-					if !ok {
-						continue
+				// The chart named like the project, whether or not its source
+				// can be used: an expired or removed source must not hide
+				// what the label says.
+				if rest, ok := strings.CutPrefix(labels[labelHelmChart], slug+"-"); ok {
+					if _, valid := chartidentity.NormalizeVersion(rest); valid {
+						component, resolved := charts.Component(slug, slug, now)
+						app, mapped := "", false
+						if resolved {
+							app, mapped = charts.AppVersion(component, slug, rest, now)
+						}
+						if mapped {
+							found = append(found, seen{app, signalHelmChart})
+						} else {
+							unusable++
+						}
 					}
-					if _, valid := chartidentity.NormalizeVersion(rest); !valid {
-						continue
-					}
-					component, resolved := charts.Component(slug, name, now)
-					app, mapped := "", false
-					if resolved {
-						app, mapped = charts.AppVersion(component, name, rest, now)
-					}
-					if mapped {
-						found = append(found, seen{app, signalHelmChart})
-					} else {
-						unusable++
-					}
-					break
 				}
 				if len(found) > before {
 					sets++

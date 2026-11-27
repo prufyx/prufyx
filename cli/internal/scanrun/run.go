@@ -362,7 +362,8 @@ func Run(request Request, options Options) (Result, error) {
 	}
 	pinnedNowWarning, pinnedNowGap := pinnedNowExpiry(knowledge, request.Now, wallClock().UTC().Truncate(time.Second))
 
-	if err := resolveNewestCovered(&effective, request.NewestCovered, knowledge, now); err != nil {
+	newestGaps, err := resolveNewestCovered(&effective, request.NewestCovered, knowledge, now)
+	if err != nil {
 		return Result{}, err
 	}
 
@@ -384,6 +385,7 @@ func Run(request Request, options Options) (Result, error) {
 		provenance.Projects = append([]scanreport.KnowledgeStoreProject(nil), store.Provenance.Projects...)
 		report.Provenance.KnowledgeStore = &provenance
 	}
+	report.Gaps = append(report.Gaps, newestGaps...)
 	manifests := splitConfigDocuments(workspace, &report)
 	report.Summary.DocumentsRead = len(manifests.Documents)
 	report.Summary.DocumentsAllowlistSkipped = workspace.AllowlistSkipped
