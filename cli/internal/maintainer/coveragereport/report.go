@@ -351,6 +351,7 @@ type crdPublished struct{ project, component map[string]bool }
 // communityCRDPublished reads the community pack (nil: nothing published):
 // a valid, verdict-bearing rule of the CRD version family publishes its
 // project; a current line attestation of the family publishes its component.
+// A chart-subject rule publishes nothing.
 func communityCRDPublished(raw []byte, now time.Time) (crdPublished, error) {
 	out := crdPublished{project: map[string]bool{}, component: map[string]bool{}}
 	if len(raw) == 0 {
@@ -375,7 +376,11 @@ func communityCRDPublished(raw []byte, now time.Time) (crdPublished, error) {
 		if err != nil {
 			return out, fmt.Errorf("%w: community pack: %v", ErrInvalid, err)
 		}
-		if ok, _ := validAt(shape.Evidence, now); ok && !neutral && slices.Contains(scope.Families, lineattest.FamilyCustomResourceVersions) {
+		subject, err := constraintengine.RuleTransitionOf(entry.Rule)
+		if err != nil {
+			return out, fmt.Errorf("%w: community pack: %v", ErrInvalid, err)
+		}
+		if ok, _ := validAt(shape.Evidence, now); ok && !neutral && subject.Chart == nil && slices.Contains(scope.Families, lineattest.FamilyCustomResourceVersions) {
 			out.project[entry.Project] = true
 		}
 	}
@@ -719,7 +724,7 @@ func Compute(in Input) (Report, error) {
 	for project, component := range in.CRDTargetComponents {
 		published := crdAttComponent[component]
 		for _, r := range byProject[project] {
-			if r.valid && slices.Contains(r.families, lineattest.FamilyCustomResourceVersions) {
+			if r.valid && !r.chartSubject() && slices.Contains(r.families, lineattest.FamilyCustomResourceVersions) {
 				published = true
 			}
 		}
