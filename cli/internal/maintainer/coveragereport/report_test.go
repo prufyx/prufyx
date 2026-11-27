@@ -192,6 +192,9 @@ func TestEmbeddedPackBaseline(t *testing.T) {
 			// Thirteen whole-line target rules (falco, envoy, harbor, nats) reviewed
 			// at this clock move thirteen pairs from G to B; three of them count in C3.
 			want.B, want.G, want.C3 = want.B+13, want.G-13, want.C3+3
+			// With those pairs, nats also counts in C3: its two line-wide
+			// ranges and its target rules together reach three of five.
+			want.C3++
 			now = newest
 		}
 	}
