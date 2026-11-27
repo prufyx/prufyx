@@ -84,12 +84,21 @@ func parseModFile(raw []byte) (modFile, error) {
 		if i := strings.Index(line, "//"); i >= 0 {
 			line = line[:i]
 		}
+		if strings.ContainsAny(line, "\\`") {
+			return m, errors.New("escape or raw string")
+		}
 		f := strings.Fields(line)
 		if len(f) == 0 {
 			continue
 		}
-		for i := range f {
-			f[i] = strings.Trim(f[i], `"`)
+		// A quoted token is read only when the quotes are exactly its ends.
+		for i, w := range f {
+			if n := strings.Count(w, `"`); n != 0 {
+				if n != 2 || !strings.HasPrefix(w, `"`) || !strings.HasSuffix(w, `"`) {
+					return m, errors.New("unbalanced quote")
+				}
+				f[i] = w[1 : len(w)-1]
+			}
 		}
 		verb := block
 		switch {
@@ -265,7 +274,10 @@ func (s *sweeper) closure(ctx context.Context, r extract.PinnedReader, repo extr
 				bad(CodeOutsideReplace, old+" => "+rp.target)
 			}
 		}
-		if rp, applies := mod.replacementFor(old); applies && rp.version == "" {
+		// The go tool ignores a replacement of a module that is not
+		// required: it must not hide the required module holding an import.
+		_, required := mod.requires[old]
+		if rp, applies := mod.replacementFor(old); required && applies && rp.version == "" {
 			if c, ok := inside(rp.target); ok {
 				local[old] = c
 			}

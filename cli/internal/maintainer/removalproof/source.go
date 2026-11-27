@@ -137,6 +137,24 @@ func checkParser(files []sourceFile, binary string) []problem {
 		// is visited before its children.
 		calls := map[*ast.SelectorExpr]bool{}
 		allowed := map[ast.Expr]bool{}
+		// pointer permits a *FlagSet that is the whole type of a parameter,
+		// result, field or variable. Anywhere else (a slice or map element, a
+		// type argument, an alias) an elided literal could build a zero value.
+		pointer := func(t ast.Expr) {
+			if star, ok := t.(*ast.StarExpr); ok && flagSetType(star.X) {
+				allowed[star.X] = true
+			}
+		}
+		fields := func(lists ...*ast.FieldList) {
+			for _, l := range lists {
+				if l == nil {
+					continue
+				}
+				for _, fd := range l.List {
+					pointer(fd.Type)
+				}
+			}
+		}
 		ast.Inspect(f, func(n ast.Node) bool {
 			switch x := n.(type) {
 			case *ast.Ident:
@@ -149,11 +167,12 @@ func checkParser(files []sourceFile, binary string) []problem {
 						unresolved(l.Pos(), "CommandLine is replaced")
 					}
 				}
-			case *ast.StarExpr:
-				// A pointer type constructs no flag set.
-				if flagSetType(x.X) {
-					allowed[x.X] = true
-				}
+			case *ast.FuncType:
+				fields(x.Params, x.Results)
+			case *ast.StructType:
+				fields(x.Fields)
+			case *ast.ValueSpec:
+				pointer(x.Type)
 			case *ast.CallExpr:
 				sel, ok := x.Fun.(*ast.SelectorExpr)
 				if !ok {
@@ -177,8 +196,10 @@ func checkParser(files []sourceFile, binary string) []problem {
 				case "ParseFlags", "ParseAll", "ParseKnownFlags":
 					unresolved(x.Pos(), sel.Sel.Name)
 				case "Init":
-					// Without types any two-argument Init may be a flag set's.
-					if len(x.Args) == 2 {
+					// Without types any Init with arguments may be a flag
+					// set's: two, three as a method expression, or one call
+					// returning both.
+					if len(x.Args) > 0 {
 						unresolved(x.Pos(), "Init may re-initialise a flag set")
 					}
 				case "Parse":
@@ -196,7 +217,7 @@ func checkParser(files []sourceFile, binary string) []problem {
 					unresolved(x.Pos(), "CommandLine used as a value")
 				}
 				if flagSetType(x) && !allowed[x] {
-					unresolved(x.Pos(), "FlagSet used other than as a pointer type")
+					unresolved(x.Pos(), "FlagSet used other than as a plain pointer type")
 				}
 				// (*flag.FlagSet).Init and the like.
 				if star, ok := ast.Unparen(x.X).(*ast.StarExpr); ok && flagSetType(star.X) {
