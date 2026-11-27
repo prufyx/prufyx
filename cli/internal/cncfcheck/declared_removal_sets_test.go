@@ -168,6 +168,26 @@ func removalClaim(t *testing.T, claims []constraintengine.Claim, id string) cons
 	return constraintengine.Claim{}
 }
 
+// removalScope evaluates raw, with a scope declaration for the fact's
+// component added, on the corpus replay route (assessScopeWith).
+func removalScope(t *testing.T, b bundle, f declaredRemovalFact, raw []byte) (ScopeReport, error) {
+	t.Helper()
+	ruleSet, err := b.unfilteredRuleSetDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	attestation := reattest(t, func(a *Attestation) {
+		a.Revision, a.PackDigest, a.RuleCount, a.RuleSetDigest = b.pack.Revision, b.packDigest, len(b.pack.Entries), ruleSet
+		a.Components = []string{f.component}
+	})
+	scoped := strings.Replace(string(raw), `"current":{`,
+		fmt.Sprintf(`"scope":{"declaration":%q,"components":[%q]},"current":{`, constraintengine.ScopeDeclaration, f.component), 1)
+	if scoped == string(raw) {
+		t.Fatalf("%s: no scope declaration added", f.id)
+	}
+	return assessScopeWith(b, attestation, []byte(scoped), removalNow)
+}
+
 func TestDeclaredRemovalFactsRegisteredAndGuarded(t *testing.T) {
 	t.Parallel()
 	registry, err := compiledRegistry()
@@ -239,6 +259,13 @@ func TestDeclaredRemovalSetsOnlyBlockOrUnknown(t *testing.T) {
 						t.Fatalf("%s %s: input file digest is not that of the original bytes", f.id, path)
 					}
 				}
+				scope, err := removalScope(t, b, f, raw)
+				if err != nil {
+					t.Fatalf("%s %s corpus %s: %v", f.id, side, tc.name, err)
+				}
+				if got := removalClaim(t, scope.Check.Claims, f.ruleID(side)).Status; got != tc.status || scope.Check.Assessment == "SCOPE_COMPLETE_PASS" {
+					t.Fatalf("%s %s corpus %s: %s (%s), want %s", f.id, side, tc.name, got, scope.Check.Assessment, tc.status)
+				}
 			}
 			// The engine alone would pass the complete set: the guard is
 			// what keeps it UNKNOWN.
@@ -273,33 +300,131 @@ func TestDeclaredRemovalSetsOnlyBlockOrUnknown(t *testing.T) {
 						t.Fatalf("%s %s %s %s: exit 0", f.id, side, path, name)
 					}
 				}
+				scope, err := removalScope(t, b, f, raw)
+				if err != nil {
+					t.Fatalf("%s %s corpus %s: %v", f.id, side, name, err)
+				}
+				for _, claim := range scope.Check.Claims {
+					if claim.RuleID == f.ruleID(side) && (claim.Status == "BLOCKED" || claim.Status == "PASS") {
+						t.Fatalf("%s %s corpus %s: %s", f.id, side, name, claim.Status)
+					}
+				}
+				if scope.Check.Assessment == "SCOPE_COMPLETE_PASS" {
+					t.Fatalf("%s %s corpus %s: scope passed", f.id, side, name)
+				}
 			}
 		}
 	}
 }
 
-func TestDeclaredRemovalSetsInScopeAssessment(t *testing.T) {
+// olderBuild is this build with the declared-removal facts not registered.
+func olderBuild(t *testing.T) bundle {
+	t.Helper()
+	older, err := load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var kept []constraintengine.FactDefinition
+	for _, d := range compiledDefinitions() {
+		if !declaredRemovalGuardedFacts[d.ID] {
+			kept = append(kept, d)
+		}
+	}
+	if len(kept) != len(compiledDefinitions())-len(declaredRemovalFacts()) {
+		t.Fatalf("%d definitions kept", len(kept))
+	}
+	older.registry, err = constraintengine.NewCompiledRegistry(kept)
+	if err != nil {
+		t.Fatal(err)
+	}
+	older.pack.RegistryDigest = older.registry.Digest()
+	return older
+}
+
+// A build that does not register the facts reads a newer compatible feed in
+// compat mode: every rule over them is deferred, produces no claim, and no
+// input yields PASS or BLOCKED for it. An input naming such a fact is refused.
+func TestDeclaredRemovalRulesDeferredByBuildWithoutTheFacts(t *testing.T) {
 	t.Parallel()
+	older := olderBuild(t)
 	for _, side := range []string{"current", "proposed"} {
-		b := removalBundle(t, side)
-		ruleSet, err := b.unfilteredRuleSetDigest()
+		newer := removalBundle(t, side)
+		index, targets, _, err := buildExternalTargetsPinned(newer, removalRevision, "operator_provided", func(string, func(string) ([]byte, error)) (string, error) { return removalRevision, nil }, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
+		var document externalIndexDocument
+		if err := json.Unmarshal(index.Bytes, &document); err != nil {
+			t.Fatal(err)
+		}
+		document.BaseCapabilityDigest = baseCapabilityDigest(newer)
+		indexRaw, err := json.Marshal(document)
+		if err != nil {
+			t.Fatal(err)
+		}
+		oldIndex, err := parseExternalIndex(indexRaw, &older)
+		if err != nil || !oldIndex.Compat() {
+			t.Fatalf("older build: compat %t, %v", oldIndex.Compat(), err)
+		}
+		newIndex, err := parseExternalIndex(indexRaw, &newer)
+		if err != nil || newIndex.Compat() {
+			t.Fatalf("control: compat %t, %v", newIndex.Compat(), err)
+		}
+		byProject := map[string][]byte{}
+		for _, target := range targets {
+			if slug, ok := ProjectFromTargetPath(target.Path); ok {
+				byProject[slug] = target.Bytes
+			}
+		}
 		for _, f := range declaredRemovalFacts() {
-			attestation := reattest(t, func(a *Attestation) {
-				a.Revision, a.PackDigest, a.RuleCount, a.RuleSetDigest = b.pack.Revision, b.packDigest, len(b.pack.Entries), ruleSet
-				a.Components = []string{f.component}
-			})
-			for member, want := range map[string]string{"kept-flag": "UNKNOWN", removalMember: "BLOCKED"} {
-				scoped := []byte(strings.Replace(string(f.sideInput(side, removalSet(true, member))), `"current":{`,
-					fmt.Sprintf(`"scope":{"declaration":%q,"components":[%q]},"current":{`, constraintengine.ScopeDeclaration, f.component), 1))
-				report, err := assessScopeWith(b, attestation, scoped, removalNow)
-				if err != nil {
-					t.Fatalf("%s: %v", f.id, err)
+			deferred, err := AdmitExternalProjectTarget(oldIndex, f.project, byProject[f.project])
+			if err != nil {
+				t.Fatalf("%s %s: older build: %v", f.id, side, err)
+			}
+			found := false
+			for _, rule := range deferred.DeferredRules() {
+				if rule.RuleID == f.ruleID(side) {
+					found = slices.Equal(rule.MissingFacts, []string{f.id})
 				}
-				if got := removalClaim(t, report.Check.Claims, f.ruleID(side)).Status; got != want || report.Check.Assessment == "SCOPE_COMPLETE_PASS" {
-					t.Fatalf("%s %s %s: %s (%s), want %s", f.id, side, member, got, report.Check.Assessment, want)
+			}
+			if !found {
+				t.Fatalf("%s %s: not deferred: %+v", f.id, side, deferred.DeferredRules())
+			}
+			current, err := AdmitExternalProjectTarget(newIndex, f.project, byProject[f.project])
+			if err != nil {
+				t.Fatalf("%s %s: control: %v", f.id, side, err)
+			}
+			for _, member := range []string{"kept-flag", removalMember} {
+				raw := f.sideInput(side, removalSet(true, member))
+				for _, evaluate := range []func([]byte) (Report, error){
+					func(raw []byte) (Report, error) { return deferred.Evaluate(f.project, raw, removalNow) },
+					func(raw []byte) (Report, error) {
+						return deferred.EvaluateRule(f.project, f.ruleID(side), raw, removalNow)
+					},
+				} {
+					if _, err := evaluate(raw); !errors.Is(err, ErrInvalid) {
+						t.Fatalf("%s %s %s: unregistered fact accepted: %v", f.id, side, member, err)
+					}
+					report, err := evaluate(f.input("1.9.0", "", ""))
+					if err != nil {
+						t.Fatalf("%s %s: %v", f.id, side, err)
+					}
+					for _, claim := range report.Check.Claims {
+						if claim.RuleID == f.ruleID(side) {
+							t.Fatalf("%s %s: deferred rule produced %s", f.id, side, claim.Status)
+						}
+					}
+					if len(report.DeferredRules) == 0 || report.Assessment != "UNKNOWN" || ClaimExit(report) == 0 || !strings.HasPrefix(report.NextAction, deferredNextAction) {
+						t.Fatalf("%s %s: deferred report %+v exit %d", f.id, side, report.DeferredRules, ClaimExit(report))
+					}
+				}
+				want := "UNKNOWN"
+				if member == removalMember {
+					want = "BLOCKED"
+				}
+				report, err := current.EvaluateRule(f.project, f.ruleID(side), raw, removalNow)
+				if err != nil || removalClaim(t, report.Check.Claims, f.ruleID(side)).Status != want {
+					t.Fatalf("%s %s %s: control %+v %v", f.id, side, member, report.Check.Claims, err)
 				}
 			}
 		}
@@ -359,6 +484,9 @@ func TestDeclaredRemovalSetsRefuseHostileSpellings(t *testing.T) {
 				}
 				if _, err := external.Evaluate(f.project, []byte(raw), removalNow); !errors.Is(err, ErrInvalid) {
 					t.Fatalf("%s %s external: %v", f.id, name, err)
+				}
+				if _, err := removalScope(t, b, f, []byte(raw)); !errors.Is(err, ErrInvalid) {
+					t.Fatalf("%s %s corpus: %v", f.id, name, err)
 				}
 				if err := ValidateCanonicalInput(f.project, []byte(raw)); !errors.Is(err, ErrInvalid) {
 					t.Fatalf("%s %s validate: %v", f.id, name, err)
