@@ -151,11 +151,13 @@ func embeddedPackWithoutServedLists(t *testing.T) []byte {
 	}
 	delete(pack, "servedAPIs")
 	delete(pack, "pathPolicies")
-	// The release-note removal rules (crossing) need a higher schema level
-	// than the one this pack takes, and play no part in these tests.
+	// The release-note removal rules (crossing) and the entries of community
+	// projects need a higher schema level than the one this pack takes, and
+	// play no part in these tests.
 	var entries []any
 	for _, item := range pack["entries"].([]any) {
-		if _, crossing := item.(map[string]any)["rule"].(map[string]any)["crossing"]; !crossing {
+		entry := item.(map[string]any)
+		if _, crossing := entry["rule"].(map[string]any)["crossing"]; !crossing && !cncfcheck.IsCommunityProject(entry["project"].(string)) {
 			entries = append(entries, item)
 		}
 	}
@@ -164,6 +166,14 @@ func embeddedPackWithoutServedLists(t *testing.T) []byte {
 	out, err := json.Marshal(pack)
 	if err != nil {
 		t.Fatal(err)
+	}
+	// Admission wants the exact schema level, so a kept entry or pack member
+	// that needs another one must fail here, not later in an import. editPack
+	// drops the attestations of the components left without a rule, as the
+	// tests that use this pack do.
+	admitted := editPack(t, out, func(string, map[string]any) bool { return true })
+	if _, _, err := cncfcheck.BuildExternalTargetsFromPack(admitted, "1"); err != nil {
+		t.Fatalf("embeddedPackWithoutServedLists: the filtered pack is not admitted at schema %v; filter out the entry or pack member that needs another schema level: %v", pack["schema"], err)
 	}
 	return out
 }
