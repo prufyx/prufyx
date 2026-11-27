@@ -58,7 +58,9 @@ func summarizeClaims(claims []constraintengine.Claim, showPasses bool) claimSumm
 		}
 		verdicts++
 		switch {
-		case claim.Status == "UNKNOWN" && claim.ReasonCode == reasonTransitionNotReviewed:
+		case claim.Status == "UNKNOWN" && claim.ReasonCode == reasonTransitionNotReviewed && !claim.IsOffAnchorSibling():
+			// An off-anchor sibling is listed by name, never counted as a rule
+			// for another transition.
 			summary.unreviewed++
 		case claim.Status == "UNKNOWN" && claim.ReasonCode == constraintengine.ReasonReleaseBoundaryNotReviewed:
 			summary.boundary++

@@ -59,7 +59,7 @@ func TestOffAnchorSiblingNamed(t *testing.T) {
 		t.Fatalf("exit=%d err=%v claims=%+v", ClaimExit(report), err, report.Check.Claims)
 	}
 	claim := report.Check.Claims[1]
-	if claim.RuleID != lokiCompactorRuleID || claim.Status != "UNKNOWN" || claim.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED" ||!strings.Contains(claim.NextAction, lokiCompactorRuleID) {
+	if claim.RuleID != lokiCompactorRuleID || claim.Status != "UNKNOWN" || claim.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED" || !claim.IsOffAnchorSibling() || !strings.Contains(claim.NextAction, lokiCompactorRuleID) {
 		t.Fatalf("claim=%+v", claim)
 	}
 	selected, err := checkWithBundleRule(b, "loki", input, reviewed.Add(time.Hour), rangedID)

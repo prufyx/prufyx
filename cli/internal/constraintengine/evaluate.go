@@ -34,6 +34,7 @@ func Evaluate(input Input, rules RuleSet, now time.Time) (Report, error) {
 	for index, rule := range rules.document.Rules {
 		claims[index] = evaluateRule(input.document, rule, now)
 	}
+	markOffAnchorSiblings(input.document, rules.document.Rules, claims)
 	if rules.boundaryCovered {
 		coverBoundaryClaims(input.document, rules.document.Rules, claims)
 	}

@@ -894,6 +894,15 @@ func (r *kubernetesRun) hop(hop upgradepath.Hop, unplanned bool) (scanreport.Hop
 		}
 	}
 
+	for _, rule := range offAnchorSiblings(r.rules, r.component, fromVersion, toVersion) {
+		if hop.Overlaps(rule.Scope.Transition) {
+			// Judged above as a rule of the hop.
+			continue
+		}
+		decidedAll = false
+		result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapRuleNotDecided, rule.Scope.ID, offAnchorReason))
+	}
+
 	// A hop that skips release lines prepares no removal fact of the lines
 	// it skips; the step of the hop that enters each of them is evaluated
 	// on its own, and a reviewed rule that blocks it blocks the hop.
@@ -1222,6 +1231,9 @@ func (r *kubernetesRun) wholeUpgrade(from, to string, plan upgradepath.Plan) err
 			continue
 		}
 		r.judge(rule, eval, ref, false)
+	}
+	for _, rule := range offAnchorSiblings(r.rules, r.component, from, to) {
+		r.gap(&ref, scanreport.GapRuleNotDecided, rule.Scope.ID, offAnchorReason)
 	}
 	return nil
 }

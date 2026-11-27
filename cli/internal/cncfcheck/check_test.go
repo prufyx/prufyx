@@ -225,7 +225,7 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 						if !want[claim.RuleID] || claim.Status != "UNKNOWN" {
 							t.Fatalf("claim %s %s", claim.RuleID, claim.Status)
 						}
-						if claim.RuleID == vector.RuleID && (claim.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED" || !strings.Contains(claim.NextAction, vector.RuleID)) {
+						if claim.RuleID == vector.RuleID && (claim.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED" || !claim.IsOffAnchorSibling() || !strings.Contains(claim.NextAction, vector.RuleID)) {
 							t.Fatalf("exact-pair rule %+v", claim)
 						}
 					}

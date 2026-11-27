@@ -88,7 +88,7 @@ func claimByID(report Report, id string) (constraintengine.Claim, bool) {
 func assertOffAnchorClaim(t *testing.T, report Report, id string) {
 	t.Helper()
 	claim, found := claimByID(report, id)
-	if !found || claim.Status != "UNKNOWN" || claim.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED" || !strings.Contains(claim.NextAction, id) || claim.SubjectMatch != nil {
+	if !found || claim.Status != "UNKNOWN" || claim.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED" || !claim.IsOffAnchorSibling() || !strings.Contains(claim.NextAction, id) || claim.SubjectMatch != nil {
 		t.Fatalf("%s: found=%v claim=%+v", id, found, claim)
 	}
 }
@@ -130,8 +130,8 @@ func TestOffAnchorSiblingNamed(t *testing.T) {
 			}
 			if tc.named {
 				assertOffAnchorClaim(t, report, offAnchorSiblingID)
-			} else if claim, found := claimByID(report, offAnchorSiblingID); found && strings.Contains(claim.NextAction, "inside a reviewed range") {
-				t.Fatalf("named as off anchor: %+v", claim)
+			} else if claim, found := claimByID(report, offAnchorSiblingID); found && claim.IsOffAnchorSibling() {
+				t.Fatalf("marked: %+v", claim)
 			}
 		})
 	}

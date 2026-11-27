@@ -539,6 +539,9 @@ type Claim struct {
 	// (boundary_cover.go). It is present only under the boundary-covered
 	// contract, so every other claim serializes exactly as before.
 	CoveringRuleID string `json:"coveringRuleId,omitempty"`
+
+	// offAnchorSibling is IsOffAnchorSibling (off_anchor.go).
+	offAnchorSibling bool
 }
 
 // SubjectMatch discloses a range match: the reviewed anchor pair and the

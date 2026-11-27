@@ -84,6 +84,19 @@ func (t RuleTransition) Match(from, to string) MatchMode {
 	return MatchNone
 }
 
+// RangeHoldsUnmatched reports that the declared pair matches this subject
+// through its reviewed range while sibling, a subject of the same component
+// and chart, does not match the pair although its anchor lies inside that
+// range. The sibling was reviewed at a pair the range stands for and says
+// nothing about the declared one, so a selection that keeps this rule must
+// keep the sibling too: it stays undetermined, never silently absent.
+func (t RuleTransition) RangeHoldsUnmatched(sibling RuleTransition, from, to string) bool {
+	if sibling.Component != t.Component || !sameChart(sibling.Chart, t.Chart) || t.Match(from, to) != MatchRange || sibling.Match(from, to) != MatchNone {
+		return false
+	}
+	return inBound(sibling.From, t.Range.From) && inBound(sibling.To, t.Range.To)
+}
+
 // refusesPreRelease reports that a version is a pre-release and the rule's
 // component takes none: such a pair never matches.
 func (t RuleTransition) refusesPreRelease(versions ...string) bool {

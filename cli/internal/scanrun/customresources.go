@@ -298,6 +298,16 @@ func (r *customResourceRun) hop(hop upgradepath.Hop, only func(cncfcheck.ScanRul
 	// those that the hop's claim decided (PASS or BLOCKED) while covering
 	// the whole hop under the trust policy; blocks those that blocked.
 	applicableIDs, decided, blocks := map[string]bool{}, map[string]bool{}, map[string]bool{}
+	// A rule left unreviewed inside a matched range is an applicable rule that
+	// nothing decided, so the line review cannot decide the family either.
+	for _, rule := range offAnchorSiblings(r.rules, r.component, fromVersion, toVersion) {
+		if hop.Overlaps(rule.Scope.Transition) {
+			continue
+		}
+		applicable++
+		applicableIDs[rule.Scope.ID] = true
+		result.Reasons = append(result.Reasons, r.gap(&ref, scanreport.GapRuleNotDecided, rule.Scope.ID, offAnchorReason))
+	}
 	for _, rule := range r.rules {
 		if rule.Scope.Component != r.component || !hop.Overlaps(rule.Scope.Transition) {
 			continue
