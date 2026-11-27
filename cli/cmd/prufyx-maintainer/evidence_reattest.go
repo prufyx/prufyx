@@ -700,12 +700,13 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("evidence reattest verify", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	var statementPath, priorPackPath, nextPackPath, worklistPath, rerunWorklistPath, packName, rulesWorklistPath, reviewRecordDir, envelopePath, trustRootPath, trustRootDigest, statementChainDir, baseStatementChainDir, baselinesPath, movedBlobsDir string
-	var structuralOnly bool
+	var structuralOnly, audit bool
 	flags.StringVar(&statementPath, "statement", "", "statement.json to verify (absolute path)")
 	flags.StringVar(&priorPackPath, "prior-pack", "", "the base-branch rule pack (absolute path)")
 	flags.StringVar(&nextPackPath, "next-pack", "", "the changed rule pack, e.g. rules.next.json (absolute path)")
 	flags.StringVar(&worklistPath, "worklist", "", "the retained worklist the statement was prepared from (absolute path)")
-	flags.StringVar(&rerunWorklistPath, "rerun-worklist", "", "a worklist the verifying job produced itself with its own \"evidence repin\" run (absolute path); every citation of every rule the statement renews must match it. Required whenever an automated statement renews a rule")
+	flags.StringVar(&rerunWorklistPath, "rerun-worklist", "", "a worklist the verifying job produced itself with its own \"evidence repin\" run (absolute path); every citation of every rule the statement renews must match it. Required whenever the statement renews a rule, unless --audit is given")
+	flags.BoolVar(&audit, "audit", false, "recheck a signed human statement without an independent worklist; this is never a publish check and the output says so. Not allowed with --rerun-worklist or --structural-only, and never accepted for an automated statement that renews rules")
 	flags.StringVar(&packName, "pack", "", "cncf or community, for the eligibility recomputation")
 	flags.StringVar(&rulesWorklistPath, "rules-worklist-path", "", "the rule pack path as it appears in the worklist, if different from --prior-pack")
 	flags.StringVar(&reviewRecordDir, "review-record-dir", "", "directory of <ruleId>.json individual review records, one per rule (absolute path; optional)")
@@ -719,7 +720,7 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 	flags.BoolVar(&structuralOnly, "structural-only", false, "run only the structural checks, skipping the signature requirement; this NEVER counts as a passing publish gate and always exits non-zero, even when every structural check passes")
 	if err := flags.Parse(args); err != nil {
 		if err == flag.ErrHelp {
-			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest verify --statement ABS --prior-pack ABS --next-pack ABS --worklist ABS --pack cncf|community --statement-chain-dir ABS --base-statement-chain-dir ABS (--envelope ABS --trust-root ABS --trust-root-digest sha256:... | --structural-only [--trust-root ABS --trust-root-digest sha256:...]) [--rerun-worklist ABS] [--baselines ABS] [--rules-worklist-path STR] [--review-record-dir ABS]")
+			_, e := fmt.Fprintln(stdout, "usage: prufyx-maintainer evidence reattest verify --statement ABS --prior-pack ABS --next-pack ABS --worklist ABS --pack cncf|community --statement-chain-dir ABS --base-statement-chain-dir ABS (--envelope ABS --trust-root ABS --trust-root-digest sha256:... | --structural-only [--trust-root ABS --trust-root-digest sha256:...]) [--rerun-worklist ABS | --audit] [--baselines ABS] [--rules-worklist-path STR] [--review-record-dir ABS]")
 			return e
 		}
 		return evidenceReattestError()
@@ -742,6 +743,11 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 		// signed anything); combining it with --envelope would make the
 		// command's own exit code ambiguous about whether the signature
 		// was actually checked, so it is rejected outright.
+		return evidenceReattestError()
+	}
+	if audit && (structuralOnly || rerunWorklistPath != "") {
+		// An audit is the run without an independent worklist; asking for
+		// it together with either other mode is ambiguous.
 		return evidenceReattestError()
 	}
 
@@ -827,6 +833,16 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 		return &commandError{code: 1, message: "evidence reattest verify: signature required", printed: true}
 	}
 
+	if result.RuleCount > 0 && len(rerunWorklistRaw) == 0 && !audit {
+		fmt.Fprintln(stderr, "evidence reattest verify: FAIL: this statement renews at least one rule; the publish check needs a worklist this job produced itself (--rerun-worklist), or pass --audit to recheck without one, which is not a publish check")
+		return &commandError{code: 1, message: "evidence reattest verify: independent worklist required", printed: true}
+	}
+
+	verdict := "OK"
+	if audit {
+		verdict = "AUDIT ONLY, not a publish check:"
+	}
+
 	if signatureFlagsGiven {
 		envelopeRaw, err := readCanonicalInput(envelopePath, evidencereattest.MaxEnvelopeBytes)
 		if err != nil {
@@ -841,12 +857,12 @@ func runEvidenceReattestVerify(args []string, stdout, stderr io.Writer) error {
 		}
 		keyIDs := append([]string(nil), sig.SignerKeyIDs...)
 		sort.Strings(keyIDs)
-		fmt.Fprintf(stdout, "evidence reattest verify: OK role=%s rules=%d sampled=%d notExtended=%d signedBy=%s\n",
-			sig.SignerRole, result.RuleCount, result.SampledCount, result.NotExtendedCount, strings.Join(keyIDs, ","))
+		fmt.Fprintf(stdout, "evidence reattest verify: %s role=%s rules=%d sampled=%d notExtended=%d signedBy=%s\n",
+			verdict, sig.SignerRole, result.RuleCount, result.SampledCount, result.NotExtendedCount, strings.Join(keyIDs, ","))
 		return nil
 	}
-	fmt.Fprintf(stdout, "evidence reattest verify: OK rules=%d sampled=%d notExtended=%d (nothing renewed; no signature required)\n",
-		result.RuleCount, result.SampledCount, result.NotExtendedCount)
+	fmt.Fprintf(stdout, "evidence reattest verify: %s rules=%d sampled=%d notExtended=%d (nothing renewed; no signature required)\n",
+		verdict, result.RuleCount, result.SampledCount, result.NotExtendedCount)
 	return nil
 }
 

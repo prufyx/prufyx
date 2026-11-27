@@ -211,7 +211,7 @@ func TestEvidenceReattestVerifyExitCodes(t *testing.T) {
 	}
 	writeFile(t, badEnvelope, bytes.Replace(raw, []byte(parsed.Signatures[0].Sig), sig, 1))
 
-	sigFlags := []string{"--envelope", f.envelope, "--trust-root", f.trustRoot, "--trust-root-digest", f.trustRootDigest}
+	sigFlags := []string{"--envelope", f.envelope, "--trust-root", f.trustRoot, "--trust-root-digest", f.trustRootDigest, "--rerun-worklist", f.worklist}
 	// chained cases run with the statement and its envelope appended to the
 	// statement chain, as the publish gate sees a merged change.
 	setChain := func(on bool) {
@@ -282,6 +282,75 @@ func TestEvidenceReattestVerifyExitCodes(t *testing.T) {
 	}
 }
 
+// A signed human statement that renews a rule passes only against an
+// independent worklist; --audit rechecks it without one and never reports OK.
+func TestEvidenceReattestVerifyNeedsRerunWorklistOrAudit(t *testing.T) {
+	f := newReattestFixture(t)
+	for from, to := range map[string]string{filepath.Join(f.out, "statement.json"): "0001.statement.json", f.envelope: "0001.statement.sig.json"} {
+		raw, err := os.ReadFile(from)
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(f.chain, to), raw)
+	}
+	sig := []string{"--envelope", f.envelope, "--trust-root", f.trustRoot, "--trust-root-digest", f.trustRootDigest}
+	with := func(extra ...string) []string {
+		return f.verifyArgs(append(append([]string(nil), sig...), extra...)...)
+	}
+	empty := filepath.Join(f.dir, "empty-worklist.json")
+	writeFile(t, empty, nil)
+	wrongPin := []string{"--envelope", f.envelope, "--trust-root", f.trustRoot, "--trust-root-digest", "sha256:" + strings.Repeat("0", 64), "--audit"}
+	for _, tc := range []struct {
+		name, wantStderr string
+		args             []string
+		want             int
+	}{
+		{"no rerun worklist", "--rerun-worklist", with(), 1},
+		{"empty rerun worklist path", "--rerun-worklist", with("--rerun-worklist", ""), 1},
+		{"empty rerun worklist file", "", with("--rerun-worklist", empty), -2},
+		{"audit false", "--rerun-worklist", with("--audit=false"), 1},
+		{"audit with a rerun worklist", "", with("--audit", "--rerun-worklist", f.worklist), 2},
+		{"audit with structural only", "", f.verifyArgs("--audit", "--structural-only"), 2},
+		{"audit without a signature", "are required", f.verifyArgs("--audit", "--trust-root", f.trustRoot, "--trust-root-digest", f.trustRootDigest), 1},
+		{"audit with a wrong pin", "", f.verifyArgs(wrongPin...), -2},
+	} {
+		var stdout, stderr bytes.Buffer
+		got := exitCode(run(tc.args, &stdout, &stderr))
+		// -2 stands for any refusal: the input is rejected before or by the
+		// checks, and the exit code is not what this case is about.
+		if (tc.want == -2 && got == 0) || (tc.want != -2 && got != tc.want) {
+			t.Fatalf("%s: exit code %d, want %d (stderr %q)", tc.name, got, tc.want, stderr.String())
+		}
+		if stdout.Len() != 0 {
+			t.Fatalf("%s: a refusal wrote to stdout: %q", tc.name, stdout.String())
+		}
+		if !strings.Contains(stderr.String(), tc.wantStderr) {
+			t.Fatalf("%s: stderr %q does not contain %q", tc.name, stderr.String(), tc.wantStderr)
+		}
+	}
+
+	var stdout, stderr bytes.Buffer
+	if err := run(with("--audit"), &stdout, &stderr); err != nil {
+		t.Fatalf("audit: %v %s", err, stderr.String())
+	}
+	if out := stdout.String(); !strings.Contains(out, "evidence reattest verify: AUDIT ONLY, not a publish check: role=human rules=1") || strings.Contains(out, "OK") {
+		t.Fatalf("audit output %q", out)
+	}
+
+	// An audit still needs the statement to be in the chain.
+	if err := os.Remove(filepath.Join(f.chain, "0001.statement.json")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(f.chain, "0001.statement.sig.json")); err != nil {
+		t.Fatal(err)
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if got := exitCode(run(with("--audit"), &stdout, &stderr)); got != 1 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "not appended to the statement chain") {
+		t.Fatalf("audit outside the chain: exit %d, stdout %q stderr %q", got, stdout.String(), stderr.String())
+	}
+}
+
 func TestEvidenceReattestVerifyUsesSignedStatementChain(t *testing.T) {
 	f := newReattestFixture(t)
 	copyFile := func(from, to string) {
@@ -293,7 +362,7 @@ func TestEvidenceReattestVerifyUsesSignedStatementChain(t *testing.T) {
 	}
 	copyFile(filepath.Join(f.out, "statement.json"), filepath.Join(f.chain, "0001.statement.json"))
 	copyFile(f.envelope, filepath.Join(f.chain, "0001.statement.sig.json"))
-	sigFlags := []string{"--envelope", f.envelope, "--trust-root", f.trustRoot, "--trust-root-digest", f.trustRootDigest}
+	sigFlags := []string{"--envelope", f.envelope, "--trust-root", f.trustRoot, "--trust-root-digest", f.trustRootDigest, "--rerun-worklist", f.worklist}
 
 	var stdout, stderr bytes.Buffer
 	if err := run(f.verifyArgs(sigFlags...), &stdout, &stderr); err != nil {

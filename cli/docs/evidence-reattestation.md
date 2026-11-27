@@ -110,7 +110,9 @@ cp "$PWD/out/$SEQ/rules.next.json"    "$PWD/current-rules.json"
 
 # 5. Deterministic, CI-usable gate; non-zero exit on any violation. CI runs
 #    it on the change, with the base branch's chain directory and rule pack
-#    checked out separately (see "The base branch's chain" below).
+#    checked out separately (see "The base branch's chain" below). The
+#    verifying job produces its own worklist first (see "The gate" below).
+prufyx-maintainer evidence repin --state "$PWD/verify-state" --output "$PWD/rerun-worklist.json"
 prufyx-maintainer evidence reattest verify \
   --statement "$PWD/chain/cncf/$SEQ.statement.json" --prior-pack "$BASE/current-rules.json" \
   --next-pack "$PWD/current-rules.json" --worklist "$PWD/worklist.json" --pack cncf \
@@ -118,13 +120,15 @@ prufyx-maintainer evidence reattest verify \
   --statement-chain-dir "$PWD/chain/cncf" --base-statement-chain-dir "$BASE/chain/cncf" \
   --review-record-dir "$PWD/reviews" \
   --envelope "$PWD/chain/cncf/$SEQ.statement.sig.json" \
-  --trust-root "$PWD/evidence-reattest-trust-root.json" --trust-root-digest "$ROOT_DIGEST"
+  --trust-root "$PWD/evidence-reattest-trust-root.json" --trust-root-digest "$ROOT_DIGEST" \
+  --rerun-worklist "$PWD/rerun-worklist.json"
 ```
 
 ### The gate: what it trusts
 
-The publish gate is `verify` with `--envelope`, `--trust-root` and
-`--trust-root-digest`, run on the change with the statement already
+The publish gate is `verify` with `--envelope`, `--trust-root`,
+`--trust-root-digest` and, whenever the statement renews a rule,
+`--rerun-worklist`, run on the change with the statement already
 appended. It accepts a statement that renews a rule or records an
 individual review only when the change's chain is the base branch's chain
 plus exactly that statement: a renewal merged without its signed chain
@@ -134,10 +138,10 @@ is the only way to run `verify` on a statement that is not appended yet; it
 never exits zero.
 
 The worklist is input the signing job supplied; the statement binds its
-digest but nothing authenticates its content. For an automated statement the
-gate therefore must not rely on it alone. The CI verify job runs
-`evidence repin` itself, independently of the signing job, and passes the
-result as `--rerun-worklist`:
+digest but nothing authenticates its content. The gate therefore must not
+rely on it alone, for a human or an automated statement. The verifying job
+runs `evidence repin` itself, independently of the signing job, and passes
+the result as `--rerun-worklist`:
 
 ```sh
 prufyx-maintainer evidence repin --state "$PWD/verify-state" --output "$PWD/rerun-worklist.json"
@@ -150,8 +154,13 @@ and source with the same class, pinned commit, compared commit and, for the
 release-line or tag-line baseline, the same baseline, line, pinned tag and
 compared tag, backed by a resolved line record of the same basis in that
 worklist (V9). Any missing or differing
-citation fails the gate. The command refuses to pass an automated statement
-that renews rules when `--rerun-worklist` is not given. Because both runs
+citation fails the gate. The command refuses to pass a statement that renews
+rules when `--rerun-worklist` is not given. The one exception is `--audit`,
+which rechecks a signed human statement without an independent worklist: it
+prints `AUDIT ONLY, not a publish check:` instead of `OK`, exits zero when
+the checks it can run pass, and must never be used as a publish gate. It is
+refused together with `--rerun-worklist` or `--structural-only`, and it does
+not accept an automated statement that renews rules. Because both runs
 read the live upstream, run the verify job soon after the signing job; a
 legitimate difference between the two runs (for example a release published
 in between) fails closed and the statement is simply prepared again.
@@ -214,8 +223,8 @@ prufyx-maintainer evidence reattest sign --role automation \
 ```
 
 Step 4 is unchanged: an automated statement is appended to the same chain.
-Step 5 takes the same arguments plus `--rerun-worklist`, a worklist the
-verifying job produced itself (see [The gate](#the-gate-what-it-trusts)).
+Step 5 takes the same arguments, including `--rerun-worklist`, a worklist
+the verifying job produced itself (see [The gate](#the-gate-what-it-trusts)).
 
 `prepare` and `verify` never wire a statement into the runtime pack loader
 or the embedded rule pack. Publishing a re-attested pack (running
@@ -492,8 +501,9 @@ including the mechanical-rule exclusion, `NOT_YET_DUE` and
   (`v3`) worklist, and so does the sample review; the independent worklist
   (V9) must be `v3` too. `verify` recomputes a signed statement from a
   retained earlier worklist (`v2` only, for an automated statement) only
-  when it is given no independent worklist and not `--structural-only`. That
-  audit is never the publish gate. The command still demands
+  when it is given no independent worklist and not `--structural-only`; for
+  a statement that renews rules the command allows that only with `--audit`.
+  That audit is never the publish gate. The command still demands
   `--rerun-worklist` for an automated statement that renews rules, so it does
   not audit one over an earlier worklist.
 - **No sample.** `sampledForFullReview` is always empty, and must be: a
@@ -848,7 +858,9 @@ the first violation it finds:
 `verify` also requires a valid signature under a pinned trust root whenever
 the statement renews at least one rule or records an individual review
 (`--envelope` together with
-`--trust-root` and `--trust-root-digest`). `--trust-root` and
+`--trust-root` and `--trust-root-digest`). Whenever the statement renews a
+rule it also requires `--rerun-worklist`, unless `--audit` is given (see
+[The gate](#the-gate-what-it-trusts)). `--trust-root` and
 `--trust-root-digest` always come as a pair; `--envelope` without them, or
 one of them without the other, is a usage error (exit 2). Pass
 `--structural-only` to run only the checks above, deliberately without
@@ -863,9 +875,12 @@ empty, because the chain's own signatures are always verified; it rejects
 `--envelope`.
 
 Exit codes: `0` — every check passed and, when anything was renewed, the
-signature verified; `1` — an invariant or the signature failed, a
-signature was required but not supplied, or `--structural-only` was used;
-`2` — a usage error (including a missing `--base-statement-chain-dir`) or
+signature verified (with `--audit` the output says `AUDIT ONLY` and the run
+is not a publish check); `1` — an invariant or the signature failed, a
+signature or an independent worklist was required but not supplied, or
+`--structural-only` was used; `2` — a usage error (including a missing
+`--base-statement-chain-dir`, or `--audit` with `--rerun-worklist` or
+`--structural-only`) or
 an unreadable or malformed input file (including a bad chain or review
 record directory).
 
