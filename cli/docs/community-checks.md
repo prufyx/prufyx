@@ -684,10 +684,13 @@ contains a removed option. It is a local usability route for the existing
 `etcd.v2-proxy-flags-removed.3-6` and `etcd.experimental-flags-unsupported.*`
 rules; it does not add a project, rule, or upgrade-pair claim.
 
-For the reviewed `3.5.17` to `3.6.0` transition it checks the eight named
-v2/proxy options (`enable-v2`, `experimental-enable-v2v3`, `proxy`,
-`proxy-failure-wait`, `proxy-refresh-interval`, `proxy-dial-timeout`,
-`proxy-write-timeout`, `proxy-read-timeout`). For the reviewed `3.2.32`,
+The `3.5.17` to `3.6.0` rule about the eight v2/proxy options (`enable-v2`,
+`experimental-enable-v2v3`, `proxy`, `proxy-failure-wait`,
+`proxy-refresh-interval`, `proxy-dial-timeout`, `proxy-write-timeout`,
+`proxy-read-timeout`) is withdrawn: the upstream 3.6 upgrade guide requires
+every 3.5 member to run `3.5.32` or later first. That transition always
+reports `UNKNOWN` (`RULE_EVIDENCE_WITHDRAWN`), including for an argv that
+holds one of the eight options. For the reviewed `3.2.32`,
 `3.3.27`, `3.4.45`, `3.5.33`, and `3.6.14` origins to `3.7.1` it checks the
 finite documented set of 3.7-removed experimental flag names.
 
@@ -705,10 +708,8 @@ chmod 600 etcd-argv.json
 Every option in the declared argv must resolve against the reviewed source
 grammar for that pair; an option outside the reviewed known-flag set, a
 non-`--name=value` token, or `effectiveArgvDeclared: false` keeps the claim
-`UNKNOWN` rather than guessing at an unmodelled flag's arity. For the
-`3.5.17` to `3.6.0` pair the rule only ever proves presence of a removed
-option: a fully resolved argv containing none of the eight still stays
-`UNKNOWN`, never a negative-presence PASS. For the five `3.7.1` origins, an
+`UNKNOWN` rather than guessing at an unmodelled flag's arity. For the five
+`3.7.1` origins, an
 argv containing none of the finite removed experimental names is a scoped
 `PASS` for that predicate alone; four of those five origins additionally match
 a separate, unconditional minor-version-skip blocker outside this route's
