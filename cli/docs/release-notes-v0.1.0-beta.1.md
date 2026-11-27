@@ -24,7 +24,7 @@ that a whole upgrade is safe.
 
 <!-- release-notes:begin -->
 
-Changes from `v0.1.0-beta.0` (70f67cac4a3b) to `v0.1.0-beta.1` (481c5dd4fd57), computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.
+Changes from `v0.1.0-beta.0` (70f67cac4a3b) to `v0.1.0-beta.1` (15029d0dd40c), computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.
 
 ### Summary
 
@@ -53,7 +53,7 @@ The figures for `v0.1.0-beta.0` in this section are approximate: that release ha
 
 ### Coverage since the previous release
 
-previous = tag `v0.1.0-beta.0`, commit 70f67cac4a3b, counts sha256 `db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3`; current counts sha256 `3c525070eb38b1605fa4af31a5756bfa559332c5dddbfb3280805fd523df2019`.
+previous = tag `v0.1.0-beta.0`, commit 70f67cac4a3b, counts sha256 `db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3`; current counts sha256 `0328ecaf19e0b91043b5f33bb9ebc1b752a0d146781de248f12bfa52c33000e0`.
 
 The counts carry the number of valid rules per project, not rule ids, so rules added are the per-project change of that number.
 
