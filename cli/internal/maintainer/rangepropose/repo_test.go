@@ -188,6 +188,59 @@ func TestGitRunsWithAFixedEnvironment(t *testing.T) {
 	}
 }
 
+func TestGitIsNotSearchedOnTheCallersPath(t *testing.T) {
+	f := newFixture(t, standard())
+	o := options(t, f.bare(), standardRule(f))
+	dir := t.TempDir()
+	fake := filepath.Join(dir, "git")
+	if err := os.WriteFile(fake, []byte("#!/bin/sh\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+	wantProposal(t, run(t, o))
+	if want := []string{"/usr/bin/git", "/usr/local/bin/git", "/bin/git"}; !slices.Equal(gitBinaries, want) {
+		t.Fatalf("git places: %v", gitBinaries)
+	}
+	plain := filepath.Join(dir, "plain")
+	if err := os.WriteFile(plain, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if bin, err := findGit([]string{filepath.Join(dir, "missing"), dir, plain}); err == nil {
+		t.Fatalf("found %q", bin)
+	}
+	if bin, err := findGit([]string{plain, fake}); err != nil || bin != fake {
+		t.Fatalf("found %q: %v", bin, err)
+	}
+}
+
+// The tool reads the pack as one file, so the pack of this repository must stay
+// under the read cap.
+func TestTheRulePackFitsTheReadCap(t *testing.T) {
+	info, err := os.Stat(filepath.Join("..", "..", "cncfcheck", "data", filepath.Base(RulesPath)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Size() > maxFileBytes {
+		t.Fatalf("the rule pack holds %d bytes, over the read cap of %d", info.Size(), maxFileBytes)
+	}
+}
+
+func TestAnOversizedRulePackFailsTheRun(t *testing.T) {
+	f := newFixture(t, standard())
+	pack := packJSON(t, standardRule(f))
+	clone := f.bare()
+	for name, tc := range map[string]struct {
+		size int
+		ok   bool
+	}{"at the cap": {maxFileBytes, true}, "over the cap": {maxFileBytes + 1, false}} {
+		repo, commit := rulesRepo(t, pack+strings.Repeat(" ", tc.size-len(pack)))
+		_, err := Run(context.Background(), Options{RulesRepo: repo, RulesCommit: commit, Config: config(clone)})
+		if (err == nil) != tc.ok {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}
+
 func TestReadCountsAreCapped(t *testing.T) {
 	f := newFixture(t, standard())
 	clone := f.bare()

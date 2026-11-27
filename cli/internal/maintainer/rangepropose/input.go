@@ -153,8 +153,10 @@ type packRule struct {
 }
 
 type ruleShape struct {
-	ID      string `json:"id"`
-	Subject struct {
+	ID          string          `json:"id"`
+	Operator    string          `json:"operator"`
+	AppliesWhen json.RawMessage `json:"appliesWhen"`
+	Subject     struct {
 		Component string          `json:"component"`
 		Chart     json.RawMessage `json:"chart"`
 		From      string          `json:"from"`

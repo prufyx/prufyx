@@ -8,7 +8,9 @@
 package rangepropose
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -75,6 +77,8 @@ const (
 	ReasonTargetOnly      = "TARGET_ONLY"
 	ReasonFromOnly        = "FROM_ONLY"
 	ReasonSpanNotStable   = "SPAN_NOT_STABLE"
+	ReasonOperator        = "INELIGIBLE_OPERATOR"
+	ReasonAppliesWhen     = "CONDITIONAL_RULE"
 )
 
 // Observation results. Only resultSameFile counts as stable.
@@ -392,7 +396,7 @@ func evaluate(ctx context.Context, config Config, repos map[string]openedRepo, r
 			HighestTag: tags[len(tags)-1].name, TagListDigest: digest([]byte(list.String())), ExpectedListGiven: project.Tags != nil})
 	}
 
-	var reasons []Reason
+	reasons := ineligible(r.shape)
 	counted := map[string][]string{} // side name to counted source ids
 	unstable := map[string]bool{}
 	for i, s := range sources {
@@ -518,6 +522,34 @@ func evaluate(ctx context.Context, config Config, repos map[string]openedRepo, r
 		}
 	}
 	return p, nil, nil
+}
+
+// ineligible is the closed eligibility check. Only the two operators below can
+// be proposed, and only without applicability conditions: the tool evaluates
+// neither another operator nor appliesWhen, so such a rule goes to review.
+func ineligible(shape ruleShape) []Reason {
+	var reasons []Reason
+	switch shape.Operator {
+	case "forbid_predicate_value", constraintengine.OperatorForbidSetMember:
+	default:
+		reasons = append(reasons, Reason{Code: ReasonOperator,
+			Detail: clean(fmt.Sprintf("the tool proposes no range for operator %q", shape.Operator))})
+	}
+	if raw := shape.AppliesWhen; len(raw) != 0 {
+		// Only an absent member or an empty array is unconditional; null or
+		// any other value is not.
+		var list []json.RawMessage
+		if err := json.Unmarshal(raw, &list); err != nil || list == nil || len(list) != 0 {
+			var compact bytes.Buffer
+			text := "unreadable"
+			if json.Compact(&compact, raw) == nil {
+				text = compact.String()
+			}
+			reasons = append(reasons, Reason{Code: ReasonAppliesWhen,
+				Detail: clean("the tool does not evaluate appliesWhen: " + text)})
+		}
+	}
+	return reasons
 }
 
 // citedSpan verifies a source reference against the clone and returns the

@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"path"
+	"regexp"
 	"strings"
 	"unicode"
 )
@@ -57,37 +58,35 @@ func parseSourceURL(raw string) (location, bool) {
 	return location{repo: parts[0] + "/" + parts[1], commit: parts[2], path: strings.Join(parts[3:], "/")}, true
 }
 
-var noteExtensions = map[string]bool{"": true, ".md": true, ".markdown": true, ".mdx": true, ".rst": true, ".adoc": true, ".txt": true}
+var noteExtensions = map[string]bool{".md": true, ".markdown": true, ".mdx": true, ".rst": true, ".adoc": true, ".txt": true}
+
+var noteNames = map[string]bool{"changes": true, "news": true, "history": true, "changelog": true, "release-notes": true, "release_notes": true, "releasenotes": true}
 
 var noteDirectories = map[string]bool{"changelog": true, "changelogs": true, "release-notes": true, "release_notes": true, "releasenotes": true}
 
+var (
+	versionedNoteRE = regexp.MustCompile(`^(changelog|release-notes|release_notes)[-_.]v?[0-9]+(\.[0-9]+)*$`)
+	versionStemRE   = regexp.MustCompile(`^v?[0-9]+(\.[0-9]+)*$`)
+)
+
 // isReleaseNotes is the closed classification of changelog and release note
-// files. It needs a text extension and either a known file name or a known
-// directory. Everything else counts as code.
+// files. It needs a text extension and either a closed file name (optionally
+// followed by a version) or a version as the name of a file directly in a
+// notes directory. Everything else counts as code, including any file without
+// an extension and any other file in a notes directory.
 func isReleaseNotes(p string) bool {
-	base := strings.ToLower(path.Base(p))
+	lower := strings.ToLower(p)
+	base := path.Base(lower)
 	ext := path.Ext(base)
 	// "changelog-1.24" has no text extension; ".24" is part of the name.
 	if !noteExtensions[ext] {
 		return false
 	}
 	stem := strings.TrimSuffix(base, ext)
-	switch stem {
-	case "changes", "news", "history", "changelog", "release-notes", "release_notes", "releasenotes":
+	if noteNames[stem] || versionedNoteRE.MatchString(stem) {
 		return true
 	}
-	for _, prefix := range []string{"changelog-", "changelog_", "changelog.", "release-notes-", "release_notes_"} {
-		if strings.HasPrefix(stem, prefix) {
-			return true
-		}
-	}
-	segments := strings.Split(strings.ToLower(p), "/")
-	for _, s := range segments[:len(segments)-1] {
-		if noteDirectories[s] {
-			return true
-		}
-	}
-	return false
+	return noteDirectories[path.Base(path.Dir(lower))] && versionStemRE.MatchString(stem)
 }
 
 // splitLines splits after every newline and keeps it. A final line without a

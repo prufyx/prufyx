@@ -92,7 +92,7 @@ func TestEngineRejectsTheAdjacentCandidateAsWritten(t *testing.T) {
 }
 
 func TestNonAdjacentCandidateIsRefusedByItsStatusField(t *testing.T) {
-	for name, target := range map[string]string{"skipped minor": "1.6", "new major": "2.0"} {
+	for name, target := range map[string]string{"skipped minor": "1.6", "new major": "2.0", "new major with the next minor": "2.5"} {
 		t.Run(name, func(t *testing.T) {
 			releases := standard()[:3]
 			releases = append(releases, release{"v" + target + ".0", files{"flags.go": newCode}})
@@ -166,6 +166,78 @@ func TestReleaseNotesAreListedAndDoNotCount(t *testing.T) {
 	}
 }
 
+// A code file that only looks like release notes by its name or directory is
+// compared at every release like any other code.
+func TestCodeThatLooksLikeReleaseNotesIsChecked(t *testing.T) {
+	for _, path := range []string{"docs/changelog/CMakeLists.txt", "changelog/generate", "scripts/history", "bin/news", "tools/changes"} {
+		t.Run(path, func(t *testing.T) {
+			releases := with(with(standard(), "v1.5.0", path, "a\n"), "v1.5.1", path, "b\n")
+			f := newFixture(t, releases)
+			clone := f.bare()
+			sources := append(f.both(), f.source("extra", "v1.5.0", path, 1, 1))
+			wantReview(t, run(t, options(t, clone, rule("flag-removed", "1.4.1", "1.5.0", sources))), ReasonSpanNotStable)
+			// In another repository it cannot be dropped either.
+			sources = append(f.both(), sourceAt("extra", "acme/other", strings.Repeat("a", 40), path, "x\n", 1, 1))
+			wantReview(t, run(t, options(t, clone, rule("flag-removed", "1.4.1", "1.5.0", sources))), ReasonUncheckedSource)
+		})
+	}
+}
+
+func TestOnlyUnconditionalEligibleOperatorsAreProposed(t *testing.T) {
+	f := newFixture(t, standard())
+	clone := f.bare()
+	when := []any{map[string]any{"side": "current", "component": testComponent, "factId": "component.demo.mode", "boolValue": true}}
+	set := func(r map[string]any) {
+		delete(r, "condition")
+		r["operator"] = "forbid_set_member"
+		r["setCondition"] = map[string]any{"side": "proposed", "component": testComponent, "factId": testFact, "members": []string{"x"}}
+	}
+	operator := func(name string) func(map[string]any) {
+		return func(r map[string]any) { delete(r, "condition"); r["operator"] = name }
+	}
+	for name, tc := range map[string]struct {
+		change func(map[string]any)
+		code   string
+	}{
+		"component version":        {operator("require_component_version"), ReasonOperator},
+		"intermediate version":     {operator("require_intermediate_version"), ReasonOperator},
+		"target version":           {operator("forbid_target_version"), ReasonOperator},
+		"one way notice":           {operator("notice_one_way"), ReasonOperator},
+		"unknown operator":         {operator("something_new"), ReasonOperator},
+		"case variant":             {operator("Forbid_Predicate_Value"), ReasonOperator},
+		"no operator":              {func(r map[string]any) { delete(r, "operator") }, ReasonOperator},
+		"conditional predicate":    {func(r map[string]any) { r["appliesWhen"] = when }, ReasonAppliesWhen},
+		"conditional set member":   {func(r map[string]any) { set(r); r["appliesWhen"] = when }, ReasonAppliesWhen},
+		"null appliesWhen":         {func(r map[string]any) { r["appliesWhen"] = nil }, ReasonAppliesWhen},
+		"object appliesWhen":       {func(r map[string]any) { r["appliesWhen"] = map[string]any{} }, ReasonAppliesWhen},
+		"empty element":            {func(r map[string]any) { r["appliesWhen"] = []any{nil} }, ReasonAppliesWhen},
+		"case variant appliesWhen": {func(r map[string]any) { delete(r, "appliesWhen"); r["APPLIESWHEN"] = when }, ReasonAppliesWhen},
+	} {
+		t.Run(name, func(t *testing.T) {
+			changed := standardRule(f)
+			tc.change(changed)
+			v := wantReview(t, run(t, options(t, clone, changed)), tc.code)
+			if len(v.Reasons) != 1 || len(v.Sources) != 2 {
+				t.Fatalf("review: %s", marshal(t, v))
+			}
+			if tc.code == ReasonAppliesWhen && !strings.Contains(v.Reasons[0].Detail, "does not evaluate appliesWhen: ") {
+				t.Fatalf("detail: %s", v.Reasons[0].Detail)
+			}
+		})
+	}
+	for name, change := range map[string]func(map[string]any){
+		"predicate":          func(map[string]any) {},
+		"set member":         set,
+		"absent appliesWhen": func(r map[string]any) { delete(r, "appliesWhen") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			changed := standardRule(f)
+			change(changed)
+			wantProposal(t, run(t, options(t, clone, changed)))
+		})
+	}
+}
+
 func TestAnUncheckableSourceSendsTheRuleToReview(t *testing.T) {
 	releases := append(standard(), release{"v1.3.0", files{"flags.go": oldCode + "// 1.3\n"}},
 		release{"v1.5.2-rc.1", files{"flags.go": newCode + "// rc\n"}})
@@ -195,10 +267,14 @@ func TestAnUncheckableSourceSendsTheRuleToReview(t *testing.T) {
 
 func TestReleaseNoteClassificationIsClosed(t *testing.T) {
 	for path, want := range map[string]bool{
-		"CHANGELOG.md": true, "CHANGELOG-1.24.md": true, "docs/CHANGES.rst": true, "NEWS": true, "HISTORY.txt": true,
-		"changelogs/current.yaml": false, "changelogs/1.2.md": true, "release-notes/v1.md": true, "site/releasenotes/a.adoc": true,
+		"CHANGELOG.md": true, "CHANGELOG-1.24.md": true, "docs/CHANGES.rst": true, "NEWS.md": true, "HISTORY.txt": true,
+		"changelogs/current.yaml": false, "changelogs/1.2.md": true, "release-notes/v1.md": true, "site/releasenotes/1.2.0.adoc": true,
+		"site/releasenotes/a.adoc": false, "docs/changelog/CMakeLists.txt": false, "changelog/requirements.txt": false,
+		"changelog/Makefile": false, "changelog/generate": false, "changelogs/1.2/schema.md": false, "changelogs/1.2": false,
+		"NEWS": false, "CHANGELOG": false, "scripts/history": false, "bin/news": false, "tools/changes": false,
+		"changelog-gen.txt": false, "changelog.d/CMakeLists.txt": false, "release_notes_tool.txt": false, "docs/1.2.md": false,
 		"pkg/changelog/changelog.go": false, "changelog.go": false, "history.py": false, "release-notes.yaml": false,
-		"docs/upgrade.md": false, "notes/v1.md": false, "changes/config.md": false, "newsfeed.md": false, "release-notes": true,
+		"docs/upgrade.md": false, "notes/v1.md": false, "changes/config.md": false, "newsfeed.md": false, "release-notes": false,
 		"cmd/history/main.go": false,
 	} {
 		if got := isReleaseNotes(path); got != want {

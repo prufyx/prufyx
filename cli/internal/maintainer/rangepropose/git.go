@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -23,6 +24,19 @@ const (
 
 // errOutputTooLarge reports a git answer over maxGitOutput.
 var errOutputTooLarge = errors.New("git output too large")
+
+// gitBinaries are the only places git is taken from; the caller's PATH is
+// never searched.
+var gitBinaries = []string{"/usr/bin/git", "/usr/local/bin/git", "/bin/git"}
+
+func findGit(candidates []string) (string, error) {
+	for _, c := range candidates {
+		if st, err := os.Stat(c); err == nil && st.Mode().IsRegular() && st.Mode()&0o111 != 0 {
+			return c, nil
+		}
+	}
+	return "", errors.New("git binary not found")
+}
 
 // gitEnv is the fixed environment of every git command. Nothing of the
 // caller's environment reaches git: no ambient configuration, no network
@@ -62,7 +76,11 @@ func gitArgv(gitDir string, args ...string) []string {
 func execGit(ctx context.Context, gitDir string, stderr io.Writer, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, gitTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", gitArgv(gitDir, args...)...)
+	bin, err := findGit(gitBinaries)
+	if err != nil {
+		return nil, err
+	}
+	cmd := exec.CommandContext(ctx, bin, gitArgv(gitDir, args...)...)
 	cmd.Env = gitEnv()
 	out := &boundedBuffer{}
 	cmd.Stdout, cmd.Stderr = out, stderr
