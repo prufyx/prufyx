@@ -8,8 +8,14 @@ import re
 import spec
 
 _GOFLAG = re.compile(r"^flag provided but not defined: -(\S+)[ \t\r]*$", re.M)
-_PFLAG_LONG = re.compile(r"unknown flag: --([^\s\"'\\]+)")
-_PFLAG_SHORT = re.compile(r"unknown shorthand flag: '(.)' in -([^\s\"'\\]+)")
+# The whole line: as the command library prints it, or as the program's exit
+# log line does.
+_PFLAG_PREFIX = (r"^(?:Error: |[EF]\d{4} \d{2}:\d{2}:\d{2}\.\d{6} +\d+ "
+                 r"vttablet\.go:\d+\] )")
+_PFLAG_LONG = re.compile(
+    _PFLAG_PREFIX + r"unknown flag: --([^\s\"'\\]+)[ \t\r]*$", re.M)
+_PFLAG_SHORT = re.compile(
+    _PFLAG_PREFIX + r"unknown shorthand flag: '(.)' in -([^\s\"'\\]+)[ \t\r]*$", re.M)
 # The whole message, only after one of the two prefixes the program prints.
 _KINGPIN = re.compile(
     r"(?:^thanos: error: |^error parsing commandline arguments: .*\]: )"

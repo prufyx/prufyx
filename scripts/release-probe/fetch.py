@@ -164,13 +164,31 @@ def tar_member(data, path):
         return tar.extractfile(found[0]).read()
 
 
+SIGNATURE_SUFFIXES = (".asc", ".sig", ".sigstore", ".sigstore.json", ".pem",
+                      ".intoto.jsonl")
+
+
+def release_base(project, tag):
+    return "%s/releases/download/%s/" % (spec.REPOSITORIES[project], tag)
+
+
+def signature_urls(project, tag, arch):
+    """Every signature or provenance location that is looked at. A file under
+    any other name is not covered, and the record says which were checked."""
+    sums_name, name, _ = asset_names(project, tag, arch)
+    names = [n + s for n in (name, sums_name) for s in SIGNATURE_SUFFIXES]
+    return [release_base(project, tag) + n for n in names + ["multiple.intoto.jsonl"]]
+
+
 def signature_state(urls):
     """Signatures upstream publishes next to the asset. No signer is pinned,
     so a published signature cannot be verified and the release is withheld."""
     published = []
     for url in urls:
         status, _, body = http_get(url)
-        if status == 200:
+        if status == 200 and not url.endswith((".asc", ".sig")):
+            published.append(url)
+        elif status == 200:
             proc = subprocess.run(["gpg", "--batch", "--list-packets"], input=body,
                                   capture_output=True, timeout=60,
                                   env={"PATH": os.environ["PATH"],
@@ -196,8 +214,8 @@ def asset_names(project, tag, arch):
 
 def release_asset(project, tag, arch):
     """(binary bytes, record), or None when upstream lists no checksum."""
-    base = "%s/releases/download/%s/" % (spec.REPOSITORIES[project], tag)
     sums_name, name, member = asset_names(project, tag, arch)
+    base = release_base(project, tag)
     status, _, sums = http_get(base + sums_name)
     if status == 401:
         raise Withhold("checksum file needs credentials")
@@ -208,7 +226,8 @@ def release_asset(project, tag, arch):
     if status != 200:
         raise Withhold("asset listed in the checksum file is missing: " + name)
     digest = verify_sha256(data, listed)
-    published = signature_state([base + name + ".asc", base + sums_name + ".asc"])
+    checked = signature_urls(project, tag, arch)
+    published = signature_state(checked)
     if published:
         raise Withhold("upstream publishes a signature that is not verified: "
                        + "; ".join(published))
@@ -216,7 +235,9 @@ def release_asset(project, tag, arch):
     return binary, {"route": "asset", "artifact_url": base + name, "artifact_sha256": digest,
                     "checksum_source": base + sums_name,
                     "checksum_file_sha256": sha256(sums), "checksum_listed": listed,
-                    "checksum_result": "match", "signature": "none published",
+                    "checksum_result": "match",
+                    "signature": "none found at the checked URLs",
+                    "signature_urls_checked": checked,
                     "base_image": "scratch (empty)", "binary_sha256": sha256(binary)}
 
 
@@ -292,7 +313,7 @@ def resolve_image(repo, tag, arch):
         platform_digest = match[0]
         if registry_get(repo, platform_digest) is None:
             raise Withhold("platform manifest is missing")
-    return {"repository": repo, "tag": tag, "tag_digest": tag_digest,
+    return {"repository": repo, "tag": tag, "arch": arch, "tag_digest": tag_digest,
             "platform_digest": platform_digest}
 
 

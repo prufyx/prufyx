@@ -10,6 +10,7 @@ import glob
 import json
 import lzma
 import os
+import re
 import sys
 
 import fetch
@@ -43,6 +44,12 @@ def check_pair(pair, metas, rows, releases, snapshot_sha256=None, arches=spec.AR
     for extra in sorted({m.get("arch") for m in metas} | {r.get("arch") for r in rows}):
         if extra not in arches:
             errors.append("records for an unexpected platform %r" % extra)
+
+    # Every shard of every platform ran the same harness from the same commit.
+    for key in ("harness_sha256", "source_commit"):
+        values = [m.get(key) for m in metas]
+        if any(not v or v != values[0] for v in values):
+            errors.append("records lack one common " + key)
 
     for arch in arches:
         fetched = {}
@@ -95,19 +102,23 @@ def check_pair(pair, metas, rows, releases, snapshot_sha256=None, arches=spec.AR
                     refusals.append("%s %s: no accepted artifact: %s" % (
                         arch, tag, record.get("reason")))
                     continue
-                problem = _artifact_problem(record)
+                problem = _artifact_problem(conf["project"], tag, arch, record)
                 if problem:
                     refusals.append("%s %s: %s" % (arch, tag, problem))
+                markers = {}     # context: ready text of its control
                 for case in spec.cases(pair, side):
                     _check_case(conf, pair, arch, side, release, record, case, index,
-                                errors, refusals, item_fail)
+                                errors, refusals, item_fail, markers)
         for key in sorted(index, key=repr):
             errors.append("%s %s: unexpected record" % (arch, key))
 
     refusals = sorted(set(refusals))
     items = {}
     for name, failures in item_fail.items():
-        items[name] = {"survives": not (failures or refusals or errors),
+        members = spec.members(pair, name)
+        survives = bool(members) and not (failures or refusals or errors)
+        items[name] = {"survives": survives,
+                       "members": members if survives else [],
                        "probe_cases_clean": not (failures or errors),
                        "failures": len(failures), "first_failures": failures[:12]}
     return {"pair": pair,
@@ -119,23 +130,42 @@ def check_pair(pair, metas, rows, releases, snapshot_sha256=None, arches=spec.AR
             "records": len(rows)}
 
 
-def _artifact_problem(record):
+def _artifact_problem(project, tag, arch, record):
+    """The artifact must be the one of this project, tag and platform."""
     if record.get("route") == "asset":
+        try:
+            sums_name, name, _ = fetch.asset_names(project, tag, arch)
+        except fetch.Withhold:
+            return "no release asset route for " + project
+        base = fetch.release_base(project, tag)
         if record.get("checksum_result") != "match" or not record.get("artifact_sha256") \
                 or record["artifact_sha256"] != record.get("checksum_listed"):
             return "asset digest is not matched against the upstream checksum"
+        if record.get("artifact_url") != base + name \
+                or record.get("checksum_source") != base + sums_name:
+            return "asset is not the one of this release and platform"
+        if record.get("signature_urls_checked") != fetch.signature_urls(project, tag, arch):
+            return "signature locations were not all checked"
     elif record.get("route") == "image":
-        digest = record.get("image", {}).get("platform_digest", "")
-        if not digest.startswith("sha256:") or not record.get("artifact_url", "").endswith(
-                "@" + digest):
+        # No image route where upstream publishes asset checksums.
+        repository = fetch.IMAGES.get(project)
+        if repository is None:
+            return "no image route for " + project
+        image = record.get("image") or {}
+        digest = image.get("platform_digest", "")
+        if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest) \
+                or record.get("artifact_url") != "%s@%s" % (repository, digest):
             return "image is not pinned by manifest digest"
+        if image.get("repository") != repository or image.get("tag") != tag \
+                or image.get("arch") != arch:
+            return "image is not the one of this release and platform"
     else:
         return "unknown artifact route"
     return None
 
 
 def _check_case(conf, pair, arch, side, release, record, case, index, errors, refusals,
-                item_fail):
+                item_fail, markers):
     tag = release["tag"]
     env = spec.case_env(pair, side, arch)
     seen = []
@@ -172,6 +202,15 @@ def _check_case(conf, pair, arch, side, release, record, case, index, errors, re
             failures.append("%s: %s" % (label, problem))
     if len(seen) == spec.REPEATS and any(s != seen[0] for s in seen[1:]):
         failures.append("%s %s %s: repeats differ" % (arch, tag, case["id"]))
+    # The case with an item must reach the same ready text as its control.
+    if case["kind"] in ("F0", "T0"):
+        if len(seen) == spec.REPEATS and not failures:
+            markers[case["context"]] = seen[0].get("ready_text")
+    elif case["kind"] in ("F1", "T3"):
+        want = markers.get(case["context"])
+        if not want or any(s.get("ready_text") != want for s in seen):
+            failures.append("%s %s %s: ready text differs from the control's" % (
+                arch, tag, case["id"]))
     if not failures:
         return
     if case["expect"] == "version":

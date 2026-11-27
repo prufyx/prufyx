@@ -191,9 +191,19 @@ def forms(item, name):
     return out
 
 
-def _case(cid, kind, context, argv, expect, item=None, token=None, style=None):
+def _case(cid, kind, context, argv, expect, item=None, token=None, style=None,
+          evidence=True):
     return {"id": cid, "kind": kind, "context": context, "argv": argv,
-            "expect": expect, "item": item, "token": token, "style": style}
+            "expect": expect, "item": item, "token": token, "style": style,
+            "evidence": evidence}
+
+
+def members(pair, item):
+    """The spellings a passing item may claim: the '--' forms whose rejection
+    names the whole item."""
+    return sorted({"--" + c["token"] for c in cases(pair, "to")
+                   if c["kind"] == "T1" and c["item"] == item
+                   and c["style"] == "long" and c["evidence"]})
 
 
 def cases(pair, side):
@@ -208,6 +218,11 @@ def cases(pair, side):
         if conf["parser"] == "kingpin" and style == "short":
             return name[0]
         return name
+
+    def proves(style):
+        """False where the message cannot name the item. Such a case still has
+        to pass, but it is not evidence and never makes a member."""
+        return not (conf["parser"] == "kingpin" and style == "short")
 
     out = [_case("version", "version", None, ["--version"], "version")]
     if side == "from":
@@ -230,7 +245,8 @@ def cases(pair, side):
         for style, dash in (("long", "--"), ("short", "-")):
             out.append(_case("%s/T2/%s" % (ctx, style), "T2", ctx,
                              command + base + [dash + bogus + "=x"], "rejected",
-                             token=named(bogus, style), style=style))
+                             token=named(bogus, style), style=style,
+                             evidence=proves(style)))
         for item in conf["items"]:
             out.append(_case("%s/T3/%s" % (ctx, item["name"]), "T3", ctx,
                              command + base + item["retained"], "ready",
@@ -243,5 +259,6 @@ def cases(pair, side):
                         out.append(_case(
                             "%s/T1/%s/%s/%s/%s" % (ctx, item["name"], name, fid, pos),
                             "T1", ctx, full, "rejected",
-                            item=item["name"], token=named(name, style), style=style))
+                            item=item["name"], token=named(name, style), style=style,
+                            evidence=proves(style)))
     return out

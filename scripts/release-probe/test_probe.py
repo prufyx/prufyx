@@ -38,12 +38,30 @@ def good_obs(case, release):
                stderr="flag provided but not defined: -%s\nUsage:\n" % case["token"])
 
 
+def asset_record(tag, arch, project="etcd"):
+    sums_name, name, _ = fetch.asset_names(project, tag, arch)
+    base = fetch.release_base(project, tag)
+    return {"route": "asset", "checksum_result": "match", "artifact_sha256": "e",
+            "checksum_listed": "e", "artifact_url": base + name,
+            "checksum_source": base + sums_name,
+            "signature_urls_checked": fetch.signature_urls(project, tag, arch)}
+
+
+def image_record(project, tag, arch):
+    digest = "sha256:" + "7" * 64
+    repository = fetch.IMAGES.get(project, "example.org/" + project)
+    return {"route": "image", "artifact_url": "%s@%s" % (repository, digest),
+            "image": {"repository": repository, "tag": tag, "arch": arch,
+                      "platform_digest": digest}}
+
+
 def records(arches=("amd64",)):
     conf = spec.PAIRS[PAIR]
     metas, rows = [], []
     for arch in arches:
         meta = {"pair": PAIR, "arch": arch, "shard": 0, "shards": 1, "releases": {},
-                "release_set": {"lines": {}}}
+                "release_set": {"lines": {}}, "source_commit": "9" * 40,
+                "harness_sha256": {"check.py": "8" * 64}}
         for side in ("from", "to"):
             line = RELEASES["etcd"][conf[side]]
             meta["release_set"]["lines"][conf[side]] = {
@@ -52,8 +70,7 @@ def records(arches=("amd64",)):
             for release in line:
                 meta["releases"][release["tag"]] = {
                     "status": "ok", "side": side, "commit": release["commit"],
-                    "route": "asset", "checksum_result": "match", "artifact_sha256": "e",
-                    "checksum_listed": "e", "image_id": "sha256:img"}
+                    "image_id": "sha256:img", **asset_record(release["tag"], arch)}
                 for case in spec.cases(PAIR, side):
                     for rep in (1, 2):
                         env = spec.case_env(PAIR, side, arch)
@@ -132,8 +149,19 @@ class ClassifyTest(unittest.TestCase):
 
     def test_pflag_templates(self):
         long = judge.unknown_tokens("pflag", "Error: unknown flag: --a_b\n")
-        short = judge.unknown_tokens("pflag", "unknown shorthand flag: 't' in -tx=1\n")
-        odd = judge.unknown_tokens("pflag", "unknown shorthand flag: 'q' in -tx\n")
+        short = judge.unknown_tokens(
+            "pflag", "Error: unknown shorthand flag: 't' in -tx=1\n")
+        odd = judge.unknown_tokens("pflag", "Error: unknown shorthand flag: 'q' in -tx\n")
+        logged = judge.unknown_tokens(
+            "pflag", "F1127 10:00:00.000001       1 vttablet.go:27] unknown flag: --a_b\n")
+        self.assertEqual(logged, [["long", "a_b"]])
+        for message in ("unknown flag: --a_b", "unknown shorthand flag: 't' in -tx"):
+            for line in (message, "level=warn msg=" + message, "x Error: " + message,
+                         '{"msg":"Error: %s"}' % message,
+                         "F1127 10:00:00.000001 1 other.go:27] " + message,
+                         "Error: " + message + " ignored", "Error: " + message + '"'):
+                with self.subTest(line):
+                    self.assertEqual(judge.unknown_tokens("pflag", line + "\n"), [])
         self.assertEqual(long, [["long", "a_b"]])
         self.assertEqual(short, [["short", "tx"]])
         self.assertEqual(odd, [["short", "?tx"]])
@@ -339,6 +367,12 @@ class ThanosTest(unittest.TestCase):
                  if c["kind"] in ("T1", "T2") and c["style"] == "short"]
         self.assertTrue(short)
         self.assertTrue(all(len(c["token"]) == 1 for c in short))
+        self.assertFalse(any(c["evidence"] for c in short))
+        self.assertTrue(all(c["evidence"] for c in spec.cases(THANOS, "to")
+                            if c["style"] != "short"))
+        self.assertEqual(spec.members(THANOS, "store-strict"),
+                         ["--store-strict", "--store_strict"])
+        self.assertEqual(spec.members(THANOS, "store"), ["--store"])
         self.assertEqual(sorted(i["name"] for i in spec.PAIRS[THANOS]["items"]),
                          ["exemplar", "metadata", "rule", "store", "store-strict", "target"])
 
@@ -359,15 +393,14 @@ class AssetTest(unittest.TestCase):
     """The release asset route with a stand-in for the network."""
 
     def fetch_with(self, replies):
-        saved = fetch.http_get, fetch.signature_state, fetch.tar_member
+        saved = fetch.http_get, fetch.tar_member
         fetch.http_get = lambda url, headers=None: replies.get(
             url.rsplit("/", 1)[1], (404, None, b""))
-        fetch.signature_state = lambda urls: []
         fetch.tar_member = lambda data, path: path.encode()
         try:
             return fetch.release_asset("thanos", "v0.38.0", "amd64")
         finally:
-            fetch.http_get, fetch.signature_state, fetch.tar_member = saved
+            fetch.http_get, fetch.tar_member = saved
 
     def test_asset(self):
         name = "thanos-0.38.0.linux-amd64.tar.gz"
@@ -375,12 +408,40 @@ class AssetTest(unittest.TestCase):
         good = {"sha256sums.txt": (200, None, sums), name: (200, None, b"data")}
         binary, record = self.fetch_with(good)
         self.assertEqual(binary, b"thanos-0.38.0.linux-amd64/thanos")
-        self.assertIsNone(check._artifact_problem(record))
+        self.assertIsNone(check._artifact_problem("thanos", "v0.38.0", "amd64", record))
+        for published in (name + ".sigstore", name + ".sigstore.json", name + ".pem",
+                          name + ".intoto.jsonl", "sha256sums.txt.pem",
+                          "multiple.intoto.jsonl"):
+            with self.subTest(published), self.assertRaisesRegex(fetch.Withhold, "signature"):
+                self.fetch_with({**good, published: (200, None, b"x")})
+        with self.assertRaisesRegex(fetch.Withhold, "cannot tell"):
+            self.fetch_with({**good, name + ".sig": (401, None, b"")})
         for replies in ({**good, name: (200, None, b"other")},
                         {"sha256sums.txt": good["sha256sums.txt"]}):
             with self.assertRaises(fetch.Withhold):
                 self.fetch_with(replies)
         self.assertIsNone(self.fetch_with({name: good[name]}))
+
+    def test_checker_ties_the_artifact_to_the_release(self):
+        def problem(project, record, tag="v0.38.0", arch="amd64"):
+            return check._artifact_problem(project, tag, arch, record)
+
+        asset = asset_record("v0.38.0", "amd64", "thanos")
+        self.assertIsNone(problem("thanos", asset))
+        self.assertIsNotNone(problem("thanos", asset, tag="v0.37.0"))
+        self.assertIsNotNone(problem("thanos", asset, arch="arm64"))
+        self.assertIsNotNone(problem("etcd", asset))
+        self.assertIsNotNone(problem("vitess", asset))
+        for key in ("artifact_url", "checksum_source", "signature_urls_checked"):
+            self.assertIsNotNone(problem("thanos", {**asset, key: None}), key)
+        self.assertIsNotNone(problem("thanos", image_record("thanos", "v0.38.0", "amd64")))
+        image = image_record("vitess", "v0.38.0", "amd64")
+        self.assertIsNone(problem("vitess", image))
+        self.assertIsNotNone(problem("vitess", image, tag="v0.37.0"))
+        self.assertIsNotNone(problem("vitess", image, arch="arm64"))
+        self.assertIsNotNone(problem("etcd", image))
+        self.assertIsNotNone(problem("vitess", {
+            **image, "artifact_url": "example.org/x@" + image["image"]["platform_digest"]}))
 
     def test_unlisted_thanos_asset_has_no_fallback(self):
         saved = fetch.release_asset
@@ -406,6 +467,44 @@ class CheckerTest(unittest.TestCase):
         v = verdict(self.metas, self.rows)
         self.assertTrue(v["complete"], v["errors"][:3])
         self.assertEqual(v["survivors"], ["ca-file", "peer-ca-file"], v["refusals"])
+
+    def test_members_are_double_dash_only(self):
+        items = verdict(self.metas, self.rows)["items"]
+        self.assertEqual(items["ca-file"]["members"], ["--ca-file", "--ca_file"])
+        change(self.rows, "to", "v3.4.1", T1, obs(exit_code=137, stderr=READY))
+        self.assertEqual(verdict(self.metas, self.rows)["items"]["ca-file"]["members"], [])
+
+    def test_ready_text_must_equal_the_control(self):
+        saved = spec.PAIRS[PAIR]["ready"]
+        spec.PAIRS[PAIR]["ready"] = r"ready to serve client requests[^\n]*"
+        try:
+            for side, tag, case_id, left in (
+                    ("from", "v3.3.0", "base/F1/ca-file", ["peer-ca-file"]),
+                    ("to", "v3.4.0", "base/T3/ca-file", ["peer-ca-file"]),
+                    ("to", "v3.4.0", "config-file/T3/peer-ca-file", ["ca-file"])):
+                with self.subTest(case_id):
+                    metas, rows = records()
+                    self.assertEqual(len(verdict(metas, rows)["survivors"]), 2)
+                    change(rows, side, tag, case_id, obs(
+                        exit_code=137,
+                        stderr="ready to serve client requests, differently\n"))
+                    v = verdict(metas, rows)
+                    self.assertTrue(v["complete"], v["errors"][:3])
+                    self.assertEqual(v["survivors"], left)
+        finally:
+            spec.PAIRS[PAIR]["ready"] = saved
+
+    def test_one_harness_and_commit(self):
+        for key, bad in (("harness_sha256", {"check.py": "0" * 64}),
+                         ("source_commit", "0" * 40), ("harness_sha256", None),
+                         ("source_commit", None)):
+            with self.subTest(key=key, bad=bad):
+                metas, rows = records(("amd64", "arm64"))
+                self.assertTrue(verdict(metas, rows, ("amd64", "arm64"))["complete"])
+                metas[1][key] = bad
+                v = verdict(metas, rows, ("amd64", "arm64"))
+                self.assertFalse(v["complete"])
+                self.assertFalse(v["survives"])
 
     def test_missing_release_fails(self):
         del self.metas[0]["releases"]["v3.4.1"]
@@ -483,7 +582,9 @@ class CheckerTest(unittest.TestCase):
                 "digest": {"artifact_sha256": "f"},
                 "route": {"route": "mirror"},
                 "unpinned image": {"route": "image", "artifact_url": "repo:tag",
-                                   "image": {"platform_digest": "sha256:1"}}}.items():
+                                   "image": {"platform_digest": "sha256:1"}},
+                "other asset": asset_record("v3.4.1", "amd64"),
+                "other platform": asset_record("v3.4.0", "arm64")}.items():
             with self.subTest(name):
                 metas, rows = records()
                 metas[0]["releases"]["v3.4.0"].update(changes)
