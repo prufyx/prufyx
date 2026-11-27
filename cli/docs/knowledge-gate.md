@@ -1596,7 +1596,7 @@ addition to all of the above:
    cannot carry one;
 3. the oldest-supported-client pin
    (`cli/knowledge/oldest-supported-client.txt`) of both the base and the head
-   names `cncfcheck.BoundaryCoveredFloor` (`v0.1.0-beta.3`) or a later version.
+   names `cncfcheck.BoundaryCoveredFloor` (`v0.1.0-beta.2`) or a later version.
    The file must hold exactly the lines `ref=<40-hex commit>` and
    `version=vMAJOR.MINOR.PATCH[-pre.N]`, as the publication workflow requires; a
    missing file or any other form refuses.

@@ -84,7 +84,7 @@ func listedBuild(t *testing.T, sec []byte, pin string) (ExternalTarget, []Extern
 // returned; nothing else in the section changes.
 func TestExcludeListedAttestations(t *testing.T) {
 	mixed := mixedSection(t)
-	for _, pin := range []string{"", "v0.1.0-beta.0", "v0.0.1-alpha.1"} {
+	for _, pin := range []string{"", "v0.1.0-beta.0", "v0.0.1-alpha.1", "v0.1.0-beta.1", "v0.1.0-beta.1.1"} {
 		kept, n, err := ExcludeListedAttestations(mixed, pin)
 		if err != nil || n != 1 || SectionCarriesListedFamily(kept) || len(kept) == 0 {
 			t.Fatalf("pin %q: kept=%s n=%d err=%v", pin, kept, n, err)
@@ -305,7 +305,7 @@ func TestCheckListedFamilyShipping(t *testing.T) {
 	}
 	refused := map[string][]byte{
 		"absent":          withFloor("", true),
-		"below the floor": withFloor("v0.1.0-beta.2", false),
+		"below the floor": withFloor("v0.1.0-beta.1", false),
 		"the pin version": withFloor("v0.1.0-beta.0", false),
 		"malformed":       withFloor("latest", false),
 		"empty":           withFloor("", false),
@@ -316,7 +316,7 @@ func TestCheckListedFamilyShipping(t *testing.T) {
 			t.Errorf("%s: accepted", name)
 		}
 	}
-	for _, pin := range []string{"", "v0.1.0-beta.0", "latest"} {
+	for _, pin := range []string{"", "v0.1.0-beta.0", "v0.1.0-beta.1", "v0.1.0-beta.1.1", "latest"} {
 		if err := CheckListedFamilyShipping(good.Bytes, raws, pin); err == nil {
 			t.Errorf("a package with the family accepted for pin %q", pin)
 		}
@@ -389,8 +389,11 @@ func TestFloorProblems(t *testing.T) {
 	if p := floorProblems("v0.0.1-alpha.1", before); len(p) != 2 {
 		t.Fatalf("a floor at the first tag: %v", p)
 	}
-	if p := floorProblems(ListedFamilyFloor, append(append([]releaseTag(nil), before...), releaseTag{"v0.1.0-beta.2", true})); len(p) != 1 {
+	if p := floorProblems(ListedFamilyFloor, append(append([]releaseTag(nil), before...), releaseTag{"v0.1.0-beta.1.1", true})); len(p) != 1 {
 		t.Fatalf("a release below the floor that holds the family: %v", p)
+	}
+	if p := floorProblems(ListedFamilyFloor, []releaseTag{{ListedFamilyFloor, false}}); len(p) != 1 {
+		t.Fatalf("a release at the floor that predates the family: %v", p)
 	}
 	if p := floorProblems(ListedFamilyFloor, []releaseTag{{"latest", false}}); len(p) != 1 {
 		t.Fatalf("a tag that is not a version: %v", p)
@@ -405,7 +408,7 @@ func TestFloorProblems(t *testing.T) {
 		t.Fatalf("the named early release is refused: %v", p)
 	}
 	// No other name below the floor is excused, alone or next to the named one.
-	for _, name := range []string{"v0.1.0-beta.2", "v0.0.2", "v0.1.0-beta.1.1", "v0.1.0-beta.1+1", "0.1.0-beta.1", "v0.1.0-alpha.1"} {
+	for _, name := range []string{"v0.1.0-beta.0", "v0.0.2", "v0.1.0-beta.1.1", "v0.1.0-beta.1+1", "0.1.0-beta.1", "v0.1.0-alpha.1"} {
 		if p := floorProblems(ListedFamilyFloor, []releaseTag{early, {name, true}}); len(p) != 1 || !strings.HasPrefix(p[0], name+" ") {
 			t.Errorf("%s holding the family below the floor: %v", name, p)
 		}
@@ -415,7 +418,7 @@ func TestFloorProblems(t *testing.T) {
 		t.Fatal("a floor lowered to the last released tag was accepted with the early release")
 	}
 	// The exception holds against ListedFamilyFloor only.
-	for _, floor := range []string{"v0.1.0-beta.2", "v0.1.0-beta.4", "v0.2.0"} {
+	for _, floor := range []string{"v0.1.0-beta.3", "v0.1.0-beta.4", "v0.2.0"} {
 		if p := floorProblems(floor, []releaseTag{early}); len(p) != 1 {
 			t.Errorf("floor %s: the early release was excused: %v", floor, p)
 		}
@@ -474,16 +477,24 @@ func TestListedFamilyFloorAgainstTheRealTags(t *testing.T) {
 	}
 }
 
-// The floor is a version above the other client floors, and the oldest
-// supported client is either the legacy one below it or a proved release: the
-// family would otherwise ship to a client that does not know it.
+// The floor is a version above the provider-facts floor and the releases that
+// predate the family, and not below the pinned-lease floor (the two may be the
+// same release). The oldest supported client is either the legacy one below it
+// or a proved release: the family would otherwise ship to a client that does
+// not know it.
 func TestListedFamilyFloorIsAboveTheOtherFloorsAndThePin(t *testing.T) {
 	if !buildidentity.ValidVersion(ListedFamilyFloor) {
 		t.Fatalf("floor %q is not a version", ListedFamilyFloor)
 	}
-	for name, other := range map[string]string{"provider facts": ProviderFactsMinClientVersion, "pinned lease": PinnedLeaseMinClientVersion} {
-		if buildidentity.AtLeast(other, ListedFamilyFloor) {
-			t.Errorf("the %s floor %s is not below the floor %s", name, other, ListedFamilyFloor)
+	if buildidentity.AtLeast(ProviderFactsMinClientVersion, ListedFamilyFloor) {
+		t.Errorf("the provider facts floor %s is not below the floor %s", ProviderFactsMinClientVersion, ListedFamilyFloor)
+	}
+	if !buildidentity.ValidVersion(PinnedLeaseMinClientVersion) || !buildidentity.AtLeast(ListedFamilyFloor, PinnedLeaseMinClientVersion) {
+		t.Errorf("the floor %s is below the pinned lease floor %s", ListedFamilyFloor, PinnedLeaseMinClientVersion)
+	}
+	for _, earlier := range []string{"v0.0.1-alpha.1", "v0.1.0-beta.0", earlyFamilyRelease} {
+		if buildidentity.AtLeast(earlier, ListedFamilyFloor) {
+			t.Errorf("%s is not below the floor %s", earlier, ListedFamilyFloor)
 		}
 	}
 	raw, err := os.ReadFile(filepath.Join("..", "..", "knowledge", "oldest-supported-client.txt"))

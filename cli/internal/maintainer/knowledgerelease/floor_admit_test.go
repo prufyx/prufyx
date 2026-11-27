@@ -822,7 +822,7 @@ func TestAdmitFloorsRefusesMissingOrFailingInputs(t *testing.T) {
 		return good
 	}
 	refused("control refused", admitFloors(noControl, client, head, features, highest, floorRunHead), "control:")
-	refused("head run below a floor", admitFloors(all, client, head, features, "v0.1.0-beta.2", floorRunHead), "the head run must reach every floor")
+	refused("head run below a floor", admitFloors(all, client, head, features, "v0.1.0-beta.1", floorRunHead), "the head run must reach every floor")
 	refused("unknown run", admitFloors(all, client, head, features, highest, "other"), "unknown run")
 	refused("no version", admitFloors(all, client, head, features, "latest", floorRunPin), "not a version")
 	refused("no floor", admitFloors(all, client, head, nil, highest, floorRunPin), "there is no floor")
@@ -837,10 +837,10 @@ func TestAdmitFloorsRefusesMissingOrFailingInputs(t *testing.T) {
 
 	// A pinned client below the later floors: this tree's packages for them
 	// must be refused as too new, with the floor named.
-	below := "v0.1.0-beta.2"
+	below := "v0.1.0-beta.1"
 	tooNew := func(set floorFixtures, p string) clientRun {
 		for _, f := range features {
-			if pkg, _ := set.feature(f.name); pkg == p && f.version == "v0.1.0-beta.3" {
+			if pkg, _ := set.feature(f.name); pkg == p && !buildidentity.AtLeast(below, f.version) {
 				return clientRun{code: 15, stderr: "too new: " + upgradeToText + " " + f.version}
 			}
 		}
@@ -851,12 +851,12 @@ func TestAdmitFloorsRefusesMissingOrFailingInputs(t *testing.T) {
 	}
 	refused("unreached floor admitted", admitFloors(all, client, head, features, below, floorRunPin), floorListedFamily+": unreached floor")
 	for name, run := range map[string]clientRun{
-		"integrity":       {code: 3, stderr: "too new: " + upgradeToText + " v0.1.0-beta.3"},
+		"integrity":       {code: 3, stderr: "too new: " + upgradeToText + " v0.1.0-beta.2"},
 		"no floor named":  {code: 15, stderr: "too new"},
 		"other floor":     {code: 15, stderr: "too new: " + upgradeToText + " v0.1.0-beta.1"},
 		"capability only": {code: 15, stderr: capabilityMismatchText},
 	} {
-		if err := refusedAsTooNew(run, "v0.1.0-beta.3"); err == nil {
+		if err := refusedAsTooNew(run, "v0.1.0-beta.2"); err == nil {
 			t.Errorf("%s accepted as too new", name)
 		}
 	}
@@ -952,7 +952,7 @@ func TestAdmitConfigRefusesPartialRuns(t *testing.T) {
 		t.Fatalf("nothing set: %v %v", skip, err)
 	}
 	highest, err := highestFloor(floorFeatures())
-	if err != nil || highest != "v0.1.0-beta.3" {
+	if err != nil || highest != "v0.1.0-beta.2" {
 		t.Fatalf("highest floor %q %v", highest, err)
 	}
 	if cfg, skip, err := admitConfigFrom(env(floorRunHead, "/s", "/f"), legacy); skip || err != nil || cfg.version != highest {

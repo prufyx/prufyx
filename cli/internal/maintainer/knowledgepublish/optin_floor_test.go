@@ -53,7 +53,7 @@ func TestAdmissionHoldsTheOptInLevelToItsFloor(t *testing.T) {
 	if !bytes.Contains(index.Bytes, member) {
 		t.Fatal("no floor member")
 	}
-	for _, replacement := range []string{"", `,"minClientVersion":"v0.1.0-beta.0"`, `,"minClientVersion":"v0.1.0-beta.2"`} {
+	for _, replacement := range []string{"", `,"minClientVersion":"v0.1.0-beta.0"`, `,"minClientVersion":"v0.1.0-beta.1"`} {
 		_, err := admitTargetSet(bytes.Replace(index.Bytes, member, []byte(replacement), 1), targets)
 		if !errors.Is(err, ErrRejected) || !strings.Contains(err.Error(), "opt-in pack level") {
 			t.Fatalf("floor %q: %v", replacement, err)

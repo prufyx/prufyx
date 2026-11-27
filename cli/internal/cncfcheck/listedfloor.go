@@ -18,11 +18,13 @@ import (
 // the family therefore names this version as its minClientVersion, so an older
 // client reports it as too new (exit 15) before it reads any project target.
 // It is a build-time constant: raising it is a code change, and it must be
-// above every release tag that predates the family and above the oldest
-// supported client. A release below it may not hold the family, with one named
+// above every release tag that predates the family. Once a release at it that
+// holds the family is tagged, the tag test refuses a higher value
+// (docs/knowledge-publisher.md, "A defective floor release"). A release below it
+// may not hold the family, with one named
 // exception, v0.1.0-beta.1: if that release holds the family, packages that
 // carry the family still refuse it as too new. A test pins these tag rules.
-const ListedFamilyFloor = "v0.1.0-beta.3"
+const ListedFamilyFloor = "v0.1.0-beta.2"
 
 // ErrListedFloorInvalid is joined with ErrIntegrity when the listed-family
 // floor, or the oldest supported client version it is compared with, is not a

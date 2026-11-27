@@ -18,8 +18,9 @@ import (
 // the oldest supported client is below this version. It is a build-time
 // constant: changing it is a code change. It must be above every release cut
 // before the one that ships the level (a test pins that) and is never below
-// ListedFamilyFloor; it may be above the first release that knows the level.
-const BoundaryCoveredFloor = ListedFamilyFloor
+// ListedFamilyFloor; it may be above the first release that knows the level. It
+// is its own literal, so it can be raised without moving ListedFamilyFloor.
+const BoundaryCoveredFloor = "v0.1.0-beta.2"
 
 // ErrOptInBelowFloor is joined with ErrIntegrity when a package would carry
 // the opt-in pack level while the oldest supported client is below

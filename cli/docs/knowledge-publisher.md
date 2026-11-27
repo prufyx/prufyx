@@ -738,7 +738,9 @@ There is one named exception to the tag rule: a tag named exactly
 name is excused, and the floor, the publisher refusals and the gates are
 unchanged. A client of that release is refused as too new (exit `15`) by every
 package that carries the family, so once the pin reaches the floor and such
-packages are published, it can no longer update its knowledge from them.
+packages are published, it can no longer update its knowledge from them. The
+same holds for `v0.1.0-beta.0`, and it includes withdrawals and renewals: from
+the first such publish, a client below the floor receives none of them.
 
 L counts and the README coverage block are repository knowledge: they are
 computed from the repository, and a knowledge package delivers the records only
@@ -761,8 +763,12 @@ A client floor is the first release that reads a feature. There are four:
 |---|---|---|---|
 | `ProviderFactsMinClientVersion` | `v0.1.0-beta.1` | `distributions.go` | no builder; provider facts are not publishable |
 | `PinnedLeaseMinClientVersion` | `v0.1.0-beta.2` | `lease.go` | no builder |
-| `ListedFamilyFloor` | `v0.1.0-beta.3` | `listedfloor.go` | the builder |
-| `BoundaryCoveredFloor` | `v0.1.0-beta.3` | `listedfloor.go`, `optinfloor.go` | the builder |
+| `ListedFamilyFloor` | `v0.1.0-beta.2` | `listedfloor.go` | the builder |
+| `BoundaryCoveredFloor` | `v0.1.0-beta.2` | `listedfloor.go`, `optinfloor.go` | the builder |
+
+`BoundaryCoveredFloor` is its own constant: it is never below
+`ListedFamilyFloor` and can be raised without it. A pin at `v0.1.0-beta.2`
+reaches all four floors.
 
 The first-beta pin passes while it is below every floor. Any other pin, below a
 floor or not, passes only if all of these hold, offline, in the checkout
@@ -828,6 +834,51 @@ publish used the higher pin, publication also needs the owner-only
    `core-commands`: every named test passes.
 
 Any failure or check not run means the tag is not pushed.
+
+**Record before `v0.1.0-beta.2` is tagged.** On the exact commit, write down
+before the tag is pushed:
+
+- the commit;
+- that both floors resolve to `v0.1.0-beta.2` there (`go test
+  ./internal/cncfcheck/ -run '^TestPinClientFloorTable$' -count=1` passes);
+- that `git cat-file -e <commit>:<path>` succeeds for
+  `cli/internal/cncfcheck/listedfloor.go`,
+  `cli/internal/cncfcheck/optinfloor.go` and the fixture writer,
+  `cli/internal/maintainer/knowledgerelease/floor_fixtures_test.go`;
+- the result of steps 3 and 4 above, with the commands run.
+
+**Capability freeze.** From the `v0.1.0-beta.2` cut until the knowledge that
+needs the floor has been published and a later release replaces the pin, do not
+merge a change of the engine capability: the engine contract, the fact registry,
+the policy, the install-profile contract or the landscape (see "Engine
+capability change"). The pinned client refuses every package built for another
+capability (exit `15`). A publish run summary with the `WARNING` that the gate
+proved nothing with the pinned client is a stop.
+
+**A defective floor release.** A pushed tag and a published release are never
+moved or reused; the fix ships in a newer release. What can still be changed
+depends on how far the pin has moved.
+
+- The pin has not moved to `v0.1.0-beta.2`: leave it. The publisher keeps
+  leaving listed attestations out and refusing level `v1alpha16`.
+- The defect is in reading level `v1alpha16`: raise `BoundaryCoveredFloor`
+  alone to the fixed release, in a reviewed change that updates the table above
+  and the tests that hold its value. From that merge until the pin reaches the
+  new floor, the gate fails every change while a pack is at that level, and the
+  publisher refuses the whole package, withdrawals and renewals included. The
+  pinned-client step must pass before that change merges.
+- The defect is in reading listed attestations: `ListedFamilyFloor` cannot rise,
+  because the defective tag holds the family and the tag rule refuses a floor
+  above it. Any pin at `v0.1.0-beta.2` or later, a newer release included, makes
+  the publisher ship the family to `v0.1.0-beta.2` clients. Keep the pin below
+  `v0.1.0-beta.2` until a separately reviewed change settles this; changing the
+  tag rule needs the owner's approval.
+- The pin has moved: move it back only with the pin-only procedure above. The
+  gate refuses a pin below the floor while a pack is at level `v1alpha16` (and
+  it does not lower that level) or holds a rule with a pinned lease. Once such
+  data is merged, the way out is a newer release.
+- Packages already published stay as signed. A correction is a new publish with
+  a higher revision.
 
 **Recovery when the ref cannot be built** (for example the toolchain moved on
 or the commit is unreachable): the gate fails every run and nothing is

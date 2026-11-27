@@ -44,7 +44,7 @@ func TestReleaseRefusesTheOptInLevelBelowItsFloor(t *testing.T) {
 	buildPinned = func(revision string, _ []byte, _ string) (cncfcheck.ExternalTarget, []cncfcheck.ExternalTarget, int, error) {
 		return cncfcheck.BuildExternalTargetsFromPackPinned(pack, revision, cncfcheck.BoundaryCoveredFloor)
 	}
-	for _, oldest := range []string{"", "v0.1.0-beta.0", "v0.1.0-beta.1", "v0.1.0-beta.2"} {
+	for _, oldest := range []string{"", "v0.1.0-beta.0", "v0.1.0-beta.1", "v0.1.0-beta.1.1"} {
 		_, err := buildProjectTargets(Options{FirstRelease: true, Revision: "5", OldestClient: oldest})
 		if !errors.Is(err, ErrRejected) || !strings.Contains(err.Error(), "opt-in pack level") {
 			t.Fatalf("oldest %q: %v", oldest, err)

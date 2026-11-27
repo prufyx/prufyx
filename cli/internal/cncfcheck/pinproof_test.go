@@ -223,8 +223,8 @@ func TestPinClientFloorTable(t *testing.T) {
 	want := map[string]string{
 		"ProviderFactsMinClientVersion": "v0.1.0-beta.1 distributions.go",
 		"PinnedLeaseMinClientVersion":   "v0.1.0-beta.2 lease.go",
-		"ListedFamilyFloor":             "v0.1.0-beta.3 listedfloor.go",
-		"BoundaryCoveredFloor":          "v0.1.0-beta.3 listedfloor.go optinfloor.go",
+		"ListedFamilyFloor":             "v0.1.0-beta.2 listedfloor.go",
+		"BoundaryCoveredFloor":          "v0.1.0-beta.2 listedfloor.go optinfloor.go",
 	}
 	floors := clientFloors()
 	if len(floors) != len(want) {
@@ -369,20 +369,30 @@ func TestPinProblemsAccepts(t *testing.T) {
 		requirePinProved(t, pinProblems(clientFloors(), pinBytes(ref, "v9.0.0"), r.dir))
 	})
 	t.Run("a pin that reaches only the lower floors", func(t *testing.T) {
-		r, ref := released(t, PinnedLeaseMinClientVersion, "distributions.go", "lease.go")
-		requirePinProved(t, pinProblems(clientFloors(), pinBytes(ref, PinnedLeaseMinClientVersion), r.dir))
+		r, ref := released(t, ProviderFactsMinClientVersion, "distributions.go")
+		requirePinProved(t, pinProblems(clientFloors(), pinBytes(ref, ProviderFactsMinClientVersion), r.dir))
 		// It stays below the later floors: their features are still left out
 		// of, or refused in, a publication for it.
-		if ships, err := ListedFamilyShips(PinnedLeaseMinClientVersion); ships || err != nil {
-			t.Fatalf("the listed family ships to %s: %v %v", PinnedLeaseMinClientVersion, ships, err)
+		if ships, err := ListedFamilyShips(ProviderFactsMinClientVersion); ships || err != nil {
+			t.Fatalf("the listed family ships to %s: %v %v", ProviderFactsMinClientVersion, ships, err)
 		}
-		if atLeastVersion(PinnedLeaseMinClientVersion, BoundaryCoveredFloor) {
-			t.Fatal("the opt-in level reaches " + PinnedLeaseMinClientVersion)
+		if atLeastVersion(ProviderFactsMinClientVersion, BoundaryCoveredFloor) {
+			t.Fatal("the opt-in level reaches " + ProviderFactsMinClientVersion)
 		}
 	})
 	t.Run("the legacy pin needs no repository", func(t *testing.T) {
 		requirePinProved(t, pinProblems(clientFloors(), []byte(knowledgepinguard.LegacyPin), t.TempDir()))
 	})
+}
+
+// A pin at the pinned-lease floor also reaches the listed-family and opt-in
+// floors, so a release without their files proves nothing.
+func TestPinProblemsRefusesTheSharedFloorWithoutItsFiles(t *testing.T) {
+	r, ref := released(t, PinnedLeaseMinClientVersion, "distributions.go", "lease.go")
+	problems := pinProblems(clientFloors(), pinBytes(ref, PinnedLeaseMinClientVersion), r.dir)
+	for _, floor := range []string{"ListedFamilyFloor", "BoundaryCoveredFloor"} {
+		requirePinProblem(t, problems, "floor "+floor)
+	}
 }
 
 func TestPinProblemsRefusesTheForm(t *testing.T) {

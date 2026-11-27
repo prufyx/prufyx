@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
@@ -62,12 +63,12 @@ func TestOptInIndexNamesTheFloor(t *testing.T) {
 	}
 }
 
-// With the listed family in the same package its floor, never above the
-// opt-in floor, is not lowered.
+// With the listed family in the same package the higher floor is named: the
+// opt-in floor, which is never below the listed-family floor.
 func TestOptInKeepsTheHigherFloor(t *testing.T) {
 	t.Parallel()
-	index, _, _, err := BuildExternalTargetsFromPackPinned(optInPack(t, recordSections{LineAttestations: mixedSection(t)}), "5", ListedFamilyFloor)
-	if err != nil || minClientOf(t, index) != ListedFamilyFloor {
+	index, _, _, err := BuildExternalTargetsFromPackPinned(optInPack(t, recordSections{LineAttestations: mixedSection(t)}), "5", BoundaryCoveredFloor)
+	if err != nil || minClientOf(t, index) != BoundaryCoveredFloor {
 		t.Fatalf("floor=%q err=%v", minClientOf(t, index), err)
 	}
 }
@@ -76,7 +77,7 @@ func TestOptInKeepsTheHigherFloor(t *testing.T) {
 func TestOptInExportRefusedBelowTheFloor(t *testing.T) {
 	t.Parallel()
 	pack := optInPack(t, recordSections{})
-	for _, oldest := range []string{"", "v0.0.1-alpha.1", "v0.1.0-beta.0", "v0.1.0-beta.1", "v0.1.0-beta.2"} {
+	for _, oldest := range []string{"", "v0.0.1-alpha.1", "v0.1.0-beta.0", "v0.1.0-beta.1", "v0.1.0-beta.1.1"} {
 		index, targets, _, err := BuildExternalTargetsFromPackPinned(pack, "5", oldest)
 		if !errors.Is(err, ErrOptInBelowFloor) || !errors.Is(err, ErrIntegrity) || index.Bytes != nil || targets != nil {
 			t.Fatalf("oldest %q: %v", oldest, err)
@@ -105,7 +106,7 @@ func TestCheckOptInFloorRefusals(t *testing.T) {
 	if !bytes.Contains(index.Bytes, member) {
 		t.Fatal("no floor member")
 	}
-	for _, replacement := range []string{"", `,"minClientVersion":"v0.1.0-beta.0"`, `,"minClientVersion":"v0.1.0-beta.2"`, `,"minClientVersion":"latest"`} {
+	for _, replacement := range []string{"", `,"minClientVersion":"v0.1.0-beta.0"`, `,"minClientVersion":"v0.1.0-beta.1"`, `,"minClientVersion":"latest"`} {
 		if err := CheckOptInFloor(bytes.Replace(index.Bytes, member, []byte(replacement), 1), raws); err == nil {
 			t.Fatalf("floor %q accepted", replacement)
 		}
@@ -124,7 +125,7 @@ func TestBoundaryCoveredFloorIsAboveEarlierReleases(t *testing.T) {
 	if !atLeastVersion(BoundaryCoveredFloor, ListedFamilyFloor) {
 		t.Fatalf("the floor %s is below the listed-family floor %s", BoundaryCoveredFloor, ListedFamilyFloor)
 	}
-	for _, earlier := range []string{"v0.0.1-alpha.1", "v0.1.0-beta.0", "v0.1.0-beta.1", "v0.1.0-beta.2"} {
+	for _, earlier := range []string{"v0.0.1-alpha.1", "v0.1.0-beta.0", "v0.1.0-beta.1", "v0.1.0-beta.1.1"} {
 		if atLeastVersion(earlier, BoundaryCoveredFloor) {
 			t.Fatalf("%s is not below the floor %s", earlier, BoundaryCoveredFloor)
 		}
@@ -165,6 +166,23 @@ func TestOptInFloorProblems(t *testing.T) {
 		if p := optInFloorProblems(BoundaryCoveredFloor, []releaseTag{tag}); len(p) != 1 {
 			t.Fatalf("tag %+v: %v", tag, p)
 		}
+	}
+}
+
+// After a release at both floors is tagged, the opt-in floor can still be
+// raised above it, and the listed-family floor cannot.
+func TestOnlyTheOptInFloorCanRiseAfterTheFloorRelease(t *testing.T) {
+	t.Parallel()
+	const higher = "v0.1.0-beta.3"
+	tags := []releaseTag{{"v0.1.0-beta.0", false}, {BoundaryCoveredFloor, true}}
+	if !atLeastVersion(higher, BoundaryCoveredFloor) || atLeastVersion(BoundaryCoveredFloor, higher) {
+		t.Fatalf("%s is not above the floor %s", higher, BoundaryCoveredFloor)
+	}
+	if p := optInFloorProblems(higher, tags); len(p) != 0 {
+		t.Fatalf("a raised opt-in floor was refused: %v", p)
+	}
+	if p := floorProblems(higher, tags); len(p) != 1 || !strings.HasPrefix(p[0], BoundaryCoveredFloor+" ") {
+		t.Fatalf("a raised listed-family floor: %v", p)
 	}
 }
 
