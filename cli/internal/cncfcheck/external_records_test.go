@@ -51,6 +51,29 @@ func recordsPack(t *testing.T, sections recordSections) []byte {
 	return encoded
 }
 
+// plainRecordsPack is recordsPack without the declared opt-in level, for the
+// tests of builds that have no client floor or one below it.
+func plainRecordsPack(t *testing.T, sections recordSections) []byte {
+	t.Helper()
+	var pack rulePack
+	if err := strictJSON(recordsPack(t, sections), &pack); err != nil {
+		t.Fatal(err)
+	}
+	pack.Schema = ""
+	var err error
+	if pack.Schema, err = requiredPackSchema(pack); err != nil {
+		t.Fatal(err)
+	}
+	if PackSchemaIsOptIn(pack.Schema) {
+		t.Fatalf("the plain pack still states the opt-in level %s", pack.Schema)
+	}
+	encoded, err := json.Marshal(pack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return encoded
+}
+
 func recordsBase(t *testing.T, sections recordSections) bundle {
 	t.Helper()
 	b, err := assembleSynthetic(recordsPack(t, sections), nil)

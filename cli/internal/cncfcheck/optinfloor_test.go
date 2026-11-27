@@ -53,12 +53,28 @@ func TestOptInIndexNamesTheFloor(t *testing.T) {
 		}
 	}
 	// A package without the level is not constrained.
-	index, targets, _, err = BuildExternalTargetsFromPackPinned(recordsPack(t, recordSections{}), "5", "")
+	index, targets, _, err = BuildExternalTargetsFromPackPinned(plainRecordsPack(t, recordSections{}), "5", "")
 	if err != nil || minClientOf(t, index) != "" {
 		t.Fatalf("no level: floor=%q err=%v", minClientOf(t, index), err)
 	}
 	if err := CheckOptInShipping(index.Bytes, rawTargets(targets), ""); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// The shipped pack itself is refused for an oldest client below the floor and
+// for an unstated one, and built from the floor.
+func TestShippedPackRefusedBelowTheOptInFloor(t *testing.T) {
+	t.Parallel()
+	for _, oldest := range []string{"v0.1.0-beta.0", ""} {
+		index, targets, _, err := BuildEmbeddedExternalTargetsPinned("5", nil, oldest)
+		if !errors.Is(err, ErrOptInBelowFloor) || !errors.Is(err, ErrIntegrity) || index.Bytes != nil || targets != nil {
+			t.Fatalf("oldest %q: %v", oldest, err)
+		}
+	}
+	index, _, _, err := BuildEmbeddedExternalTargetsPinned("5", nil, BoundaryCoveredFloor)
+	if err != nil || minClientOf(t, index) != BoundaryCoveredFloor {
+		t.Fatalf("at the floor: floor=%q err=%v", minClientOf(t, index), err)
 	}
 }
 

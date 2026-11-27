@@ -152,7 +152,7 @@ func TestMalformedListedFloorIsRefused(t *testing.T) {
 // The writer: a package that carries the family names the floor; one that
 // does not leaves the field unset.
 func TestIndexMinClientFollowsTheFamily(t *testing.T) {
-	pack := recordsPack(t, recordSections{LineAttestations: mixedSection(t)})
+	pack := plainRecordsPack(t, recordSections{LineAttestations: mixedSection(t)})
 	index, targets, err := BuildExternalTargetsFromPack(pack, "5")
 	if err != nil {
 		t.Fatal(err)
@@ -164,7 +164,7 @@ func TestIndexMinClientFollowsTheFamily(t *testing.T) {
 		t.Fatalf("the index with the floor does not parse: %v", err)
 	}
 	// No family: unset.
-	index, targets, err = BuildExternalTargetsFromPack(recordsPack(t, recordSections{LineAttestations: validAttestations(t)}), "5")
+	index, targets, err = BuildExternalTargetsFromPack(plainRecordsPack(t, recordSections{LineAttestations: validAttestations(t)}), "5")
 	if err != nil || carriesListed(t, targets) || minClientOf(t, index) != "" || bytes.Contains(index.Bytes, []byte("minClientVersion")) {
 		t.Fatalf("no family: minClientVersion=%q err=%v", minClientOf(t, index), err)
 	}
@@ -173,7 +173,7 @@ func TestIndexMinClientFollowsTheFamily(t *testing.T) {
 // Pin below the floor: nothing listed ships and the index carries no floor; at
 // the floor the family ships with the floor.
 func TestPinnedBuildShipsTheFamilyOnlyFromTheFloor(t *testing.T) {
-	pack := recordsPack(t, recordSections{LineAttestations: mixedSection(t)})
+	pack := plainRecordsPack(t, recordSections{LineAttestations: mixedSection(t)})
 	for _, pin := range []string{"", "v0.1.0-beta.0"} {
 		index, targets, n, err := BuildExternalTargetsFromPackPinned(pack, "5", pin)
 		if err != nil || n != 1 || carriesListed(t, targets) || minClientOf(t, index) != "" {
@@ -194,7 +194,7 @@ func TestPinnedBuildShipsTheFamilyOnlyFromTheFloor(t *testing.T) {
 
 // Same input, same digest: the exclusion depends on nothing but its input.
 func TestListedExclusionIsDeterministic(t *testing.T) {
-	pack := recordsPack(t, recordSections{LineAttestations: mixedSection(t)})
+	pack := plainRecordsPack(t, recordSections{LineAttestations: mixedSection(t)})
 	a, at, _, err := BuildExternalTargetsFromPackPinned(pack, "5", "v0.1.0-beta.0")
 	if err != nil {
 		t.Fatal(err)
@@ -213,7 +213,7 @@ func TestListedExclusionIsDeterministic(t *testing.T) {
 	}
 	// A pack that never held the family gives the same bytes as the pack with
 	// the family excluded, so the digest does not depend on what was left out.
-	without := recordsPack(t, recordSections{LineAttestations: section(t, testAttestation("1.30", nil))})
+	without := plainRecordsPack(t, recordSections{LineAttestations: section(t, testAttestation("1.30", nil))})
 	c, ct, n, err := BuildExternalTargetsFromPackPinned(without, "5", "v0.1.0-beta.0")
 	if err != nil || n != 0 || !bytes.Equal(a.Bytes, c.Bytes) || len(ct) != len(at) {
 		t.Fatalf("excluded pack differs from a pack without the family: n=%d err=%v", n, err)
@@ -258,7 +258,7 @@ func TestEmptyVersusAbsentAttestationSection(t *testing.T) {
 	// What the exclusion leaves of a listed-only pack is absent, and the
 	// resulting targets pass the whole admission, including the rule that the
 	// package holds no unused member (the index lists exactly the targets).
-	index, targets, n, err := BuildExternalTargetsFromPackPinned(recordsPack(t, recordSections{LineAttestations: listedOnlySection(t)}), "5", "v0.1.0-beta.0")
+	index, targets, n, err := BuildExternalTargetsFromPackPinned(plainRecordsPack(t, recordSections{LineAttestations: listedOnlySection(t)}), "5", "v0.1.0-beta.0")
 	if err != nil || n != 1 {
 		t.Fatalf("n=%d err=%v", n, err)
 	}
@@ -281,7 +281,7 @@ func TestEmptyVersusAbsentAttestationSection(t *testing.T) {
 
 // The publish check refuses on every way the floor can be missing.
 func TestCheckListedFamilyShipping(t *testing.T) {
-	pack := recordsPack(t, recordSections{LineAttestations: mixedSection(t)})
+	pack := plainRecordsPack(t, recordSections{LineAttestations: mixedSection(t)})
 	good, goodTargets, _, err := BuildExternalTargetsFromPackPinned(pack, "5", ListedFamilyFloor)
 	if err != nil {
 		t.Fatal(err)
