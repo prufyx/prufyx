@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
 
@@ -15,7 +16,14 @@ import (
 func TestScanPinnedNowCannotHideWallClockExpiry(t *testing.T) {
 	dir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1})
 	first := embeddedEarliest(t)
-	pinned := first.Add(-31 * 24 * time.Hour)
+	// The pinned instant follows the rule data: not before the review of any
+	// Kubernetes API-removal or kubelet version-skew rule (an earlier clock
+	// answers UNKNOWN, see TestScanClockBeforeReviewStaysUnknown) and before
+	// the earliest end.
+	pinned := supersedeids.Clock()
+	if !pinned.Before(first.Add(-24 * time.Hour)) {
+		t.Fatalf("pinned instant %s is not before the day that precedes the earliest end %s", pinned.Format(time.RFC3339), first.Format(time.RFC3339))
+	}
 	argv := append(append([]string{"applyset.yaml"}, declared...), "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--now", pinned.Format(time.RFC3339))
 	run := func(wall time.Time) Result {
 		request, err := ParseArgs(argv)

@@ -3,6 +3,7 @@
 package supersedeids
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -107,9 +108,12 @@ func TestClockOf(t *testing.T) {
 
 // The clock of the shipped pack, inside the age window of its earliest expiry
 // and after every Kubernetes review.
+// A renewal that derives Kubernetes rules after the age instant moves the
+// clock to the day after the newest of those reviews; otherwise the clock is
+// the age instant.
 func TestClockOfTheShippedPack(t *testing.T) {
 	before, inside, after := AgeClocks()
-	if !inside.Equal(Clock()) || ClockString() != inside.Format(time.RFC3339) || !before.Before(inside) || !inside.Before(after) {
+	if !before.Before(inside) || !inside.Before(after) {
 		t.Fatalf("%s %s %s", before, inside, after)
 	}
 	raw, err := shippedPack()
@@ -118,6 +122,60 @@ func TestClockOfTheShippedPack(t *testing.T) {
 	}
 	if again, err := ClockOf(raw); err != nil || !again.Equal(Clock()) {
 		t.Fatalf("%v %v", again, err)
+	}
+	var pack struct {
+		Entries []struct {
+			Rule struct {
+				ID       string `json:"id"`
+				Evidence struct {
+					State      string `json:"state"`
+					ReviewedAt string `json:"reviewedAt"`
+					ValidUntil string `json:"validUntil"`
+				} `json:"evidence"`
+			} `json:"rule"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(raw, &pack); err != nil {
+		t.Fatal(err)
+	}
+	var newest, earliest time.Time
+	for _, entry := range pack.Entries {
+		ev := entry.Rule.Evidence
+		if ev.State != "" && ev.State != "active" {
+			continue
+		}
+		until, err := time.Parse(time.RFC3339, ev.ValidUntil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if earliest.IsZero() || until.Before(earliest) {
+			earliest = until
+		}
+		if !isAPIRemoval(entry.Rule.ID) && !isKubeletSkew(entry.Rule.ID) {
+			continue
+		}
+		reviewed, err := time.Parse(time.RFC3339, ev.ReviewedAt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if reviewed.After(newest) {
+			newest = reviewed
+		}
+	}
+	if newest.IsZero() {
+		t.Fatal("no Kubernetes review in the shipped pack")
+	}
+	want := inside
+	if dayAfter := newest.UTC().Truncate(24*time.Hour).AddDate(0, 0, 1); dayAfter.After(want) {
+		want = dayAfter
+	}
+	if !Clock().Equal(want) || ClockString() != want.Format(time.RFC3339) {
+		t.Fatalf("clock %s, want %s", ClockString(), want.Format(time.RFC3339))
+	}
+	// After every Kubernetes review, and inside the 30-day age window of the
+	// earliest expiry.
+	if !Clock().After(newest) || Clock().Before(earliest.AddDate(0, 0, -30)) || !Clock().Before(earliest) {
+		t.Fatalf("clock %s, newest Kubernetes review %s, earliest expiry %s", ClockString(), newest, earliest)
 	}
 }
 

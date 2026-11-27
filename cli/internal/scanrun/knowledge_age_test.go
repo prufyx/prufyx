@@ -133,8 +133,18 @@ func TestScanKnowledgeAgeNotInReport(t *testing.T) {
 	dir, _ := files(t, map[string]string{"applyset.yaml": cronjobV1beta1})
 	inDir(t, dir, func() {
 		for _, clock := range ageClocks {
-			aged := scanAt(t, nil, clock.now)
-			plain := scanAt(t, agelessKnowledge{LoadEmbeddedForTest(t)}, clock.now)
+			// The knowledge decides the removed CronJob at every clock (see
+			// ageKnowledge), so the compared reports carry a finding.
+			knowledge := ageKnowledge(t, clock.now)
+			unaged := knowledge
+			if unaged == nil {
+				unaged = LoadEmbeddedForTest(t)
+			}
+			aged := scanAt(t, knowledge, clock.now)
+			plain := scanAt(t, agelessKnowledge{unaged}, clock.now)
+			if aged.Exit != scanreport.ExitBlocked || plain.Exit != scanreport.ExitBlocked {
+				t.Fatalf("%s: exit %d and %d, want blocked", clock.name, aged.Exit, plain.Exit)
+			}
 			if plain.KnowledgeAge != "" {
 				t.Fatalf("knowledge without ages gave a note: %q", plain.KnowledgeAge)
 			}
