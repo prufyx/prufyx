@@ -15,6 +15,13 @@
 # exactly one shard, with no list to keep in sync. A package that lists no
 # tests, or an index outside 1..TOTAL, fails the job: a missing proof is a
 # failure, never a pass.
+#
+# SHARD_EXCLUDE (environment, optional): space-separated test names that this
+# run leaves out because another job runs them alone. The partition is made
+# over the full list first and the names are dropped afterwards, so every
+# other test stays in the shard it would have had without the exclusion. A name
+# that is malformed or not in the listing fails the job (a stale exclusion
+# must not silently drop a test).
 set -euo pipefail
 
 if [ "$#" -lt 3 ]; then
@@ -61,6 +68,18 @@ fi
 count=$(printf '%s\n' "${all}" | grep -c .)
 
 mine=$(printf '%s\n' "${all}" | awk -v i="${index}" -v n="${total}" '(NR - 1) % n + 1 == i')
+for name in ${SHARD_EXCLUDE:-}; do
+  case "${name}" in
+    Test | *[!A-Za-z0-9_]*) echo "SHARD_EXCLUDE: malformed test name ${name}" >&2; exit 2 ;;
+    Test*) ;;
+    *) echo "SHARD_EXCLUDE: malformed test name ${name}" >&2; exit 2 ;;
+  esac
+  if ! printf '%s\n' "${all}" | grep -qxF "${name}"; then
+    echo "SHARD_EXCLUDE: ${name} is not a test of ${pkg}; failing closed" >&2
+    exit 1
+  fi
+  mine=$(printf '%s\n' "${mine}" | grep -vxF "${name}" || true)
+done
 if [ -z "${mine}" ]; then
   echo "shard ${index}/${total}: ${count} tests in ${pkg}, none for this shard"
   exit 0
