@@ -32888,6 +32888,264 @@
       }
     },
     {
+      "component": "pkg:github/kuberhealthy/kuberhealthy",
+      "line": "2.7",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "2.6.0",
+            "commit": "7ac3262efad238fdc4f77b0f96cb7cb58b6b0b22"
+          }
+        ],
+        "to": [
+          {
+            "version": "2.7.0",
+            "commit": "45e156ade56d4e2c1911e48d6dae5c0ccaa86a71"
+          },
+          {
+            "version": "2.7.1",
+            "commit": "4b499809a9f1b42980134680c36cd7dc8c921c72"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kuberhealthy",
+          "version": "2.16.0",
+          "codeDigest": "sha256:bb40503bd00e2e7e7bf6b1bc0918c8c65086f5a0d2384a35321945c7bf840ff5"
+        },
+        "derivedAt": "2026-11-26T05:29:58Z",
+        "reviewedAt": "2026-11-26T05:29:58Z",
+        "validUntil": "2027-02-10T05:29:58Z",
+        "sources": [
+          {
+            "id": "crds-2-6-0",
+            "url": "https://github.com/kuberhealthy/kuberhealthy/blob/7ac3262efad238fdc4f77b0f96cb7cb58b6b0b22/deploy/helm/kuberhealthy/crds/comcast.github.io_khchecks.yaml",
+            "revision": "7ac3262efad238fdc4f77b0f96cb7cb58b6b0b22",
+            "contentDigest": "sha256:2b19ff9fab9433700658d3a69403b4f393015ae679202c3d939fad3d0cb5ce20",
+            "startLine": 1,
+            "endLine": 6073
+          },
+          {
+            "id": "crds-2-7-0",
+            "url": "https://github.com/kuberhealthy/kuberhealthy/blob/45e156ade56d4e2c1911e48d6dae5c0ccaa86a71/deploy/helm/kuberhealthy/crds/comcast.github.io_khchecks.yaml",
+            "revision": "45e156ade56d4e2c1911e48d6dae5c0ccaa86a71",
+            "contentDigest": "sha256:8462ba3eda3e8ab5bc7490785c8ef77305d0642f323a400aaf6cbb8e78d7c1db",
+            "startLine": 1,
+            "endLine": 6462
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kuberhealthy/kuberhealthy",
+      "line": "3.1",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "3.0.0",
+            "commit": "42640eda49d092aacc7e412bc1b08578e540703b"
+          },
+          {
+            "version": "3.0.1",
+            "commit": "0410edbb26c5faa211afeb5f7a2e607b0cd4d16e"
+          },
+          {
+            "version": "3.0.2",
+            "commit": "0410edbb26c5faa211afeb5f7a2e607b0cd4d16e"
+          },
+          {
+            "version": "3.0.3",
+            "commit": "0aa710b1065a4ec9c0e2e7a96a1b1230a6d4c589"
+          },
+          {
+            "version": "3.0.4",
+            "commit": "05c30d70bb453fd0078f7192c9c436af98973005"
+          },
+          {
+            "version": "3.0.5",
+            "commit": "12c6d592b7fa8d05ef95a5da6f4bf36da92b97b4"
+          },
+          {
+            "version": "3.0.6",
+            "commit": "c1b8ac0a7b9abcc66bf9f465f63549827747293e"
+          },
+          {
+            "version": "3.0.7",
+            "commit": "d53c22d649e268e1280bc6ac3b9d2c19e7547a19"
+          },
+          {
+            "version": "3.0.8",
+            "commit": "741fe43fb0b78edef9858c80f17eb5c39b328a46"
+          },
+          {
+            "version": "3.0.9",
+            "commit": "d8b91dd4b7c02a4265acf4f74a7764ef60898faf"
+          },
+          {
+            "version": "3.0.10",
+            "commit": "c540cf3993f2d1b03242420ee4a96c6d3cd57c13"
+          },
+          {
+            "version": "3.0.11",
+            "commit": "eec27f19c75629f06dbd342bc88cd07f4aa95ddf"
+          },
+          {
+            "version": "3.0.12",
+            "commit": "facdbadfdf814382ffb0640c6c4bbc45c3f0ba7d"
+          },
+          {
+            "version": "3.0.13",
+            "commit": "e73a82d7979069a74e5dd59f9130adc0c43977b7"
+          },
+          {
+            "version": "3.0.14",
+            "commit": "31a960f7b6911271f323735a4e36c491b0dc9d4f"
+          },
+          {
+            "version": "3.0.15",
+            "commit": "2ef0b2f7d4a63841018946457105a44ca8b33c36"
+          },
+          {
+            "version": "3.0.16",
+            "commit": "243a71b7d9ab7b2079535f810d3af1d8272a0bc0"
+          },
+          {
+            "version": "3.0.17",
+            "commit": "ab3f163197f8350289c0f91baab9f42096632e05"
+          },
+          {
+            "version": "3.0.18",
+            "commit": "c0f8f3c7ea35d68accb2e0297ca1d50f1a4b54d8"
+          },
+          {
+            "version": "3.0.19",
+            "commit": "618f78db1a49876a294fe5152fbcbf8362a8858f"
+          },
+          {
+            "version": "3.0.20",
+            "commit": "fa9431434265daf9a5741bc27cac021eaf7101b1"
+          },
+          {
+            "version": "3.0.21",
+            "commit": "97f127056c204ec9a85566e25a0ab396458ce929"
+          },
+          {
+            "version": "3.0.22",
+            "commit": "5bb534edd1969cfd09ab8faaf61d3c03b1fa8a3a"
+          },
+          {
+            "version": "3.0.23",
+            "commit": "c0d1301ce75c4565021a491d9447ef0932269495"
+          },
+          {
+            "version": "3.0.33",
+            "commit": "2f5ba4731a2ac0667c71cc02cfbdb49a2d601011"
+          }
+        ],
+        "to": [
+          {
+            "version": "3.1.0",
+            "commit": "56a128abb1bd52134a552a4156fe04be3ecc21a3"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kuberhealthy",
+          "version": "2.16.0",
+          "codeDigest": "sha256:bb40503bd00e2e7e7bf6b1bc0918c8c65086f5a0d2384a35321945c7bf840ff5"
+        },
+        "derivedAt": "2026-11-26T05:29:58Z",
+        "reviewedAt": "2026-11-26T05:29:58Z",
+        "validUntil": "2027-02-10T05:29:58Z",
+        "sources": [
+          {
+            "id": "crds-3-0-0",
+            "url": "https://github.com/kuberhealthy/kuberhealthy/blob/42640eda49d092aacc7e412bc1b08578e540703b/deploy/helm/kuberhealthy/crds/healthchecks.kuberhealthy.github.io.yaml",
+            "revision": "42640eda49d092aacc7e412bc1b08578e540703b",
+            "contentDigest": "sha256:98889205a61fc7d20970ff664f84051dac8eac16c99000877048da704e8adc4f",
+            "startLine": 1,
+            "endLine": 3657
+          },
+          {
+            "id": "crds-3-1-0",
+            "url": "https://github.com/kuberhealthy/kuberhealthy/blob/56a128abb1bd52134a552a4156fe04be3ecc21a3/deploy/helm/kuberhealthy/crds/healthchecks.kuberhealthy.github.io.yaml",
+            "revision": "56a128abb1bd52134a552a4156fe04be3ecc21a3",
+            "contentDigest": "sha256:3f5244283de4a9adef90456d12971885835416e9f31763d30ef9f40ae94c881f",
+            "startLine": 1,
+            "endLine": 3716
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/kuberhealthy/kuberhealthy",
+      "line": "3.2",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "3.1.0",
+            "commit": "56a128abb1bd52134a552a4156fe04be3ecc21a3"
+          }
+        ],
+        "to": [
+          {
+            "version": "3.2.0",
+            "commit": "3a7e51711f85c60309313da3b7693359f34a25f0"
+          },
+          {
+            "version": "3.2.1",
+            "commit": "8baca7db8d0b5f3880f904b4692109f56b1ba302"
+          },
+          {
+            "version": "3.2.2",
+            "commit": "fe1aa5697a14ad5d4115aba7cfe05a7f8df4cc3a"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kuberhealthy",
+          "version": "2.16.0",
+          "codeDigest": "sha256:bb40503bd00e2e7e7bf6b1bc0918c8c65086f5a0d2384a35321945c7bf840ff5"
+        },
+        "derivedAt": "2026-11-26T05:29:58Z",
+        "reviewedAt": "2026-11-26T05:29:58Z",
+        "validUntil": "2027-02-10T05:29:58Z",
+        "sources": [
+          {
+            "id": "crds-3-1-0",
+            "url": "https://github.com/kuberhealthy/kuberhealthy/blob/56a128abb1bd52134a552a4156fe04be3ecc21a3/deploy/helm/kuberhealthy/crds/healthchecks.kuberhealthy.github.io.yaml",
+            "revision": "56a128abb1bd52134a552a4156fe04be3ecc21a3",
+            "contentDigest": "sha256:3f5244283de4a9adef90456d12971885835416e9f31763d30ef9f40ae94c881f",
+            "startLine": 1,
+            "endLine": 3716
+          },
+          {
+            "id": "crds-3-2-0",
+            "url": "https://github.com/kuberhealthy/kuberhealthy/blob/3a7e51711f85c60309313da3b7693359f34a25f0/deploy/helm/kuberhealthy/crds/healthchecks.kuberhealthy.github.io.yaml",
+            "revision": "3a7e51711f85c60309313da3b7693359f34a25f0",
+            "contentDigest": "sha256:b0fd407debd1cde4b3a498d00c528420d70e3fbef8b2f553b3553e93b6eaaa46",
+            "startLine": 1,
+            "endLine": 3738
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/kubernetes-sigs/gateway-api",
       "line": "1.2",
       "factFamily": "crd.custom_resource_versions",
@@ -42381,6 +42639,56 @@
       }
     },
     {
+      "component": "pkg:github/kubeswift-io/kubeswift",
+      "line": "0.27",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.26.0",
+            "commit": "9c1e6c80d455eb97e4c91bd205b58232dab03089"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.27.0",
+            "commit": "73c73eea2598c080ac16497d52f4b16ec9b64f45"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.kubeswift",
+          "version": "2.16.0",
+          "codeDigest": "sha256:0c9274a279fc3a260870949d6a545735733dc1320434fbbfae3d3eb170617b05"
+        },
+        "derivedAt": "2026-11-26T18:09:02Z",
+        "reviewedAt": "2026-11-26T18:09:02Z",
+        "validUntil": "2027-02-10T18:09:02Z",
+        "sources": [
+          {
+            "id": "crds-0-26-0",
+            "url": "https://github.com/kubeswift-io/kubeswift/blob/9c1e6c80d455eb97e4c91bd205b58232dab03089/config/crd/bases/fleet.kubeswift.io_clusters.yaml",
+            "revision": "9c1e6c80d455eb97e4c91bd205b58232dab03089",
+            "contentDigest": "sha256:43c2cd53c5456d604fe92b5b96f277b3649f61f10131d1697b9ff01923aecf71",
+            "startLine": 1,
+            "endLine": 239
+          },
+          {
+            "id": "crds-0-27-0",
+            "url": "https://github.com/kubeswift-io/kubeswift/blob/73c73eea2598c080ac16497d52f4b16ec9b64f45/config/crd/bases/fleet.kubeswift.io_clusters.yaml",
+            "revision": "73c73eea2598c080ac16497d52f4b16ec9b64f45",
+            "contentDigest": "sha256:43c2cd53c5456d604fe92b5b96f277b3649f61f10131d1697b9ff01923aecf71",
+            "startLine": 1,
+            "endLine": 239
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/kumahq/kuma",
       "line": "2.10",
       "factFamily": "crd.custom_resource_versions",
@@ -43221,6 +43529,10 @@
           {
             "version": "1.10.2",
             "commit": "c8648f5e335b01c3ea27a7f654600ec8aece84ca"
+          },
+          {
+            "version": "1.10.5",
+            "commit": "142989f021c7efd416845712c33e60fc347dff96"
           }
         ],
         "to": [
@@ -43247,11 +43559,11 @@
         "extractor": {
           "id": "crd.version-removal.longhorn",
           "version": "2.16.0",
-          "codeDigest": "sha256:610333d1daef96c1a30c31d84a190a31a334c5cfa56cef01d877b458b8d43e34"
+          "codeDigest": "sha256:dc500bbff69012440509f5d13bdf6e9babc7bea0fc8677f06d4ea5beaaefa855"
         },
-        "derivedAt": "2026-11-20T09:39:37Z",
-        "reviewedAt": "2026-11-20T09:39:37Z",
-        "validUntil": "2027-01-28T09:39:37Z",
+        "derivedAt": "2026-11-27T08:07:09Z",
+        "reviewedAt": "2026-11-27T08:07:09Z",
+        "validUntil": "2027-02-18T08:07:09Z",
         "sources": [
           {
             "id": "crds-1-10-0",
@@ -43317,11 +43629,11 @@
         "extractor": {
           "id": "crd.version-removal.longhorn",
           "version": "2.16.0",
-          "codeDigest": "sha256:610333d1daef96c1a30c31d84a190a31a334c5cfa56cef01d877b458b8d43e34"
+          "codeDigest": "sha256:dc500bbff69012440509f5d13bdf6e9babc7bea0fc8677f06d4ea5beaaefa855"
         },
-        "derivedAt": "2026-11-20T09:39:37Z",
-        "reviewedAt": "2026-11-20T09:39:37Z",
-        "validUntil": "2027-01-28T09:39:37Z",
+        "derivedAt": "2026-11-27T08:07:09Z",
+        "reviewedAt": "2026-11-27T08:07:09Z",
+        "validUntil": "2027-02-18T08:07:09Z",
         "sources": [
           {
             "id": "crds-1-11-0",
@@ -43375,11 +43687,11 @@
         "extractor": {
           "id": "crd.version-removal.longhorn",
           "version": "2.16.0",
-          "codeDigest": "sha256:610333d1daef96c1a30c31d84a190a31a334c5cfa56cef01d877b458b8d43e34"
+          "codeDigest": "sha256:dc500bbff69012440509f5d13bdf6e9babc7bea0fc8677f06d4ea5beaaefa855"
         },
-        "derivedAt": "2026-11-20T09:39:37Z",
-        "reviewedAt": "2026-11-20T09:39:37Z",
-        "validUntil": "2027-01-28T09:39:37Z",
+        "derivedAt": "2026-11-27T08:07:09Z",
+        "reviewedAt": "2026-11-27T08:07:09Z",
+        "validUntil": "2027-02-18T08:07:09Z",
         "sources": [
           {
             "id": "crds-1-12-0",
