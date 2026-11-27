@@ -60,6 +60,12 @@ const approvalUsage = `usage: prufyx-maintainer approval <sign|verify|public-key
               every record of the head is bound)
   verify      --approval FILE --subject distributions --pack cncf --base-root DIR --head-root DIR
               --keys FILE --keys-digest sha256:... [--now RFC3339]
+  sign        --subject packLevel --pack cncf --base-root DIR --head-root DIR
+              --keys FILE --keys-digest sha256:... --identity LOGIN --candidate-id ID
+              (--key FILE | --key-stdin) --output FILE (raising a pack to an opt-in schema level;
+              binds both levels and both pack files)
+  verify      --approval FILE --subject packLevel --pack cncf --base-root DIR --head-root DIR
+              --keys FILE --keys-digest sha256:... [--now RFC3339]
   verify      --approval FILE --subject repinBaseline --repository OWNER/REPO --head-baselines FILE
               [--base-baselines FILE] --base-root DIR --keys FILE --keys-digest sha256:... [--now RFC3339]
   sign        --batch --base DIR --head DIR --batch-id b-YYYYMMDD-N --candidate-id ID
@@ -239,8 +245,8 @@ type subjectFlags struct {
 }
 
 func (s *subjectFlags) register(f *flag.FlagSet) {
-	f.StringVar(&s.subject, "subject", ApprovalSubjectRule, "what the approval is for: rule, lineAttestation, pathPolicy, repinBaseline, registryDigest, servedAPIs or distributions")
-	f.StringVar(&s.headRoot, "head-root", "", "registryDigest, servedAPIs, distributions: the head checkout (the change as proposed)")
+	f.StringVar(&s.subject, "subject", ApprovalSubjectRule, "what the approval is for: rule, lineAttestation, pathPolicy, repinBaseline, registryDigest, servedAPIs, distributions or packLevel")
+	f.StringVar(&s.headRoot, "head-root", "", "registryDigest, servedAPIs, distributions, packLevel: the head checkout (the change as proposed)")
 	f.StringVar(&s.record, "record", "", "lineAttestation, pathPolicy: the record ID (in place of --rule)")
 	f.StringVar(&s.repository, "repository", "", "repinBaseline: the repository (owner/repo), spelled as its entry spells it")
 	f.StringVar(&s.baseBaselines, "base-baselines", "", "repinBaseline: the baseline file as it is on the base branch (omit when the base has none)")
@@ -296,7 +302,7 @@ func (s *subjectFlags) load(layout Layout) (ApprovalSubject, ApprovalKeys, error
 		return s.loadRegistry(layout)
 	}
 	if s.headRoot != "" {
-		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--head-root belongs to --subject registryDigest, servedAPIs or distributions"}
+		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--head-root belongs to --subject registryDigest, servedAPIs, distributions or packLevel"}
 	}
 	switch {
 	case s.subject == ApprovalSubjectRule && s.record != "":
@@ -360,7 +366,7 @@ func (s *subjectFlags) loadRegistry(layout Layout) (ApprovalSubject, ApprovalKey
 		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--pack, --base-root, --head-root, --keys and --keys-digest are required"}
 	}
 	if s.rule != "" || s.record != "" || s.basePack != "" || s.headPack != "" || s.repository != "" || s.baseBaselines != "" || s.headBaselines != "" {
-		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--subject registryDigest, servedAPIs and distributions take --pack, --base-root and --head-root only"}
+		return ApprovalSubject{}, ApprovalKeys{}, usageError{"--subject registryDigest, servedAPIs, distributions and packLevel take --pack, --base-root and --head-root only"}
 	}
 	var spec *PackSpec
 	for i := range layout.Packs {
@@ -388,6 +394,8 @@ func (s *subjectFlags) loadRegistry(layout Layout) (ApprovalSubject, ApprovalKey
 		subject, _, err = ServedApprovalSubject(*spec, Tree{Root: s.baseRoot}, Tree{Root: s.headRoot})
 	case ApprovalSubjectDistributions:
 		subject, _, err = DistributionsApprovalSubject(*spec, Tree{Root: s.baseRoot}, Tree{Root: s.headRoot})
+	case ApprovalSubjectPackLevel:
+		subject, err = PackLevelApprovalSubject(*spec, Tree{Root: s.baseRoot}, Tree{Root: s.headRoot})
 	default:
 		subject, _, err = RegistryApprovalSubject(*spec, Tree{Root: s.baseRoot}, Tree{Root: s.headRoot})
 	}
@@ -493,7 +501,7 @@ func cmdApprovalSign(args []string, env approvalEnv, layout Layout, stdout io.Wr
 	f.StringVar(&identity, "identity", "", "the owner's login, as pinned in the key file")
 	f.StringVar(&candidateID, "candidate-id", "", "a reference for the change, for example its pull request")
 	f.StringVar(&output, "output", "", "new approval file to write")
-	f.StringVar(&s.baseRoot, "base-root", "", "registryDigest, servedAPIs, distributions: the base checkout")
+	f.StringVar(&s.baseRoot, "base-root", "", "registryDigest, servedAPIs, distributions, packLevel: the base checkout")
 	if err := parseApprovalFlags(f, args); err != nil {
 		return 2, err
 	}
@@ -502,7 +510,7 @@ func cmdApprovalSign(args []string, env approvalEnv, layout Layout, stdout io.Wr
 	}
 	s.candidateID = candidateID
 	if s.baseRoot != "" && !memberSubject(s.subject) {
-		return 2, usageError{"--base-root belongs to --subject registryDigest, servedAPIs or distributions when signing"}
+		return 2, usageError{"--base-root belongs to --subject registryDigest, servedAPIs, distributions or packLevel when signing"}
 	}
 	subject, keys, err := s.load(layout)
 	if err != nil {
@@ -552,6 +560,8 @@ func printApproval(w io.Writer, rec ApprovalRecord, key ApprovalKey) {
 		fmt.Fprintf(w, "  subject    served-API lists introduction %s/%s\n", rec.Pack, rec.RuleID)
 	case ApprovalSubjectDistributions:
 		fmt.Fprintf(w, "  subject    distribution records introduction %s/%s\n", rec.Pack, rec.RuleID)
+	case ApprovalSubjectPackLevel:
+		fmt.Fprintf(w, "  subject    pack level raise %s (%s)\n", rec.Pack, rec.Scope)
 	default:
 		fmt.Fprintf(w, "  subject    rule %s/%s\n", rec.Pack, rec.RuleID)
 	}
@@ -568,7 +578,7 @@ func cmdApprovalVerify(args []string, env approvalEnv, layout Layout, stdout io.
 	f := flag.NewFlagSet("approval verify", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	s.register(f)
-	f.StringVar(&s.baseRoot, "base-root", "", "lineAttestation, pathPolicy, repinBaseline, registryDigest, servedAPIs, distributions: the base checkout, whose approvals the gate checks for single use and forward-only decisions")
+	f.StringVar(&s.baseRoot, "base-root", "", "lineAttestation, pathPolicy, repinBaseline, registryDigest, servedAPIs, distributions, packLevel: the base checkout, whose approvals the gate checks for single use and forward-only decisions")
 	f.StringVar(&s.candidateID, "candidate-id", "", "gatePaths: the pull request reference, pr-<number>")
 	f.StringVar(&approval, "approval", "", "the approval file")
 	f.StringVar(&now, "now", "", "the clock, RFC 3339 UTC (default: now)")
@@ -591,7 +601,7 @@ func cmdApprovalVerify(args []string, env approvalEnv, layout Layout, stdout io.
 	case checksBase && baseRoot == "":
 		return 2, usageError{"--base-root is required: the gate refuses an approval the base already holds or has superseded, and verify must say so before it says OK"}
 	case !checksBase && baseRoot != "":
-		return 2, usageError{"--base-root belongs to --subject lineAttestation, pathPolicy, repinBaseline, registryDigest, servedAPIs or distributions"}
+		return 2, usageError{"--base-root belongs to --subject lineAttestation, pathPolicy, repinBaseline, registryDigest, servedAPIs, distributions or packLevel"}
 	}
 	subject, keys, err := s.load(layout)
 	if err != nil {
@@ -606,7 +616,7 @@ func cmdApprovalVerify(args []string, env approvalEnv, layout Layout, stdout io.
 		return 1, nil
 	}
 	if checksBase {
-		// A registryDigest, servedAPIs or distributions subject was read from --base-root itself.
+		// A registryDigest, servedAPIs, distributions or packLevel subject was read from --base-root itself.
 		if !memberSubject(s.subject) {
 			if err := s.checkBaseRoot(layout, baseRoot); err != nil {
 				return 2, err
@@ -688,5 +698,5 @@ func cmdApprovalKeysDigest(args []string, stdout io.Writer) (int, error) {
 // members the gate introduces or changes as a whole: it is read from a base
 // and a head checkout, never from one record.
 func memberSubject(subject string) bool {
-	return subject == ApprovalSubjectRegistry || subject == ApprovalSubjectServed || subject == ApprovalSubjectDistributions || subject == ApprovalSubjectGatePaths
+	return subject == ApprovalSubjectRegistry || subject == ApprovalSubjectServed || subject == ApprovalSubjectDistributions || subject == ApprovalSubjectGatePaths || subject == ApprovalSubjectPackLevel
 }

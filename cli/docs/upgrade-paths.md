@@ -168,12 +168,14 @@ pack carries exactly the schema of the newest feature it uses:
 | the boundary-covered contract, which the pack declares itself and which needs at least one ranged rule | `prufyx.io/cncf-source-rule-pack/v1alpha16` |
 
 `v1alpha16` is the one opt-in level: no content puts a pack there. A change
-that raises a pack to it is admitted by the knowledge gate only if the same
-change adds or alters the range of at least one existing rule of that pack,
-with an owner approval or a batch approval of that rule. A reattestation does
-not count, and neither does an approved rule whose range stays as it was. An
-owner approval binds the bytes of the rule it names, not the pack level. The
-oldest supported client (`cli/knowledge/oldest-supported-client.txt`) must
+that raises a pack to it is admitted by the knowledge gate only with an owner
+approval of that raise (subject `packLevel`), which names the pack and both
+levels and binds the base and head pack files; an approval of a rule does not
+admit it. The same change must also add or alter the range of at least one
+existing active rule of that pack, with an owner approval of that rule. A
+reattestation does not count, and neither does an approved rule whose range
+stays as it was. A batch approval cannot be used, because it admits no change of
+a pack member. The oldest supported client (`cli/knowledge/oldest-supported-client.txt`) must
 also be `v0.1.0-beta.3` or later in both the base and the head of the change; a
 missing or unreadable pin refuses the raise, and so does a pin file outside the
 form the publication workflow accepts. The gate refuses lowering the schema

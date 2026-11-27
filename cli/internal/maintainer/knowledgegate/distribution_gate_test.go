@@ -749,7 +749,12 @@ func TestProviderIntroductionSchemaBumpRidesTheExistingPath(t *testing.T) {
 		if schema == nil {
 			t.Fatalf("no schema change: %+v", cls.Changes)
 		}
-		return checkSchemaChange(cls, schema, nil, Options{Layout: DefaultLayout(), Base: base, Head: head})
+		// The level is not an opt-in one: it needs no pack level approval.
+		levelApproved, err := checkSchemaChange(cls, schema, nil, Options{Layout: DefaultLayout(), Base: base, Head: head}, nil, nil)
+		if levelApproved {
+			t.Fatal("a content-required level counted as approved by a pack level approval")
+		}
+		return err
 	}
 	if err := run(t, nil, true); err != nil {
 		t.Fatalf("the bump with an admitted introduction: %v", err)

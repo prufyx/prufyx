@@ -3,6 +3,7 @@
 package knowledgegate
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"sort"
@@ -104,10 +105,215 @@ func rangeChangeFixture(t *testing.T) signFixture {
 	})
 }
 
-func approveAndRun(t *testing.T, f signFixture) *Report {
+// levelPath is where tr carries the approval of the pack level raise.
+func levelPath(tr Tree) string {
+	return filepath.Join(tr.Root, filepath.FromSlash(packLevelApprovalPath(DefaultLayout(), "cncf")))
+}
+
+// levelArgs are the flags naming the fixture's pack level raise.
+func (f signFixture) levelArgs() []string {
+	return []string{
+		"--subject", ApprovalSubjectPackLevel, "--pack", "cncf", "--base-root", f.base.Root, "--head-root", f.head.Root,
+		"--keys", f.keysPath(), "--keys-digest", f.keysDigest,
+	}
+}
+
+func (f signFixture) signRule(t *testing.T) {
 	t.Helper()
 	requireCode(t, runApproval(t, nil, signNow, f.signArgs("--key", f.key.keyFile(t, 0o600))...), 0, "approval written")
+}
+
+func (f signFixture) signLevel(t *testing.T) {
+	t.Helper()
+	args := append([]string{"sign"}, f.levelArgs()...)
+	args = append(args, "--identity", "airstand", "--candidate-id", "pr-42", "--output", levelPath(f.head), "--key", f.key.keyFile(t, 0o600))
+	requireCode(t, runApproval(t, nil, signNow, args...), 0, "approval written")
+}
+
+func (f signFixture) run(t *testing.T) *Report {
+	t.Helper()
 	return runGate(t, Options{Base: f.base, Head: f.head, ApprovalKeysDigest: f.keysDigest, Author: DefaultBotLogin})
+}
+
+// approveAndRun signs both the rule and the pack level raise and runs the
+// gate.
+func approveAndRun(t *testing.T, f signFixture) *Report {
+	t.Helper()
+	f.signRule(t)
+	f.signLevel(t)
+	return f.run(t)
+}
+
+// levelRecord reads the record of the head's signed pack level approval.
+func levelRecord(t *testing.T, f signFixture) ApprovalRecord {
+	t.Helper()
+	raw, err := os.ReadFile(levelPath(f.head))
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, err := decodeApproval(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return env.Record
+}
+
+// appendSpace changes a tree's pack file bytes and nothing it says.
+func appendSpace(t *testing.T, tr Tree) {
+	t.Helper()
+	path := filepath.Join(tr.Root, filepath.FromSlash(cncfRulesPath))
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, path, append(raw, ' '))
+}
+
+// The pack level approval does not replace the rule's own approval.
+func TestOptInSchemaLevelApprovalOnlyRefused(t *testing.T) {
+	t.Parallel()
+	f := rangeChangeFixture(t)
+	f.signLevel(t)
+	r := f.run(t)
+	requireSchemaRefused(t, r, "not admitted")
+	if c, _ := check(r, "knowledge-records"); c.OK {
+		t.Fatalf("an unused pack level approval passed: %+v", c)
+	}
+}
+
+// A pack level approval admits exactly the raise it was signed for: every
+// other record, key, time or tree refuses.
+func TestOptInSchemaLevelApprovalRefused(t *testing.T) {
+	t.Parallel()
+	resign := func(edit func(r *ApprovalRecord)) func(t *testing.T, f signFixture) {
+		return func(t *testing.T, f signFixture) {
+			rec := levelRecord(t, f)
+			edit(&rec)
+			writeFile(t, levelPath(f.head), f.key.sign(t, rec))
+		}
+	}
+	levels := func(from, to string) func(t *testing.T, f signFixture) {
+		return resign(func(r *ApprovalRecord) {
+			parts := strings.Split(r.Scope, " ")
+			if from != "" {
+				parts[0] = from
+			}
+			if to != "" {
+				parts[1] = to
+			}
+			r.Scope = strings.Join(parts, " ")
+		})
+	}
+	// A level no pack holds, so the scope always differs.
+	const other = "prufyx.io/cncf-source-rule-pack/v1alpha99"
+	otherDigest := "sha256:" + strings.Repeat("0", 64)
+	for name, tc := range map[string]struct {
+		edit func(t *testing.T, f signFixture)
+		want string
+	}{
+		"other pack":        {resign(func(r *ApprovalRecord) { r.Pack = "community" }), "approves a different rule"},
+		"wrong from level":  {levels(other, ""), "approves a different rule"},
+		"wrong to level":    {levels("", other), "approves a different rule"},
+		"other head digest": {resign(func(r *ApprovalRecord) { r.CandidateDigest = otherDigest }), "candidate digest"},
+		"other base digest": {resign(func(r *ApprovalRecord) { r.BaseDigest = otherDigest }), "base digest"},
+		"head bytes moved":  {func(t *testing.T, f signFixture) { appendSpace(t, f.head) }, "candidate digest"},
+		"base bytes moved":  {func(t *testing.T, f signFixture) { appendSpace(t, f.base) }, "base digest"},
+		"expired": {resign(func(r *ApprovalRecord) {
+			r.DecidedAt = gateNow.Add(-MaxApprovalAge - time.Second).Format(time.RFC3339)
+		}), "older than 14 days"},
+		"from the future": {resign(func(r *ApprovalRecord) { r.DecidedAt = gateNow.Add(time.Hour).Format(time.RFC3339) }), "in the future"},
+		"rejected":        {resign(func(r *ApprovalRecord) { r.Decision = "reject" }), "decision is"},
+		"not an owner":    {resign(func(r *ApprovalRecord) { r.Identity = "someone" }), "is not an owner"},
+		"unpinned key": {func(t *testing.T, f signFixture) {
+			writeFile(t, levelPath(f.head), newApprovalKey(t).sign(t, levelRecord(t, f)))
+		}, "not pinned"},
+		"a rule approval in its place": {func(t *testing.T, f signFixture) {
+			raw, err := os.ReadFile(f.out())
+			if err != nil {
+				t.Fatal(err)
+			}
+			writeFile(t, levelPath(f.head), raw)
+		}, "different kind of subject"},
+		"already in the base": {func(t *testing.T, f signFixture) {
+			raw, err := os.ReadFile(levelPath(f.head))
+			if err != nil {
+				t.Fatal(err)
+			}
+			writeFile(t, levelPath(f.base), raw)
+		}, "already in the base"},
+		"missing": {func(t *testing.T, f signFixture) {
+			if err := os.Remove(levelPath(f.head)); err != nil {
+				t.Fatal(err)
+			}
+		}, "no owner approval of the pack level raise"},
+		"junk": {func(t *testing.T, f signFixture) { writeFile(t, levelPath(f.head), []byte("{}\n")) }, "wrong schema"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			f := rangeChangeFixture(t)
+			f.signRule(t)
+			f.signLevel(t)
+			tc.edit(t, f)
+			requireSchemaRefused(t, f.run(t), tc.want)
+		})
+	}
+}
+
+// The record of a pack level approval names the pack, both levels and the
+// bytes of both pack files, and "approval verify" accepts it only for them.
+func TestPackLevelApprovalSubject(t *testing.T) {
+	t.Parallel()
+	f := rangeChangeFixture(t)
+	f.signLevel(t)
+	rec := levelRecord(t, f)
+	base, head := readPack(t, f.base, cncfRulesPath), readPack(t, f.head, cncfRulesPath)
+	var from, to string
+	if err := json.Unmarshal(base.fields["schema"], &from); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(head.fields["schema"], &to); err != nil {
+		t.Fatal(err)
+	}
+	digest := func(tr Tree) string {
+		raw, err := os.ReadFile(filepath.Join(tr.Root, filepath.FromSlash(cncfRulesPath)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return CandidateDigest(raw)
+	}
+	if rec.Subject != ApprovalSubjectPackLevel || rec.Pack != "cncf" || rec.RuleID != PackLevelApprovalID ||
+		rec.Scope != from+" "+to || to != schemaBoundaryCovered || rec.BaseDigest != digest(f.base) || rec.CandidateDigest != digest(f.head) {
+		t.Fatalf("record %+v", rec)
+	}
+	verify := append([]string{"verify", "--approval", levelPath(f.head)}, f.levelArgs()...)
+	requireCode(t, runApproval(t, nil, gateNow, verify...), 0, "approval OK")
+	appendSpace(t, f.head)
+	requireCode(t, runApproval(t, nil, gateNow, verify...), 1, "candidate digest")
+
+	// Without a raise to an opt-in level there is nothing to sign.
+	b, h := trees(t)
+	plain := pinFixture(t, b, h, "")
+	args := append([]string{"sign"}, plain.levelArgs()...)
+	args = append(args, "--identity", "airstand", "--candidate-id", "pr-42", "--output", levelPath(h), "--key", plain.key.keyFile(t, 0o600))
+	requireCode(t, runApproval(t, nil, signNow, args...), 2, "does not raise the pack")
+}
+
+// A batch approval cannot carry the raise: it admits no change of a pack
+// member, so it refuses the whole change, and the level with it.
+func TestOptInSchemaBatchRefused(t *testing.T) {
+	t.Parallel()
+	f := rangeChangeFixture(t)
+	batch := batchFixture{base: f.base, head: f.head, key: f.key, ids: []string{f.id}}
+	batch.signAndWrite(t, batch.record(t))
+	r := f.run(t)
+	c, ok := check(r, CheckBatch)
+	if !ok || c.OK || !strings.Contains(c.Detail, "the pack member schema of cncf changed") {
+		t.Fatalf("batch check %+v, present %v", c, ok)
+	}
+	if c := change(t, r, f.id); c.OK || c.Proof == ProofBatchApproval {
+		t.Fatalf("rule change %+v", c)
+	}
+	requireSchemaRefused(t, r, "not admitted")
 }
 
 // The opt-in level beside an owner-approved change of a rule's range is
@@ -122,6 +328,9 @@ func TestOptInSchemaAdmittedWithOwnerApprovedRangeChange(t *testing.T) {
 	}
 	if c := change(t, r, f.id); c.Proof != ProofApproval {
 		t.Fatalf("rule change %+v", c)
+	}
+	if c, _ := check(r, "knowledge-records"); !c.OK {
+		t.Fatalf("records %+v", c)
 	}
 	if r.AutoMerge.Eligible {
 		t.Fatal("an opt-in schema change is auto-merge eligible")
@@ -167,13 +376,24 @@ func TestOptInSchemaWithUnrelatedApprovedRuleRefused(t *testing.T) {
 	}
 }
 
-// The same range change admits the level only on an owner approval: a
-// reattestation, which automation signs, and every other proof do not.
+// Beside the approved level, the range change itself counts only on an owner
+// approval of the rule: a reattestation, which automation signs, and every
+// other proof do not.
 func TestOptInSchemaProofOfTheRangeChange(t *testing.T) {
 	t.Parallel()
 	f := rangeChangeFixture(t)
+	f.signLevel(t)
+	raw, err := os.ReadFile(f.keysPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys, err := ParseApprovalKeys(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loadKeys := func() (*ApprovalKeys, error) { return &keys, nil }
 	for proof, admitted := range map[string]bool{
-		ProofApproval: true, ProofBatchApproval: true,
+		ProofApproval: true, ProofBatchApproval: false,
 		ProofReattestation: false, ProofRederived: false, ProofNoneRequired: false, ProofOnboarding: false, ProofSupersede: false,
 	} {
 		cls, err := Classify(DefaultLayout(), f.base, f.head)
@@ -194,7 +414,8 @@ func TestOptInSchemaProofOfTheRangeChange(t *testing.T) {
 		if len(pending) != 1 {
 			t.Fatalf("%d schema changes", len(pending))
 		}
-		admitSchemaChanges(cls, pending, nil, Options{Layout: DefaultLayout(), Base: f.base, Head: f.head})
+		opts := Options{Layout: DefaultLayout(), Base: f.base, Head: f.head, Now: gateNow}
+		admitSchemaChanges(cls, pending, nil, opts, loadKeys, &baseApprovals{opts: opts})
 		c := pending[0]
 		if c.OK != admitted || (!admitted && !strings.Contains(c.Detail, "range changes")) {
 			t.Fatalf("%s: schema change %+v, admitted want %v", proof, c, admitted)
@@ -385,11 +606,11 @@ func TestPublishPinForm(t *testing.T) {
 	}
 }
 
-// Only admitted changes of an existing rule of the same pack count, and only
-// when they add or alter its range.
+// Only owner-approved changes of an existing rule of the same pack count, and
+// only when they add or alter the range of a rule that is active in the head.
 func TestOptInSchemaAuthority(t *testing.T) {
 	t.Parallel()
-	ent := func(rng string) *entry {
+	entState := func(rng, state string) *entry {
 		raw := `{"rule":{"id":"r"}}`
 		if rng != "" {
 			raw = `{"rule":{"id":"r","range":` + rng + `}}`
@@ -399,11 +620,13 @@ func TestOptInSchemaAuthority(t *testing.T) {
 			t.Fatal(err)
 		}
 		e := &entry{RuleID: "r", generic: generic}
+		e.Evidence.State = state
 		if rng != "" {
 			e.Range = []byte(rng)
 		}
 		return e
 	}
+	ent := func(rng string) *entry { return entState(rng, "active") }
 	one, two := `{"from":{"gte":"1.0.0"}}`, `{"from":{"gte":"1.0.1"}}`
 	rule := func(proof string, base, head *entry) *Change {
 		return &Change{Pack: "cncf", RuleID: "r", OK: true, Proof: proof, base: base, head: head}
@@ -412,9 +635,8 @@ func TestOptInSchemaAuthority(t *testing.T) {
 		return ownerApprovedRangeChange(&Classification{Changes: []*Change{c}}, "cncf")
 	}
 	for name, c := range map[string]*Change{
-		"altered":       rule(ProofApproval, ent(one), ent(two)),
-		"added":         rule(ProofApproval, ent(""), ent(one)),
-		"batch altered": rule(ProofBatchApproval, ent(one), ent(two)),
+		"altered": rule(ProofApproval, ent(one), ent(two)),
+		"added":   rule(ProofApproval, ent(""), ent(one)),
 	} {
 		if !counts(c) {
 			t.Fatalf("%s not counted", name)
@@ -432,6 +654,11 @@ func TestOptInSchemaAuthority(t *testing.T) {
 		"range null":    rule(ProofApproval, ent(one), ent("null")),
 		"new rule":      rule(ProofApproval, nil, ent(one)),
 		"removed rule":  rule(ProofApproval, ent(one), nil),
+		"batch":         rule(ProofBatchApproval, ent(one), ent(two)),
+		"withdrawn":     rule(ProofApproval, entState(one, "withdrawn"), entState(two, "withdrawn")),
+		"withdraws":     rule(ProofApproval, ent(one), entState(two, "withdrawn")),
+		"deferred":      rule(ProofApproval, ent(one), entState(two, "deferred")),
+		"no state":      rule(ProofApproval, ent(one), entState(two, "")),
 		"reattestation": rule(ProofReattestation, ent(one), ent(two)),
 		"rederived":     rule(ProofRederived, ent(one), ent(two)),
 		"not admitted":  changed(func(c *Change) { c.OK = false }),
