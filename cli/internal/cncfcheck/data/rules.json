@@ -159,7 +159,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-18T12:00:00Z"
+          "validUntil": "2027-01-09T12:00:00Z"
         },
         "id": "argo-cd.plain-http-oci-repository-helm4.3-0-23-to-3-5-2",
         "nextAction": "For this selected plain-HTTP Helm OCI repository, set insecureOCIForceHttp to true and do not combine it with insecure; validate dependency repositories separately.",
@@ -325,7 +325,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-19T12:00:00Z"
+          "validUntil": "2027-01-13T12:00:00Z"
         },
         "id": "argo-cd.plain-http-oci-repository-helm4.3-1-16-to-3-5-2",
         "nextAction": "For this selected plain-HTTP Helm OCI repository, set insecureOCIForceHttp to true and do not combine it with insecure; validate dependency repositories separately.",
@@ -491,7 +491,7 @@
             }
           ],
           "state": "active",
-          "validUntil": "2027-01-20T12:00:00Z"
+          "validUntil": "2027-01-14T12:00:00Z"
         },
         "id": "argo-cd.plain-http-oci-repository-helm4.3-2-12-to-3-5-2",
         "nextAction": "For this selected plain-HTTP Helm OCI repository, set insecureOCIForceHttp to true and do not combine it with insecure; validate dependency repositories separately.",
