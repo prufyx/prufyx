@@ -59,7 +59,12 @@ func write(t *testing.T, path, content string) {
 		}
 		return
 	}
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	// A script is committed as an executable file.
+	mode := os.FileMode(0o644)
+	if strings.HasPrefix(content, "#!") {
+		mode = 0o755
+	}
+	if err := os.WriteFile(path, []byte(content), mode); err != nil {
 		t.Fatal(err)
 	}
 }

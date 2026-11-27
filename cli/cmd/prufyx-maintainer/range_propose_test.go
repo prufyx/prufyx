@@ -23,19 +23,39 @@ func TestRangeProposeRefusesBadInvocations(t *testing.T) {
 	args := func(out, reposFile string) []string {
 		return []string{"range-propose", "--rules-repo", dir, "--rules-commit", "0000000000000000000000000000000000000000", "--repos", reposFile, "--out", out}
 	}
-	for name, argv := range map[string][]string{
-		"no flags":        {"range-propose"},
-		"extra argument":  append(args(filepath.Join(dir, "out"), repos), "x"),
-		"unknown flag":    append(args(filepath.Join(dir, "out"), repos), "--token", "x"),
-		"repeated flag":   append(args(filepath.Join(dir, "out"), repos), "--out", dir),
-		"work tree out":   args(filepath.Join(tree, "out"), repos),
-		"missing repos":   args(filepath.Join(dir, "out"), filepath.Join(dir, "none.json")),
-		"no rules commit": args(filepath.Join(dir, "out"), repos),
+	good := func() []string { return args(filepath.Join(dir, "out"), repos) }
+	// empty returns a complete invocation with one flag's value emptied.
+	empty := func(flag string) []string {
+		argv := good()
+		for i := range argv {
+			if argv[i] == flag {
+				argv[i+1] = ""
+			}
+		}
+		return argv
+	}
+	const inTree = "range propose: the output directory is inside a git work tree"
+	for name, tc := range map[string]struct {
+		argv []string
+		want string
+	}{
+		"no flags":        {[]string{"range-propose"}, rangeProposeUsage},
+		"extra argument":  {append(good(), "x"), rangeProposeUsage},
+		"unknown flag":    {append(good(), "--token", "x"), rangeProposeUsage},
+		"no rules repo":   {empty("--rules-repo"), rangeProposeUsage},
+		"empty commit":    {empty("--rules-commit"), rangeProposeUsage},
+		"no repos file":   {empty("--repos"), rangeProposeUsage},
+		"no out":          {empty("--out"), rangeProposeUsage},
+		"repeated flag":   {append(good(), "--out", dir), "prufyx-maintainer: duplicate option rejected"},
+		"work tree out":   {args(filepath.Join(tree, "out"), repos), inTree},
+		"out comes first": {args(filepath.Join(tree, "out"), filepath.Join(dir, "none.json")), inTree},
+		"missing repos":   {args(filepath.Join(dir, "out"), filepath.Join(dir, "none.json")), "range propose: projects file unreadable"},
+		"no rules commit": {good(), "range propose: the rules commit is not in the rules repository"},
 	} {
 		var out bytes.Buffer
-		err := run(argv, &out, &out)
+		err := run(tc.argv, &out, &out)
 		var command *commandError
-		if !errors.As(err, &command) || command.code != 2 {
+		if !errors.As(err, &command) || command.code != 2 || command.message != tc.want {
 			t.Errorf("%s: %v", name, err)
 		}
 	}
