@@ -25,6 +25,24 @@ lies in `[reviewedAt, validUntil)`. Verdict-neutral rules (notices and leads)
 never count. The matching uses the engine's own helpers (`CoversLine`,
 `CrossingBounds`, the line attestation families), not separate logic.
 
+A rule with a chart subject is about a Helm chart line: its `from` and `to` are
+chart versions, never read as release lines of the project, even when the numbers
+are equal. Such a rule:
+
+- never makes a pair A, B or S, including a pair counted by the complete
+  predicate;
+- is never line-wide: a pack with an attestation that lists it is refused at
+  admission, and one with an attestation of the same component, line and family
+  that leaves it out is refused as missing a rule. The report decides no pair
+  from an attestation that lists it;
+- is not counted in `rulesInWindow`, and does not by itself count its project in
+  `crdPublishedProjects` (a current custom-resource line attestation still
+  publishes its component).
+
+It is still a rule of the pack: `validRules`, `packProjectsCovered` and C1
+include it when it is valid. Read those as "a valid rule is in the pack", not as
+upgrade coverage.
+
 Derived numbers:
 
 - `VC` of a project is `(A + B) / pairs`; `VCA` is `A / pairs`. S is shown and

@@ -238,7 +238,12 @@ func TestEveryRuleOfTheLineIsListedAndLineWide(t *testing.T) {
 	late := []byte(strings.Replace(string(quiet), `"version":"3.5.0"`, `"version":"3.5.1"`, 1))
 	anchor := []byte(fmt.Sprintf(`{"id":"prom.anchor","subject":{"component":%q,"from":"3.4.0","to":"3.5.0"}}`, component))
 	short := []byte(strings.Replace(string(quiet), `"version":"3.5.0"`, `"version":"3.4.5"`, 1))
-	for name, bad := range map[string][]byte{"late change": late, "anchor": anchor, "short from": short} {
+	// A rule about a chart line decides no release hop, whatever its shape.
+	chart := []byte(strings.Replace(string(quiet), `"subject":{`, `"subject":{"chart":{"source":"https://charts.example.com","name":"example"},`, 1))
+	if string(chart) == string(quiet) {
+		t.Fatal("fixture did not change")
+	}
+	for name, bad := range map[string][]byte{"late change": late, "anchor": anchor, "short from": short, "chart subject": chart} {
 		t.Run(name, func(t *testing.T) {
 			_, err := attest(t, r, dispositions(marks), [][]byte{bad}, nil)
 			wantCode(t, err, ce.RuleNotLineWide)

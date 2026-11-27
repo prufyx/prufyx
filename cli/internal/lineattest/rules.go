@@ -42,9 +42,10 @@ func ScopeOf(raw json.RawMessage) (RuleScope, error) {
 	var shape struct {
 		ID      string `json:"id"`
 		Subject struct {
-			Component string `json:"component"`
-			From      string `json:"from"`
-			To        string `json:"to"`
+			Component string                     `json:"component"`
+			From      string                     `json:"from"`
+			To        string                     `json:"to"`
+			Chart     *constraintengine.ChartRef `json:"chart"`
 		} `json:"subject"`
 		Range        *constraintengine.VersionRange `json:"range"`
 		Crossing     *constraintengine.CrossingSpec `json:"crossing"`
@@ -70,7 +71,7 @@ func ScopeOf(raw json.RawMessage) (RuleScope, error) {
 		reads[i].Component, reads[i].FactID = c.Component, c.FactID
 	}
 	scope := RuleScope{ID: shape.ID, Component: shape.Subject.Component,
-		Transition: constraintengine.RuleTransition{Component: shape.Subject.Component, From: shape.Subject.From, To: shape.Subject.To, Range: shape.Range, Crossing: shape.Crossing}}
+		Transition: constraintengine.RuleTransition{Component: shape.Subject.Component, From: shape.Subject.From, To: shape.Subject.To, Range: shape.Range, Crossing: shape.Crossing, Chart: shape.Subject.Chart}}
 	for _, id := range FamilyIDs() {
 		f := families[id]
 		if f.Belongs(shape.Subject.Component, reads) {

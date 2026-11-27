@@ -122,9 +122,10 @@ func parsePackRules(raw []json.RawMessage) ([]packRule, error) {
 		var s struct {
 			ID      string `json:"id"`
 			Subject struct {
-				Component string `json:"component"`
-				From      string `json:"from"`
-				To        string `json:"to"`
+				Component string                     `json:"component"`
+				From      string                     `json:"from"`
+				To        string                     `json:"to"`
+				Chart     *constraintengine.ChartRef `json:"chart"`
 			} `json:"subject"`
 			Range    *constraintengine.VersionRange `json:"range"`
 			Crossing *constraintengine.CrossingSpec `json:"crossing"`
@@ -141,7 +142,7 @@ func parsePackRules(raw []json.RawMessage) ([]packRule, error) {
 		}
 		ids[s.ID] = true
 		p := packRule{id: s.ID, component: s.Subject.Component, state: s.Evidence.State, sources: s.Evidence.Sources,
-			transition: constraintengine.RuleTransition{Component: s.Subject.Component, From: s.Subject.From, To: s.Subject.To, Range: s.Range, Crossing: s.Crossing}}
+			transition: constraintengine.RuleTransition{Component: s.Subject.Component, From: s.Subject.From, To: s.Subject.To, Range: s.Range, Crossing: s.Crossing, Chart: s.Subject.Chart}}
 		p.line, _ = lineattest.LineOf(s.Subject.To)
 		out = append(out, p)
 	}
