@@ -822,9 +822,10 @@ publish used the higher pin, publication also needs the owner-only
 **Before any release tag is pushed**, on the exact commit to be tagged:
 
 1. The commit is on the first-parent line of `origin/main`.
-2. No tag below `v0.1.0-beta.3` names a commit that holds `listedfloor.go` or
-   `optinfloor.go`, and the `v0.1.0-beta.3` commit holds both and the fixture
-   writer.
+2. No tag below `v0.1.0-beta.2` names a commit that holds `listedfloor.go` or
+   `optinfloor.go`, except a tag named exactly `v0.1.0-beta.1` (the exception to
+   the tag rule above). The `v0.1.0-beta.2` commit holds both files and the
+   fixture writer.
 3. In a scratch clone with all tags, whose `origin/main` is fetched from the
    hosted repository (a clone of a local repository would trust that
    repository's local `main`), create the same annotated tag locally and run
@@ -833,7 +834,10 @@ publish used the higher pin, publication also needs the owner-only
    and the new tag and run the whole CI step above with `matrix.group`
    `core-commands`: every named test passes.
 
-Any failure or check not run means the tag is not pushed.
+Any failure or check not run means the tag is not pushed. The one exemption is
+from step 4, for `v0.1.0-beta.1` only and only with the owner's approval, when
+its commit does not hold the fixture writer. The pin can then never move to that
+release. Steps 1 to 3 apply to it as to every tag.
 
 **Record before `v0.1.0-beta.2` is tagged.** On the exact commit, write down
 before the tag is pushed:
