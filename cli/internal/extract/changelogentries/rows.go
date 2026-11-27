@@ -397,30 +397,46 @@ func noDuplicateKeys(data []byte) error {
 	return walk()
 }
 
-// RowDigest is the sha256 (hex) of the canonical, resolved form of a row:
-// component, repo, form, path and the fixed patterns of its styles. The same
-// row gives the same digest whether it comes from a proposal or from the table.
+// RowDigest is the sha256 (hex) of the canonical, resolved form of a row: every
+// field of Target. The same row gives the same digest whether it comes from a
+// proposal or from the table.
 // Serialization: compact JSON (Go encoding/json, HTML escaping off, no trailing
 // newline) of the object {"component","repo","form","path","heading",
-// "boundary","maxBytes"} in that key order, boundary an array ([] when none),
-// heading and boundary the resolved regular expressions.
+// "boundary","maxBytes","inner","minLocatedNewest","floor"} in that key order,
+// boundary an array ([] when none), heading, boundary and inner patterns the
+// resolved regular expressions, inner an array of {"pattern","firstOnly"} in
+// row order. The last three keys are left out when the field is unset (no inner
+// pattern, 0, ""), so a row without them keeps the digest of the seven-key form;
+// a row that sets one never shares a digest with a row that differs in it.
 func (t Target) RowDigest() string {
 	boundary := t.BoundaryPatterns
 	if boundary == nil {
 		boundary = []string{} // nil and empty are one row
 	}
+	type innerForm struct {
+		Pattern   string `json:"pattern"`
+		FirstOnly bool   `json:"firstOnly"`
+	}
+	var inner []innerForm
+	for _, in := range t.InnerPatterns {
+		inner = append(inner, innerForm{in.Pattern, in.FirstOnly})
+	}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
 	_ = enc.Encode(struct {
-		Component string   `json:"component"`
-		Repo      string   `json:"repo"`
-		Form      string   `json:"form"`
-		Path      string   `json:"path"`
-		Heading   string   `json:"heading"`
-		Boundary  []string `json:"boundary"`
-		MaxBytes  int      `json:"maxBytes"`
-	}{t.Component, t.Repo.Key, t.Form, t.Path, t.HeadingPattern, boundary, t.MaxBytes})
+		Component        string      `json:"component"`
+		Repo             string      `json:"repo"`
+		Form             string      `json:"form"`
+		Path             string      `json:"path"`
+		Heading          string      `json:"heading"`
+		Boundary         []string    `json:"boundary"`
+		MaxBytes         int         `json:"maxBytes"`
+		Inner            []innerForm `json:"inner,omitempty"`
+		MinLocatedNewest int         `json:"minLocatedNewest,omitempty"`
+		Floor            string      `json:"floor,omitempty"`
+	}{t.Component, t.Repo.Key, t.Form, t.Path, t.HeadingPattern, boundary, t.MaxBytes,
+		inner, t.MinLocatedNewest, t.Floor})
 	sum := sha256.Sum256(bytes.TrimSuffix(buf.Bytes(), []byte("\n")))
 	return hex.EncodeToString(sum[:])
 }
