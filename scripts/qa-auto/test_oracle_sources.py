@@ -11,6 +11,14 @@ from unittest.mock import patch
 import crd_oracle as oracle
 import qalib
 
+ORIGINS = {"sample.git": "https://github.com/example/sample.git",
+           "remote--o--cfg.git": "https://github.com/o/cfg.git"}
+
+
+def origin(table, args):
+    """Answer `git --git-dir DIR remote get-url origin` per clone directory; an unknown one raises KeyError."""
+    return subprocess.CompletedProcess(args, 0, table[os.path.basename(args[2])] + "\n", "")
+
 
 class SourceReadTests(unittest.TestCase):
     def test_empty_requested_blob_is_an_error(self):
@@ -37,7 +45,11 @@ class SourceReadTests(unittest.TestCase):
                           "paths": [{"path": "crds", "directory": True, "match": "yaml$"}]}}
                 Path(td, "target-sample.json").write_text(json.dumps(target))
                 Path(td, "sample.git").mkdir()
+                calls = []
                 def command(*args, **kwargs):
+                    if "get-url" in args:
+                        return origin(ORIGINS, args)
+                    calls.append(args)
                     if failing_command in args:
                         return subprocess.CompletedProcess(args, 128, "", "unreadable")
                     output = "v1.0.0\nv1.1.0\n" if "tag" in args else ("crds/a.yaml\n" if "ls-tree" in args else "")
@@ -48,6 +60,8 @@ class SourceReadTests(unittest.TestCase):
                     self.assertEqual(len(cases), 1)
                     self.assertTrue(cases[0]["error"])
                     scan.assert_not_called()
+                    self.assertIn(f"command failed: git -C {td}/sample.git {failing_command}", cases[0]["detail"]["why"])
+                    self.assertTrue(any(failing_command in c for c in calls))
 
     def test_one_finding_cannot_cover_multiple_removed_gvks(self):
         first, second = ("sample.example", "v1", "Widget"), ("sample.example", "v2", "Widget")
@@ -434,13 +448,18 @@ class RemoteCloneTests(unittest.TestCase):
     RM = {"fromLine": "3.4", "kustomization": "k/kustomization.yaml", "repo": "github.com/o/cfg", "directory": "d",
           "pins": [{"tag": "v1.0.0", "commit": "a" * 40}]}
 
-    def run_prepare(self, td, remote, source, project="sample"):
+    def run_prepare(self, td, remote, source, project="sample", origins=None):
         root = Path(td)
         (root / (project + ".git")).mkdir(exist_ok=True)
         (root / ("target-%s.json" % project)).write_text(json.dumps({"target": {
             "repo": "example/sample", "tagPrefixes": ["v"], "paths": [{"path": "crd.yaml"}], "remote": remote}}))
-        with patch.object(oracle, "TD", td), patch.object(oracle, "GITROOT", td), patch.object(oracle, "sh", side_effect=source), \
-                patch.object(oracle, "checked", side_effect=lambda *a: source(*a).stdout), patch.object(oracle, "served_set", return_value=set()):
+        table = dict(ORIGINS, **(origins or {}))
+        self.calls = []
+        def git(*a, **k):
+            self.calls.append(a)
+            return origin(table, a) if "get-url" in a else source(*a, **k)
+        with patch.object(oracle, "TD", td), patch.object(oracle, "GITROOT", td), patch.object(oracle, "sh", side_effect=git), \
+                patch.object(oracle, "checked", side_effect=lambda *a: git(*a).stdout), patch.object(oracle, "served_set", return_value=set()):
             return oracle.prepare(project, [], oracle.new_plan())
 
     @staticmethod
@@ -458,12 +477,8 @@ class RemoteCloneTests(unittest.TestCase):
             with self.subTest(step=step), tempfile.TemporaryDirectory() as td:
                 if step == "fetch":
                     (Path(td) / "remote--o--cfg.git").mkdir()
-                    src = failing(step)
-                    def source(*a, _s=src, **k):
-                        return _s(*a, **k) if "get-url" not in a else subprocess.CompletedProcess(a, 0, "https://github.com/o/cfg.git\n", "")
-                else:
-                    source = failing(step)
-                with self.assertRaises(ValueError):
+                source = failing(step)
+                with self.assertRaisesRegex(ValueError, "remote clone failed" if step == "clone" else "remote fetch tags failed"):
                     self.run_prepare(td, self.RM, source)
 
     def test_clone_is_keyed_by_the_declared_remote_repo(self):
@@ -473,21 +488,21 @@ class RemoteCloneTests(unittest.TestCase):
                 cloned.append(args[-1])
             return subprocess.CompletedProcess(args, 0, "v1.0.0\n" if "tag" in args else "", "")
         with tempfile.TemporaryDirectory() as td:
-            try:
+            with self.assertRaisesRegex(ValueError, "no usable pairs"):
                 self.run_prepare(td, self.RM, source)
-            except ValueError:
-                pass
             self.assertTrue(any(x.endswith("remote--o--cfg.git") for x in cloned), cloned)
             self.assertFalse(any(x.endswith("sample.remote.git") for x in cloned))
+            self.assertTrue(any("fetch" in c and c[2].endswith("remote--o--cfg.git") for c in self.calls), self.calls)
 
     def test_existing_clone_of_another_repo_is_refused(self):
-        def source(*args, **kwargs):
-            out = "https://github.com/evil/cfg.git\n" if "get-url" in args else ("v1.0.0\n" if "tag" in args else "")
-            return subprocess.CompletedProcess(args, 0, out, "")
         with tempfile.TemporaryDirectory() as td:
             (Path(td) / "remote--o--cfg.git").mkdir()
-            with self.assertRaises(ValueError):
-                self.run_prepare(td, self.RM, source)
+            with self.assertRaisesRegex(ValueError, "remote clone belongs to another repository"):
+                self.run_prepare(td, self.RM, self.ok,
+                                 origins={"remote--o--cfg.git": "https://github.com/evil/cfg.git"})
+            remote = [c for c in self.calls if c[2].endswith("remote--o--cfg.git")]
+            self.assertTrue(any("get-url" in c for c in remote), self.calls)
+            self.assertFalse(any("fetch" in c for c in remote), self.calls)
 
 
 @unittest.skipUnless(os.environ.get("QA_GOLDEN_JSONL"), "needs QA_GOLDEN_JSONL, QA_GOLDEN_REL and QA_GOLDEN_REMOTE (bare clones, network to fetch them)")

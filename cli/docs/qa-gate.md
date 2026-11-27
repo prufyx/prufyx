@@ -39,10 +39,43 @@ names it; a signed batch or `QA_GATE_REPOS` does not admit it. There is
 currently no route that admits removing a target through this gate. A changed
 target that cannot be read at the head is refused, not treated as deleted.
 
+## Target repositories
+
+A target names the repositories the CRD oracle clones: `target.repo` and, when
+present, `target.remote.repo`. A base target keeps both: changing, adding or
+removing either is refused, and a signed batch or `QA_GATE_REPOS` does not admit
+it. A new target may use a repository that a base target already uses in the same
+role (primary for primary, remote for remote), one listed in `QA_GATE_REPOS`, or
+one covered by a signed onboarding batch that lists the target's exact bytes.
+Each refusal names every uncovered repository of the target.
+
+## Strict target files
+
+The gate scripts read target files only through `target_json.py`, so that they
+and the Go extractor cannot read different targets from the same bytes: UTF-8
+without a byte-order mark, at most 2 MiB, ASCII keys, no two keys equal in lower
+case, no unpaired surrogate, no number, and only the known keys with their types.
+A new field of the Go target structure is refused until it is listed there. Every
+base target must load, or the gate refuses.
+
+The CRD oracle loads the checkout's target file before any clone; a frozen batch
+binding that differs from it is refused. An existing project clone is used only
+when its origin is exactly `https://github.com/<repo>.git`, also by the kind
+probe. A reviewed repository change, or a host Git rule that rewrites that URL,
+therefore errors until the cached clone or the rule is corrected by hand.
+
+## Sandbox and run directory
+
+Gate mode refuses an unset or blank `QA_RUNBOX` before it builds or runs
+anything, and `target_repos.py --maintainer` requires a non-blank `--runner`.
+`run.sh` refuses a run directory that already exists.
+
 ## Installing the runtime
 
 Install every script of `scripts/qa-auto/` together; `crd_inventory.py` is
-required by `target_repos.py` and `qa_batch_scope.py`. Green records written by
+required by `target_repos.py` and `qa_batch_scope.py`, and `target_json.py` by
+every script that reads a target. Installing changes the oracle digest, which
+resets the stored rise baselines. Green records written by
 an earlier runtime were made under a weaker base rule: when installing, remove
 the green records in `$QA_STATE/gate/` or mark them `STALE`, then gate those
 heads again.

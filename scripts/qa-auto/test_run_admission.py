@@ -46,7 +46,7 @@ class RunAdmissionTests(unittest.TestCase):
             git("checkout", "--detach", base)
             for project in ("sample", "required"):
                 target = source / ("cli/internal/extract/crdversions/target-" + project + ".json")
-                target.write_text(json.dumps({"target": {"repo": "example/" + project}, "note": "changed pair"}))
+                target.write_text(json.dumps({"target": {"repo": "example/" + project, "name": "changed pair"}}))
             git("add", ".")
             git("commit", "-qm", "Synthetic project scope control")
             scope_head = git("rev-parse", "HEAD")
@@ -57,7 +57,7 @@ class RunAdmissionTests(unittest.TestCase):
             git("add", ".")
             git("commit", "-qm", "Synthetic code control")
             code_head = git("rev-parse", "HEAD")
-            for name in ("run.sh", "select_projects.py", "summarize.py", "qalib.py", "qa_scope.py", "qa_batch_scope.py", "crd_inventory.py", "target_repos.py", "crdgvk.go"):
+            for name in ("run.sh", "select_projects.py", "summarize.py", "qalib.py", "qa_scope.py", "qa_batch_scope.py", "crd_inventory.py", "target_json.py", "target_repos.py", "crdgvk.go"):
                 shutil.copy2(HERE / name, installed / name)
             # Companion stubs prove admission, not compatibility or sandbox fidelity.
             companion = '''import json, os, sys
@@ -148,7 +148,7 @@ if 'coverage report' in ' '.join(sys.argv):
             new_path = "cli/internal/extract/crdversions/target-new.json"
             new_target = '{"target":{"repo":"example/new"}}'
             head = commit({new_path: new_target, "cli/knowledge/onboarding/ob-20261125-2.json": "{}"})
-            for name in ("run.sh", "target_repos.py", "crd_inventory.py"):
+            for name in ("run.sh", "target_repos.py", "crd_inventory.py", "target_json.py"):
                 shutil.copy2(HERE / name, installed / name)
             # stub gate-runbox: checks every absolute path argument against QA_BOX_DIR and passes no host environment on
             runbox = root / "runbox"

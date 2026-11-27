@@ -18,6 +18,12 @@ import qa_scope
 
 
 HERE = Path(__file__).resolve().parent
+ORIGINS = {"sample.git": "https://github.com/example/sample.git"}
+
+
+def origin(table, args):
+    """Answer `git --git-dir DIR remote get-url origin` per clone directory; an unknown one raises KeyError."""
+    return subprocess.CompletedProcess(args, 0, table[os.path.basename(args[2])] + "\n", "")
 
 
 def oracle_runner():
@@ -113,11 +119,13 @@ class CRDInventoryTests(unittest.TestCase):
                 "repo": "example/sample", "tagPrefixes": ["v"], "paths": [{"path": "crd.yaml"}]}}))
             cov = [{"project": "sample", "pairs": [{"from": "1.0", "to": "1.1"}, {"from": "1.1", "to": "1.2"}]}]
             def source(*args, **kwargs):
+                if "get-url" in args:
+                    return origin(ORIGINS, args)
                 return subprocess.CompletedProcess(args, 0, "v1.0.0\nv1.1.0\nv1.2.0\n" if "tag" in args else "", "")
             plan = crd.new_plan()
             with patch.object(crd, "TD", td), patch.object(crd, "GITROOT", td), patch.object(crd, "sh", side_effect=source), patch.object(
                     crd, "served_set", side_effect=ValueError("first blob unreadable")):
-                with self.assertRaises(ValueError):
+                with self.assertRaisesRegex(ValueError, "first blob unreadable"):
                     crd.prepare("sample", cov, plan)
             self.assertIn("crd|sample|v1.1.0|v1.2.0", plan["requested"])
 
@@ -152,6 +160,8 @@ class CRDInventoryTests(unittest.TestCase):
                 cov.write_text(json.dumps({"projects": [{"project": "sample", "pairs": [{"from": "1.0", "to": "1.1"}]}]}))
                 calls = []
                 def source(*args, **kwargs):
+                    if "get-url" in args:
+                        return origin(ORIGINS, args)
                     if "tag" in args:
                         return subprocess.CompletedProcess(args, 0, "v1.0.0\nv1.1.0\n", "")
                     if "show" in args:
@@ -178,6 +188,9 @@ class CRDInventoryTests(unittest.TestCase):
                 self.assertEqual(bool(reasons), mode != "clean")
                 if mode == "read-failed":
                     self.assertEqual({entry["target"] for entry in scope["omitted"]}, set(scope["requested"]))
+                    cases = json.loads((root / "crd.cases.json").read_text())
+                    self.assertTrue(any("command failed: git -C " + td + "/sample.git show" in str(c["detail"].get("why"))
+                                        for c in cases), cases)
                 if mode == "empty":
                     self.assertEqual(len(scope["excluded"]), 1)
                     self.assertTrue(scope["excluded"][0]["next_test"])

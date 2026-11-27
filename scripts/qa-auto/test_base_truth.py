@@ -136,7 +136,7 @@ class RemovedTargets(unittest.TestCase):
         cmd = [sys.executable, "-I", str(HERE / "target_repos.py"), "--src", str(self.repo.path), "--base", self.base,
                "--changed", str(listed)]
         if maintainer:
-            cmd += ["--maintainer", maintainer, "--now", "2026-11-26T00:00:00Z"]
+            cmd += ["--maintainer", maintainer, "--runner", "/usr/bin/env", "--now", "2026-11-26T00:00:00Z"]
         return subprocess.run(cmd, capture_output=True, text=True, env=dict(os.environ, **(env or {})), timeout=60)
 
     def select(self, head, env=None):
@@ -153,7 +153,9 @@ class RemovedTargets(unittest.TestCase):
         self.repo.git("clean", "-qfdx")
         self.base = self.first
         if mode == "unreadable-component":
-            self.repo.write(A, target("o/a", component=5))
+            # two base targets bind one component: every file loads, the component map does not
+            self.repo.write(A, target("o/a", component="pkg:x"))
+            self.repo.write(B, target("o/b", component="pkg:x"))
             self.base = self.repo.commit("Unreadable component")
             with self.assertRaises(ValueError):
                 batch.base_components(self.repo.path, self.base)
@@ -205,7 +207,7 @@ class RemovedTargets(unittest.TestCase):
                 self.assertIn("(base target)", result.stderr)
 
     def test_control_edits_additions_and_table_changes_stay_admitted(self):
-        self.repo.write(A, target("o/a", note="edited"))
+        self.repo.write(A, target("o/a", name="edited"))
         self.repo.write(TD + "target-c.json", target("o/b"))
         self.repo.write(TABLE, '{"changed":true}')
         head = self.head()
@@ -215,7 +217,7 @@ class RemovedTargets(unittest.TestCase):
         self.assertEqual(self.select(head).returncode, 0)
 
     def test_unreadable_changed_target_is_not_a_deletion(self):
-        self.repo.write(A, target("o/a", note="edited"))
+        self.repo.write(A, target("o/a", name="edited"))
         head = self.head()
         for changed, env in (([A], shim_env(self.root, "show-head")), ([TD + "target-absent.json"], None)):
             with self.subTest(changed=changed):
@@ -468,7 +470,7 @@ class NightlyListing(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         root = Path(tmp.name)
         repo = Repo(root / "source")
-        repo.write(A, target("o/a", note="x" * 200))
+        repo.write(A, target("o/a", name="x" * 200))
         repo.write("cli/internal/cncfcheck/data/rules.json", '{"entries":[]}')
         base = repo.commit()
         change(repo)
@@ -476,8 +478,8 @@ class NightlyListing(unittest.TestCase):
         installed = root / "installed"
         installed.mkdir()
         for name in ("run.sh", "select_projects.py", "summarize.py", "qalib.py", "qa_scope.py", "qa_batch_scope.py",
-                     "crd_inventory.py", "target_repos.py", "crdgvk.go"):
-            if name != "crd_inventory.py" or (HERE / name).exists():  # absent before this change (red run)
+                     "crd_inventory.py", "target_json.py", "target_repos.py", "crdgvk.go"):
+            if name not in ("crd_inventory.py", "target_json.py") or (HERE / name).exists():  # absent in a red run
                 shutil.copy2(HERE / name, installed / name)
         for name in ("crd_oracle.py", "k8s_oracle.py", "bp325.py", "review_cases.py", "rules_oracle.py"):
             (installed / name).write_text(COMPANION)

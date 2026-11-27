@@ -362,6 +362,7 @@ class BatchScopeTests(unittest.TestCase):
         def git(*args):
             return subprocess.check_output(["git", "-C", str(upstream), *args], text=True, stderr=subprocess.PIPE).strip()
         git("init", "-q")
+        git("remote", "add", "origin", "https://github.com/example/sample.git")
         git("config", "user.name", "Spas Atanasov")
         git("config", "user.email", "11156623+airstand@users.noreply.github.com")
         pins = {}
@@ -396,7 +397,8 @@ class BatchScopeTests(unittest.TestCase):
             value.update(binding=binding, proof_pairs={exact: pair})
             value["requested"].add(exact)
             return value
-        with patch.object(crd, "GITROOT", str(upstream.parent)), patch.object(crd, "sh", side_effect=source), patch.object(
+        with patch.object(crd, "TD", str(self.repo / "cli/internal/extract/crdversions")), patch.object(
+                crd, "GITROOT", str(upstream.parent)), patch.object(crd, "sh", side_effect=source), patch.object(
                 crd, "served_set", side_effect=served):
             value = plan()
             crd.prepare("sample", [], value)

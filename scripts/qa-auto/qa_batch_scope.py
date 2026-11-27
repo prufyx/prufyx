@@ -11,6 +11,7 @@ from pathlib import Path
 # -I excludes the script directory; import only these trusted companions.
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 import crd_inventory
+import target_json
 
 BASE_REF = "refs/qa-batch/base"
 HEAD_REF = "refs/qa-batch/head"
@@ -35,6 +36,14 @@ def parse(raw):
         return json.loads(raw, object_pairs_hook=unique_object)
     except RecursionError as error:
         raise ValueError("SCOPE_INVALID: JSON nesting exceeds scope limit") from error
+
+
+def parse_target(raw):
+    """A target file is read only by the strict loader (see target_json)."""
+    try:
+        return target_json.load(raw)
+    except ValueError as error:
+        raise ValueError("SCOPE_INVALID: target " + str(error)) from error
 
 
 def digest(value):
@@ -75,11 +84,10 @@ def base_components(src, base_ref):
         m = re.fullmatch(re.escape(TARGET_DIR) + r"target-([a-z0-9-]+)\.json", path)
         if not m:
             continue
-        target = parse(blob(src, base_ref, path)[1])
-        comp = target["target"].get("component") if isinstance(target, dict) and isinstance(target.get("target"), dict) else None
+        comp = parse_target(blob(src, base_ref, path)[1])["target"].get("component")
         if comp is None:
             continue
-        if not isinstance(comp, str) or out.setdefault(comp, m.group(1)) != m.group(1):
+        if out.setdefault(comp, m.group(1)) != m.group(1):
             raise ValueError("SCOPE_INVALID: target component binding")
     return out
 
@@ -140,9 +148,8 @@ def freeze(src, head, base, run_id, extra_projects=()):
             expected_artifact = {"path": target_path, "digest": "sha256:" + hashlib.sha256(target_raw).hexdigest()}
             if project["artifacts"] != [expected_artifact]:
                 raise ValueError("SCOPE_MISMATCH: target artifact differs")
-            target = parse(target_raw)
-            if (not isinstance(target, dict) or target.get("schema") != "prufyx.io/crd-version-target/v1"
-                    or not isinstance(target.get("target"), dict) or target["target"].get("project") != slug):
+            target = parse_target(target_raw)
+            if target.get("schema") != "prufyx.io/crd-version-target/v1" or target["target"].get("project") != slug:
                 raise ValueError("UNSUPPORTED_SCOPE: target schema/project")
             pair = project["proof"]["pair"]
             if (set(pair) != {"fromTag", "fromCommit", "toTag", "toCommit"}

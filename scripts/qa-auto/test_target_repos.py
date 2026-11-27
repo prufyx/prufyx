@@ -78,7 +78,7 @@ class Case(unittest.TestCase):
         if report is not None:
             Path(self.report).write_text(json.dumps(report))
         if maint:
-            cmd += ["--maintainer", self.fake, "--now", NOW]
+            cmd += ["--maintainer", self.fake, "--runner", "/usr/bin/env", "--now", NOW]
         p = subprocess.run(cmd, capture_output=True, env=e)
         return p.returncode, p.stdout.decode().strip()
 
@@ -215,7 +215,7 @@ class Case(unittest.TestCase):
         c = os.path.join(self.td.name, "ch")
         Path(c).write_text("\n".join(ch))
         p = subprocess.run([sys.executable, "-I", str(SCRIPT), "--src", self.r.src, "--base", self.base, "--changed", c,
-                            "--maintainer", self.fake], capture_output=True, env=e)
+                            "--maintainer", self.fake, "--runner", "/usr/bin/env"], capture_output=True, env=e)
         self.assertEqual(p.returncode, 1)
 
 

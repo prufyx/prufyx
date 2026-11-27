@@ -109,8 +109,12 @@ def crd(cases, kc, crd_cases):
     for proj, f, t, exp in picks:
         key = f"crd {proj} {f}->{t}"
         try:
-            tj = json.load(open(f"{crd_oracle.TD}/target-{proj}.json"))["target"]
+            tj = crd_oracle.load_target(proj)
+            repo, bad = crd_oracle.validate_target(tj)
+            if bad:
+                raise ValueError("target rejected: " + bad)
             gd = f"{CACHE}/git/{proj}.git"
+            crd_oracle.require_project_origin(gd, repo)  # before any read of the cached clone
             pref = tj["tagPrefixes"][0]
             txt = crd_oracle.crd_text(tj, gd, f)
             d = f"{TMP}/kind/{proj}"

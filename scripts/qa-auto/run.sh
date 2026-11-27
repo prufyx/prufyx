@@ -118,7 +118,8 @@ fi
 
 RUN=$QA_WORK_ROOT/qa-auto-run-$s8-$$
 OUT=$QA_STATE/results/$(date -u +%Y%m%dT%H%M%S)-$s8
-mkdir -p "$RUN" "$OUT"
+# the run directory must be new: an existing path (directory, file or link) is refused and left untouched
+mkdir -p "$QA_WORK_ROOT" "$OUT" && mkdir "$RUN" || { echo "qa-auto: cannot create a fresh run directory: refusing" >&2; exit 3; }
 export QA_BOX_DIR=$RUN   # the only directory a sandbox (QA_DEVBOX/QA_RUNBOX wrappers) may mount: per-run scratch, deleted at exit
 cleanup() {
   [ "${QA_NO_KIND:-0}" = 1 ] || "$QA_DEVBOX" -w "$RUN" kind delete cluster --name "qa-auto-$s8" >/dev/null 2>&1 </dev/null || true
@@ -185,8 +186,13 @@ print(" ".join(bad[:10]))
 sys.exit(1 if bad else 0)
 PY
   ) || { log "code change in bot batch (not data-only): $bad"; exit 3; }
-  # a target-*.json decides which upstream repo the oracle clones: its repo must not change, and a new target may only name a
-  # repo already known at the base (another target's repo), listed in QA_GATE_REPOS (comma list owner/name, added after review)
+  # checked before anything built from the base or the head can run: an unset or blank prefix means no sandbox
+  case "${QA_RUNBOX:-}" in
+    *[![:space:]]*) ;;
+    *) log "gate mode needs QA_RUNBOX (sandbox for head-built binaries): refusing"; exit 3 ;;
+  esac
+  # a target-*.json decides which upstream repos the oracle clones (repo, remote.repo): neither may change, and a new target
+  # may only name repos already used in the same role at the base, listed in QA_GATE_REPOS (comma list owner/name, added after review)
   # or committed by a signed onboarding batch the head adds (target_repos.py: the signature is verified by the maintainer tool
   # compiled from the BASE tree, and the batch must list the new target's bytes). Anything else is refused (exit 3).
   bad=$(QA_GATE_REPOS=${QA_GATE_REPOS:-} python3 -I "$HERE/target_repos.py" --src "$RUN/src" --base "$base_sha" --changed "$RUN/changed")
@@ -202,7 +208,6 @@ PY
     fi
   fi
   [ "$trc" = 0 ] || { log "code change in bot batch (target repo not trusted): $bad"; exit 3; }
-  [ -n "${QA_RUNBOX:-}" ] || { log "gate mode needs QA_RUNBOX (sandbox for head-built binaries): refusing"; exit 3; }
 elif [ -n "$lg" ] && git fetch -q --depth 1 "$QA_REPO_URL" "$lg" 2>/dev/null; then
   # --no-renames: a file renamed into an ignored path must still list the removed source, or the run could select mode none
   git diff --name-only --no-renames FETCH_HEAD "$sha" >"$RUN/changed" 2>/dev/null || lg=""
