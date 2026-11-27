@@ -554,6 +554,9 @@ jobs:
             # on an idle 10-core host); it gets the same budget as the nightly package.
             if [ "${pkg}" = "./internal/communityapp/" ]; then
               jq -cn --arg p "${pkg}" '{package: $p, timeout_minutes: 90, go_timeout: "85m"}'
+            elif [ "${pkg}" = "./internal/knowledge/" ]; then
+              # passing runs take 28-32 min, too close to the default 40m.
+              jq -cn --arg p "${pkg}" '{package: $p, timeout_minutes: 80, go_timeout: "70m"}'
             else
               jq -cn --arg p "${pkg}" '{package: $p, timeout_minutes: 50, go_timeout: "40m"}'
             fi
