@@ -2704,6 +2704,14 @@
               "endLine": 7
             },
             {
+              "id": "coredns-target-1-14-0-official-plugin-list",
+              "url": "https://github.com/coredns/coredns/blob/1c964f2f68bd04a875a41479822ec3da1f1e76ef/plugin.cfg",
+              "revision": "1c964f2f68bd04a875a41479822ec3da1f1e76ef",
+              "contentDigest": "sha256:fa3eeb26f46ef572f90d1a93f1762bd42542fa33abcd2b6e2216144dc795e184",
+              "startLine": 1,
+              "endLine": 79
+            },
+            {
               "id": "coredns-target-1-14-7-official-plugin-list",
               "url": "https://github.com/coredns/coredns/blob/427fc80ed9ca47f354585eb30a3f1332950856c4/plugin.cfg",
               "revision": "427fc80ed9ca47f354585eb30a3f1332950856c4",
@@ -3349,6 +3357,22 @@
               "id": "cortex-v1-21-target-03-entrypoint",
               "url": "https://github.com/cortexproject/cortex/blob/a149007ab28df6f7a6b638d2f1466269bf1f2cec/cmd/cortex/Dockerfile",
               "revision": "a149007ab28df6f7a6b638d2f1466269bf1f2cec",
+              "contentDigest": "sha256:aa74494447da45b76109ec4685fd82017d812bb84f29bda06aa13a983d0db1e4",
+              "startLine": 1,
+              "endLine": 8
+            },
+            {
+              "id": "cortex-v1-21-target-04-line-start-querier-surface",
+              "url": "https://github.com/cortexproject/cortex/blob/0c65d0dcd0377f3fbca5f1e3db7569fe7e193ba1/pkg/querier/querier.go",
+              "revision": "0c65d0dcd0377f3fbca5f1e3db7569fe7e193ba1",
+              "contentDigest": "sha256:e176716a23e7c70bd15243f5239ec53c6735e14e4b86a200e148aed21b1272b8",
+              "startLine": 1,
+              "endLine": 721
+            },
+            {
+              "id": "cortex-v1-21-target-05-line-start-entrypoint",
+              "url": "https://github.com/cortexproject/cortex/blob/0c65d0dcd0377f3fbca5f1e3db7569fe7e193ba1/cmd/cortex/Dockerfile",
+              "revision": "0c65d0dcd0377f3fbca5f1e3db7569fe7e193ba1",
               "contentDigest": "sha256:aa74494447da45b76109ec4685fd82017d812bb84f29bda06aa13a983d0db1e4",
               "startLine": 1,
               "endLine": 8
@@ -4985,6 +5009,22 @@
               "endLine": 1
             },
             {
+              "id": "envoy-target-1-39-0-api-version-contract",
+              "url": "https://github.com/envoyproxy/envoy/blob/8eea3285d6bdb89f8ea34632cfe7ce1608a8f374/api/envoy/config/core/v3/config_source.proto",
+              "revision": "8eea3285d6bdb89f8ea34632cfe7ce1608a8f374",
+              "contentDigest": "sha256:a7febf530579087616987afddb05fa0bf0ec8f32527d629f014c6f45c14f95a2",
+              "startLine": 28,
+              "endLine": 38
+            },
+            {
+              "id": "envoy-target-1-39-0-transport-version-guard",
+              "url": "https://github.com/envoyproxy/envoy/blob/8eea3285d6bdb89f8ea34632cfe7ce1608a8f374/source/common/config/utility.h",
+              "revision": "8eea3285d6bdb89f8ea34632cfe7ce1608a8f374",
+              "contentDigest": "sha256:fcd481fb09019cbee31a3d66aee2e9c401d03f842e573443e3f1f7895c3e7105",
+              "startLine": 152,
+              "endLine": 169
+            },
+            {
               "id": "envoy-target-1-39-1-api-version-contract",
               "url": "https://github.com/envoyproxy/envoy/blob/b579d07d3ad7ee11d32b105e91a5a39ad24718d7/api/envoy/config/core/v3/config_source.proto",
               "revision": "b579d07d3ad7ee11d32b105e91a5a39ad24718d7",
@@ -5007,6 +5047,22 @@
               "contentDigest": "sha256:9fa554b3b066345956c04237178c90993379d66e5fd1ef7b5f6fdd4d51a6cae6",
               "startLine": 1,
               "endLine": 1
+            },
+            {
+              "id": "envoy-target-1-39-6-api-version-contract",
+              "url": "https://github.com/envoyproxy/envoy/blob/aacd0340210b536e99ec44ebe59ab9d16b259552/api/envoy/config/core/v3/config_source.proto",
+              "revision": "aacd0340210b536e99ec44ebe59ab9d16b259552",
+              "contentDigest": "sha256:a7febf530579087616987afddb05fa0bf0ec8f32527d629f014c6f45c14f95a2",
+              "startLine": 28,
+              "endLine": 38
+            },
+            {
+              "id": "envoy-target-1-39-6-transport-version-guard",
+              "url": "https://github.com/envoyproxy/envoy/blob/aacd0340210b536e99ec44ebe59ab9d16b259552/source/common/config/utility.h",
+              "revision": "aacd0340210b536e99ec44ebe59ab9d16b259552",
+              "contentDigest": "sha256:fcd481fb09019cbee31a3d66aee2e9c401d03f842e573443e3f1f7895c3e7105",
+              "startLine": 152,
+              "endLine": 169
             }
           ]
         },
@@ -16763,9 +16819,25 @@
           "validUntil": "2027-02-01T09:50:12Z",
           "sources": [
             {
+              "id": "source-1ea6b271718f-36",
+              "url": "https://github.com/linkerd/linkerd2/blob/1ea6b271718f90182bdf747490895784988e980e/charts/linkerd-crds/templates/policy/meshtls-authentication.yaml",
+              "revision": "1ea6b271718f90182bdf747490895784988e980e",
+              "contentDigest": "sha256:73371c998eee66157cd40b90c15669ef28c58e0430d36d6257a97b0862a9f87b",
+              "startLine": 36,
+              "endLine": 55
+            },
+            {
               "id": "source-526633fdeea3-36",
               "url": "https://github.com/linkerd/linkerd2/blob/526633fdeea30fd1c51c9ee5ef8ec889949cef87/charts/linkerd-crds/templates/policy/meshtls-authentication.yaml",
               "revision": "526633fdeea30fd1c51c9ee5ef8ec889949cef87",
+              "contentDigest": "sha256:6266757895704a41198c30383c33d599b92541a6a6337fa70efe278ac9e8356b",
+              "startLine": 36,
+              "endLine": 54
+            },
+            {
+              "id": "source-775dc9fbd9d9-36",
+              "url": "https://github.com/linkerd/linkerd2/blob/775dc9fbd9d9e1eb043f0ca613a66cdba8e316de/charts/linkerd-crds/templates/policy/meshtls-authentication.yaml",
+              "revision": "775dc9fbd9d9e1eb043f0ca613a66cdba8e316de",
               "contentDigest": "sha256:6266757895704a41198c30383c33d599b92541a6a6337fa70efe278ac9e8356b",
               "startLine": 36,
               "endLine": 54
@@ -19281,6 +19353,14 @@
           "validUntil": "2027-01-28T08:57:00Z",
           "sources": [
             {
+              "id": "opencost-v1-119-2-memory-controller-provider-config",
+              "url": "https://github.com/opencost/opencost/blob/8572a23ed7d9ad77526bf49fe70c20b050d037dc/pkg/costmodel/router.go",
+              "revision": "8572a23ed7d9ad77526bf49fe70c20b050d037dc",
+              "contentDigest": "sha256:48b5bc756ac233dc5208c9d4ce0ecfbc82aa95d17bf87443d5aad71cfff03f28",
+              "startLine": 582,
+              "endLine": 586
+            },
+            {
               "id": "opencost-v1-119-memory-controller-provider-config",
               "url": "https://github.com/opencost/opencost/blob/75253e9ce35acfece35484b271f744ab4d9c8c6f/pkg/costmodel/router.go",
               "revision": "75253e9ce35acfece35484b271f744ab4d9c8c6f",
@@ -19295,6 +19375,22 @@
               "contentDigest": "sha256:f8ec15515675b878b4903a573f13784bc38adf4611df5daf849c667da0d96e1a",
               "startLine": 65,
               "endLine": 72
+            },
+            {
+              "id": "opencost-v1-120-4-memory-controller-nil-config",
+              "url": "https://github.com/opencost/opencost/blob/1741baaf3682445acba7dfd28c5c5a2a01d4006b/pkg/costmodel/router.go",
+              "revision": "1741baaf3682445acba7dfd28c5c5a2a01d4006b",
+              "contentDigest": "sha256:9696c85692fab940c5f06a36ad5178f6f583309a7e9d728e40ca678d2157c116",
+              "startLine": 611,
+              "endLine": 615
+            },
+            {
+              "id": "opencost-v1-120-4-multicloud-source-paths",
+              "url": "https://github.com/opencost/opencost/blob/1741baaf3682445acba7dfd28c5c5a2a01d4006b/pkg/cloud/config/watcher.go",
+              "revision": "1741baaf3682445acba7dfd28c5c5a2a01d4006b",
+              "contentDigest": "sha256:c2c6f0c3609d0bc9c29a745d7f50097095a177fd5e574e2720072c1704d3dfea",
+              "startLine": 229,
+              "endLine": 307
             },
             {
               "id": "opencost-v1-120-cloud-cost-initialization",
