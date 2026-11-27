@@ -5,7 +5,12 @@ import json
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
+
+# -I excludes the script directory; import only these trusted companions.
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+import crd_inventory
 
 BASE_REF = "refs/qa-batch/base"
 HEAD_REF = "refs/qa-batch/head"
@@ -46,6 +51,11 @@ def blob(src, ref, path):
         raise ValueError("UNSUPPORTED_SCOPE: missing or nonregular artifact " + path)
     raw = subprocess.check_output(["git", "-C", str(src), "cat-file", "blob", entry[2]], stderr=subprocess.PIPE)
     return entry[2], raw
+
+
+def target_listing(src, ref):
+    return subprocess.check_output(["git", "-C", str(src), "ls-tree", "-r", "-z", ref, "--", TARGET_DIR],
+                                   stderr=subprocess.PIPE)
 
 
 def diff_reader(src, base_ref, head_ref):
@@ -91,6 +101,10 @@ def freeze(src, head, base, run_id, extra_projects=()):
     paths = git(src, "ls-tree", "-r", "--name-only", head, "--", TARGET_DIR).splitlines()
     slugs = sorted(p[len(TARGET_DIR + "target-"):-5] for p in paths
                    if re.fullmatch(re.escape(TARGET_DIR) + r"target-[a-z0-9-]+\.json", p))
+    # Before any selection: a full run, an empty selection or an unreadable base component must not skip this.
+    gone = crd_inventory.removed_targets(target_listing(src, base), target_listing(src, head))
+    if gone:
+        raise ValueError("UNSUPPORTED_SCOPE: missing or nonregular artifact " + gone[0] + " (base target)")
     try:
         trusted = base_components(src, BASE_REF)
     except (ValueError, KeyError, subprocess.SubprocessError, OSError):
@@ -217,8 +231,6 @@ def validate(contract, scopes, cases, declarations):
 
 
 if __name__ == "__main__":
-    import sys
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", required=True)
     ap.add_argument("--head", required=True)

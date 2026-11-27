@@ -7,7 +7,9 @@
 #   (inconclusive, exit 3). The seeds come from the installed scripts (base), never from the head; QA_SEEDS_DIGEST (optional) pins
 #   the seeds.py sha256. A line without SEEDED is the pre-seeding format.
 #
-#   batch_gate.sh [--trust-operator] <head-sha> [base-sha]   gate one head (base default: merge-base with main, else main tip)
+#   batch_gate.sh [--trust-operator] <head-sha> [base-sha]   gate one head (base default: the merge base with the main tip)
+#   Base rule, every form (full history fetched, no fallback): the base must be the one merge base of head and the main tip, AND
+#   that tip itself (rebase first otherwise), AND differ from the head. Anything else is exit 3: no run, no record.
 #   batch_gate.sh --poll [--dry]          gate every open PR of QA_GATE_REPO whose head sha has no STATE/gate/<sha>.json
 #                                         (head ref bot/* or onboard/*, or label "batch"); read-only against GitHub.
 #                                         --dry lists what would be gated and gates nothing.
@@ -23,7 +25,7 @@
 #
 # Exit: 0 green, 2 wrong PASS (case ids + repro on stderr), 3 inconclusive (errors, skipped suite, crash, timeout, new mismatch,
 # code change in the batch), 75 busy. The GATE line ends with base=<sha8> (the base it was gated against); a green record is
-# STALE once main moved and the head is no longer on the main tip: re-run after rebasing (a new head sha is a new gate).
+# STALE once main moved from the tip it was gated on (read before the run): re-run after rebasing (a new head sha is a new gate).
 # Skipped suites: only the known "rules(absent)" (rules_oracle.py not on this base yet) and "kind" (the gate always
 # sets QA_NO_KIND=1) are informational; any other skipped suite makes the gate inconclusive (3), never green.
 # MISMATCH counts every mismatch, including historical baselines; MISMATCH>0 is inconclusive (3).
@@ -54,30 +56,44 @@ export QA_STATE QA_WORK_ROOT QA_REPO_URL
 G=$QA_STATE/gate
 mkdir -p "$G"
 
-main_tip() { git ls-remote "$QA_REPO_URL" refs/heads/main | cut -f1; }
-
-merge_base() { # HEAD -> merge-base with main (GitHub compare, read only), falls back to main tip
-  local mb=""
-  if command -v gh >/dev/null 2>&1; then
-    mb=$(gh api "repos/$QA_GATE_REPO/compare/main...$1" --jq .merge_base_commit.sha 2>/dev/null || true)
-  fi
-  if ! [[ "$mb" =~ ^[0-9a-f]{40}$ ]]; then
-    mb=$(python3 -I - "$QA_GATE_REPO" "$1" <<'PY' 2>/dev/null
-import json, sys, urllib.request
-r = urllib.request.urlopen(f"https://api.github.com/repos/{sys.argv[1]}/compare/main...{sys.argv[2]}", timeout=20)
-print(json.load(r)["merge_base_commit"]["sha"])
-PY
-) || mb=""
-  fi
-  [[ "$mb" =~ ^[0-9a-f]{40}$ ]] || { [ "${QA_MB_STRICT:-0}" = 1 ] && mb="" || mb=$(main_tip); }
-  echo "$mb"
+main_tip() { # the tip of exactly refs/heads/main; fails unless ls-remote answers with that one line and nothing else
+  local out
+  out=$(git ls-remote "$QA_REPO_URL" refs/heads/main) || return 1
+  [[ "$out" =~ ^([0-9a-f]{40})$'\t'refs/heads/main$ ]] || return 1
+  echo "${BASH_REMATCH[1]}"
 }
 
-# gate_one HEAD BASE -> prints the GATE line, writes STATE/gate/<head>.json when conclusive; returns the exit code
+base_refused() { echo "gate: STRICT_BASE ${1:0:8} $2" >&2; return 3; }
+
+# strict_base DIR HEAD [BASE]: the only way a gate base is chosen. Records the main tip, fetches the FULL history of main and
+# the head into the new repository DIR, and prints the tip only when it is the one merge base of tip and head, equals BASE
+# (when given) and differs from the head. Every failed lookup, fetch or git command is exit 3; there is no fallback.
+strict_base() {
+  local dir=$1 head=$2 base=${3:-} tip got shallow mb
+  tip=$(main_tip) || { base_refused "$head" "cannot read the main tip"; return 3; }
+  git init -q "$dir" &&
+    git -C "$dir" fetch -q --no-tags "$QA_REPO_URL" "refs/heads/main:refs/qa-batch/main" "$head:refs/qa-batch/head" ||
+    { base_refused "$head" "full fetch of main and the head failed"; return 3; }
+  shallow=$(git -C "$dir" rev-parse --is-shallow-repository) && [ "$shallow" = false ] ||
+    { base_refused "$head" "fetched history is shallow"; return 3; }
+  got=$(git -C "$dir" rev-parse --verify "refs/qa-batch/main^{commit}") && [ "$got" = "$tip" ] ||
+    { base_refused "$head" "main moved between the lookup and the fetch: retry"; return 3; }
+  got=$(git -C "$dir" rev-parse --verify "refs/qa-batch/head^{commit}") && [ "$got" = "$head" ] ||
+    { base_refused "$head" "fetched head differs"; return 3; }
+  mb=$(git -C "$dir" merge-base --all "$tip" "$head") && [[ "$mb" =~ ^[0-9a-f]{40}$ ]] ||
+    { base_refused "$head" "no single merge base with the main tip"; return 3; }
+  [ -z "$base" ] || [ "$base" = "$mb" ] ||
+    { base_refused "$head" "base ${base:0:8} is not the merge base ${mb:0:8}"; return 3; }
+  [ "$mb" = "$tip" ] || { base_refused "$head" "head is not on the main tip ${tip:0:8}: rebase"; return 3; }
+  [ "$mb" != "$head" ] || { base_refused "$head" "head is the main tip: nothing to gate"; return 3; }
+  echo "$tip"
+}
+
+# gate_one HEAD [BASE] -> prints the GATE line, writes STATE/gate/<head>.json when conclusive; returns the exit code
 gate_one() (
-  local head=$1 base=$2 s8=${1:0:8} rc out line
+  local head=$1 base=${2:-} s8=${1:0:8} rc out line tip
   [[ "$head" =~ ^[0-9a-f]{40}$ ]] || { echo "GATE ${s8} bad head sha (need 40 hex)" >&2; return 3; }
-  [ -n "$base" ] || { echo "GATE $s8 cannot resolve base" >&2; return 3; }
+  [ "$base" != "$head" ] || { base_refused "$head" "base equals head: nothing to gate"; return 3; }
   local run_id; run_id=$(python3 -I -c 'import uuid; print(uuid.uuid4().hex)')
   # Keep authenticated source objects and the expected contract outside every
   # candidate build/run mount. The final verdict re-derives from these objects.
@@ -85,13 +101,12 @@ gate_one() (
   scope_root=$(mktemp -d "$QA_STATE/scope-parent.XXXXXX") || return 3
   trap 'rm -rf -- "$scope_root"' EXIT
   scope_file=$G/$head.$run_id.scope.json
-  mkdir -p "$scope_root/src"
-  git init -q "$scope_root/src" &&
-    git -C "$scope_root/src" fetch -q --depth 64 "$QA_REPO_URL" \
-      "$head:refs/qa-batch/head" "$base:refs/qa-batch/base" &&
-    git -C "$scope_root/src" checkout -q --detach refs/qa-batch/head &&
-    git -C "$scope_root/src" merge-base --is-ancestor "$base" "$head" || {
-      echo "gate: SCOPE_PROVENANCE exact fetched head/base ancestry unavailable" >&2; return 3;
+  # tip is read once, before the run; the record carries this value, so main moving during the run makes it STALE
+  tip=$(strict_base "$scope_root/src" "$head" "$base") || return 3
+  base=$tip
+  git -C "$scope_root/src" update-ref refs/qa-batch/base "$base" &&
+    git -C "$scope_root/src" checkout -q --detach refs/qa-batch/head || {
+      echo "gate: SCOPE_PROVENANCE exact fetched head/base checkout failed" >&2; return 3;
     }
   scope_digest=$(python3 -I "$HERE/qa_batch_scope.py" --src "$scope_root/src" --head "$head" \
     --base "$base" --run-id "$run_id" --out "$scope_file") || return 3
@@ -136,7 +151,7 @@ PY
     return 3
   fi
   rm -f "$log"
-  python3 -I - "$out/summary.json" "$head" "$base" "$G" "$rc" "$(main_tip)" "$run_id" "$HERE" "$scope_root" "$scope_file" "$scope_digest" <<'PY'
+  python3 -I - "$out/summary.json" "$head" "$base" "$G" "$rc" "$tip" "$run_id" "$HERE" "$scope_root" "$scope_file" "$scope_digest" <<'PY'
 import json, os, sys, time
 from pathlib import Path
 summ, head, base, gdir, rc, tip, run_id, script_dir, scope_root, scope_file, expected_digest = sys.argv[1:]
@@ -267,35 +282,26 @@ PY
   return $rc
 )
 
-# stale_check HEAD MAIN_TIP: a recorded GREEN was gated against an older main. It stays valid only while the head sits on
-# the current main tip; otherwise the record is rewritten as STALE (exit 3) until the head is rebased (new sha = new gate).
+# stale_check HEAD MAIN_TIP: a recorded GREEN holds only under the base rule of strict_base against the CURRENT tip: recorded
+# base == recorded main == tip, and base != head (the merge base of a fixed head and tip cannot change after it was verified).
+# Anything else, a failed tip lookup included, rewrites the record as STALE (exit 3) until the head is rebased (new sha = new gate).
 stale_check() {
-  local head=$1 tip=$2 rec mb
-  rec=$(python3 -I -c 'import json,sys;g=json.load(open(sys.argv[1]));print(g.get("exit",3),g.get("main",""))' "$G/$head.json" 2>/dev/null) || return 0
+  local head=$1 tip=$2 rec
+  rec=$(python3 -I -c 'import json,sys;g=json.load(open(sys.argv[1]));print(g.get("exit",3),g.get("base") or "-",g.get("main") or "-")' "$G/$head.json" 2>/dev/null) || return 0
   [ "${rec%% *}" = 0 ] || return 0
-  [ "${rec#* }" = "$tip" ] && return 0
-  mb=$(QA_MB_STRICT=1 merge_base "$head")   # lookup failure = "" = stale (fail closed)
-  if [ -n "$mb" ] && [ "$mb" = "$tip" ]; then   # head is on the current tip: the result still describes what would be merged
-    python3 -I - "$G/$head.json" "$tip" <<'PY'
-import json, sys
-g = json.load(open(sys.argv[1])); g["main"] = sys.argv[2]
-json.dump(g, open(sys.argv[1] + ".tmp", "w"), indent=1)
-PY
-    mv "$G/$head.json.tmp" "$G/$head.json"
-  else
-    python3 -I - "$G/$head.json" "$tip" "$mb" <<'PY'
+  [ -n "$tip" ] && [ "$tip" != "$head" ] && [ "$rec" = "0 $tip $tip" ] && return 0
+  python3 -I - "$G/$head.json" "$tip" <<'PY'
 import json, sys
 g = json.load(open(sys.argv[1]))
-g.update({"exit": 3, "state": "STALE", "line": g["line"] + f" STALE main={sys.argv[2][:8]} (gated against base {g['base'][:8]}; rebase and re-gate)"})
+g.update({"exit": 3, "state": "STALE", "line": f"{g.get('line', '')} STALE main={sys.argv[2][:8]} (gated against base {str(g.get('base'))[:8]}; rebase and re-gate)"})
 json.dump(g, open(sys.argv[1] + ".tmp", "w"), indent=1)
 PY
-    mv "$G/$head.json.tmp" "$G/$head.json"
-    echo "gate: ${head:0:8} STALE: main moved to ${tip:0:8} and the head is not on it" >&2
-  fi
+  mv "$G/$head.json.tmp" "$G/$head.json"
+  echo "gate: ${head:0:8} STALE: the record does not hold for main tip ${tip:0:8}" >&2
 }
 
 poll() {
-  local dry=${1:-0} list tip rcall=0 head num ref base rc prev
+  local dry=${1:-0} list tip rcall=0 head num ref rc prev
   QA_GATE_AUTHORS=${QA_GATE_AUTHORS:-}
   if [ -z "${QA_GATE_AUTHORS//[, ]/}" ]; then
     echo "gate: QA_GATE_AUTHORS is empty or unset: refusing to gate anything (the gate executes PR head code; set a comma list of trusted GitHub logins)" >&2
@@ -334,7 +340,7 @@ for p in prs:
 PY
   ) || { echo "gate: PR list failed" >&2; return 3; }
   [ -n "$list" ] || { echo "gate: no batch PRs"; return 0; }
-  tip=$(main_tip)
+  tip=$(main_tip) || tip=""   # unreadable tip: recorded greens turn STALE, new heads are refused by gate_one
   while read -r head num ref; do
     [ -n "$head" ] || continue
     if [ -f "$G/$head.json" ]; then
@@ -346,16 +352,9 @@ PY
       continue
     fi
     if [ "$dry" = 1 ]; then echo "gate: PR #$num $ref ${head:0:8} would be gated"; continue; fi
-    # strict: a failed compare lookup must never fall back to the main tip (a head behind main would then show main's
-    # changes as its own and get a permanent INCONCLUSIVE record); write nothing and retry next tick
-    base=$(QA_MB_STRICT=1 merge_base "$head")
-    if [ -z "$base" ]; then
-      echo "gate: PR #$num $ref ${head:0:8} cannot resolve base, retry next tick" >&2
-      [ "$rcall" = 0 ] && rcall=3
-      continue
-    fi
+    # a refused base (head not on the tip, failed lookup or fetch) writes nothing and is retried next tick
     echo "gate: PR #$num $ref"
-    gate_one "$head" "$base"; rc=$?
+    gate_one "$head"; rc=$?
     case $rc in
       0) ;;
       75) return 75 ;;
@@ -391,14 +390,11 @@ sys.exit(1)' "$QA_GATE_REPO" "$1" || { echo "gate: $1 is not the head of an open
 case "${1:-}" in
   --poll) case "${2:-}" in "") poll 0 ;; --dry) poll 1 ;; *) echo "usage: --poll [--dry]" >&2; exit 1 ;; esac; exit $? ;;
   --dry) [ "${2:-}" = --poll ] && { poll 1; exit $?; }; echo "usage: --poll [--dry]" >&2; exit 1 ;;
-  "" | -h | --help) sed -n 2,45p "$0"; exit 1 ;;
+  "" | -h | --help) sed -n 2,47p "$0"; exit 1 ;;
   *)
     trust=0; [ "$1" = --trust-operator ] && { trust=1; shift; }
     hex40 "${1:-}" || { echo "gate: head sha must be 40 hex chars" >&2; exit 1; }
     [ "$trust" = 1 ] || trusted_head "$1" || exit 1
     [ -z "${2:-}" ] || hex40 "$2" || { echo "gate: base sha must be 40 hex chars" >&2; exit 1; }
-    base=${2:-}
-    [ -n "$base" ] || base=$(QA_MB_STRICT=1 merge_base "$1")
-    [ -n "$base" ] || { echo "gate: ${1:0:8} cannot resolve base (compare lookup failed); pass a base sha or retry" >&2; exit 3; }
-    gate_one "$1" "$base"; exit $? ;;
+    gate_one "$1" "${2:-}"; exit $? ;;
 esac

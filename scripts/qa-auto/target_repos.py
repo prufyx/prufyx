@@ -11,14 +11,22 @@ identity tier, validity window) accepts its signature, and the batch's signed ar
 sha256 of the head's bytes. The signature binds the target bytes and so the repo. The full batch checks (trees, landscape repo,
 admission history, dry run) stay with the Knowledge gate; this script only decides whether the oracle may clone the named repo.
 
+Every target of the base must be a regular file (100644 blob) at the same path at the head, whether or not the changed list
+names it: a removed, renamed or retyped base target is refused, and neither a signed batch nor QA_GATE_REPOS admits it. A changed
+target whose head bytes cannot be read is refused too.
+
 Exit 0: every target change is allowed (nothing printed). Exit 1: refused, one line of reasons on stdout.
 Exit 4: only new unknown repos remain and no --maintainer was given: stdout is empty, the caller prepares the maintainer from
 the base tree and runs again with --maintainer. Any error is exit 1 (never 0).
 """
 import argparse, hashlib, json, os, re, shlex, subprocess, sys, tempfile
 
-TD = "cli/internal/extract/crdversions/"
-TARGET = re.compile(re.escape(TD) + r"target-[\w.-]+\.json", re.A)
+# -I excludes the script directory; import only this trusted companion.
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+import crd_inventory
+
+TD = crd_inventory.TD
+TARGET = crd_inventory.TARGET
 BATCH_DIR = "cli/knowledge/onboarding/"
 BATCH = re.compile(re.escape(BATCH_DIR) + r"(ob-[0-9]{8}-[0-9]{1,3})\.json", re.A)
 KEYS = "cli/knowledge/trust/web-approval-keys.json"
@@ -36,6 +44,13 @@ def git(src, *args):
 def show(src, rev, path):
     r = git(src, "show", f"{rev}:{path}")
     return None if r.returncode else r.stdout
+
+
+def listing(src, rev):
+    r = git(src, "ls-tree", "-r", "-z", rev, "--", TD)
+    if r.returncode:
+        raise ValueError("tree listing failed")
+    return r.stdout
 
 
 def repo_of(raw):
@@ -97,25 +112,26 @@ def main():
     bad = []
     try:
         known = {x.strip() for x in os.environ.get("QA_GATE_REPOS", "").split(",") if x.strip()}
-        r = git(a.src, "ls-tree", "-r", "--name-only", a.base, TD)
-        if r.returncode:
-            raise ValueError("base listing failed")
-        for f in r.stdout.decode().split():
+        base_ls = listing(a.src, a.base)
+        # first, and independent of --changed: no base target may disappear from the head
+        gone = crd_inventory.removed_targets(base_ls, listing(a.src, "HEAD"))
+        bad.extend(f"{p}: base target removed or not a regular file" for p in gone)
+        for f in sorted(crd_inventory.listing(base_ls)):
             if TARGET.fullmatch(f):
                 t = show(a.src, a.base, f)
-                if t:
-                    try:
-                        known.add(repo_of(t))
-                    except Exception:
-                        raise ValueError("base target unreadable")
+                try:
+                    known.add(repo_of(t))
+                except Exception:
+                    raise ValueError("base target unreadable")
         changed = [p for p in open(a.changed).read().split("\n") if p]
         unknown = {}
         for p in changed:
-            if not TARGET.fullmatch(p):
+            if not TARGET.fullmatch(p) or p in gone:  # gone: already refused above; its head bytes are not a target
                 continue
             head = show(a.src, "HEAD", p)
             if head is None:
-                continue  # deleted
+                bad.append(f"{p}: target check failed (head unreadable)")  # never read as a deletion
+                continue
             hr = repo_of(head)
             old = show(a.src, a.base, p)
             if old is not None:

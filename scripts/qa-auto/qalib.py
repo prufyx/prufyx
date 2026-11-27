@@ -175,7 +175,8 @@ def complete_scan_scope(report, requested):
             isinstance(omitted, list) and not omitted)
 
 
-ORACLE_FILES = ("crd_oracle.py", "summarize.py", "qalib.py", "qa_scope.py", "qa_batch_scope.py", "k8s_oracle.py", "seeds.py")
+ORACLE_FILES = ("crd_oracle.py", "summarize.py", "qalib.py", "qa_scope.py", "qa_batch_scope.py", "crd_inventory.py",
+                "k8s_oracle.py", "seeds.py")
 
 
 def rules_control_wrongpass(code):
@@ -196,7 +197,7 @@ def seeds_digest():
 
 def oracle_digest():
     """sha256 over the oracle's own sources (ORACLE_FILES: crd_oracle.py, summarize.py, qalib.py, qa_scope.py, qa_batch_scope.py,
-    k8s_oracle.py and the seeded wrong-PASS cases seeds.py): a change resets the rise baselines."""
+    crd_inventory.py, k8s_oracle.py and the seeded wrong-PASS cases seeds.py): a change resets the rise baselines."""
     here = os.path.dirname(os.path.abspath(__file__))
     digest = hashlib.sha256()
     for name in ORACLE_FILES:
