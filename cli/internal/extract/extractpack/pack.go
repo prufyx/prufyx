@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
@@ -205,6 +206,9 @@ type Run struct {
 	// renew lets merge replace a mechanical attestation by one re-derived at
 	// another extractor build (Options.RenewAttestations).
 	renew bool
+	// now is the apply clock a same-build rule renewal is checked against.
+	// Zero refuses such a renewal.
+	now time.Time
 }
 
 // LoadRun reads a run directory written by "extract run". It requires the
@@ -380,6 +384,9 @@ type Options struct {
 	// extractor derived (see renewable and ruleRenewable). It does not combine
 	// with Withdraw, RulesOnly or QuietOnly.
 	RenewAttestations bool
+	// Now is the apply clock: a same-build rule renewal whose derivedAt lies
+	// more than five minutes after it is refused. Nil uses time.Now.
+	Now func() time.Time
 	// SchemaLevels bounds how many schema levels above the pack's own a merge
 	// may move to (default 12).
 	SchemaLevels int
@@ -413,6 +420,11 @@ func Apply(opts Options) (*Report, error) {
 		}
 		run.renew = true
 	}
+	clock := opts.Now
+	if clock == nil {
+		clock = time.Now
+	}
+	run.now = clock()
 	if opts.RulesOnly {
 		if opts.Withdraw {
 			return nil, errors.New("extract apply: --rules-only does not combine with --withdraw")
@@ -474,7 +486,7 @@ func Apply(opts Options) (*Report, error) {
 		return nil, err
 	}
 	rep.SchemaTo = schemaOf(final)
-	if err := audit(base, final, allowed, ruleRenewed(rep), attAllowed(rep), opts.Withdraw); err != nil {
+	if err := audit(base, final, allowed, ruleRenewed(rep), attAllowed(rep), opts.Withdraw, run.now); err != nil {
 		return nil, err
 	}
 	rep.Changed = !bytes.Equal(out, baseRaw)

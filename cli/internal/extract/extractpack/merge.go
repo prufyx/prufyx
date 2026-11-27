@@ -100,7 +100,7 @@ func merge(base *Pack, run *Run, rep *Report) (*Pack, map[string]bool, error) {
 				continue
 			}
 			cur := head.Entries[at[v.Rule.ID]]
-			if run.renew && !ruleRenewable(cur, e) {
+			if run.renew && !ruleRenewable(cur, e, run.now) {
 				// The one bounded content change: advice text of a listed rule
 				// (see remediationRenewal). It counts once, like any renewal.
 				if rec, ok := remediationRenewal(remediationAllowList, cur, e); ok {
@@ -239,7 +239,7 @@ func withdraw(base *Pack, run *Run, rep *Report) (*Pack, map[string]bool, error)
 // attestations, and the pack schema (add mode). A rule id twice in either
 // pack is refused: a result that appends where it should replace is not
 // hidden by a lookup keyed on the id.
-func audit(base, head *Pack, allowed, renewed map[string]bool, allowedAtt map[string]bool, withdrawMode bool) error {
+func audit(base, head *Pack, allowed, renewed map[string]bool, allowedAtt map[string]bool, withdrawMode bool, now time.Time) error {
 	canonByID := func(p *Pack) (map[string][]byte, error) {
 		out := map[string][]byte{}
 		for _, e := range p.Entries {
@@ -277,7 +277,7 @@ func audit(base, head *Pack, allowed, renewed map[string]bool, allowedAtt map[st
 		if withdrawMode && allowed[id] && withdrawalOnly(bc, hc) {
 			continue
 		}
-		if !withdrawMode && renewed[id] && (ruleRenewalOnly(bc, hc) || remediationOnly(bc, hc)) {
+		if !withdrawMode && renewed[id] && (ruleRenewalOnly(bc, hc, now) || remediationOnly(bc, hc)) {
 			continue
 		}
 		return fmt.Errorf("%w: rule %s", ErrForeignChange, id)
@@ -393,13 +393,14 @@ func partsOf(raw []byte) (ruleParts, bool) {
 }
 
 // ruleRenewable reports whether the run's entry nw may replace old, the entry
-// of the same rule id: both are active mechanical rules of the same extractor
-// derived at different builds (version or code digest), the entries are
-// identical once rule.evidence.{extractor, derivedAt, reviewedAt, validUntil,
-// sources} are removed, the source ids are the same set, nw's derivedAt is
-// strictly later than old's (an unreadable one fails), nw's reviewedAt is its
-// derivedAt and its validUntil is later than its derivedAt.
-func ruleRenewable(old, nw []byte) bool {
+// of the same rule id. At the same build (extractor version and code digest)
+// only the times may move (see sameBuildRuleRenewal; now is the apply clock).
+// At different builds both must be active mechanical rules of the same
+// extractor, the entries identical once rule.evidence.{extractor, derivedAt,
+// reviewedAt, validUntil, sources} are removed, the source ids the same set,
+// nw's derivedAt strictly later than old's (an unreadable one fails), nw's
+// reviewedAt its derivedAt and its validUntil later than its derivedAt.
+func ruleRenewable(old, nw []byte, now time.Time) bool {
 	o, ok1 := partsOf(old)
 	n, ok2 := partsOf(nw)
 	if !ok1 || !ok2 {
@@ -408,8 +409,11 @@ func ruleRenewable(old, nw []byte) bool {
 	if o.basis != "mechanical" || n.basis != "mechanical" || o.state != "active" || n.state != "active" {
 		return false
 	}
-	if o.extID == "" || o.extID != n.extID || (o.extVersion == n.extVersion && o.extDigest == n.extDigest) {
+	if o.extID == "" || o.extID != n.extID {
 		return false
+	}
+	if o.extVersion == n.extVersion && o.extDigest == n.extDigest {
+		return sameBuildRuleRenewal(old, nw, now)
 	}
 	if !bytes.Equal(o.rest, n.rest) || len(o.sourceIDs) != len(n.sourceIDs) {
 		return false
@@ -428,9 +432,86 @@ func ruleRenewable(old, nw []byte) bool {
 	return true
 }
 
+// A same-build rule renewal carries at most maxRenewalLease between its
+// derivedAt and validUntil, and its derivedAt lies at most renewalClockSkew
+// after the apply clock.
+const (
+	maxRenewalLease  = 90 * 24 * time.Hour
+	renewalClockSkew = 5 * time.Minute
+)
+
+// sameBuildRuleRenewal reports whether nw is a time-only re-derivation of old
+// at the same extractor build. All of these must hold:
+//   - both entries parse strictly (see strictJSON);
+//   - both are active mechanical rules with at least one source, naming an
+//     extractor id, version and code digest, none empty;
+//   - everything except rule.evidence.{derivedAt, reviewedAt, validUntil} is
+//     equal in canonical form: the extractor, the sources (every member, in
+//     the same order), the presence and value of evidence.lease, and the rest
+//     of the entry;
+//   - nw's derivedAt is strictly later than old's and not more than
+//     renewalClockSkew after now, and its reviewedAt is its derivedAt;
+//   - nw's validUntil is strictly later than old's, later than nw's derivedAt
+//     and at most maxRenewalLease after it. The duration may differ from
+//     old's.
+//
+// An unreadable time fails, and so does a zero now.
+func sameBuildRuleRenewal(old, nw []byte, now time.Time) bool {
+	o, ok1 := timedEntry(old)
+	n, ok2 := timedEntry(nw)
+	if !ok1 || !ok2 || !n.reviewedIsDerived || !bytes.Equal(o.rest, n.rest) {
+		return false
+	}
+	return n.derived.After(o.derived) && !n.derived.After(now.Add(renewalClockSkew)) &&
+		n.until.After(o.until) && n.until.After(n.derived) && !n.until.After(n.derived.Add(maxRenewalLease))
+}
+
+// timedRule is an entry split for sameBuildRuleRenewal: its times, and the
+// canonical bytes of everything else.
+type timedRule struct {
+	derived, until    time.Time
+	reviewedIsDerived bool
+	rest              []byte
+}
+
+func timedEntry(raw []byte) (timedRule, bool) {
+	var t timedRule
+	g, ok := strictJSON(raw)
+	if !ok {
+		return t, false
+	}
+	rule, _ := g["rule"].(map[string]any)
+	ev, _ := rule["evidence"].(map[string]any)
+	ext, _ := ev["extractor"].(map[string]any)
+	str := func(m map[string]any, k string) string { s, _ := m[k].(string); return s }
+	if str(ev, "state") != "active" || str(ev, "basis") != "mechanical" ||
+		str(ext, "id") == "" || str(ext, "version") == "" || str(ext, "codeDigest") == "" {
+		return t, false
+	}
+	if sources, _ := ev["sources"].([]any); len(sources) == 0 {
+		return t, false
+	}
+	var err1, err2 error
+	t.derived, err1 = time.Parse(time.RFC3339, str(ev, "derivedAt"))
+	t.until, err2 = time.Parse(time.RFC3339, str(ev, "validUntil"))
+	if err1 != nil || err2 != nil {
+		return t, false
+	}
+	t.reviewedIsDerived = str(ev, "reviewedAt") == str(ev, "derivedAt")
+	for _, k := range []string{"derivedAt", "reviewedAt", "validUntil"} {
+		delete(ev, k)
+	}
+	rest, err := extract.Canonical(g)
+	if err != nil {
+		return t, false
+	}
+	t.rest = rest
+	return t, true
+}
+
 // ruleRenewalOnly reports whether two canonical entries of one rule id are a
 // renewal (see ruleRenewable).
-func ruleRenewalOnly(a, b []byte) bool { return ruleRenewable(a, b) }
+func ruleRenewalOnly(a, b []byte, now time.Time) bool { return ruleRenewable(a, b, now) }
 
 // renewable reports whether nw may replace old, the attestation of the same
 // key: both are mechanical, derived by the same extractor, nw's derivedAt is

@@ -428,6 +428,18 @@ Attestations expire like rules, and must be renewed the same way.
   complete releases). Each record counts toward the 200-per-change and
   50-per-day loosening caps and toward the weekly stagger cap, so set
   `--lease-days` per target to spread `validUntil` over ISO weeks.
+- **Mechanical rules, at the same extractor build**: the same flag renews a
+  rule when only its times move. The stored rule is replaced in place if and
+  only if both entries parse strictly and are active mechanical rules with the
+  same extractor id, version and code digest; everything except
+  `rule.evidence.derivedAt`, `reviewedAt` and `validUntil` is equal as
+  canonical JSON, the sources (every member, in the same order) and the
+  presence and value of `evidence.lease` included; the run's `derivedAt` is
+  strictly later than the stored one and not more than five minutes ahead of
+  the clock of `extract apply`; its `reviewedAt` equals its `derivedAt`; and
+  its `validUntil` is later than the stored one and at most 90 days after its
+  `derivedAt` (the duration itself may differ from the stored one). Anything
+  else is a collision. The audit of the merged pack applies the same check.
 - **Mechanical rules, at a new extractor build**: the same flag renews the
   run's rules. A rule whose id is already in the pack is replaced in place
   (the entry keeps its position) if and only if both entries are active,

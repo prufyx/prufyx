@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 // corpusSHA256 pins the shared vector corpus. The same file, byte for byte,
@@ -217,7 +218,7 @@ func TestAuditRemediationRenewal(t *testing.T) {
 		{"fold-colliding extractor version member", a, folded, map[string]bool{id: true}, true},
 	} {
 		withList(t, c.list)
-		err := audit(mkPack(o), mkPack(c.head), nil, c.renewed, nil, false)
+		err := audit(mkPack(o), mkPack(c.head), nil, c.renewed, nil, false, time.Time{})
 		if c.refused != (err != nil) {
 			t.Errorf("%s: err = %v, want refusal %v", c.name, err, c.refused)
 		}
