@@ -358,6 +358,8 @@ def crd_rows(tj, gd, tag, tagname=None, rgd=None):
                 any(not isinstance(row.get(key), str) or not row[key].strip() for key in ("G", "V", "K")) or
                 any(type(row.get(key)) is not bool for key in ("Served", "Store"))):
             raise ValueError("helper output contains an invalid GVK row")
+    if len({(row["G"], row["V"], row["K"]) for row in rows}) != len(rows):  # a union would hide a stale copy
+        raise ValueError("helper output repeats a group/version/kind row")
     if not rows and "CustomResourceDefinition" in text:
         raise ValueError("helper omitted every CRD version")
     return rows

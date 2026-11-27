@@ -173,11 +173,12 @@ spec:
         facts = json.loads(fact_run.stdout)
         self.assertIn("networking.k8s.io/v1beta1/Ingress", facts["component.kubernetes.ingress_networking_v1beta1_removed_gvk_present"])
         self.assertIn("flowcontrol.apiserver.k8s.io/v1beta3/FlowSchema", facts["component.kubernetes.flowcontrol_v1beta3_removed_gvk_present"])
-        good = subprocess.run([helper], input=valid + "---\n" + valid, text=True, capture_output=True)
+        second = valid.replace("kind: Widget", "kind: Gadget")
+        good = subprocess.run([helper], input=valid + "---\n" + second, text=True, capture_output=True)
         self.assertEqual(good.returncode, 0)
         self.assertEqual(len(json.loads(good.stdout)), 2)
         for middle in ("invalid: [", "kind: CustomResourceDefinition\nspec: {}"):
-            bad = subprocess.run([helper], input=valid + "---\n" + middle + "\n---\n" + valid,
+            bad = subprocess.run([helper], input=valid + "---\n" + middle + "\n---\n" + second,
                                  text=True, capture_output=True)
             self.assertNotEqual(bad.returncode, 0)
             self.assertEqual(bad.stdout, "")

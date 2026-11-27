@@ -86,17 +86,43 @@ func main() {
 	dec := yaml.NewDecoder(bytes.NewReader(raw))
 	out := []gvk{}
 	var docs []any
+	// As the extractor: one definition per metadata.name and per group and kind, whatever versions each copy lists.
+	seenName, seenKind := map[string]bool{}, map[string]bool{}
 	for {
-		var d map[string]any
-		if err := dec.Decode(&d); err != nil {
+		var document any
+		if err := dec.Decode(&document); err != nil {
 			if err != io.EOF {
 				fmt.Fprintln(os.Stderr, "yaml:", err)
 				os.Exit(1)
 			}
 			break
 		}
-		if d == nil || d["kind"] != "CustomResourceDefinition" {
+		if document == nil {
 			continue
+		}
+		d, isMapping := document.(map[string]any)
+		if !isMapping {
+			fmt.Fprintln(os.Stderr, "a document is not a mapping")
+			os.Exit(1)
+		}
+		apiVersion, _ := d["apiVersion"].(string)
+		kind, _ := d["kind"].(string)
+		// As the extractor: list items are not read, so a list could hide a definition.
+		if strings.HasSuffix(kind, "List") {
+			fmt.Fprintln(os.Stderr, "a List document: list items are not read")
+			os.Exit(1)
+		}
+		if kind != "CustomResourceDefinition" {
+			if strings.HasPrefix(apiVersion, "apiextensions.k8s.io/") {
+				fmt.Fprintln(os.Stderr, "an apiextensions.k8s.io document that is not a CustomResourceDefinition")
+				os.Exit(1)
+			}
+			continue
+		}
+		// As the extractor (parse.go): apiextensions.k8s.io/v1, or a complete v1beta1 definition; nothing else is read.
+		if apiVersion != "apiextensions.k8s.io/v1" && apiVersion != "apiextensions.k8s.io/v1beta1" {
+			fmt.Fprintln(os.Stderr, "CRD apiVersion is not read")
+			os.Exit(1)
 		}
 		spec, _ := d["spec"].(map[string]any)
 		names, _ := spec["names"].(map[string]any)
@@ -106,32 +132,42 @@ func main() {
 			fmt.Fprintln(os.Stderr, "CRD group or kind missing")
 			os.Exit(1)
 		}
-		vs, validVersions := spec["versions"].([]any)
-		if _, present := spec["versions"]; present && !validVersions {
-			fmt.Fprintln(os.Stderr, "CRD versions must be a list")
+		metadata, _ := d["metadata"].(map[string]any)
+		name, _ := metadata["name"].(string)
+		if seenKind[g+"/"+k] || (name != "" && seenName[name]) {
+			fmt.Fprintf(os.Stderr, "CustomResourceDefinition %q of kind %q is defined more than once\n", name, g+"/"+k)
 			os.Exit(1)
 		}
-		if len(vs) == 0 && spec["version"] == nil {
-			fmt.Fprintln(os.Stderr, "CRD versions missing")
-			os.Exit(1)
-		}
+		seenKind[g+"/"+k], seenName[name] = true, true
+		seenVersion := map[string]bool{}
+		// The spec.version-only form states no served line: it is not read.
+		vs, _ := spec["versions"].([]any)
 		if len(vs) == 0 {
-			v, ok := spec["version"].(string)
-			if !ok || strings.TrimSpace(v) == "" {
-				fmt.Fprintln(os.Stderr, "CRD legacy version must be a nonempty string")
+			fmt.Fprintln(os.Stderr, "CRD has no spec.versions list")
+			os.Exit(1)
+		}
+		if single, present := spec["version"]; present && apiVersion == "apiextensions.k8s.io/v1beta1" {
+			first, _ := vs[0].(map[string]any)
+			firstName, _ := first["name"].(string)
+			if v, _ := single.(string); v == "" || v != firstName {
+				fmt.Fprintln(os.Stderr, "CRD spec.version is not the name of the first spec.versions entry")
 				os.Exit(1)
 			}
-			out = append(out, gvk{g, v, k, true, true})
 		}
 		for _, x := range vs {
 			m, _ := x.(map[string]any)
 			n, _ := m["name"].(string)
 			s, validServed := m["served"].(bool)
-			if n == "" || !validServed {
-				fmt.Fprintln(os.Stderr, "CRD version name or served flag invalid")
+			st, validStorage := m["storage"].(bool)
+			if n == "" || !validServed || !validStorage {
+				fmt.Fprintln(os.Stderr, "CRD version name, served or storage flag invalid")
 				os.Exit(1)
 			}
-			st, _ := m["storage"].(bool)
+			if seenVersion[n] {
+				fmt.Fprintln(os.Stderr, "CRD version listed more than once")
+				os.Exit(1)
+			}
+			seenVersion[n] = true
 			out = append(out, gvk{g, n, k, s, st})
 			if *sample && s {
 				obj := map[string]any{"apiVersion": g + "/" + n, "kind": k,
