@@ -181,7 +181,8 @@ func TestGateRefusesAutomatedCarryWithoutAnOwnerException(t *testing.T) {
 			r.NotAfter = stamp(f.now.Add(-2 * time.Hour))
 		}), "must be after decidedAt"},
 		"unreadable expiry": {signed(func(f *reattestFixture, r *CarryExceptionRecord) { r.NotAfter = "never" }), "notAfter"},
-		"no key digest configured": {func(t *testing.T, f *reattestFixture, o *Options) { o.ApprovalKeysDigest = "" }, "no owner approval key digest"},
+		// "none" is the test helper's word for an unconfigured digest.
+		"no key digest configured": {func(t *testing.T, f *reattestFixture, o *Options) { o.ApprovalKeysDigest = "none" }, "no owner approval key digest"},
 		"other key digest configured": {func(t *testing.T, f *reattestFixture, o *Options) {
 			o.ApprovalKeysDigest = "sha256:" + strings.Repeat("0", 64)
 		}, "does not match the pinned digest"},

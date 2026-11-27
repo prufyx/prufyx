@@ -244,18 +244,11 @@ func TestAssembleRefuses(t *testing.T) {
 			renewAll(applied, plan.Extractors[0].LeaseDays)
 			c.edit(applied, &plan)
 			out, _, err := Assemble(base, render(t, applied), plan, now, 45)
-			if !errors.Is(err, ErrRefused) && err == nil || out != nil || !strings.Contains(errString(err), c.want) {
+			if !errors.Is(err, ErrRefused) || out != nil || !strings.Contains(err.Error(), c.want) {
 				t.Fatalf("err %v, want %q", err, c.want)
 			}
 		})
 	}
-}
-
-func errString(err error) string {
-	if err == nil {
-		return "<nil>"
-	}
-	return err.Error()
 }
 
 func TestAssembleRefusesTheWholePack(t *testing.T) {
