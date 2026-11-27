@@ -249,7 +249,9 @@ explicit access-intent declaration. Missing or malformed configuration stays
 UNKNOWN; it does not inspect RBAC, call a cluster, or infer an effective default.
 For the five reviewed transitions to Argo CD 3.5.2, the same project route
 instead accepts one pre-apply v1 repository Secret. It checks only type=helm
-with enableOCI=true and a protocol-free OCI registry/path. The caller must
+with enableOCI=true and a protocol-free OCI registry/path: a DNS host name that
+starts with a letter, with an optional decimal port and optional path. Other
+forms, for example an IP address with a port, are UNKNOWN. The caller must
 declare plain-HTTP use, official distribution, and complete, precedence-resolved
 repository settings; inherited credential templates, authentication and network
 use are otherwise UNKNOWN. Secret values, names, URLs and credentials are discarded.
