@@ -5567,7 +5567,7 @@
       }
     },
     {
-      "description": "etcd 3.7 rejects only the reviewed finite removed experimental flag names in a complete caller-declared proposed direct argv; all other configuration and runtime constraints remain UNKNOWN.",
+      "description": "etcd 3.7 rejects only the reviewed finite removed experimental flag names in a complete caller-declared proposed direct argv; all other configuration and runtime constraints remain UNKNOWN. Reviewed range: from 3.6.14 (the reviewed anchor) up to 3.7.0, to any 3.7 release. The 3.7 upgrade guide requires the running cluster to be v3.6.11 or later; this rule does not decide any source release before 3.6.14. Each of the 23 flags listed in the guide is registered in server/etcdmain/config.go or server/embed/config.go at every 3.6 release (v3.6.0 to v3.6.17) and in neither file at any 3.7 release (v3.7.0 to v3.7.4), read at each release tag.",
       "project": "etcd",
       "requiredFacts": [
         {
@@ -5590,12 +5590,44 @@
           "reviewedAt": "2026-11-24T05:14:00Z",
           "sources": [
             {
+              "contentDigest": "sha256:e78c592a0ac299ef9a74c2ba157b383576f048f92a4d120573319d4c4cb2faa4",
+              "endLine": 85,
+              "id": "etcd-3-6-17-deprecated-flags",
+              "revision": "0689586e360e2c6b46f95ad5634c25d5fa1683db",
+              "startLine": 60,
+              "url": "https://github.com/etcd-io/etcd/blob/0689586e360e2c6b46f95ad5634c25d5fa1683db/server/etcdmain/config.go"
+            },
+            {
+              "contentDigest": "sha256:b37f4b0386a98303bef18b3b7f2effd29947722347989caa6a7cd19181e93f15",
+              "endLine": 954,
+              "id": "etcd-3-6-17-embed-flags",
+              "revision": "0689586e360e2c6b46f95ad5634c25d5fa1683db",
+              "startLine": 861,
+              "url": "https://github.com/etcd-io/etcd/blob/0689586e360e2c6b46f95ad5634c25d5fa1683db/server/embed/config.go"
+            },
+            {
               "contentDigest": "sha256:b747a9add5433e31b06e4cdadedfd3268e567dc72d6d72c59cb75974a340cf99",
               "endLine": 254,
               "id": "etcd-3-6-compact-hash-feature-gate",
               "revision": "71c99c6729f1bb9f007ef7dca9f3aed484229844",
               "startLine": 245,
               "url": "https://github.com/etcd-io/website/blob/71c99c6729f1bb9f007ef7dca9f3aed484229844/content/en/docs/v3.7/upgrades/upgrade_3_6.md"
+            },
+            {
+              "contentDigest": "sha256:9ff275dff23bbf8a2db6263231ffdcda384e72d0f5fa832a43525e4fd2ce9b61",
+              "endLine": 64,
+              "id": "etcd-3-7-4-deprecated-flags",
+              "revision": "2e8a5c99e4982c8d4c521be15364ea4c5c68a489",
+              "startLine": 60,
+              "url": "https://github.com/etcd-io/etcd/blob/2e8a5c99e4982c8d4c521be15364ea4c5c68a489/server/etcdmain/config.go"
+            },
+            {
+              "contentDigest": "sha256:8519fbc065039225616b8f5547f5369efdb02f97c6d835ae62a38f084e5e784e",
+              "endLine": 773,
+              "id": "etcd-3-7-4-embed-flags",
+              "revision": "2e8a5c99e4982c8d4c521be15364ea4c5c68a489",
+              "startLine": 603,
+              "url": "https://github.com/etcd-io/etcd/blob/2e8a5c99e4982c8d4c521be15364ea4c5c68a489/server/embed/config.go"
             },
             {
               "contentDigest": "sha256:3211a46342d835243b00694263e0a67c1a30f11ce4a7df7fa8e0a58489a98a27",
@@ -5612,6 +5644,14 @@
               "revision": "5e7fd0de9a57db03ecc11794dc40403a734c07bb",
               "startLine": 603,
               "url": "https://github.com/etcd-io/etcd/blob/5e7fd0de9a57db03ecc11794dc40403a734c07bb/server/embed/config.go"
+            },
+            {
+              "contentDigest": "sha256:3211a46342d835243b00694263e0a67c1a30f11ce4a7df7fa8e0a58489a98a27",
+              "endLine": 82,
+              "id": "etcd-3-7-upgrade-minimum-source",
+              "revision": "71c99c6729f1bb9f007ef7dca9f3aed484229844",
+              "startLine": 19,
+              "url": "https://github.com/etcd-io/website/blob/71c99c6729f1bb9f007ef7dca9f3aed484229844/content/en/docs/v3.7/upgrades/upgrade_3_7.md"
             }
           ],
           "state": "active",
@@ -5620,6 +5660,38 @@
         "id": "etcd.experimental-flags-unsupported.3-6-14-to-3-7-1",
         "nextAction": "Remove only the detected documented experimental flag from the complete proposed direct argv; unknown experimental names or indirect configuration stay UNKNOWN and require target parser inspection.",
         "operator": "forbid_predicate_value",
+        "range": {
+          "bounds": [
+            {
+              "basis": "ANCHOR_ONLY",
+              "bound": "from.gte",
+              "sourceId": "etcd-3-7-upgrade-minimum-source"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "from.lt",
+              "sourceId": "etcd-3-7-experimental-flags"
+            },
+            {
+              "basis": "REMOVED_IN_RELEASE",
+              "bound": "to.gte",
+              "sourceId": "etcd-3-7-experimental-flags"
+            },
+            {
+              "basis": "TARGET_SERIES",
+              "bound": "to.lt",
+              "sourceId": "etcd-3-7-4-deprecated-flags"
+            }
+          ],
+          "from": {
+            "gte": "3.6.14",
+            "lt": "3.7.0"
+          },
+          "to": {
+            "gte": "3.7.0",
+            "lt": "3.8.0"
+          }
+        },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "subject": {
           "component": "pkg:github/etcd-io/etcd",
