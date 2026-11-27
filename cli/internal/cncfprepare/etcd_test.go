@@ -163,21 +163,30 @@ func TestPrepareEtcdLatestAllExactOriginsAndHopPrecedence(t *testing.T) {
 				t.Fatalf("report=%+v err=%v", report, err)
 			}
 			exact := "etcd.experimental-flags-unsupported." + strings.ReplaceAll(from, ".", "-") + "-to-3-7-1"
-			blocked := 0
+			// An origin that skips a minor line is also blocked by the hop
+			// rule of its pair; that rule says nothing about the flag.
+			skip := "etcd.direct-minor-skip." + strings.ReplaceAll(from, ".", "-") + "-to-3-7-1"
+			wantSkip := 1
+			if from == "3.6.14" {
+				wantSkip = 0
+			}
+			blocked, skipped := 0, 0
 			for _, claim := range report.Check.Claims {
+				switch {
 				// The one extra claim allowed: a line range whose boundary
 				// question the exact rule of this pair answers. It stays
 				// UNKNOWN and names that rule.
-				if claim.Status == "UNKNOWN" && claim.CoveringRuleID == exact {
-					continue
-				}
-				if claim.Status != "BLOCKED" || claim.RuleID != exact {
+				case claim.Status == "UNKNOWN" && claim.CoveringRuleID == exact:
+				case claim.Status == "BLOCKED" && claim.RuleID == exact:
+					blocked++
+				case claim.Status == "BLOCKED" && claim.RuleID == skip:
+					skipped++
+				default:
 					t.Fatalf("claim=%+v", claim)
 				}
-				blocked++
 			}
-			if blocked != 1 {
-				t.Fatalf("want exactly one claim blocking the removed flag: report=%+v", report)
+			if blocked != 1 || skipped != wantSkip {
+				t.Fatalf("want one claim blocking the removed flag and %d blocking the hop: report=%+v", wantSkip, report)
 			}
 		})
 		t.Run(from+"/replacement", func(t *testing.T) {
