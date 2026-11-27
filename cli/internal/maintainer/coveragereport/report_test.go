@@ -182,14 +182,22 @@ func TestEmbeddedPackBaseline(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if ok && now.Before(newest) {
-			// Only when the pack holds a review newer than its own clock:
-			// then the crossplane pair above moves from S to B.
+		if ok {
+			// The clock is the earliest lease of the shipped rules, so it moves
+			// whenever they are renewed: it can precede the newest review (then
+			// the evaluation moves to that review) or follow it. Either way every
+			// shipped review is in force at the evaluation time, the crossplane
+			// pair above is decided, and it moves from S to B. The narrowed Argo
+			// CD rules, reviewed on 2026-11-24, are in force there as well, so
+			// they leave the S figure unchanged.
 			want.B, want.S = want.B+1, want.S-1
-			// Thirteen whole-line target rules (falco, envoy, harbor, nats) reviewed
-			// at this clock move thirteen pairs from G to B; three of them count in C3.
+			// Thirteen whole-line target rules (falco, envoy, harbor, nats),
+			// in force at the evaluation time as well, move thirteen pairs from
+			// G to B; three of them count in C3.
 			want.B, want.G, want.C3 = want.B+13, want.G-13, want.C3+3
-			now = newest
+			if now.Before(newest) {
+				now = newest
+			}
 		}
 	}
 	report, err := Compute(Input{Pack: pack, Lines: read(t, "testdata/lines-2026-10-08.json"), Now: now})
