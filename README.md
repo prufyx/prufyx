@@ -295,7 +295,9 @@ where the cited evidence states that range. Outside it, the result is
 
 ## Beta
 
-A public beta pre-release (`v0.1.0-beta.0`) is being prepared. Read the
+The public beta pre-release
+[`v0.1.0-beta.0`](https://github.com/prufyx/prufyx/releases/tag/v0.1.0-beta.0)
+is available for testing. Read the
 [beta tester guide](cli/docs/beta-tester-guide.md) for install and
 verification, the main commands and how to report a wrong answer, and the
 [release notes](cli/docs/release-notes-v0.1.0-beta.0.md) for what a build
