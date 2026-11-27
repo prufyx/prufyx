@@ -337,6 +337,8 @@ func TestOptInSchemaLaterPinChange(t *testing.T) {
 		t.Parallel()
 		for label, change := range map[string]func(t *testing.T, tr Tree){"lowered": set(old), "removed": missing, "unparsable": raw("junk\n")} {
 			base, head := trees(t)
+			writeClientPin(t, base, floor)
+			writeClientPin(t, head, floor)
 			change(t, head)
 			r := runGate(t, Options{Base: base, Head: head})
 			if c, ok := check(r, name); ok {
