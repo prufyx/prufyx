@@ -315,8 +315,8 @@ prose numbers, the deny list or hand-written labels, remain.
 Not written by `regen`, because they are inputs of the blocks above and must
 already be current: `cli/docs/generated/community-support-inventory.*`
 (`support-inventory`), `docs-tables` output, the corpus attestation and every
-`rules.json`. An automated data change regenerates these first (the factory
-regeneration step does) and then runs `regen`.
+`rules.json`. An automated data change regenerates these first and then runs
+`regen`.
 
 ## What CI does
 

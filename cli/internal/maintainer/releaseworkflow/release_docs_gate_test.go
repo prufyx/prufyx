@@ -254,8 +254,8 @@ func TestReleaseDryRunPassesBlocksBaseOnlyWhenSet(t *testing.T) {
 	}{
 		"unset":     {nil, ""},
 		"empty":     {[]string{"BLOCKS_BASE="}, ""},
-		"set":       {[]string{"BLOCKS_BASE=" + base}, " --blocks-base <" + base + ">"},
-		"malformed": {[]string{"BLOCKS_BASE=HEAD --mode x"}, " --blocks-base <HEAD --mode x>"},
+		"set":       {[]string{"BLOCKS_BASE=" + base}, " <--blocks-base> <" + base + ">"},
+		"malformed": {[]string{"BLOCKS_BASE=HEAD --mode x"}, " <--blocks-base> <HEAD --mode x>"},
 	} {
 		work := t.TempDir()
 		if err := os.Mkdir(filepath.Join(work, "cli"), 0o700); err != nil {
