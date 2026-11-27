@@ -77,6 +77,12 @@
 /cli/cmd/prufyx-maintainer/main.go @airstand
 /cli/knowledge/target-recipes/ @airstand
 
+# The checks of the scheduled re-derivation, and the owner's signed
+# exceptions from the refusal of automated date carry.
+/cli/internal/maintainer/rederiverenew/ @airstand
+/cli/cmd/prufyx-maintainer/renewal.go @airstand
+/cli/knowledge/carry-exceptions/ @airstand
+
 # Workflows, repository settings and this file.
 /.github/ @airstand
 /.github/workflows/verify-pr.yml @airstand

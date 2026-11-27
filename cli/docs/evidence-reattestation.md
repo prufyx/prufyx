@@ -552,48 +552,67 @@ one of: `WORKLIST_SCOPE_INCOMPLETE` and `CITATION_PENDING` (E2), `TAG_FALLBACK_B
 `STAGGER_DEFERRED` (V7 cap), `MECHANICAL_RULE_EXCLUDED`, and, in automated
 mode only, `LATEST_BASELINE_NOT_AUTOMATABLE`, `TAG_LINE_BASELINE_NOT_AUTOMATABLE` and `REVIEWED_OUTSIDE_STATEMENT_CHAIN`.
 
-## Automated renewal in CI
+## Automated carry is refused
 
-`.github/workflows/evidence-renewal.yml` runs `prepare --mode automated`,
-`sign --role automation` and `verify` unattended and opens one pull request
-with the signed statement. It triggers weekly (Monday 05:00 UTC) and on
-`workflow_dispatch`; it has no `pull_request` or `pull_request_target`
-trigger, so a change cannot run it or reach its secrets. It never merges:
-the knowledge gate re-derives every citation independently and decides.
+An automated statement moves the dates of reviewed evidence without a new
+derivation. The knowledge gate refuses a change that appends one (or any
+statement not signed by a human-role key) unless the base tree holds an owner
+exception for **every** record the statement renews. No workflow runs
+`prepare --mode automated` or signs as the automation role.
+
+An exception is the file
+`cli/knowledge/carry-exceptions/<pack>/<hex sha256 of the record ID>.json`,
+schema `prufyx.io/carry-exception/v1`. It is signed with a pinned owner key of
+the web-approval key file (read from the base and held to the configured
+digest; the signature has a domain of its own) and binds the pack, the record
+ID, the digest of the base record's canonical bytes, `decidedAt` and
+`notAfter` (at most 14 days later). A pull request cannot use an exception it
+adds itself, the automation account may not add, change or remove one, and
+after the renewal the base record differs, so it cannot be used again. A
+committed note or pull request text is not an exception. The owner signs one
+on the owner's own machine:
+
+```
+prufyx-maintainer approval carry-exception --pack cncf --record ID \
+  --base-pack cli/internal/cncfcheck/data/rules.json \
+  --keys FILE --keys-digest sha256:... --identity LOGIN \
+  --not-after 2027-01-01T00:00:00Z --key FILE --output FILE
+```
+
+It lands in its own change first; the automated statement follows in a later
+one. Statements signed with a human-role key are unaffected.
+
+## Scheduled re-derivation
+
+`.github/workflows/evidence-rederive.yml` renews mechanical records of the
+`crd.version-removal.*` extractors only by deriving them again. It runs daily
+and on `workflow_dispatch` without inputs, from `main` only, with no pull
+request trigger, and never merges.
 
 | Job | Holds | Does |
 |---|---|---|
-| `prepare` | read-only token, no secrets | builds the CLI from the triggering commit of `main`, re-pins the release lines over HTTP, computes how many rules this run may renew, prepares the statement for the first pack (`cncf`, then `community`) that has an eligible rule, runs the structural checks, uploads the worklist and the unsigned statement and reports their sha256 |
-| `sign` | environment `renewal`: the secrets `REATTEST_AUTOMATION_KEY` and `REATTEST_AUTOMATION_KEY_PASSPHRASE` | checks the downloaded files against that sha256, builds the CLI from the same commit, writes the key under the runner temp directory (mode 0600), signs, removes the key even on failure, runs `verify` |
-| `pr` | environment `renewal-pr` (the bot token), no repository code; first checks that the token belongs to `KNOWLEDGE_BOT_LOGIN`, and refuses otherwise | exits if a pull request on `factory/renewal/automated-*` is open or if `main` moved since `prepare`; otherwise creates the branch and one commit through the API (authored by the bot account; it is not claimed to be signed or auto-merge eligible) holding the pack, one chain entry and its worklist, and opens the pull request, which is merged through the normal merge train after the Knowledge gate (no auto-merge) |
+| `plan` | read-only token | refuses while a `factory/renewal/*` pull request is open; takes the derivation time once; lists the active mechanical records that end within 45 days (never Kubernetes), whole extractors, at most the smaller of 45 and the daily limit minus the last 24 hours, with a lease of 76 to 90 days each |
+| `derive` (twice) | `contents: read`, no secrets, no cache | each runner mirrors upstream and runs `extract run` with the planned time and lease |
+| `assemble` | `contents: read`, no secrets | `renewal compare` requires the two results byte-identical; `extract apply --renew-attestations`; `renewal assemble` keeps only planned records whose times (at a new extractor build also extractor and sources) moved, with an equal lease member and range; regenerates the generated files; refuses any other changed file |
+| `pr` | environment `renewal-pr` (the bot token), no repository code | runs only when the repository variable `REDERIVE_PR_ENABLED` is `true`; checks the bundle digest, the path allow list, the origin block, a derivation time within 24 hours, no open renewal pull request and an unmoved `main`; opens the pull request |
 
-The run renews at most N rules, N = min(45, the gate's daily loosening limit
-minus the loosenings `gate daily-count` counts for the last 24 hours). A
-statement that would renew nothing is never written: the run ends cleanly.
+Any mismatch or refusal means no pull request. New records and other changed
+content are not carried; they go through the ordinary intake. The origin block
+(run, commit, workflow, derivation time, record and output digests, extractor
+builds) is in the commit message and pull request body. It records where a
+change came from and proves nothing; the knowledge gate re-derives.
 
-Dry run: `workflow_dispatch` takes `dry_run`, default `true`. A dry run
-re-pins, prepares and runs the structural checks, then stops: `sign` and `pr`
-are skipped and no secret is read. (No signing test root exists in the
-repository, so the dry run cannot verify a signature; `verify --structural-only`
-never exits zero by design and the workflow treats its explicit success
-message as the pass.) A scheduled run is a real run; it signs only when the
-`renewal` environment holds the key, and otherwise skips `sign` without error.
-A dispatch with `dry_run: false` and no key fails.
+Not renewed by this workflow: Kubernetes records, served lists, changelog
+records and anything without a derivation. Where `extract apply` refuses a
+time-only renewal of a rule at the same build, a run that plans such a rule
+fails and opens nothing.
 
-Setup (owner): the `renewal` environment restricted to `main` with the two
-secrets in it, a `renewal-pr` environment restricted to `main` holding
-the `KNOWLEDGE_BOT_TOKEN` secret, the repository variable
-`REATTEST_TRUST_ROOT_DIGEST` set to a root that lists the automation key, and
-the repository variable `KNOWLEDGE_BOT_LOGIN`. The token is a fine-grained
-personal access token of that machine account, limited to this repository
-with Contents and Pull requests read and write. The `pr` job fails before any
-write unless `gh api user` with the token returns exactly `KNOWLEDGE_BOT_LOGIN`.
-Revocation: restore the previous root digest variable and delete the secrets.
-
-Limits: the re-pin uses the workflow token (about 1000 requests an hour); a
-run that hits the limit fails and the next run retries. `sign` verifies against
-the worklist `prepare` produced; the gate's own re-pin remains the independent
-check.
+Setup (owner): create the `renewal-pr` environment restricted to `main`
+**before** adding any secret to it, add `KNOWLEDGE_BOT_TOKEN` there, set
+`KNOWLEDGE_BOT_LOGIN`, and only then set `REDERIVE_PR_ENABLED` to `true`. The
+token is a fine-grained personal access token of that machine account, limited
+to this repository with Contents and Pull requests read and write. Revocation:
+unset the variable and delete the secret.
 
 ## Pinned leases
 

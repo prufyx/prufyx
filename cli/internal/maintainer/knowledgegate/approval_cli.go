@@ -20,7 +20,10 @@ import (
 	"golang.org/x/term"
 )
 
-const approvalUsage = `usage: prufyx-maintainer approval <sign|verify|public-key|keys-digest> [options]
+const approvalUsage = `usage: prufyx-maintainer approval <sign|verify|carry-exception|public-key|keys-digest> [options]
+  carry-exception --pack cncf|community --record ID --base-pack FILE --keys FILE --keys-digest sha256:...
+              --identity LOGIN --not-after RFC3339 (--key FILE | --key-stdin) --output FILE
+              (excepts one record from the refusal of automated date carry; at most 14 days)
   sign        --pack cncf|community --rule ID --base-pack FILE --head-pack FILE
               --keys FILE --keys-digest sha256:... --identity LOGIN --candidate-id ID
               (--key FILE | --key-stdin) --output FILE [--subject rule]
@@ -172,6 +175,12 @@ func approvalMain(args []string, env approvalEnv, layout Layout, stdout, stderr 
 		} else {
 			code, err = cmdApprovalVerify(args[1:], env, layout, stdout)
 		}
+	case "carry-exception":
+		if env.supervised != nil {
+			fmt.Fprintln(stderr, approvalUsage)
+			return 2
+		}
+		code, err = cmdCarryException(args[1:], env, layout, stdout)
 	case "public-key":
 		code, err = cmdApprovalPublicKey(args[1:], env, stdout)
 	case "keys-digest":

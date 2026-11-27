@@ -66,6 +66,9 @@ func defaultGatePaths() []string {
 		"cli/internal/maintainer/verifyprworkflow/",
 		"cli/internal/maintainer/targetdraft/classify.go",
 		"cli/cmd/prufyx-maintainer/gate.go",
+		// The checks of the scheduled re-derivation.
+		"cli/internal/maintainer/rederiverenew/",
+		"cli/cmd/prufyx-maintainer/renewal.go",
 		"cli/cmd/prufyx-maintainer/release_docs.go",
 		// The CNCF sub-project overlay: its data, its loader, the network
 		// tool that re-checks its citations, and the classifier rule that

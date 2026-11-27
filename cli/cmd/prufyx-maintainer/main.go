@@ -167,6 +167,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 			return &commandError{code: code, message: "source-corpus failed", printed: true}
 		}
 		return nil
+	case "renewal":
+		return runRenewal(args[1:], stdout)
 	case "corpus-attestation":
 		if code := runCorpusAttestation(args[1:], stdout, stderr); code != 0 {
 			return &commandError{code: code, message: "corpus-attestation failed", printed: true}

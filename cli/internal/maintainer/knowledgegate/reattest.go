@@ -180,5 +180,13 @@ func verifyStatement(layout Layout, spec PackSpec, base, head Tree, basePack, he
 	if len(renewed) != result.RuleCount {
 		return fail("statement %s: renewed rule count mismatch", stmt.Name)
 	}
+	// Only a human statement renews on its signature alone. Any other role
+	// carries dates forward without a new derivation: refused unless the
+	// owner excepted every renewed record (carry_exception.go).
+	if sig.SignerRole != evidencereattest.RoleHuman {
+		if why := carryRefusal(base, basePack, spec.Name, statement, opts); why != "" {
+			return fail("statement %s: %s", stmt.Name, why)
+		}
+	}
 	return statementResult{OK: true, Role: sig.SignerRole, Stem: stmt.Name, Renewed: renewed, Statement: statement}
 }
