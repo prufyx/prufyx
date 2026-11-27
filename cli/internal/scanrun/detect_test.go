@@ -18,6 +18,8 @@ import (
 // installs 2.12.0. "split" has one chart that resolves to two components.
 type fakeCharts struct{}
 
+func (fakeCharts) Mentions(slug string) bool { return slug == "argo-cd" || slug == "split" }
+
 func (fakeCharts) Component(slug, _ string, _ time.Time) (string, bool) {
 	return "c1", slug == "argo-cd" || slug == "istio"
 }

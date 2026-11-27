@@ -780,10 +780,14 @@ Labels on a workload's pod template are read too. Rules:
   keeps its chart versions.
 - Two different versions, or a usable version beside an unusable signal
   (`latest`, a pre-release such as `1.2.0-rc1`, a two-part or non-version
-  tag, a chart version with no reviewed application version or with no current
-  reviewed chart source), detect nothing
-  and add a `VERSION_CONFLICT` gap. Only unusable signals leave the version
-  undeclared (`VERSION_NOT_DETECTED`).
+  tag, or a chart version with no current reviewed application version), detect
+  nothing and add a `VERSION_CONFLICT` gap. Only unusable signals leave the
+  version undeclared (`VERSION_NOT_DETECTED`).
+- A `helm.sh/chart` label is read only for a chart the reviewed chart tables
+  mention. When its source expired or was withdrawn, the label is an unusable
+  signal. Known limit: when every row about a chart was removed, its label is
+  not read, as for a chart that was never reviewed, and the app version label
+  alone decides. Declare `--from` if that is not enough.
 - A detected version is shown with `currentSource: "detected"` in the
   inventory, and a note names the signal that produced it, so you can check it
   by hand. It is never stronger than that evidence.

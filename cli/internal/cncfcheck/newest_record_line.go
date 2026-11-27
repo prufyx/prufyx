@@ -13,7 +13,7 @@ import (
 // freshness, state, completeness or fact family; "" when none names one. It
 // says nothing about whether the record can be used. A caller that picks a
 // line from the current records compares against it, so that a record which
-// expired or was withdrawn is named instead of silently passed over. A
+// expired or is incomplete is named instead of silently passed over. A
 // snapshot that cannot answer is an error, never "no newer line".
 func (k *ScanKnowledge) NewestRecordLine(component string) (string, error) {
 	b, ok := k.bundleForComponent(component)

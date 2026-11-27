@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
+	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 	"github.com/prufyx/prufyx/cli/internal/scanconfig"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
@@ -46,8 +47,13 @@ func expiredReviewWithoutRules(record map[string]any) bool {
 // section, and with dropRules removes the rules that move onto that line.
 func editLine(t *testing.T, line string, edits map[string]newestRecordEdit, dropRules bool) []byte {
 	t.Helper()
+	return editRecords(t, embeddedPack(t), kubernetesSlug, kubernetesKey, line, edits, dropRules)
+}
+
+func editRecords(t *testing.T, raw []byte, slug, component, line string, edits map[string]newestRecordEdit, dropRules bool) []byte {
+	t.Helper()
 	var pack map[string]any
-	decoder := json.NewDecoder(bytes.NewReader(embeddedPack(t)))
+	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.UseNumber()
 	if err := decoder.Decode(&pack); err != nil {
 		t.Fatal(err)
@@ -57,7 +63,7 @@ func editLine(t *testing.T, line string, edits map[string]newestRecordEdit, drop
 		seen := false
 		for _, item := range pack[section].([]any) {
 			record := item.(map[string]any)
-			if record["component"] != kubernetesKey || record["line"] != line {
+			if record["component"] != component || record["line"] != line {
 				kept = append(kept, record)
 				continue
 			}
@@ -77,8 +83,8 @@ func editLine(t *testing.T, line string, edits map[string]newestRecordEdit, drop
 			t.Fatal(err)
 		}
 		drop := map[string]bool{}
-		for _, rule := range scan.Rules(kubernetesSlug) {
-			if rule.Scope.Line == line {
+		for _, rule := range scan.Rules(slug) {
+			if newestRuleLine("", []cncfcheck.ScanRule{rule}, component) == line {
 				drop[rule.Scope.ID] = true
 			}
 		}
@@ -149,6 +155,8 @@ func TestNewestCoveredNamesTheLapsedNewerLine(t *testing.T) {
 		{"list and rules removed, review kept", map[string]newestRecordEdit{"servedAPIs": lapseRemoved, "lineAttestations": reviewWithoutRules}, true},
 		{"list and rules removed, review expired", map[string]newestRecordEdit{"servedAPIs": lapseRemoved, "lineAttestations": expiredReviewWithoutRules}, true},
 		{"list and review removed, rules kept", map[string]newestRecordEdit{"servedAPIs": lapseRemoved, "lineAttestations": lapseRemoved}, false},
+		// Only the binary's own knowledge still names the line.
+		{"every trace removed from the database", map[string]newestRecordEdit{"servedAPIs": lapseRemoved, "lineAttestations": lapseRemoved}, true},
 	}
 	for _, layout := range storeLayouts {
 		t.Run(layout+"/control", func(t *testing.T) {
@@ -176,6 +184,71 @@ func TestNewestCoveredNamesTheLapsedNewerLine(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// Served lists and line reviews have no withdrawn state: a pack that states
+// one is refused whole, so a withdrawn list can never decide a target.
+func TestNewestCoveredWithdrawnRecordIsRefused(t *testing.T) {
+	if _, _, err := cncfcheck.BuildExternalTargetsFromPack(embeddedPack(t), "7"); err != nil {
+		t.Fatalf("control: %v", err)
+	}
+	for _, section := range []string{"servedAPIs", "lineAttestations"} {
+		pack := editLine(t, "1.37", map[string]newestRecordEdit{section: func(record map[string]any) bool {
+			record["evidence"].(map[string]any)["state"] = "withdrawn"
+			return true
+		}}, false)
+		if _, _, err := cncfcheck.BuildExternalTargetsFromPack(pack, "7"); err == nil {
+			t.Fatalf("%s: a withdrawn state was admitted", section)
+		}
+	}
+}
+
+// A database resolves no application target: newest-covered for one is
+// refused there, never moved to an older line.
+func TestNewestCoveredAppFromDatabaseIsRefused(t *testing.T) {
+	for _, layout := range storeLayouts {
+		t.Run(layout, func(t *testing.T) {
+			fixture := newStoreFixture(t, layout, "strimzi")
+			fixture.importPack(embeddedPack(t), "7")
+			opened, err := OpenStore(fixture.store, []string{"strimzi"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			at, err := time.Parse(time.RFC3339, newestCoveredAt)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var effective scanconfig.Effective
+			gaps, err := resolveNewestCovered(&effective, []string{"strimzi"}, opened, at)
+			if !isUsage(err) || gaps != nil || len(effective.Target) != 0 {
+				t.Fatalf("not refused: %v %+v %+v", err, gaps, effective.Target)
+			}
+		})
+	}
+}
+
+// A rule outside every fact family has no scope line: its reviewed target
+// version names the line.
+func TestNewerLineFromRuleOutsideFamilies(t *testing.T) {
+	const component = "pkg:github/x/app"
+	rule, err := cncfcheck.NewScanRule("app", "d", json.RawMessage(`{"id":"app.rule","subject":{"component":"`+component+`","from":"1.2.5","to":"1.3.0"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rule.Scope.Line != "" || len(rule.Scope.Families) != 0 {
+		t.Fatalf("control: the rule has a scope line %+v", rule.Scope)
+	}
+	gaps, err := newerLineGaps(recordLines{line: "1.2", rules: []cncfcheck.ScanRule{rule}}, "app", component, "1.2")
+	want := scanreport.NewGap("app", nil, scanreport.GapNewestCoveredOlderLine, "app", "1.2", "1.3")
+	if err != nil || len(gaps) != 1 || gaps[0].Detail != want.Detail {
+		t.Fatalf("err %v gaps %+v", err, gaps)
+	}
+	// A chart rule's versions are chart versions, never a line.
+	chart := rule
+	chart.Chart = &constraintengine.ChartRef{Name: "app"}
+	if gaps, err := newerLineGaps(recordLines{line: "1.2", rules: []cncfcheck.ScanRule{chart}}, "app", component, "1.2"); err != nil || len(gaps) != 0 {
+		t.Fatalf("chart rule: err %v gaps %+v", err, gaps)
 	}
 }
 

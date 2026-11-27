@@ -23,10 +23,12 @@ import (
 //   - helm.sh/chart "<chart>-<chart version>" where the chart is named like
 //     the project (a project's other charts, such as a gateway chart, say
 //     nothing about its control plane) and the reviewed chart table maps
-//     that chart version to an application version. Without a usable
-//     reviewed chart source and a current mapping (expired, withdrawn,
-//     removed or never reviewed) the label is an unusable signal: it is
-//     never ignored.
+//     that chart version to an application version. While either reviewed
+//     table has a row about that chart, the label is read: without a usable
+//     source and a current mapping (expired, withdrawn, one of the rows
+//     removed) it is an unusable signal. A chart neither table mentions is
+//     not read; a chart whose every row was removed cannot be told from one
+//     never reviewed.
 //
 // Only the labels of workloads (apps/v1 Deployment, StatefulSet, DaemonSet
 // and their pod templates) are read; a CRD, ConfigMap or Job label is not
@@ -46,6 +48,9 @@ const (
 
 // chartLookup is the reviewed chart knowledge detection reads.
 type chartLookup interface {
+	// Mentions reports whether a reviewed table has any row, usable or
+	// not, about the chart named like the project.
+	Mentions(slug string) bool
 	// Component is the single component the project's chart resolves to.
 	Component(slug, chart string, now time.Time) (string, bool)
 	// AppVersion is the application version the reviewed table gives for a
@@ -61,6 +66,20 @@ type embeddedCharts struct {
 func loadEmbeddedCharts() (embeddedCharts, error) {
 	sources, versions, err := chartidentity.LoadEmbedded()
 	return embeddedCharts{sources: sources, versions: versions}, err
+}
+
+func (e embeddedCharts) Mentions(slug string) bool {
+	for _, row := range e.sources.Records {
+		if row.Project == slug && row.Chart == slug {
+			return true
+		}
+	}
+	for _, row := range e.versions.Records {
+		if row.Chart == slug {
+			return true
+		}
+	}
+	return false
 }
 
 func (e embeddedCharts) Component(slug, chart string, now time.Time) (string, bool) {
@@ -137,6 +156,7 @@ func labelSets(document intake.Document) []map[string]string {
 func detectVersions(documents []intake.Document, slugs []string, charts chartLookup, now time.Time) map[string]detection {
 	out := map[string]detection{}
 	for _, slug := range slugs {
+		mentioned := charts.Mentions(slug)
 		sets := 0
 		type seen struct{ version, signal string }
 		var found []seen
@@ -153,10 +173,10 @@ func detectVersions(documents []intake.Document, slugs []string, charts chartLoo
 						}
 					}
 				}
-				// The chart named like the project, whether or not its source
-				// can be used: an expired or removed source must not hide
-				// what the label says.
-				if rest, ok := strings.CutPrefix(labels[labelHelmChart], slug+"-"); ok {
+				// The chart named like the project, while a table mentions
+				// it, usable or not: an expired source must not hide what
+				// the label says.
+				if rest, ok := strings.CutPrefix(labels[labelHelmChart], slug+"-"); ok && mentioned {
 					if _, valid := chartidentity.NormalizeVersion(rest); valid {
 						component, resolved := charts.Component(slug, slug, now)
 						app, mapped := "", false

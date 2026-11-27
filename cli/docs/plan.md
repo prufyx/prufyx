@@ -139,8 +139,9 @@ target source `newest-covered`. If no line is current (the lists expired) or
 the component has no such lists, the command refuses; it never guesses. If a
 list, review or rule in the knowledge names a newer line than the chosen one
 (for example because the newest list expired or was removed), the plan adds a
-`LINE_NOT_ATTESTED` gap naming both lines and cannot be `PASS`. A line that
-nothing in the knowledge names any more cannot be detected. It
+`LINE_NOT_ATTESTED` gap naming both lines and cannot be `PASS`. With a
+knowledge database, a line the binary's own knowledge names counts too. A line
+that nothing names any more cannot be detected. It
 cannot be combined with an explicit `--to` for the same component.
 
 ## `latest`
