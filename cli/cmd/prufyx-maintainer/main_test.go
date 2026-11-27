@@ -491,7 +491,7 @@ func TestMaintainerCLIExportKnowledgeWritesNewTarget(t *testing.T) {
 	if err != nil || !info.IsDir() {
 		t.Fatalf("output info=%v err=%v", info, err)
 	}
-	if err := run([]string{"export-knowledge", "--profile", "cncf", "--revision", "73", "--oldest-client", cncfcheck.BoundaryCoveredFloor, "--output", output}, &stdout, &stderr); err == nil {
+	if err := run([]string{"export-knowledge", "--revision", "73", "--oldest-client", cncfcheck.BoundaryCoveredFloor, "--output", output}, &stdout, &stderr); err == nil {
 		t.Fatal("existing output accepted")
 	}
 }

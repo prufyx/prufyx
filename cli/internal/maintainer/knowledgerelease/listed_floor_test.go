@@ -228,7 +228,7 @@ func TestReleaseRefusesTheFamilyWithoutTheFloor(t *testing.T) {
 	t.Run("pin that is not a version", func(t *testing.T) {
 		o := projectsFixture(t)
 		o.OldestClient = "latest"
-		if _, err := Run(o); !errors.Is(err, ErrRejected) {
+		if _, err := Run(o); !errors.Is(err, ErrRejected) || !errors.Is(err, cncfcheck.ErrListedFloorInvalid) {
 			t.Fatalf("err=%v", err)
 		}
 	})

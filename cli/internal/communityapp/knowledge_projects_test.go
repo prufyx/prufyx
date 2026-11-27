@@ -7,11 +7,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/buildidentity"
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/knowledge"
 	"github.com/prufyx/prufyx/cli/internal/knowledgefixture"
@@ -22,6 +24,48 @@ import (
 func perProjectPackage(t *testing.T, repo *knowledgefixture.ProjectsRepository, version int64, revision string) []byte {
 	t.Helper()
 	return signedPerProjectPackage(t, repo, version, revision, buildEmbeddedForFloorClient)
+}
+
+// The shipped floor package offered to a client below the floor is too new:
+// exit 15, trust not advanced, the data directory untouched.
+func TestKnowledgeUpdateShippedFloorPackageIsTooNewBelowTheFloor(t *testing.T) {
+	// buildidentity.Version is a package variable, so this test cannot run in
+	// parallel.
+	old := buildidentity.Version
+	buildidentity.Version = oldClientFloor
+	t.Cleanup(func() { buildidentity.Version = old })
+	env := newDefaultUpdateEnv(t)
+	if code, _, stderr := runDefaultUpdate(t, oldClientPackage(t, env.repo, 1, "4")); code != ExitOK {
+		t.Fatal(code, stderr)
+	}
+	index, _, err := buildEmbeddedForFloorClient("5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	minimum, ok := cncfcheck.ExternalIndexMinClient(index.Bytes)
+	if !ok || !buildidentity.ValidVersion(minimum) || buildidentity.AtLeast(oldClientFloor, minimum) {
+		t.Fatalf("the shipped floor index names minClientVersion %q (present=%t), want one above %s", minimum, ok, oldClientFloor)
+	}
+	before, err := knowledge.InspectConstraintsProjects(env.store)
+	if err != nil || before.State != "READY" || before.TrustStateDigest == "" {
+		t.Fatalf("seed status=%+v err=%v", before, err)
+	}
+	tree := snapshotTree(t, env.data)
+
+	code, out, _ := runDefaultUpdate(t, perProjectPackage(t, env.repo, 2, "5"))
+	if code != ExitKnowledgeTooNew || out.ReasonCode != "KNOWLEDGE_TOO_NEW_FOR_THIS_CLIENT" || out.Rejection == nil || out.Rejection.TrustStateAdvanced || out.Rejection.SelectionChanged || out.ImportReceipt != nil {
+		t.Fatalf("code=%d out=%+v", code, out)
+	}
+	if !strings.Contains(out.NextAction, "upgrade prufyx to >= "+minimum) {
+		t.Fatalf("next action = %q", out.NextAction)
+	}
+	after, err := knowledge.InspectConstraintsProjects(env.store)
+	if err != nil || after.State != "READY" || after.SelectedRevision != "4" || after.SelectedBundleDigest != before.SelectedBundleDigest || after.TrustStateDigest != before.TrustStateDigest {
+		t.Fatalf("store changed: before=%+v after=%+v err=%v", before, after, err)
+	}
+	if got := snapshotTree(t, env.data); !maps.Equal(tree, got) {
+		t.Fatalf("data directory changed: %d entries before, %d after", len(tree), len(got))
+	}
 }
 
 // oldClientPackage is the downlevel package, for import and refusal behaviour
