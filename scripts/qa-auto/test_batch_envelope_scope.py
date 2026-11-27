@@ -43,6 +43,7 @@ def gate_source(root):
     git("add", ".")
     git("commit", "-qm", "Add source fixture")
     base = git("rev-parse", "HEAD")
+    git("checkout", "-q", "-b", "side")  # the gate base must be the main tip: the head sits on a side branch
     (repo / "README.md").write_text("Fixture change\n")
     git("add", ".")
     git("commit", "-qm", "Update source fixture")

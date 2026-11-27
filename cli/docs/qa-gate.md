@@ -14,6 +14,41 @@ Historical mismatch baselines cannot waive mismatches in a publication gate.
 Persistent review and rules allow-lists apply only to diagnostic runs. Batch mode
 ignores them, so an actual failure remains in publication totals.
 
+## Gate base
+
+The base is not a free choice. For every form (explicit head with or without a
+base, `--trust-operator`, `--poll`) the gate reads the tip of exactly
+`refs/heads/main`, fetches the full history of main and the head into a new
+repository, and runs only when the base is the single merge base of head and
+tip, is that tip itself, and differs from the head. A head behind main must be
+rebased first. A failed lookup, fetch or Git command, a main that moved between
+lookup and fetch, a shallow source, no or several merge bases, or any other
+base ends with exit 3: no run, no record, no fallback. The record stores the
+tip read before the run. On the next poll a green record stays green only while
+that tip is still the tip of main and equals its base; otherwise, or when the
+tip cannot be read, it becomes `STALE`. A `run.sh` call with `QA_BASE` set
+directly is a diagnostic and writes no gate record.
+
+## Removed targets
+
+Every CRD version target present at the base
+(`cli/internal/extract/crdversions/target-*.json`) must be a regular file with
+mode 100644 at the same path at the head. A deletion, rename, mode change,
+symlink or directory in its place is refused, whether or not the changed list
+names it; a signed batch or `QA_GATE_REPOS` does not admit it. There is
+currently no route that admits removing a target through this gate. A changed
+target that cannot be read at the head is refused, not treated as deleted.
+
+## Installing the runtime
+
+Install every script of `scripts/qa-auto/` together; `crd_inventory.py` is
+required by `target_repos.py` and `qa_batch_scope.py`. Green records written by
+an earlier runtime were made under a weaker base rule: when installing, remove
+the green records in `$QA_STATE/gate/` or mark them `STALE`, then gate those
+heads again.
+
+## Verdicts and scope
+
 Failed Git reads, incomplete YAML, missing requested release lines and invalid
 scan responses fail closed. A read document count is insufficient when any
 document was omitted, templated or unparseable. The gate

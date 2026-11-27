@@ -204,7 +204,8 @@ PY
   [ "$trc" = 0 ] || { log "code change in bot batch (target repo not trusted): $bad"; exit 3; }
   [ -n "${QA_RUNBOX:-}" ] || { log "gate mode needs QA_RUNBOX (sandbox for head-built binaries): refusing"; exit 3; }
 elif [ -n "$lg" ] && git fetch -q --depth 1 "$QA_REPO_URL" "$lg" 2>/dev/null; then
-  git diff --name-only FETCH_HEAD "$sha" >"$RUN/changed" 2>/dev/null || lg=""
+  # --no-renames: a file renamed into an ignored path must still list the removed source, or the run could select mode none
+  git diff --name-only --no-renames FETCH_HEAD "$sha" >"$RUN/changed" 2>/dev/null || lg=""
 else
   lg=""
 fi
