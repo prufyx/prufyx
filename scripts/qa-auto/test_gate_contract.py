@@ -177,7 +177,7 @@ spec:
         good = subprocess.run([helper], input=valid + "---\n" + second, text=True, capture_output=True)
         self.assertEqual(good.returncode, 0)
         self.assertEqual(len(json.loads(good.stdout)), 2)
-        for middle in ("invalid: [", "kind: CustomResourceDefinition\nspec: {}"):
+        for middle in ("invalid: [", "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResourceDefinition\nspec: {}"):
             bad = subprocess.run([helper], input=valid + "---\n" + middle + "\n---\n" + second,
                                  text=True, capture_output=True)
             self.assertNotEqual(bad.returncode, 0)

@@ -233,6 +233,12 @@ class RulesReachTests(unittest.TestCase):
         self.assertEqual(self.bad(cases), {})
         self.assertNotIn("bound", self.inputs)  # control-only operators run in the pull-request gate only
 
+    def test_withdrawn_rule_does_not_hide_that_no_active_rule_blocks(self):
+        cases = self.run_oracle([withdrawn(forbid("old")), forbid("gone")], "", {"old": 11, "gone": 11}, base="",
+                                claims={"old": [("old",) + WITHDRAWN]})
+        self.assert_error(cases, "no-reachable-rule")
+        self.assertEqual(self.corpus_calls, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

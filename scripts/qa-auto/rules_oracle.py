@@ -327,7 +327,7 @@ for rid in sorted(REQUIRED - reported):
     cases.append(case("rules", "not-reached:" + rid, error=True, rule=rid, exit=unreached_codes.get(rid), why=why))
 for rid in nobuild:
     cases.append(case("rules", "trigger-build:" + rid, error=True, why="trigger generator failed for this entry"))
-if not reach and not withdrawn:
+if not reach and (not withdrawn or len(withdrawn) < len(entries)):  # waived only when every selected rule is withdrawn
     cases.append(case("rules", "no-reachable-rule", error=True, why="no rule produced a BLOCKing control (generator or build broken)"))
 cases.append(case("rules", "summary", entries=len(entries), controls_block=len(reach), unreachable=len(unreach),
                   unreachable_pass=sum(1 for _, c in unreach if c == 0), variants_run=len(OBS),
