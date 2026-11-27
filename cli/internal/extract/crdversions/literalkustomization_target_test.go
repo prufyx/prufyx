@@ -36,7 +36,7 @@ func TestShippedLiteralKustomizationDeclaration(t *testing.T) {
 	if !reflect.DeepEqual(tg.LiteralKustomization, want) {
 		t.Fatalf("declaration = %+v", tg.LiteralKustomization)
 	}
-	if !tg.Attest || tg.Repo != literalKustomizationRepo || tg.Catalog != CatalogCommunity || tg.MinFrom != "0.22" || len(tg.Exclude) != 0 {
+	if !tg.Attest || tg.Repo != literalKustomizationRepo || tg.Catalog != CatalogCommunity || tg.MinFrom != [2]int{0, 22} || len(tg.Exclude) != 0 {
 		t.Fatalf("target = %+v", tg)
 	}
 }
