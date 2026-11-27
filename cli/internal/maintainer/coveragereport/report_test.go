@@ -169,7 +169,7 @@ func TestEmbeddedPackBaseline(t *testing.T) {
 		// decide nothing in it (24 A pairs fall back to B, S or G).
 		// Reviewed rules now carry a line-wide range that decides a pair of
 		// this window: S to B. Four batches of line-wide ranges (one, eight,
-		// twelve and ten rules).
+		// twelve and nine rules).
 		now, want = supersedeids.Clock(), fleetFigures{Projects: 55, Pairs: 275, A: 5, B: 24, S: 22, G: 224, C1: 53, C3: 1}
 	} else if head.Revision != baseline {
 		// Only the reviewed generation is tied to the baseline revision: a
