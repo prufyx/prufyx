@@ -24,7 +24,7 @@ that a whole upgrade is safe.
 
 <!-- release-notes:begin -->
 
-Changes from `v0.1.0-beta.0` (70f67cac4a3b) to `v0.1.0-beta.1` (1bccf015a207), computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.
+Changes from `v0.1.0-beta.0` (70f67cac4a3b) to `v0.1.0-beta.1` (5ac52ccd0f6f), computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.
 
 ### Summary
 
@@ -37,7 +37,7 @@ Changes from `v0.1.0-beta.0` (70f67cac4a3b) to `v0.1.0-beta.1` (1bccf015a207), c
 | CNCF projects with a rule | 53 | 54 | +1 |
 | Rules for non-CNCF projects | 42 | 51 | +9 |
 | Non-CNCF projects with a rule | 10 | 10 | 0 |
-| Line attestations | 104 | 371 | +267 |
+| Line attestations | 104 | 376 | +272 |
 | Kubernetes minors with a line attestation | 18 | 18 | 0 |
 | Projects with a release-line snapshot (README coverage block) | 78 | 79 | +1 |
 | Upgrades between consecutive release lines | 390 | 395 | +5 |
@@ -53,7 +53,7 @@ The figures for `v0.1.0-beta.0` in this section are approximate: that release ha
 
 ### Coverage since the previous release
 
-previous = tag `v0.1.0-beta.0`, commit 70f67cac4a3b, counts sha256 `db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3`; current counts sha256 `0328ecaf19e0b91043b5f33bb9ebc1b752a0d146781de248f12bfa52c33000e0`.
+previous = tag `v0.1.0-beta.0`, commit 70f67cac4a3b, counts sha256 `db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3`; current counts sha256 `a9555bd4be57846c0a9ed280bccf314d50218d45354fa8ddd0e1ab569762c5a6`.
 
 The counts carry the number of valid rules per project, not rule ids, so rules added are the per-project change of that number.
 
@@ -194,8 +194,9 @@ Counts include rules that are withdrawn; withdrawn rules are not used and are li
 
 None.
 
-### Line attestations by project (33)
+### Line attestations by project (35)
 
+- `1password/onepassword-operator`: 2 now; new lines 1.8, 1.9
 - `antrea-io/antrea`: 5 now; new lines 2.3, 2.4, 2.5, 2.6, 2.7
 - `cert-manager/cert-manager`: 5 now; new lines 1.17, 1.18, 1.19
 - `chaosblade-io/chaosblade-operator`: 5 now; new lines 1.4, 1.5, 1.6, 1.7, 1.8
@@ -223,6 +224,7 @@ None.
 - `openkruise/kruise`: 5 now; new lines 1.5, 1.6, 1.7
 - `openyurtio/openyurt`: 3 now; new lines 1.4, 1.5, 1.6
 - `padok-team/burrito`: 5 now; new lines 0.11, 0.12, 0.13, 0.14, 0.15
+- `percona/percona-server-mysql-operator`: 3 now; new lines 1.1, 1.2, 1.3
 - `projectcontour/contour`: 5 now; new lines 1.29, 1.30, 1.31, 1.32, 1.33
 - `prometheus/prometheus`: 90 now; new lines 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.10, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.20, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 2.2, 2.3, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10, 2.11, 2.12, 2.13, 2.14, 2.15, 2.16, 2.17, 2.18, 2.19, 2.20, 2.21, 2.22, 2.23, 2.24, 2.25, 2.26, 2.27, 2.28, 2.29, 2.30, 2.31, 2.32, 2.33, 2.34, 2.35, 2.36, 2.38, 2.39, 2.40, 2.41, 2.42, 2.43, 2.44, 2.46, 2.47, 2.48, 2.49, 2.50, 2.51, 2.52, 2.53, 2.54, 2.55, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 3.11, 3.12, 3.13, 3.14, 3.15, 3.16
 - `ricoberger/vault-secrets-operator`: 5 now; new lines 1.24, 1.25, 1.26, 1.27, 1.28
@@ -230,10 +232,11 @@ None.
 - `submariner-io/submariner`: 3 now; new lines 0.23, 0.24, 0.25
 - `theupdateframework/python-tuf`: 11 now; new lines 0.12, 0.14, 0.16, 0.17, 0.18, 0.19, 0.20, 1.1, 2.1, 3.1, 5.1
 
-### Versions newly covered by attestations (including new lines) (34)
+### Versions newly covered by attestations (including new lines) (36)
 
 Versions listed in line attestations; not an upgrade verdict.
 
+- `1password/onepassword-operator`: 6 newly covered versions: 1.7.0, 1.7.1, 1.8.0, 1.8.1, 1.9.0, 1.9.1
 - `antrea-io/antrea`: 21 newly covered versions: 2.2.0, 2.2.1, 2.2.2, 2.3.0, 2.3.1, 2.3.2, 2.4.0, 2.4.1, 2.4.2, 2.4.3, 2.4.4, 2.4.5, 2.5.0, 2.5.1, 2.5.2, 2.5.3, 2.6.0, 2.6.1, 2.6.2, 2.6.3, 2.7.0
 - `cert-manager/cert-manager`: 18 newly covered versions: 1.16.0, 1.16.1, 1.16.2, 1.16.3, 1.16.4, 1.16.5, 1.17.0, 1.17.1, 1.17.2, 1.17.3, 1.17.4, 1.18.0, 1.18.1, 1.18.2, 1.18.3, 1.18.4, 1.18.5, 1.18.6
 - `chaosblade-io/chaosblade-operator`: 11 newly covered versions: 1.3.0, 1.4.0, 1.5.0, 1.6.0, 1.7.0, 1.7.1, 1.7.2, 1.7.3, 1.7.4, 1.7.5, 1.8.0
@@ -262,6 +265,7 @@ Versions listed in line attestations; not an upgrade verdict.
 - `openkruise/kruise`: 14 newly covered versions: 1.4.0, 1.4.2, 1.5.0, 1.5.1, 1.5.2, 1.5.3, 1.5.4, 1.5.5, 1.6.0, 1.6.1, 1.6.2, 1.6.3, 1.6.4, 1.9.3
 - `openyurtio/openyurt`: 14 newly covered versions: 1.3.0, 1.3.1, 1.3.2, 1.3.3, 1.3.4, 1.4.0, 1.4.1, 1.4.2, 1.4.3, 1.4.4, 1.5.0, 1.5.1, 1.6.0, 1.6.1
 - `padok-team/burrito`: 9 newly covered versions: 0.10.0, 0.11.0, 0.11.1, 0.11.2, 0.12.0, 0.13.0, 0.14.0, 0.14.1, 0.15.0
+- `percona/percona-server-mysql-operator`: 4 newly covered versions: 1.0.0, 1.1.0, 1.2.0, 1.3.0
 - `projectcontour/contour`: 43 newly covered versions: 1.28.0, 1.28.1, 1.28.2, 1.28.3, 1.28.4, 1.28.5, 1.28.6, 1.28.7, 1.28.8, 1.29.0, 1.29.1, 1.29.2, 1.29.3, 1.29.4, 1.29.5, 1.30.0, 1.30.1, 1.30.2, 1.30.3, 1.30.4, 1.30.5, 1.31.0, 1.31.1, 1.31.2, 1.31.3, 1.31.4, 1.31.5, 1.31.6, 1.32.0, 1.32.1, 1.32.2, 1.32.3, 1.32.4, 1.32.5, 1.33.0, 1.33.1, 1.33.2, 1.33.3, 1.33.4, 1.33.5, 1.33.6, 1.33.7, 1.33.8
 - `prometheus/prometheus`: 242 newly covered versions: 0.3.0, 0.4.0, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.9.0, 0.10.0, 0.11.0, 0.11.1, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.13.4, 0.14.0, 0.15.0, 0.15.1, 0.16.0, 0.16.1, 0.16.2, 0.17.0, 0.18.0, 0.19.0, 0.19.1, 0.19.2, 0.19.3, 0.20.0, 1.0.0, 1.0.1, 1.0.2, 1.1.0, 1.1.1, 1.1.2, 1.1.3, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.3.0, 1.3.1, 1.4.0, 1.4.1, 1.5.0, 1.5.1, 1.5.2, 1.5.3, 1.6.0, 1.6.1, 1.6.2, 1.6.3, 1.7.0, 1.7.1, 1.7.2, 1.8.0, 1.8.1, 1.8.2, 2.1.0, 2.2.0, 2.2.1, 2.3.0, 2.3.1, 2.3.2, 2.4.0, 2.4.1, 2.4.2, 2.4.3, 2.5.0, 2.6.0, 2.6.1, 2.7.0, 2.7.1, 2.7.2, 2.8.0, 2.8.1, 2.9.0, 2.9.1, 2.9.2, 2.10.0, 2.11.0, 2.11.1, 2.11.2, 2.12.0, 2.13.0, 2.13.1, 2.14.0, 2.15.0, 2.15.1, 2.15.2, 2.16.0, 2.17.0, 2.17.1, 2.17.2, 2.18.0, 2.18.1, 2.18.2, 2.19.0, 2.19.1, 2.19.2, 2.19.3, 2.20.0, 2.20.1, 2.21.0, 2.22.0, 2.22.1, 2.22.2, 2.23.0, 2.24.0, 2.24.1, 2.25.0, 2.25.1, 2.25.2, 2.26.0, 2.26.1, 2.27.0, 2.27.1, 2.28.0, 2.28.1, 2.29.0, 2.29.1, 2.29.2, 2.30.0, 2.30.1, 2.30.2, 2.30.3, 2.30.4, 2.31.0, 2.31.1, 2.31.2, 2.32.0, 2.32.1, 2.33.0, 2.33.1, 2.33.2, 2.33.3, 2.33.4, 2.33.5, 2.34.0, 2.35.0, 2.36.0, 2.36.1, 2.36.2, 2.37.0, 2.37.1, 2.37.2, 2.37.3, 2.37.4, 2.37.5, 2.37.6, 2.37.7, 2.37.8, 2.37.9, 2.38.0, 2.39.0, 2.39.1, 2.39.2, 2.40.0, 2.40.1, 2.40.2, 2.40.3, 2.40.4, 2.40.5, 2.40.6, 2.40.7, 2.41.0, 2.42.0, 2.43.0, 2.43.1, 2.44.0, 2.45.0, 2.45.1, 2.45.2, 2.45.3, 2.45.4, 2.45.5, 2.45.6, 2.46.0, 2.47.0, 2.47.1, 2.47.2, 2.48.0, 2.48.1, 2.49.0, 2.49.1, 2.50.0, 2.50.1, 2.51.0, 2.51.1, 2.51.2, 2.52.0, 2.53.0, 2.53.1, 2.53.2, 2.53.3, 2.53.4, 2.53.5, 2.54.0, 2.54.1, 2.55.0, 2.55.1, 3.0.0, 3.0.1, 3.1.0, 3.2.0, 3.2.1, 3.3.0, 3.3.1, 3.4.0, 3.4.1, 3.4.2, 3.5.0, 3.5.1, 3.5.2, 3.5.3, 3.5.4, 3.5.5, 3.6.0, 3.7.0, 3.7.1, 3.7.2, 3.7.3, 3.8.0, 3.8.1, 3.9.0, 3.9.1, 3.10.0, 3.11.0, 3.11.1, 3.11.2, 3.11.3, 3.12.0, 3.13.0, 3.13.1, 3.13.2, 3.13.3, 3.13.4, 3.13.5, 3.14.0, 3.15.0, 3.15.1, 3.16.0
 - `ricoberger/vault-secrets-operator`: 20 newly covered versions: 1.23.0, 1.23.1, 1.23.2, 1.24.0, 1.24.1, 1.24.2, 1.24.3, 1.24.4, 1.24.5, 1.24.6, 1.25.0, 1.25.1, 1.26.0, 1.26.1, 1.26.2, 1.27.0, 1.27.1, 1.27.2, 1.27.3, 1.28.0

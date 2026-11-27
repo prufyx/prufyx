@@ -23162,6 +23162,122 @@
   ],
   "lineAttestations": [
     {
+      "component": "pkg:github/1password/onepassword-operator",
+      "line": "1.8",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.7.0",
+            "commit": "4c9801322b26e5b83a2572dc2e259f57afe807b1"
+          },
+          {
+            "version": "1.7.1",
+            "commit": "a42a96bd263eb919715197e09e58c9855fd840df"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.8.0",
+            "commit": "8fc852a4dd6650a458c3f688acf310bcabfd58ee"
+          },
+          {
+            "version": "1.8.1",
+            "commit": "5f232b121aca9f3e84e9cbbb0834de99f1065fcc"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.onepassword-operator",
+          "version": "2.16.0",
+          "codeDigest": "sha256:0dfb20f5c7b7d3032858a8b5ae3e4648c44d52fb3ae2ff7e45dd8b3d5685ff68"
+        },
+        "derivedAt": "2026-11-27T21:40:53Z",
+        "reviewedAt": "2026-11-27T21:40:53Z",
+        "validUntil": "2027-02-25T21:40:53Z",
+        "sources": [
+          {
+            "id": "crds-1-7-0",
+            "url": "https://github.com/1password/onepassword-operator/blob/4c9801322b26e5b83a2572dc2e259f57afe807b1/config/crd/bases/onepassword.com_onepassworditems.yaml",
+            "revision": "4c9801322b26e5b83a2572dc2e259f57afe807b1",
+            "contentDigest": "sha256:eea2bf81dcaf54557e3e468ed2f5fc09e553e12804d49ee323de1352445a8e77",
+            "startLine": 1,
+            "endLine": 77
+          },
+          {
+            "id": "crds-1-8-0",
+            "url": "https://github.com/1password/onepassword-operator/blob/8fc852a4dd6650a458c3f688acf310bcabfd58ee/config/crd/bases/onepassword.com_onepassworditems.yaml",
+            "revision": "8fc852a4dd6650a458c3f688acf310bcabfd58ee",
+            "contentDigest": "sha256:b657dc6a8f5cba47f42b59d22b5d56e67bd9189eafae043569a74c58c4bb2937",
+            "startLine": 1,
+            "endLine": 77
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/1password/onepassword-operator",
+      "line": "1.9",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.8.0",
+            "commit": "8fc852a4dd6650a458c3f688acf310bcabfd58ee"
+          },
+          {
+            "version": "1.8.1",
+            "commit": "5f232b121aca9f3e84e9cbbb0834de99f1065fcc"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.9.0",
+            "commit": "0f1dcdd38ad366749e76070256f922520953951f"
+          },
+          {
+            "version": "1.9.1",
+            "commit": "54eed0c81cf73ff8fed53d7b5464ba48a32564bb"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.onepassword-operator",
+          "version": "2.16.0",
+          "codeDigest": "sha256:0dfb20f5c7b7d3032858a8b5ae3e4648c44d52fb3ae2ff7e45dd8b3d5685ff68"
+        },
+        "derivedAt": "2026-11-27T21:40:53Z",
+        "reviewedAt": "2026-11-27T21:40:53Z",
+        "validUntil": "2027-02-25T21:40:53Z",
+        "sources": [
+          {
+            "id": "crds-1-8-0",
+            "url": "https://github.com/1password/onepassword-operator/blob/8fc852a4dd6650a458c3f688acf310bcabfd58ee/config/crd/bases/onepassword.com_onepassworditems.yaml",
+            "revision": "8fc852a4dd6650a458c3f688acf310bcabfd58ee",
+            "contentDigest": "sha256:b657dc6a8f5cba47f42b59d22b5d56e67bd9189eafae043569a74c58c4bb2937",
+            "startLine": 1,
+            "endLine": 77
+          },
+          {
+            "id": "crds-1-9-0",
+            "url": "https://github.com/1password/onepassword-operator/blob/0f1dcdd38ad366749e76070256f922520953951f/config/crd/bases/onepassword.com_onepassworditems.yaml",
+            "revision": "0f1dcdd38ad366749e76070256f922520953951f",
+            "contentDigest": "sha256:b54b6d0a6974fc1ed8ad0062fdada0049d4856f7b52540bb8e12e5d345ef9e48",
+            "startLine": 1,
+            "endLine": 81
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/ansible/awx-operator",
       "line": "2.15",
       "factFamily": "crd.custom_resource_versions",
@@ -46836,6 +46952,156 @@
             "contentDigest": "sha256:ed19c169f1639151454c46eac9c0d3581e2e205ab7903bf364258001529c1f95",
             "startLine": 1,
             "endLine": 5615
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/percona/percona-server-mysql-operator",
+      "line": "1.1",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.0.0",
+            "commit": "22cf9ae54d7df6812c83232d8c64679c4e37758d"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.1.0",
+            "commit": "5dd6c7f537b5cfa4437ca7c092c9e2994022722f"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.percona-server-mysql-operator",
+          "version": "2.16.0",
+          "codeDigest": "sha256:7700fe1c961d51140a737cbbc5a6a15344042f256dbb743e02f8da7ebeb25780"
+        },
+        "derivedAt": "2026-11-27T21:41:22Z",
+        "reviewedAt": "2026-11-27T21:41:22Z",
+        "validUntil": "2027-02-25T21:41:22Z",
+        "sources": [
+          {
+            "id": "crds-1-0-0",
+            "url": "https://github.com/percona/percona-server-mysql-operator/blob/22cf9ae54d7df6812c83232d8c64679c4e37758d/config/crd/bases/ps.percona.com_perconaservermysqlbackups.yaml",
+            "revision": "22cf9ae54d7df6812c83232d8c64679c4e37758d",
+            "contentDigest": "sha256:68d8e274a7858b3b511d15705708bda185075b3c5ddafbf9e039e8402bd2544f",
+            "startLine": 1,
+            "endLine": 1161
+          },
+          {
+            "id": "crds-1-1-0",
+            "url": "https://github.com/percona/percona-server-mysql-operator/blob/5dd6c7f537b5cfa4437ca7c092c9e2994022722f/config/crd/bases/ps.percona.com_perconaservermysqlbackups.yaml",
+            "revision": "5dd6c7f537b5cfa4437ca7c092c9e2994022722f",
+            "contentDigest": "sha256:822a7a3a5af3eeaba950f092faa0b9162a9775dc79b4b5ca05229a952b585a15",
+            "startLine": 1,
+            "endLine": 1215
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/percona/percona-server-mysql-operator",
+      "line": "1.2",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.1.0",
+            "commit": "5dd6c7f537b5cfa4437ca7c092c9e2994022722f"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.2.0",
+            "commit": "71fec83da870c47c3d75165ca36b848ce86fdb73"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.percona-server-mysql-operator",
+          "version": "2.16.0",
+          "codeDigest": "sha256:7700fe1c961d51140a737cbbc5a6a15344042f256dbb743e02f8da7ebeb25780"
+        },
+        "derivedAt": "2026-11-27T21:41:22Z",
+        "reviewedAt": "2026-11-27T21:41:22Z",
+        "validUntil": "2027-02-25T21:41:22Z",
+        "sources": [
+          {
+            "id": "crds-1-1-0",
+            "url": "https://github.com/percona/percona-server-mysql-operator/blob/5dd6c7f537b5cfa4437ca7c092c9e2994022722f/config/crd/bases/ps.percona.com_perconaservermysqlbackups.yaml",
+            "revision": "5dd6c7f537b5cfa4437ca7c092c9e2994022722f",
+            "contentDigest": "sha256:822a7a3a5af3eeaba950f092faa0b9162a9775dc79b4b5ca05229a952b585a15",
+            "startLine": 1,
+            "endLine": 1215
+          },
+          {
+            "id": "crds-1-2-0",
+            "url": "https://github.com/percona/percona-server-mysql-operator/blob/71fec83da870c47c3d75165ca36b848ce86fdb73/config/crd/bases/ps.percona.com_perconaservermysqlbackups.yaml",
+            "revision": "71fec83da870c47c3d75165ca36b848ce86fdb73",
+            "contentDigest": "sha256:9f2aef49d829c2958ae1e36ae8b1fc8d751022563b0bfc7dccb4dd2396fb49e4",
+            "startLine": 1,
+            "endLine": 1225
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/percona/percona-server-mysql-operator",
+      "line": "1.3",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "1.2.0",
+            "commit": "71fec83da870c47c3d75165ca36b848ce86fdb73"
+          }
+        ],
+        "to": [
+          {
+            "version": "1.3.0",
+            "commit": "e399eb71e9f5fcb53314ed1bfb4b021142ffd5b9"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.percona-server-mysql-operator",
+          "version": "2.16.0",
+          "codeDigest": "sha256:7700fe1c961d51140a737cbbc5a6a15344042f256dbb743e02f8da7ebeb25780"
+        },
+        "derivedAt": "2026-11-27T21:41:22Z",
+        "reviewedAt": "2026-11-27T21:41:22Z",
+        "validUntil": "2027-02-25T21:41:22Z",
+        "sources": [
+          {
+            "id": "crds-1-2-0",
+            "url": "https://github.com/percona/percona-server-mysql-operator/blob/71fec83da870c47c3d75165ca36b848ce86fdb73/config/crd/bases/ps.percona.com_perconaservermysqlbackups.yaml",
+            "revision": "71fec83da870c47c3d75165ca36b848ce86fdb73",
+            "contentDigest": "sha256:9f2aef49d829c2958ae1e36ae8b1fc8d751022563b0bfc7dccb4dd2396fb49e4",
+            "startLine": 1,
+            "endLine": 1225
+          },
+          {
+            "id": "crds-1-3-0",
+            "url": "https://github.com/percona/percona-server-mysql-operator/blob/e399eb71e9f5fcb53314ed1bfb4b021142ffd5b9/config/crd/bases/ps.percona.com_perconaservermysqlbackups.yaml",
+            "revision": "e399eb71e9f5fcb53314ed1bfb4b021142ffd5b9",
+            "contentDigest": "sha256:01671748751aed8b4b40f36a2de2039bc6c2dbab9db8a53fe8b07c60f9068a18",
+            "startLine": 1,
+            "endLine": 1274
           }
         ]
       }
