@@ -19,7 +19,8 @@ const schemaBoundaryCovered = "prufyx.io/cncf-source-rule-pack/v1alpha16"
 
 // activeRanged returns the first id, in order, of an active reviewed rule
 // with a range whose upper target bound is above the patch after its anchor,
-// and that patch.
+// and that patch. A range whose lower target bound is TARGET_SERIES pins no
+// release boundary and is not eligible: its upper bound cannot be narrowed.
 func activeRanged(t *testing.T, tr Tree) (string, string) {
 	t.Helper()
 	p := readPack(t, tr, cncfRulesPath)
@@ -28,7 +29,7 @@ func activeRanged(t *testing.T, tr Tree) (string, string) {
 	for _, e := range p.entries {
 		ev := evidenceOf(e)
 		rng, ok := ruleOf(e)["range"].(map[string]any)
-		if !ok || ev["state"] != "active" || ev["basis"] != nil || ev["lease"] != nil {
+		if !ok || ev["state"] != "active" || ev["basis"] != nil || ev["lease"] != nil || targetOnly(rng) {
 			continue
 		}
 		parts := strings.Split(ruleOf(e)["subject"].(map[string]any)["to"].(string), ".")
@@ -51,6 +52,17 @@ func activeRanged(t *testing.T, tr Tree) (string, string) {
 		t.Fatal("no ranged rule to alter")
 	}
 	return ids[0], next[ids[0]]
+}
+
+// targetOnly reports a range whose lower target bound is TARGET_SERIES.
+func targetOnly(rng map[string]any) bool {
+	bounds, _ := rng["bounds"].([]any)
+	for _, b := range bounds {
+		if bound, ok := b.(map[string]any); ok && bound["bound"] == "to.gte" {
+			return bound["basis"] == "TARGET_SERIES"
+		}
+	}
+	return false
 }
 
 // narrowRange cuts the upper target bound of a rule's range to the patch
