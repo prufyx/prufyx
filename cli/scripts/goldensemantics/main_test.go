@@ -317,9 +317,8 @@ func TestRegenerateScriptCannotBeBypassedByRerunning(t *testing.T) {
 	copyFile(filepath.Join(scripts, "goldensemantics", "main.go"), "scripts/goldensemantics/main.go")
 	put("go.mod", "module scratch\n\ngo 1.22\n")
 	pack := `{"entries":[]}`
-	digest := func() string { sum := sha256.Sum256([]byte(pack)); return hex.EncodeToString(sum[:]) }
+	digest := func(s string) string { sum := sha256.Sum256([]byte(s)); return "sha256:" + hex.EncodeToString(sum[:]) }
 	put("internal/cncfcheck/data/rules.json", pack)
-	put("internal/cncfcheck/set_rules_test.go", "package cncfcheck\n\nconst embeddedPackSHA256 = \""+strings.Repeat("0", 64)+"\"\n")
 	// Three packages with the flags the script uses; only scanrun rewrites a golden,
 	// from cli/next.json when it exists.
 	put("internal/scanrun/g_test.go", `package scanrun
@@ -386,12 +385,19 @@ func TestGolden(t *testing.T) {
 	}
 	golden := "internal/scanrun/testdata/quickstart-blocked.json"
 
-	// Nothing changed: the pack digest pin is rewritten, no semantic difference.
-	if code, out := script(); code != 0 || !strings.Contains(out, "no semantic difference") {
+	// Nothing changed: no semantic difference, and no file is edited.
+	if code, out := script(); code != 0 || !strings.Contains(out, "no semantic difference") || !strings.Contains(out, digest(pack)+" (same as HEAD)") {
 		t.Fatalf("clean run: exit %d:\n%s", code, out)
 	}
-	if !strings.Contains(git("diff", "--stat"), "set_rules_test.go") {
-		t.Fatalf("the pin was not rewritten (digest %s):\n%s", digest(), git("status", "--short"))
+	if status := git("status", "--short"); status != "" {
+		t.Fatalf("the clean run changed the tree:\n%s", status)
+	}
+
+	// An uncommitted pack change is the normal case: the old digest is HEAD's.
+	changed := `{"entries":[{}]}`
+	put("internal/cncfcheck/data/rules.json", changed)
+	if code, out := script(); code != 0 || !strings.Contains(out, digest(pack)+" (HEAD) -> "+digest(changed)+" (working tree)") {
+		t.Fatalf("changed pack: exit %d:\n%s", code, out)
 	}
 	discard()
 
@@ -440,4 +446,15 @@ func TestGolden(t *testing.T) {
 		t.Fatalf("file named: exit %d:\n%s", code, out)
 	}
 	discard()
+
+	// Without a pack at HEAD there is no "before": the script does not start.
+	git("rm", "-q", "--cached", "cli/internal/cncfcheck/data/rules.json")
+	git("commit", "-q", "-m", "no pack")
+	changeVerdict()
+	if code, out = script(); code != 1 || !strings.Contains(out, "no pack in HEAD:") {
+		t.Fatalf("no pack at HEAD: exit %d:\n%s", code, out)
+	}
+	if status := git("status", "--short", "--", "cli/internal/scanrun/testdata"); status != "" {
+		t.Fatalf("goldens rewritten without a pack at HEAD:\n%s", status)
+	}
 }
