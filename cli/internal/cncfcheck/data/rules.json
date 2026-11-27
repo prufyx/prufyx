@@ -43401,6 +43401,226 @@
       }
     },
     {
+      "component": "pkg:github/mariadb-operator/mariadb-operator",
+      "line": "0.35",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.34.0",
+            "commit": "cd1f33c5ccb62dbeb2c788fd26565cf7f44f1872"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.35.0",
+            "commit": "4f748fb4a2f0c65c7a204549e055054ecfea5459"
+          },
+          {
+            "version": "0.35.1",
+            "commit": "ab01fde34af6bc5f7e8190f294e33c59e70221b6"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.mariadb-operator",
+          "version": "2.16.0",
+          "codeDigest": "sha256:7af1605d4761df1fa89db0e20b9e2889212465c72a292d91190e7485d9b443e6"
+        },
+        "derivedAt": "2026-11-27T20:13:28Z",
+        "reviewedAt": "2026-11-27T20:13:28Z",
+        "validUntil": "2027-02-25T20:13:28Z",
+        "sources": [
+          {
+            "id": "crds-0-34-0",
+            "url": "https://github.com/mariadb-operator/mariadb-operator/blob/cd1f33c5ccb62dbeb2c788fd26565cf7f44f1872/config/crd/bases/k8s.mariadb.com_backups.yaml",
+            "revision": "cd1f33c5ccb62dbeb2c788fd26565cf7f44f1872",
+            "contentDigest": "sha256:acf3a51247113aafe0e824831c10a1c7bf71bf7c6f3a384ce4f5590dafc8f916",
+            "startLine": 1,
+            "endLine": 911
+          },
+          {
+            "id": "crds-0-35-0",
+            "url": "https://github.com/mariadb-operator/mariadb-operator/blob/4f748fb4a2f0c65c7a204549e055054ecfea5459/config/crd/bases/k8s.mariadb.com_backups.yaml",
+            "revision": "4f748fb4a2f0c65c7a204549e055054ecfea5459",
+            "contentDigest": "sha256:e27b5ec78cccf8175fac07c8373a2fd60c5973729fbb8872b33432053c20c03d",
+            "startLine": 1,
+            "endLine": 1095
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/mariadb-operator/mariadb-operator",
+      "line": "0.36",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.35.0",
+            "commit": "4f748fb4a2f0c65c7a204549e055054ecfea5459"
+          },
+          {
+            "version": "0.35.1",
+            "commit": "ab01fde34af6bc5f7e8190f294e33c59e70221b6"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.36.0",
+            "commit": "4a7c44edffe8d0c116a3a76ed48505d482c8a19b"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.mariadb-operator",
+          "version": "2.16.0",
+          "codeDigest": "sha256:7af1605d4761df1fa89db0e20b9e2889212465c72a292d91190e7485d9b443e6"
+        },
+        "derivedAt": "2026-11-27T20:13:28Z",
+        "reviewedAt": "2026-11-27T20:13:28Z",
+        "validUntil": "2027-02-25T20:13:28Z",
+        "sources": [
+          {
+            "id": "crds-0-35-0",
+            "url": "https://github.com/mariadb-operator/mariadb-operator/blob/4f748fb4a2f0c65c7a204549e055054ecfea5459/config/crd/bases/k8s.mariadb.com_backups.yaml",
+            "revision": "4f748fb4a2f0c65c7a204549e055054ecfea5459",
+            "contentDigest": "sha256:e27b5ec78cccf8175fac07c8373a2fd60c5973729fbb8872b33432053c20c03d",
+            "startLine": 1,
+            "endLine": 1095
+          },
+          {
+            "id": "crds-0-36-0",
+            "url": "https://github.com/mariadb-operator/mariadb-operator/blob/4a7c44edffe8d0c116a3a76ed48505d482c8a19b/config/crd/bases/k8s.mariadb.com_backups.yaml",
+            "revision": "4a7c44edffe8d0c116a3a76ed48505d482c8a19b",
+            "contentDigest": "sha256:e27b5ec78cccf8175fac07c8373a2fd60c5973729fbb8872b33432053c20c03d",
+            "startLine": 1,
+            "endLine": 1095
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/mariadb-operator/mariadb-operator",
+      "line": "0.37",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.36.0",
+            "commit": "4a7c44edffe8d0c116a3a76ed48505d482c8a19b"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.37.0",
+            "commit": "fa6a3dabf9a9eafeeddf44dcdfd0601cc1ed5003"
+          },
+          {
+            "version": "0.37.1",
+            "commit": "0021dde8814e60734148f905e6082a8d762d2de1"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.mariadb-operator",
+          "version": "2.16.0",
+          "codeDigest": "sha256:7af1605d4761df1fa89db0e20b9e2889212465c72a292d91190e7485d9b443e6"
+        },
+        "derivedAt": "2026-11-27T20:13:28Z",
+        "reviewedAt": "2026-11-27T20:13:28Z",
+        "validUntil": "2027-02-25T20:13:28Z",
+        "sources": [
+          {
+            "id": "crds-0-36-0",
+            "url": "https://github.com/mariadb-operator/mariadb-operator/blob/4a7c44edffe8d0c116a3a76ed48505d482c8a19b/config/crd/bases/k8s.mariadb.com_backups.yaml",
+            "revision": "4a7c44edffe8d0c116a3a76ed48505d482c8a19b",
+            "contentDigest": "sha256:e27b5ec78cccf8175fac07c8373a2fd60c5973729fbb8872b33432053c20c03d",
+            "startLine": 1,
+            "endLine": 1095
+          },
+          {
+            "id": "crds-0-37-0",
+            "url": "https://github.com/mariadb-operator/mariadb-operator/blob/fa6a3dabf9a9eafeeddf44dcdfd0601cc1ed5003/config/crd/bases/k8s.mariadb.com_backups.yaml",
+            "revision": "fa6a3dabf9a9eafeeddf44dcdfd0601cc1ed5003",
+            "contentDigest": "sha256:0d2d1279267b07539a96b4585c9d4ac1d171a4ba7e4030dcbc2569406745d9b6",
+            "startLine": 1,
+            "endLine": 1093
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/mariadb-operator/mariadb-operator",
+      "line": "0.38",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.37.0",
+            "commit": "fa6a3dabf9a9eafeeddf44dcdfd0601cc1ed5003"
+          },
+          {
+            "version": "0.37.1",
+            "commit": "0021dde8814e60734148f905e6082a8d762d2de1"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.38.0",
+            "commit": "c487238abff9ef3cbbff90ca1780f7cf2005c732"
+          },
+          {
+            "version": "0.38.1",
+            "commit": "1d616a2c931a115f503f7cfb5a08ae0aa608799d"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.mariadb-operator",
+          "version": "2.16.0",
+          "codeDigest": "sha256:7af1605d4761df1fa89db0e20b9e2889212465c72a292d91190e7485d9b443e6"
+        },
+        "derivedAt": "2026-11-27T20:13:28Z",
+        "reviewedAt": "2026-11-27T20:13:28Z",
+        "validUntil": "2027-02-25T20:13:28Z",
+        "sources": [
+          {
+            "id": "crds-0-37-0",
+            "url": "https://github.com/mariadb-operator/mariadb-operator/blob/fa6a3dabf9a9eafeeddf44dcdfd0601cc1ed5003/config/crd/bases/k8s.mariadb.com_backups.yaml",
+            "revision": "fa6a3dabf9a9eafeeddf44dcdfd0601cc1ed5003",
+            "contentDigest": "sha256:0d2d1279267b07539a96b4585c9d4ac1d171a4ba7e4030dcbc2569406745d9b6",
+            "startLine": 1,
+            "endLine": 1093
+          },
+          {
+            "id": "crds-0-38-0",
+            "url": "https://github.com/mariadb-operator/mariadb-operator/blob/c487238abff9ef3cbbff90ca1780f7cf2005c732/config/crd/bases/k8s.mariadb.com_backups.yaml",
+            "revision": "c487238abff9ef3cbbff90ca1780f7cf2005c732",
+            "contentDigest": "sha256:e83d9e4801f20169858d2649c63850f0a361ce420656612225e57d4912771d42",
+            "startLine": 1,
+            "endLine": 1113
+          }
+        ]
+      }
+    },
+    {
       "component": "pkg:github/mongodb/mongodb-kubernetes",
       "line": "1.9",
       "factFamily": "crd.custom_resource_versions",
@@ -46562,6 +46782,206 @@
             "contentDigest": "sha256:d184411c570d93f3c30691d61391fb93bda8720b4f64e611cd50ecafabdb2c16",
             "startLine": 1,
             "endLine": 172
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/operator-framework/operator-lifecycle-manager",
+      "line": "0.43",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.42.0",
+            "commit": "b44e81e5ef1a1328e3408eb776718fdde29ca9f6"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.43.0",
+            "commit": "8781c65f60779e3abb2e418024a98bcd63cd5586"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.operator-lifecycle-manager",
+          "version": "2.16.0",
+          "codeDigest": "sha256:6779e941211354f2d4e18a6353ab3b0c111a1797d68959532b1ce5e7e909f884"
+        },
+        "derivedAt": "2026-11-27T20:21:47Z",
+        "reviewedAt": "2026-11-27T20:21:47Z",
+        "validUntil": "2027-02-25T20:21:47Z",
+        "sources": [
+          {
+            "id": "crds-0-42-0",
+            "url": "https://github.com/operator-framework/operator-lifecycle-manager/blob/b44e81e5ef1a1328e3408eb776718fdde29ca9f6/deploy/chart/crds/0000_50_olm_00-catalogsources.crd.yaml",
+            "revision": "b44e81e5ef1a1328e3408eb776718fdde29ca9f6",
+            "contentDigest": "sha256:b17a955fd10453f61f62d57f8d898e0bb564c4c39f906743049216a35e9818ac",
+            "startLine": 1,
+            "endLine": 1246
+          },
+          {
+            "id": "crds-0-43-0",
+            "url": "https://github.com/operator-framework/operator-lifecycle-manager/blob/8781c65f60779e3abb2e418024a98bcd63cd5586/deploy/chart/crds/0000_50_olm_00-catalogsources.crd.yaml",
+            "revision": "8781c65f60779e3abb2e418024a98bcd63cd5586",
+            "contentDigest": "sha256:b17a955fd10453f61f62d57f8d898e0bb564c4c39f906743049216a35e9818ac",
+            "startLine": 1,
+            "endLine": 1246
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/operator-framework/operator-lifecycle-manager",
+      "line": "0.44",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.43.0",
+            "commit": "8781c65f60779e3abb2e418024a98bcd63cd5586"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.44.0",
+            "commit": "72750c855e6828eae15f65d79592f2498cd5c1fd"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.operator-lifecycle-manager",
+          "version": "2.16.0",
+          "codeDigest": "sha256:6779e941211354f2d4e18a6353ab3b0c111a1797d68959532b1ce5e7e909f884"
+        },
+        "derivedAt": "2026-11-27T20:21:47Z",
+        "reviewedAt": "2026-11-27T20:21:47Z",
+        "validUntil": "2027-02-25T20:21:47Z",
+        "sources": [
+          {
+            "id": "crds-0-43-0",
+            "url": "https://github.com/operator-framework/operator-lifecycle-manager/blob/8781c65f60779e3abb2e418024a98bcd63cd5586/deploy/chart/crds/0000_50_olm_00-catalogsources.crd.yaml",
+            "revision": "8781c65f60779e3abb2e418024a98bcd63cd5586",
+            "contentDigest": "sha256:b17a955fd10453f61f62d57f8d898e0bb564c4c39f906743049216a35e9818ac",
+            "startLine": 1,
+            "endLine": 1246
+          },
+          {
+            "id": "crds-0-44-0",
+            "url": "https://github.com/operator-framework/operator-lifecycle-manager/blob/72750c855e6828eae15f65d79592f2498cd5c1fd/deploy/chart/crds/0000_50_olm_00-catalogsources.crd.yaml",
+            "revision": "72750c855e6828eae15f65d79592f2498cd5c1fd",
+            "contentDigest": "sha256:b17a955fd10453f61f62d57f8d898e0bb564c4c39f906743049216a35e9818ac",
+            "startLine": 1,
+            "endLine": 1246
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/operator-framework/operator-lifecycle-manager",
+      "line": "0.45",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.44.0",
+            "commit": "72750c855e6828eae15f65d79592f2498cd5c1fd"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.45.0",
+            "commit": "4b21b9ba17185754381c7eaf0b8b872a62429729"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.operator-lifecycle-manager",
+          "version": "2.16.0",
+          "codeDigest": "sha256:6779e941211354f2d4e18a6353ab3b0c111a1797d68959532b1ce5e7e909f884"
+        },
+        "derivedAt": "2026-11-27T20:21:47Z",
+        "reviewedAt": "2026-11-27T20:21:47Z",
+        "validUntil": "2027-02-25T20:21:47Z",
+        "sources": [
+          {
+            "id": "crds-0-44-0",
+            "url": "https://github.com/operator-framework/operator-lifecycle-manager/blob/72750c855e6828eae15f65d79592f2498cd5c1fd/deploy/chart/crds/0000_50_olm_00-catalogsources.crd.yaml",
+            "revision": "72750c855e6828eae15f65d79592f2498cd5c1fd",
+            "contentDigest": "sha256:b17a955fd10453f61f62d57f8d898e0bb564c4c39f906743049216a35e9818ac",
+            "startLine": 1,
+            "endLine": 1246
+          },
+          {
+            "id": "crds-0-45-0",
+            "url": "https://github.com/operator-framework/operator-lifecycle-manager/blob/4b21b9ba17185754381c7eaf0b8b872a62429729/deploy/chart/crds/0000_50_olm_00-catalogsources.crd.yaml",
+            "revision": "4b21b9ba17185754381c7eaf0b8b872a62429729",
+            "contentDigest": "sha256:b17a955fd10453f61f62d57f8d898e0bb564c4c39f906743049216a35e9818ac",
+            "startLine": 1,
+            "endLine": 1246
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/operator-framework/operator-lifecycle-manager",
+      "line": "0.46",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.45.0",
+            "commit": "4b21b9ba17185754381c7eaf0b8b872a62429729"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.46.0",
+            "commit": "0368a3f9dff1fa14c8645b867fba25c3be9df845"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.operator-lifecycle-manager",
+          "version": "2.16.0",
+          "codeDigest": "sha256:6779e941211354f2d4e18a6353ab3b0c111a1797d68959532b1ce5e7e909f884"
+        },
+        "derivedAt": "2026-11-27T20:21:47Z",
+        "reviewedAt": "2026-11-27T20:21:47Z",
+        "validUntil": "2027-02-25T20:21:47Z",
+        "sources": [
+          {
+            "id": "crds-0-45-0",
+            "url": "https://github.com/operator-framework/operator-lifecycle-manager/blob/4b21b9ba17185754381c7eaf0b8b872a62429729/deploy/chart/crds/0000_50_olm_00-catalogsources.crd.yaml",
+            "revision": "4b21b9ba17185754381c7eaf0b8b872a62429729",
+            "contentDigest": "sha256:b17a955fd10453f61f62d57f8d898e0bb564c4c39f906743049216a35e9818ac",
+            "startLine": 1,
+            "endLine": 1246
+          },
+          {
+            "id": "crds-0-46-0",
+            "url": "https://github.com/operator-framework/operator-lifecycle-manager/blob/0368a3f9dff1fa14c8645b867fba25c3be9df845/deploy/chart/crds/0000_50_olm_00-catalogsources.crd.yaml",
+            "revision": "0368a3f9dff1fa14c8645b867fba25c3be9df845",
+            "contentDigest": "sha256:b17a955fd10453f61f62d57f8d898e0bb564c4c39f906743049216a35e9818ac",
+            "startLine": 1,
+            "endLine": 1246
           }
         ]
       }
@@ -53066,6 +53486,280 @@
             "contentDigest": "sha256:e00bbd60efe14060292db3fcbb58b84e0b60801867dccba5c2652ef065089a49",
             "startLine": 5,
             "endLine": 90
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/radius-project/radius",
+      "line": "0.57",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.56.0",
+            "commit": "0fc7dda81cbaf6ce3610f03166870e4bcf376a89"
+          },
+          {
+            "version": "0.56.1",
+            "commit": "3c2a52dc4f69afc0f7d7b40b3bf8d80da81e972d"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.57.0",
+            "commit": "451e64b56b079203892b150b1df4448cc6cde257"
+          },
+          {
+            "version": "0.57.1",
+            "commit": "2dd62c26562621956d78b465e59ea314363faca7"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.radius",
+          "version": "2.16.0",
+          "codeDigest": "sha256:7589faea8372881939c6df1e1bfe0b0a4d883194c895d1753ea0f6bd51dd1ad3"
+        },
+        "derivedAt": "2026-11-27T20:18:46Z",
+        "reviewedAt": "2026-11-27T20:18:46Z",
+        "validUntil": "2027-02-25T20:18:46Z",
+        "sources": [
+          {
+            "id": "crds-0-56-0",
+            "url": "https://github.com/radius-project/radius/blob/0fc7dda81cbaf6ce3610f03166870e4bcf376a89/deploy/Chart/crds/radius/radapp.io_deploymentresources.yaml",
+            "revision": "0fc7dda81cbaf6ce3610f03166870e4bcf376a89",
+            "contentDigest": "sha256:8e1933d835fc2cc2275af89b5195962fea8a6c2cf5eae84a065e059e8b95b521",
+            "startLine": 1,
+            "endLine": 89
+          },
+          {
+            "id": "crds-0-57-0",
+            "url": "https://github.com/radius-project/radius/blob/451e64b56b079203892b150b1df4448cc6cde257/deploy/Chart/crds/radius/radapp.io_deploymentresources.yaml",
+            "revision": "451e64b56b079203892b150b1df4448cc6cde257",
+            "contentDigest": "sha256:8e1933d835fc2cc2275af89b5195962fea8a6c2cf5eae84a065e059e8b95b521",
+            "startLine": 1,
+            "endLine": 89
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/radius-project/radius",
+      "line": "0.58",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.57.0",
+            "commit": "451e64b56b079203892b150b1df4448cc6cde257"
+          },
+          {
+            "version": "0.57.1",
+            "commit": "2dd62c26562621956d78b465e59ea314363faca7"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.58.0",
+            "commit": "d8289818dc121527659b781707500a1c9d46c2fe"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.radius",
+          "version": "2.16.0",
+          "codeDigest": "sha256:7589faea8372881939c6df1e1bfe0b0a4d883194c895d1753ea0f6bd51dd1ad3"
+        },
+        "derivedAt": "2026-11-27T20:18:46Z",
+        "reviewedAt": "2026-11-27T20:18:46Z",
+        "validUntil": "2027-02-25T20:18:46Z",
+        "sources": [
+          {
+            "id": "crds-0-57-0",
+            "url": "https://github.com/radius-project/radius/blob/451e64b56b079203892b150b1df4448cc6cde257/deploy/Chart/crds/radius/radapp.io_deploymentresources.yaml",
+            "revision": "451e64b56b079203892b150b1df4448cc6cde257",
+            "contentDigest": "sha256:8e1933d835fc2cc2275af89b5195962fea8a6c2cf5eae84a065e059e8b95b521",
+            "startLine": 1,
+            "endLine": 89
+          },
+          {
+            "id": "crds-0-58-0",
+            "url": "https://github.com/radius-project/radius/blob/d8289818dc121527659b781707500a1c9d46c2fe/deploy/Chart/crds/radius/radapp.io_deploymentresources.yaml",
+            "revision": "d8289818dc121527659b781707500a1c9d46c2fe",
+            "contentDigest": "sha256:8e1933d835fc2cc2275af89b5195962fea8a6c2cf5eae84a065e059e8b95b521",
+            "startLine": 1,
+            "endLine": 89
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/radius-project/radius",
+      "line": "0.59",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.58.0",
+            "commit": "d8289818dc121527659b781707500a1c9d46c2fe"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.59.0",
+            "commit": "2bf2c25fcdde20d4cba1371618829bbbe1f9a997"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.radius",
+          "version": "2.16.0",
+          "codeDigest": "sha256:7589faea8372881939c6df1e1bfe0b0a4d883194c895d1753ea0f6bd51dd1ad3"
+        },
+        "derivedAt": "2026-11-27T20:18:46Z",
+        "reviewedAt": "2026-11-27T20:18:46Z",
+        "validUntil": "2027-02-25T20:18:46Z",
+        "sources": [
+          {
+            "id": "crds-0-58-0",
+            "url": "https://github.com/radius-project/radius/blob/d8289818dc121527659b781707500a1c9d46c2fe/deploy/Chart/crds/radius/radapp.io_deploymentresources.yaml",
+            "revision": "d8289818dc121527659b781707500a1c9d46c2fe",
+            "contentDigest": "sha256:8e1933d835fc2cc2275af89b5195962fea8a6c2cf5eae84a065e059e8b95b521",
+            "startLine": 1,
+            "endLine": 89
+          },
+          {
+            "id": "crds-0-59-0",
+            "url": "https://github.com/radius-project/radius/blob/2bf2c25fcdde20d4cba1371618829bbbe1f9a997/deploy/Chart/crds/radius/radapp.io_deploymentresources.yaml",
+            "revision": "2bf2c25fcdde20d4cba1371618829bbbe1f9a997",
+            "contentDigest": "sha256:8e1933d835fc2cc2275af89b5195962fea8a6c2cf5eae84a065e059e8b95b521",
+            "startLine": 1,
+            "endLine": 89
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/radius-project/radius",
+      "line": "0.60",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.59.0",
+            "commit": "2bf2c25fcdde20d4cba1371618829bbbe1f9a997"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.60.0",
+            "commit": "694528df87202b3f092ad0a9e81adaebd4e49a8b"
+          },
+          {
+            "version": "0.60.1",
+            "commit": "7caa7d9d0bdebb95a3062f17ec53af5e7e5a61f5"
+          },
+          {
+            "version": "0.60.2",
+            "commit": "a3916f884df2e412c4cb662db63132bcf1344ca8"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.radius",
+          "version": "2.16.0",
+          "codeDigest": "sha256:7589faea8372881939c6df1e1bfe0b0a4d883194c895d1753ea0f6bd51dd1ad3"
+        },
+        "derivedAt": "2026-11-27T20:18:46Z",
+        "reviewedAt": "2026-11-27T20:18:46Z",
+        "validUntil": "2027-02-25T20:18:46Z",
+        "sources": [
+          {
+            "id": "crds-0-59-0",
+            "url": "https://github.com/radius-project/radius/blob/2bf2c25fcdde20d4cba1371618829bbbe1f9a997/deploy/Chart/crds/radius/radapp.io_deploymentresources.yaml",
+            "revision": "2bf2c25fcdde20d4cba1371618829bbbe1f9a997",
+            "contentDigest": "sha256:8e1933d835fc2cc2275af89b5195962fea8a6c2cf5eae84a065e059e8b95b521",
+            "startLine": 1,
+            "endLine": 89
+          },
+          {
+            "id": "crds-0-60-0",
+            "url": "https://github.com/radius-project/radius/blob/694528df87202b3f092ad0a9e81adaebd4e49a8b/deploy/Chart/crds/radius/radapp.io_deploymentresources.yaml",
+            "revision": "694528df87202b3f092ad0a9e81adaebd4e49a8b",
+            "contentDigest": "sha256:af961db845704742f2d6c379b17b48cf167a2fe747892ab35a42fe23fa6a20d3",
+            "startLine": 1,
+            "endLine": 89
+          }
+        ]
+      }
+    },
+    {
+      "component": "pkg:github/radius-project/radius",
+      "line": "0.62",
+      "factFamily": "crd.custom_resource_versions",
+      "completeness": "COMPLETE_REVIEWED_RULES_FOR_LINE",
+      "ruleIds": [],
+      "releases": {
+        "from": [
+          {
+            "version": "0.61.0",
+            "commit": "69c94eecb1ba98b5104c1cb43606c0ce7bcc2392"
+          },
+          {
+            "version": "0.61.1",
+            "commit": "b913c13618039677b8727a2063cc853142cdb7c9"
+          }
+        ],
+        "to": [
+          {
+            "version": "0.62.0",
+            "commit": "37a8cbd33e990886460f4fd1987d6a4fefd901c5"
+          }
+        ]
+      },
+      "evidence": {
+        "basis": "mechanical",
+        "extractor": {
+          "id": "crd.version-removal.radius",
+          "version": "2.16.0",
+          "codeDigest": "sha256:7589faea8372881939c6df1e1bfe0b0a4d883194c895d1753ea0f6bd51dd1ad3"
+        },
+        "derivedAt": "2026-11-27T20:18:46Z",
+        "reviewedAt": "2026-11-27T20:18:46Z",
+        "validUntil": "2027-02-25T20:18:46Z",
+        "sources": [
+          {
+            "id": "crds-0-61-0",
+            "url": "https://github.com/radius-project/radius/blob/69c94eecb1ba98b5104c1cb43606c0ce7bcc2392/deploy/Chart/crds/radius/radapp.io_deploymentresources.yaml",
+            "revision": "69c94eecb1ba98b5104c1cb43606c0ce7bcc2392",
+            "contentDigest": "sha256:af961db845704742f2d6c379b17b48cf167a2fe747892ab35a42fe23fa6a20d3",
+            "startLine": 1,
+            "endLine": 89
+          },
+          {
+            "id": "crds-0-62-0",
+            "url": "https://github.com/radius-project/radius/blob/37a8cbd33e990886460f4fd1987d6a4fefd901c5/deploy/Chart/crds/radius/radapp.io_deploymentresources.yaml",
+            "revision": "37a8cbd33e990886460f4fd1987d6a4fefd901c5",
+            "contentDigest": "sha256:af961db845704742f2d6c379b17b48cf167a2fe747892ab35a42fe23fa6a20d3",
+            "startLine": 1,
+            "endLine": 89
           }
         ]
       }
