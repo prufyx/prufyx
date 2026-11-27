@@ -8,10 +8,11 @@
 #
 #   cli/scripts/regenerate-pack-goldens.sh [--no-test] [--allow-semantic-change=PATH,PATH,...]
 #
+# It prints the digest of the pack at HEAD and in the working tree. No test
+# pins that digest (the tests compute it from the embedded file), so the script
+# edits no source file.
+#
 # What it rewrites, and nothing else:
-#   - the pinned pack digest in internal/cncfcheck/set_rules_test.go
-#     (embeddedPackSHA256, the tripwire the synthetic-rule tests rely on); the
-#     old and the new value are printed;
 #   - the scan report goldens (internal/scanrun/testdata, `go test -update`) and,
 #     because they render those reports, the scanreport goldens
 #     (internal/scanreport/testdata);
@@ -22,9 +23,9 @@
 #
 # A golden test in -update mode cannot fail on a changed output, so this
 # script is what guards the goldens. It takes the "before" goldens and the old
-# pack digest pin from HEAD (git archive / git show), never from the working
-# tree, and refuses to start (exit 4) when a golden directory or the pin has
-# uncommitted changes (a refused run, a `go test -update` by hand or a failed
+# pack from HEAD (git archive / git show), never from the working tree, does
+# not start (exit 1) when HEAD has no pack, and refuses to start (exit 4) when
+# a golden directory has uncommitted changes (a refused run, a `go test -update` by hand or a failed
 # test phase leaves exactly that), so a rerun cannot absorb what an earlier run
 # left behind. After the rewrite it prints, for every golden whose text
 # changed, the verdicts, statuses, exit codes, hop states and counts before
@@ -101,43 +102,45 @@ if [ "$compare" -eq 1 ]; then
 fi
 
 pack=internal/cncfcheck/data/rules.json
-pin=internal/cncfcheck/set_rules_test.go
 golden_dirs="internal/scanrun/testdata internal/scanreport/testdata internal/communityapp/testdata/knowledge-age"
 
-if command -v sha256sum >/dev/null 2>&1; then
-  digest=$(sha256sum "$pack" | cut -d' ' -f1)
-else
-  digest=$(shasum -a 256 "$pack" | cut -d' ' -f1)
-fi
+# pack_digest FILE: the hex sha256 of FILE.
+pack_digest() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | cut -d' ' -f1
+  else
+    shasum -a 256 "$1" | cut -d' ' -f1
+  fi
+}
+
+digest=$(pack_digest "$pack")
 test "${#digest}" -eq 64 || { echo "cannot compute the digest of $pack" >&2; exit 1; }
-grep -q 'embeddedPackSHA256 = "[0-9a-f]\{64\}"' "$pin" || { echo "no embeddedPackSHA256 pin in $pin" >&2; exit 1; }
 
 # The state the comparison is made against is HEAD, not the working tree.
 prefix=$(git rev-parse --show-prefix)
 top=$(git rev-parse --show-toplevel)
-dirty=$(git status --porcelain --untracked-files=all -- $golden_dirs "$pin")
+dirty=$(git status --porcelain --untracked-files=all -- $golden_dirs)
 if [ -n "$dirty" ]; then
-  echo "refusing to start: uncommitted changes in the goldens or the digest pin (a refused run, 'go test -update' or a failed test phase left them):" >&2
+  echo "refusing to start: uncommitted changes in the goldens (a refused run, 'go test -update' or a failed test phase left them):" >&2
   echo "$dirty" >&2
-  echo "discard them first: git checkout -- $golden_dirs $pin && git clean -fd -- $golden_dirs" >&2
+  echo "discard them first: git checkout -- $golden_dirs && git clean -fd -- $golden_dirs" >&2
   exit 4
 fi
-old_digest=$(git show "HEAD:${prefix}${pin}" | sed -n 's/.*embeddedPackSHA256 = "\([0-9a-f]\{64\}\)".*/\1/p' | head -n 1)
-test "${#old_digest}" -eq 64 || { echo "no embeddedPackSHA256 pin in HEAD:${prefix}${pin}" >&2; exit 1; }
 
 snap=$(mktemp -d "${TMPDIR:-/tmp}/regenerate-pack-goldens.XXXXXX")
 trap 'rm -rf "$snap"' EXIT INT TERM
+git show "HEAD:${prefix}${pack}" > "$snap/head-pack.json" || { echo "no pack in HEAD:${prefix}${pack}" >&2; exit 1; }
+old_digest=$(pack_digest "$snap/head-pack.json")
+test "${#old_digest}" -eq 64 || { echo "cannot compute the digest of HEAD:${prefix}${pack}" >&2; exit 1; }
 for dir in $golden_dirs; do
   mkdir -p "$snap/before/$dir"
   git -C "$top" archive "HEAD:${prefix}${dir}" | tar -x -C "$snap/before/$dir"
 done
 
-sed "s/embeddedPackSHA256 = \"[0-9a-f]\{64\}\"/embeddedPackSHA256 = \"$digest\"/" "$pin" > "$pin.new"
-mv "$pin.new" "$pin"
 if [ "$old_digest" = "$digest" ]; then
-  echo "pack digest pin: sha256:$digest (unchanged)"
+  echo "pack digest: sha256:$digest (same as HEAD)"
 else
-  echo "pack digest pin: sha256:$old_digest -> sha256:$digest (rewritten)"
+  echo "pack digest: sha256:$old_digest (HEAD) -> sha256:$digest (working tree)"
 fi
 
 go test -count=1 -timeout "$timeout" ./internal/scanrun -update
@@ -153,7 +156,7 @@ go build -buildvcs=false -o "$snap/goldensemantics" ./scripts/goldensemantics
 status=0
 run_tool "$snap/goldensemantics" "$snap/before" "$snap/after" || status=$?
 if [ "$status" -ne 0 ]; then
-  echo "the goldens are rewritten in the working tree; read 'git diff', then discard them (git checkout -- $golden_dirs $pin && git clean -fd -- $golden_dirs) and rerun with --allow-semantic-change=PATH,... naming the files whose change is intended. A rerun without discarding is refused (exit 4)." >&2
+  echo "the goldens are rewritten in the working tree; read 'git diff', then discard them (git checkout -- $golden_dirs && git clean -fd -- $golden_dirs) and rerun with --allow-semantic-change=PATH,... naming the files whose change is intended. A rerun without discarding is refused (exit 4)." >&2
   exit "$status"
 fi
 
