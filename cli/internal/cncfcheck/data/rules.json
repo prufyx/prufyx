@@ -5656,7 +5656,7 @@
           "boolValue": true
         },
         "evidence": {
-          "state": "active",
+          "state": "withdrawn",
           "reviewedAt": "2026-11-24T05:14:40Z",
           "validUntil": "2027-02-22T05:14:40Z",
           "sources": [
