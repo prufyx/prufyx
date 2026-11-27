@@ -247,7 +247,8 @@ func TestEvidenceReattestVerifyExitCodes(t *testing.T) {
 		{"trust root without digest", f.verifyArgs("--envelope", f.envelope, "--trust-root", f.trustRoot), 2, false},
 		{"digest without trust root", f.verifyArgs("--envelope", f.envelope, "--trust-root-digest", f.trustRootDigest), 2, false},
 		{"valid envelope, statement not appended to the chain", f.verifyArgs(sigFlags...), 1, false},
-		{"bad signature", f.verifyArgs("--envelope", badEnvelope, "--trust-root", f.trustRoot, "--trust-root-digest", f.trustRootDigest), 1, true},
+		{"bad signature", f.verifyArgs("--envelope", badEnvelope, "--trust-root", f.trustRoot, "--trust-root-digest", f.trustRootDigest, "--rerun-worklist", f.worklist), 1, true},
+		{"bad signature, audit", f.verifyArgs("--envelope", badEnvelope, "--trust-root", f.trustRoot, "--trust-root-digest", f.trustRootDigest, "--audit"), 1, true},
 		{"wrong trust root digest", f.verifyArgs("--envelope", f.envelope, "--trust-root", f.trustRoot, "--trust-root-digest", "sha256:"+strings.Repeat("0", 64)), 1, true},
 		{"removed previous-statement flag", f.verifyArgs(append([]string{"--previous-statement", filepath.Join(f.out, "statement.json")}, sigFlags...)...), 2, false},
 		{"valid", f.verifyArgs(sigFlags...), 0, true},
@@ -270,7 +271,7 @@ func TestEvidenceReattestVerifyExitCodes(t *testing.T) {
 		if tc.name == "no signature, statement in the chain" && !strings.Contains(stderr.String(), "--envelope, --trust-root, and --trust-root-digest are required") {
 			t.Fatalf("%s: unexpected stderr %q", tc.name, stderr.String())
 		}
-		if tc.name == "bad signature" && !strings.Contains(stderr.String(), "FAIL: signature") {
+		if strings.HasPrefix(tc.name, "bad signature") && (stdout.Len() != 0 || !strings.Contains(stderr.String(), "FAIL: signature")) {
 			t.Fatalf("%s: expected a signature failure, got stderr %q", tc.name, stderr.String())
 		}
 		if tc.name == "wrong trust root digest" && !strings.Contains(stderr.String(), "signature") {

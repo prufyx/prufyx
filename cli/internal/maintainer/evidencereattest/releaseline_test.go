@@ -150,7 +150,7 @@ func TestVerifyReadsAnOlderRetainedWorklistOnlyAsAnAudit(t *testing.T) {
 			wl.Citations[i].OldDigest = ""
 		}
 		raw := marshalWorklist(t, wl)
-		res, records := prepareWithSample(t, PrepareOptions{
+		res, records := prepareWithOlderSample(t, PrepareOptions{
 			WorklistRaw: raw, PackName: PackCNCF, PackPath: chainPackPath, PackRaw: pack, Chain: &Chain{}, Wave: 1,
 			AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest,
 			historicWorklist: true,
@@ -179,6 +179,61 @@ func TestVerifyReadsAnOlderRetainedWorklistOnlyAsAnAudit(t *testing.T) {
 			}
 		}
 	}
+}
+
+// prepareWithOlderSample is Prepare with the sample review records a build of
+// an earlier worklist schema's time wrote. NewSampleReview refuses such a
+// worklist now, so the fixture binds each record from the statement itself.
+func prepareWithOlderSample(t *testing.T, opts PrepareOptions) (PrepareResult, map[string][]byte) {
+	t.Helper()
+	res, err := Prepare(opts)
+	if err != nil {
+		t.Fatalf("Prepare: %v", err)
+	}
+	doc, err := loadPack(opts.PackRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidates, _, err := packCandidates(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	records := map[string][]byte{}
+	for _, sampled := range res.Statement.SampledForFullReview {
+		candidate := candidatesByID(candidates)[sampled.RuleID]
+		for _, ra := range res.Statement.Rules {
+			if ra.RuleID != sampled.RuleID {
+				continue
+			}
+			bindings, err := sampleReviewBindingsFor(res.Statement, candidate.Raw, ra.Citations)
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw, err := canonicalBytes(SampleReviewRecord{
+				Schema: SampleReviewSchema,
+				Decision: SampleReviewDecision{
+					Authority: sampleReviewAuthority, State: sampleReviewState, Reviewer: "airstand",
+					DecidedAt: rfc3339(opts.AttestedAt), Scope: sampleReviewScope,
+				},
+				Subject:     sampleReviewSubjectFor(res.Statement, candidate.Project, sampled.RuleID),
+				Bindings:    bindings,
+				Limitations: append([]string(nil), sampleReviewLimitations...),
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			records[sampled.RuleID] = append(raw, '\n')
+		}
+	}
+	if len(records) == 0 {
+		t.Fatal("fixture: no sampled rule")
+	}
+	opts.ReviewRecords = records
+	res, err = Prepare(opts)
+	if err != nil {
+		t.Fatalf("Prepare: %v", err)
+	}
+	return res, records
 }
 
 // The independent worklist is the verifying job's own run: an earlier schema
