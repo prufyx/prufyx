@@ -602,6 +602,10 @@ content are not carried; they go through the ordinary intake. The origin block
 builds) is in the commit message and pull request body. It records where a
 change came from and proves nothing; the knowledge gate re-derives.
 
+The workflow regenerates the corpus attestation, the support inventory and the
+coverage blocks only. If a renewal moves test goldens or release documents, the
+required checks fail on its pull request.
+
 Not renewed by this workflow: Kubernetes records, served lists, changelog
 records and anything without a derivation. Where `extract apply` refuses a
 time-only renewal of a rule at the same build, a run that plans such a rule

@@ -343,7 +343,7 @@ func TestRederivePullRequestScriptRefuses(t *testing.T) {
 		"workflow file":     {addFile("files/.github/workflows/x.yml"), "outside the allow list", false},
 		"gate code":         {addFile("files/cli/internal/maintainer/knowledgegate/gate.go"), "outside the allow list", false},
 		"carry exception":   {addFile("files/cli/knowledge/carry-exceptions/cncf/x.json"), "outside the allow list", false},
-		"nested golden":     {addFile("files/cli/internal/scanrun/testdata/a/b"), "outside the allow list", false},
+		"test golden": {addFile("files/cli/internal/scanrun/testdata/a"), "outside the allow list", false},
 		"file beside files": {addFile("extra.json"), "Unexpected file", false},
 		"symlink": {func(t *testing.T, r *prRun) {
 			if err := os.Symlink("/etc/hosts", filepath.Join(r.bundle, "files", "README.md")); err != nil {
@@ -424,7 +424,7 @@ func TestRederiveAllowList(t *testing.T) {
 	t.Parallel()
 	_, wf := readRederiveWorkflow(t)
 	re := regexp.MustCompile(wf.Env["ALLOWED_PATHS"])
-	for _, p := range []string{"cli/internal/cncfcheck/data/rules.json", "cli/internal/cncfcheck/data/corpus-attestation.json", "cli/docs/generated/coverage-counts.json", "README.md", "cli/internal/scanrun/testdata/blocked-templated.json"} {
+	for _, p := range []string{"cli/internal/cncfcheck/data/rules.json", "cli/internal/cncfcheck/data/corpus-attestation.json", "cli/docs/generated/coverage-counts.json", "README.md", "cli/docs/CNCF-SOURCE-PREVIEW.md"} {
 		if !re.MatchString(p) {
 			t.Errorf("%s refused", p)
 		}
@@ -432,7 +432,7 @@ func TestRederiveAllowList(t *testing.T) {
 	l := DefaultLayout()
 	for _, p := range []string{l.TrustRootPath, l.ApprovalKeysPath, l.PausePath, l.ApprovalDir + "/cncf/x.json", l.ReattestDir + "/cncf/chain/0001.statement.json",
 		CarryExceptionPath("cncf", "x"), "cli/internal/projectcheck/data/rules.json", "cli/internal/cncfcheck/data/landscape-projects.json",
-		"cli/internal/scanrun/testdata/../scan.go", "cli/go.mod", "scripts/readme-coverage.sh", ".github/workflows/evidence-rederive.yml"} {
+		"cli/internal/scanrun/testdata/blocked-templated.json", "cli/internal/cncfcheck/set_rules_test.go", "cli/go.mod", "scripts/readme-coverage.sh", ".github/workflows/evidence-rederive.yml"} {
 		if re.MatchString(p) {
 			t.Errorf("%s admitted", p)
 		}

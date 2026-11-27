@@ -31,7 +31,7 @@ concurrency:
 
 env:
   # The only files the pull request may change.
-  ALLOWED_PATHS: '^(cli/internal/cncfcheck/data/(rules|corpus-attestation)\.json|cli/docs/generated/(community-support-inventory\.(json|md)|coverage-counts\.json)|README\.md|cli/docs/CNCF-SOURCE-PREVIEW\.md|cli/internal/cncfcheck/set_rules_test\.go|cli/internal/(scanrun|scanreport)/testdata/[A-Za-z0-9_][A-Za-z0-9_.-]*|cli/internal/communityapp/testdata/knowledge-age/[A-Za-z0-9_][A-Za-z0-9_.-]*)$'
+  ALLOWED_PATHS: '^(cli/internal/cncfcheck/data/(rules|corpus-attestation)\.json|cli/docs/generated/(community-support-inventory\.(json|md)|coverage-counts\.json)|README\.md|cli/docs/CNCF-SOURCE-PREVIEW\.md)$'
 
 jobs:
   plan:
@@ -289,7 +289,6 @@ jobs:
             --selected-source-manifest "${root}/cli/docs/data/selected-source-records-v1.json" \
             --json-output "${root}/cli/docs/generated/community-support-inventory.json" \
             --markdown-output "${root}/cli/docs/generated/community-support-inventory.md")
-          cli/scripts/regenerate-pack-goldens.sh --no-test
           scripts/readme-coverage.sh
           scripts/preview-coverage.sh
 
