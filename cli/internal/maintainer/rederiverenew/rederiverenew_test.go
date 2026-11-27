@@ -218,11 +218,11 @@ func TestAssembleRefuses(t *testing.T) {
 		"future derivation time": {rule(func(ev doc) {
 			setTimes(ev, at.Add(48*time.Hour), at.Add(80*24*time.Hour))
 		}), "planned derivation time"},
-		"reviewedAt differs": {rule(func(ev doc) { ev["reviewedAt"] = stamp(at.Add(time.Second)) }), "planned derivation time"},
-		"over 90 days":       {rule(func(ev doc) { ev["validUntil"] = stamp(at.Add(90*24*time.Hour + time.Second)) }), "at most 90 days"},
-		"no duration":        {rule(func(ev doc) { ev["validUntil"] = stamp(at) }), "over 0"},
-		"another lease":      {rule(func(ev doc) { ev["validUntil"] = stamp(at.Add(89*24*time.Hour + time.Hour)) }), "not the planned"},
-		"record gone":        {func(a doc, _ *Plan) { a["lineAttestations"] = a["lineAttestations"].([]any)[1:] }, "missing from the applied pack"},
+		"reviewedAt differs":     {rule(func(ev doc) { ev["reviewedAt"] = stamp(at.Add(time.Second)) }), "planned derivation time"},
+		"over 90 days":           {rule(func(ev doc) { ev["validUntil"] = stamp(at.Add(90*24*time.Hour + time.Second)) }), "at most 90 days"},
+		"no duration":            {rule(func(ev doc) { ev["validUntil"] = stamp(at) }), "over 0"},
+		"another lease":          {rule(func(ev doc) { ev["validUntil"] = stamp(at.Add(89*24*time.Hour + time.Hour)) }), "not the planned"},
+		"record gone":            {func(a doc, _ *Plan) { a["lineAttestations"] = a["lineAttestations"].([]any)[1:] }, "missing from the applied pack"},
 		"planned record not due": {func(_ doc, p *Plan) { p.Extractors[0].Records[0] = "rule other" }, "not due"},
 		"planned record twice": {func(_ doc, p *Plan) {
 			p.Extractors[0].Records[1] = p.Extractors[0].Records[0]
@@ -281,14 +281,14 @@ func TestPlanSelectsOnlyDueMechanicalRecords(t *testing.T) {
 		edit func(d doc)
 		want int
 	}{
-		"all due":            {func(d doc) {}, 3},
-		"45 days is due":     {func(d doc) { ruleEv(d["entries"].([]any)[0])["validUntil"] = stamp(at.Add(DueWindow)) }, 3},
-		"not yet due":        {func(d doc) { ruleEv(d["entries"].([]any)[0])["validUntil"] = stamp(at.Add(DueWindow + time.Second)) }, 2},
-		"withdrawn rule":     {func(d doc) { ruleEv(d["entries"].([]any)[0])["state"] = "withdrawn" }, 2},
-		"reviewed rule":      {func(d doc) { ruleEv(d["entries"].([]any)[0])["basis"] = "reviewed" }, 2},
-		"kubernetes":         {func(d doc) { obj(d["entries"].([]any)[0], "rule", "subject")["component"] = kubernetesComponent }, 2},
-		"changelog family":   {func(d doc) { ruleEv(d["entries"].([]any)[0])["extractor"].(doc)["id"] = "changelog.listed.x" }, 2},
-		"kubernetes family":  {func(d doc) { ruleEv(d["entries"].([]any)[0])["extractor"].(doc)["id"] = "k8s.served-api-removal" }, 2},
+		"all due":               {func(d doc) {}, 3},
+		"45 days is due":        {func(d doc) { ruleEv(d["entries"].([]any)[0])["validUntil"] = stamp(at.Add(DueWindow)) }, 3},
+		"not yet due":           {func(d doc) { ruleEv(d["entries"].([]any)[0])["validUntil"] = stamp(at.Add(DueWindow + time.Second)) }, 2},
+		"withdrawn rule":        {func(d doc) { ruleEv(d["entries"].([]any)[0])["state"] = "withdrawn" }, 2},
+		"reviewed rule":         {func(d doc) { ruleEv(d["entries"].([]any)[0])["basis"] = "reviewed" }, 2},
+		"kubernetes":            {func(d doc) { obj(d["entries"].([]any)[0], "rule", "subject")["component"] = kubernetesComponent }, 2},
+		"changelog family":      {func(d doc) { ruleEv(d["entries"].([]any)[0])["extractor"].(doc)["id"] = "changelog.listed.x" }, 2},
+		"kubernetes family":     {func(d doc) { ruleEv(d["entries"].([]any)[0])["extractor"].(doc)["id"] = "k8s.served-api-removal" }, 2},
 		"unreadable validUntil": {func(d doc) { ruleEv(d["entries"].([]any)[0])["validUntil"] = "soon" }, 2},
 	} {
 		d := fixture(t)
@@ -357,10 +357,10 @@ func TestCompareRequiresByteIdenticalRuns(t *testing.T) {
 		t.Fatalf("%q %v", d, err)
 	}
 	for name, edit := range map[string]func(t *testing.T, a, b string){
-		"flipped byte":     func(t *testing.T, a, b string) { write(t, b, "sub/candidates.json", "{]\n") },
-		"extra in second":  func(t *testing.T, a, b string) { write(t, b, "more.json", "x") },
-		"extra in first":   func(t *testing.T, a, b string) { write(t, a, "more.json", "x") },
-		"renamed":          func(t *testing.T, a, b string) { write(t, a, "x.json", "x"); write(t, b, "y.json", "x") },
+		"flipped byte":    func(t *testing.T, a, b string) { write(t, b, "sub/candidates.json", "{]\n") },
+		"extra in second": func(t *testing.T, a, b string) { write(t, b, "more.json", "x") },
+		"extra in first":  func(t *testing.T, a, b string) { write(t, a, "more.json", "x") },
+		"renamed":         func(t *testing.T, a, b string) { write(t, a, "x.json", "x"); write(t, b, "y.json", "x") },
 		"symlink": func(t *testing.T, a, b string) {
 			for _, d := range []string{a, b} {
 				if err := os.Symlink("manifest.json", filepath.Join(d, "link")); err != nil {
@@ -408,13 +408,15 @@ func TestOriginIsRequiredInFull(t *testing.T) {
 		}
 	}
 	for name, edit := range map[string]func(r *Run, res *Result, o map[string]string){
-		"run id":      func(r *Run, _ *Result, _ map[string]string) { r.ID = "" },
-		"attempt":     func(r *Run, _ *Result, _ map[string]string) { r.Attempt = "0" },
-		"commit":      func(r *Run, _ *Result, _ map[string]string) { r.Commit = "main" },
-		"workflow":    func(r *Run, _ *Result, _ map[string]string) { r.WorkflowSHA = "" },
-		"no records":  func(_ *Run, res *Result, _ map[string]string) { res.Renewed = nil },
-		"no output":   func(_ *Run, _ *Result, o map[string]string) { delete(o, ciliumID) },
-		"code digest": func(_ *Run, res *Result, _ map[string]string) { res.Renewed = []Renewal{{Record: "rule x", Extractor: ciliumID, Version: "1"}} },
+		"run id":     func(r *Run, _ *Result, _ map[string]string) { r.ID = "" },
+		"attempt":    func(r *Run, _ *Result, _ map[string]string) { r.Attempt = "0" },
+		"commit":     func(r *Run, _ *Result, _ map[string]string) { r.Commit = "main" },
+		"workflow":   func(r *Run, _ *Result, _ map[string]string) { r.WorkflowSHA = "" },
+		"no records": func(_ *Run, res *Result, _ map[string]string) { res.Renewed = nil },
+		"no output":  func(_ *Run, _ *Result, o map[string]string) { delete(o, ciliumID) },
+		"code digest": func(_ *Run, res *Result, _ map[string]string) {
+			res.Renewed = []Renewal{{Record: "rule x", Extractor: ciliumID, Version: "1"}}
+		},
 	} {
 		r, rs, o := run, res, map[string]string{ciliumID: digest}
 		edit(&r, &rs, o)

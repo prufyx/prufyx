@@ -161,7 +161,7 @@ func TestGateRefusesAutomatedCarryWithoutAnOwnerException(t *testing.T) {
 			raw := f.exception(t, l, f.ruleID, nil)
 			return bytes.Replace(raw, []byte(CarryExceptionSchema), []byte(ApprovalSchema), 1)
 		}), "wrong schema"},
-		"not an owner": {signed(func(f *reattestFixture, r *CarryExceptionRecord) { r.Identity = "someone" }), "not an owner"},
+		"not an owner":   {signed(func(f *reattestFixture, r *CarryExceptionRecord) { r.Identity = "someone" }), "not an owner"},
 		"another record": {signed(func(f *reattestFixture, r *CarryExceptionRecord) { r.RecordID = "other.rule" }), "different record"},
 		"another pack":   {signed(func(f *reattestFixture, r *CarryExceptionRecord) { r.Pack = "cncf" }), "different record"},
 		"another base digest": {signed(func(f *reattestFixture, r *CarryExceptionRecord) {

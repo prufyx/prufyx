@@ -308,7 +308,9 @@ func TestRederivePullRequestScriptRefuses(t *testing.T) {
 		writeFile(t, filepath.Join(r.bundle, "origin.txt"), []byte(origin(r.env["DERIVED_AT"])))
 	}
 	addFile := func(rel string) func(t *testing.T, r *prRun) {
-		return func(t *testing.T, r *prRun) { writeFile(t, filepath.Join(r.bundle, filepath.FromSlash(rel)), []byte("x\n")) }
+		return func(t *testing.T, r *prRun) {
+			writeFile(t, filepath.Join(r.bundle, filepath.FromSlash(rel)), []byte("x\n"))
+		}
 	}
 	editOrigin := func(old, new string) func(t *testing.T, r *prRun) {
 		return func(t *testing.T, r *prRun) {
@@ -336,23 +338,23 @@ func TestRederivePullRequestScriptRefuses(t *testing.T) {
 		"flipped byte": {func(t *testing.T, r *prRun) {
 			r.afterDigest = func(t *testing.T, bundle string) { writeFile(t, filepath.Join(bundle, pack), []byte("{ }\n")) }
 		}, "do not match the digest", false},
-		"no digest":           {set("ASSEMBLED_SHA256_OVERRIDE", "none"), "is not a sha256", false},
-		"trust file":          {addFile("files/cli/knowledge/trust/web-approval-keys.json"), "outside the allow list", false},
-		"workflow file":       {addFile("files/.github/workflows/x.yml"), "outside the allow list", false},
-		"gate code":           {addFile("files/cli/internal/maintainer/knowledgegate/gate.go"), "outside the allow list", false},
-		"carry exception":     {addFile("files/cli/knowledge/carry-exceptions/cncf/x.json"), "outside the allow list", false},
-		"nested golden":       {addFile("files/cli/internal/scanrun/testdata/a/b"), "outside the allow list", false},
-		"file beside files":   {addFile("extra.json"), "Unexpected file", false},
+		"no digest":         {set("ASSEMBLED_SHA256_OVERRIDE", "none"), "is not a sha256", false},
+		"trust file":        {addFile("files/cli/knowledge/trust/web-approval-keys.json"), "outside the allow list", false},
+		"workflow file":     {addFile("files/.github/workflows/x.yml"), "outside the allow list", false},
+		"gate code":         {addFile("files/cli/internal/maintainer/knowledgegate/gate.go"), "outside the allow list", false},
+		"carry exception":   {addFile("files/cli/knowledge/carry-exceptions/cncf/x.json"), "outside the allow list", false},
+		"nested golden":     {addFile("files/cli/internal/scanrun/testdata/a/b"), "outside the allow list", false},
+		"file beside files": {addFile("extra.json"), "Unexpected file", false},
 		"symlink": {func(t *testing.T, r *prRun) {
 			if err := os.Symlink("/etc/hosts", filepath.Join(r.bundle, "files", "README.md")); err != nil {
 				t.Fatal(err)
 			}
 		}, "not a file", false},
-		"no pack": {func(t *testing.T, r *prRun) { remove(pack)(t, r); addFile("files/README.md")(t, r) }, "changes no pack", false},
-		"no origin":            {remove("origin.txt"), "has no origin", false},
-		"origin of other run":  {editOrigin("Origin-Run: 77", "Origin-Run: 770"), "does not name this run", false},
-		"origin of other base": {editOrigin("Origin-Commit: a", "Origin-Commit: b"), "does not name this run", false},
-		"origin without workflow": {editOrigin("Origin-Workflow: "+sha+"\n", ""), "does not name this run", false},
+		"no pack":                  {func(t *testing.T, r *prRun) { remove(pack)(t, r); addFile("files/README.md")(t, r) }, "changes no pack", false},
+		"no origin":                {remove("origin.txt"), "has no origin", false},
+		"origin of other run":      {editOrigin("Origin-Run: 77", "Origin-Run: 770"), "does not name this run", false},
+		"origin of other base":     {editOrigin("Origin-Commit: a", "Origin-Commit: b"), "does not name this run", false},
+		"origin without workflow":  {editOrigin("Origin-Workflow: "+sha+"\n", ""), "does not name this run", false},
 		"origin without extractor": {editOrigin("Origin-Extractor", "Origin-Records"), "incomplete", false},
 		"origin with free text":    {editOrigin("Origin-Attempt: 1\n", "Origin-Attempt: 1\nMOVES decided +9\n"), "unexpected line", false},
 		"derived 25 hours ago":     {func(t *testing.T, r *prRun) { retime(r, t, -25*time.Hour) }, "outside the last 24 hours", false},
