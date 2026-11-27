@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -37,7 +36,7 @@ func TestDependenciesAreOnAnAllowList(t *testing.T) {
 	}
 	// The one third-party package, imported by validation.
 	const allowedThirdParty = "golang.org/x/sys/unix"
-	out, err := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), "list", "-deps", ".").Output()
+	out, err := exec.Command("go", "list", "-deps", ".").Output()
 	if err != nil {
 		t.Fatalf("go list: %v", err)
 	}

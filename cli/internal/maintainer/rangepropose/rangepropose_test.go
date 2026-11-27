@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -209,7 +210,6 @@ func TestOnlyUnconditionalEligibleOperatorsAreProposed(t *testing.T) {
 		"conditional predicate":    {func(r map[string]any) { r["appliesWhen"] = when }, ReasonAppliesWhen},
 		"conditional set member":   {func(r map[string]any) { set(r); r["appliesWhen"] = when }, ReasonAppliesWhen},
 		"null appliesWhen":         {func(r map[string]any) { r["appliesWhen"] = nil }, ReasonAppliesWhen},
-		"object appliesWhen":       {func(r map[string]any) { r["appliesWhen"] = map[string]any{} }, ReasonAppliesWhen},
 		"empty element":            {func(r map[string]any) { r["appliesWhen"] = []any{nil} }, ReasonAppliesWhen},
 		"case variant appliesWhen": {func(r map[string]any) { delete(r, "appliesWhen"); r["APPLIESWHEN"] = when }, ReasonAppliesWhen},
 	} {
@@ -225,6 +225,20 @@ func TestOnlyUnconditionalEligibleOperatorsAreProposed(t *testing.T) {
 			}
 		})
 	}
+	// The engine cannot read an object as appliesWhen, so the whole run fails
+	// before any rule is evaluated.
+	t.Run("object appliesWhen", func(t *testing.T) {
+		changed := standardRule(f)
+		changed["appliesWhen"] = map[string]any{}
+		r, err := Run(context.Background(), options(t, clone, changed))
+		if !errors.Is(err, constraintengine.ErrInvalid) ||
+			err.Error() != "rule flag-removed: constraint key: "+constraintengine.ErrInvalid.Error() {
+			t.Fatalf("error: %v", err)
+		}
+		if len(r.Proposals)+len(r.NeedsReview)+len(r.Refused) != 0 {
+			t.Fatalf("report: %s", marshal(t, r))
+		}
+	})
 	for name, change := range map[string]func(map[string]any){
 		"predicate":          func(map[string]any) {},
 		"set member":         set,
