@@ -16883,7 +16883,7 @@
       }
     },
     {
-      "description": "Target-only OPA 1.20.2 producer-mode constraint when explicitly declared v0 consumers remain and relevant modules do not use the rego.v1 import alternative. This does not identify a newly introduced break, inspect modules or bundles, or prove runtime or whole-upgrade safety. Whole-line, target only: the cited ranges of cmd/build.go, cmd/flags.go, v1/ast/parser.go and v1/ast/parser_ext.go are byte-identical to the cited ranges at every 1.20 release (v1.20.0 to v1.20.2), read at each release tag; only the version stamp differs per release. This is a target check that does not say when the behaviour changed, so the range carries no release boundary.",
+      "description": "Target-only OPA 1.20.2 producer-mode constraint when explicitly declared v0 consumers remain and relevant modules do not use the rego.v1 import alternative. This does not identify a newly introduced break, inspect modules or bundles, or prove runtime or whole-upgrade safety. Whole-line, target only: the cited ranges of cmd/build.go, cmd/flags.go, v1/ast/parser.go and v1/ast/parser_ext.go are byte-identical at every 1.20 release (v1.20.0 to v1.20.2), read at each release tag; the evidence pins them at v1.20.0 and v1.20.2. This is a target check that does not say when the behaviour changed, so the range carries no release boundary.",
       "project": "opa",
       "requiredFacts": [
         {
@@ -16936,35 +16936,43 @@
           "reviewedAt": "2026-11-18T09:50:12Z",
           "sources": [
             {
-              "contentDigest": "sha256:ca72df67064227b90a9a069ca734e2c9cbcaa67034409fd6649e1598cc029403",
-              "endLine": 13,
-              "id": "opa-origin-1-19-1-version",
-              "revision": "54896f9f28515d14b31a93e6ef5737bb85866e30",
-              "startLine": 13,
-              "url": "https://github.com/open-policy-agent/opa/blob/54896f9f28515d14b31a93e6ef5737bb85866e30/v1/version/version.go"
+              "contentDigest": "sha256:0a0b146f1c40a39f11e7f1a4ab557c4f2bf36d6f94c096f0782eaa1f26cc0238",
+              "endLine": 369,
+              "id": "opa-target-1-20-0-build-producer-mode",
+              "revision": "328ca09af0305c765952364a71860e2ab27eec87",
+              "startLine": 84,
+              "url": "https://github.com/open-policy-agent/opa/blob/328ca09af0305c765952364a71860e2ab27eec87/cmd/build.go"
+            },
+            {
+              "contentDigest": "sha256:8b6e7e5bda518ae03c462c11fb770eb3335af0d21ed87f632d2f7cbf688b5f97",
+              "endLine": 37,
+              "id": "opa-target-1-20-0-default-rego-version",
+              "revision": "328ca09af0305c765952364a71860e2ab27eec87",
+              "startLine": 32,
+              "url": "https://github.com/open-policy-agent/opa/blob/328ca09af0305c765952364a71860e2ab27eec87/v1/ast/parser.go"
+            },
+            {
+              "contentDigest": "sha256:321ce1dbce1d10547c14d55fa05f6c332f18110f946eb9beb84c464f064adc29",
+              "endLine": 733,
+              "id": "opa-target-1-20-0-rego-v1-import-guard",
+              "revision": "328ca09af0305c765952364a71860e2ab27eec87",
+              "startLine": 688,
+              "url": "https://github.com/open-policy-agent/opa/blob/328ca09af0305c765952364a71860e2ab27eec87/v1/ast/parser_ext.go"
+            },
+            {
+              "contentDigest": "sha256:080ea0a22018706634f92b2dda28ce02a2bf37c2f9c2e9f538f47b28d12f5424",
+              "endLine": 176,
+              "id": "opa-target-1-20-0-v0-flag-registration",
+              "revision": "328ca09af0305c765952364a71860e2ab27eec87",
+              "startLine": 174,
+              "url": "https://github.com/open-policy-agent/opa/blob/328ca09af0305c765952364a71860e2ab27eec87/cmd/flags.go"
             },
             {
               "contentDigest": "sha256:0a0b146f1c40a39f11e7f1a4ab557c4f2bf36d6f94c096f0782eaa1f26cc0238",
               "endLine": 369,
-              "id": "opa-target-1-20-2-build-compiler-mode",
-              "revision": "b2c26708e9d55645d7f837db495031f7e4152594",
-              "startLine": 350,
-              "url": "https://github.com/open-policy-agent/opa/blob/b2c26708e9d55645d7f837db495031f7e4152594/cmd/build.go"
-            },
-            {
-              "contentDigest": "sha256:0a0b146f1c40a39f11e7f1a4ab557c4f2bf36d6f94c096f0782eaa1f26cc0238",
-              "endLine": 92,
-              "id": "opa-target-1-20-2-build-rego-mode",
+              "id": "opa-target-1-20-2-build-producer-mode",
               "revision": "b2c26708e9d55645d7f837db495031f7e4152594",
               "startLine": 84,
-              "url": "https://github.com/open-policy-agent/opa/blob/b2c26708e9d55645d7f837db495031f7e4152594/cmd/build.go"
-            },
-            {
-              "contentDigest": "sha256:0a0b146f1c40a39f11e7f1a4ab557c4f2bf36d6f94c096f0782eaa1f26cc0238",
-              "endLine": 306,
-              "id": "opa-target-1-20-2-build-v0-flag-call",
-              "revision": "b2c26708e9d55645d7f837db495031f7e4152594",
-              "startLine": 305,
               "url": "https://github.com/open-policy-agent/opa/blob/b2c26708e9d55645d7f837db495031f7e4152594/cmd/build.go"
             },
             {
@@ -16990,14 +16998,6 @@
               "revision": "b2c26708e9d55645d7f837db495031f7e4152594",
               "startLine": 174,
               "url": "https://github.com/open-policy-agent/opa/blob/b2c26708e9d55645d7f837db495031f7e4152594/cmd/flags.go"
-            },
-            {
-              "contentDigest": "sha256:ecdc489265ddad02ccfa7152d4b2ba8b1f3531147d10021e2ae15b0ac3a2033b",
-              "endLine": 13,
-              "id": "opa-target-1-20-2-version",
-              "revision": "b2c26708e9d55645d7f837db495031f7e4152594",
-              "startLine": 13,
-              "url": "https://github.com/open-policy-agent/opa/blob/b2c26708e9d55645d7f837db495031f7e4152594/v1/version/version.go"
             }
           ],
           "state": "active",
@@ -17011,17 +17011,17 @@
             {
               "basis": "UPGRADE_FROM_SERIES",
               "bound": "from.gte",
-              "sourceId": "opa-target-1-20-2-build-v0-flag-call"
+              "sourceId": "opa-target-1-20-2-build-producer-mode"
             },
             {
               "basis": "UPGRADE_FROM_SERIES",
               "bound": "from.lt",
-              "sourceId": "opa-target-1-20-2-build-rego-mode"
+              "sourceId": "opa-target-1-20-2-build-producer-mode"
             },
             {
               "basis": "TARGET_SERIES",
               "bound": "to.gte",
-              "sourceId": "opa-target-1-20-2-build-compiler-mode"
+              "sourceId": "opa-target-1-20-0-build-producer-mode"
             },
             {
               "basis": "TARGET_SERIES",
@@ -17929,7 +17929,7 @@
       }
     },
     {
-      "description": "OpenCost v1.120.4 already passes nil to cloud-cost initialization. This is a target revalidation constraint based only on a caller-declared complete current source selection and target cloud-integration selection; upstream origin source does not prove provider-derived reliance. Whole-line: InitializeCloudCost(router) with a nil configuration controller is present in pkg/cmd/costmodel/costmodel.go and pkg/costmodel/router.go at every 1.120 release (v1.120.0 to v1.120.4) and every 1.121 release (v1.121.0 to v1.121.5), searched at each release tag; pkg/costmodel/router.go lines 637-661 and pkg/cloud/config/watcher.go lines 229-350 are byte-identical to the cited ranges at every 1.121 release. The rule states a revalidation constraint, not a behaviour change, so the range carries no release boundary.",
+      "description": "OpenCost v1.120.4 already passes nil to cloud-cost initialization. This is a target revalidation constraint based only on a caller-declared complete current source selection and target cloud-integration selection; upstream origin source does not prove provider-derived reliance.",
       "project": "opencost",
       "requiredFacts": [
         {
@@ -18070,38 +18070,6 @@
         "id": "opencost.cloud-cost-source-migration.1-120-4-to-1-121-2",
         "nextAction": "If the caller independently confirms provider-derived reliance, select and validate a target cloud-integration JSON source before v1.121.2. This revalidation route does not claim v1.121.2 introduced nil initialization; do not include credentials.",
         "operator": "forbid_predicate_value",
-        "range": {
-          "bounds": [
-            {
-              "basis": "UPGRADE_FROM_SERIES",
-              "bound": "from.gte",
-              "sourceId": "o-origin-1-120-4-cloud-cost-initialization"
-            },
-            {
-              "basis": "UPGRADE_FROM_SERIES",
-              "bound": "from.lt",
-              "sourceId": "o-origin-1-120-4-cloud-cost-initialization"
-            },
-            {
-              "basis": "TARGET_SERIES",
-              "bound": "to.gte",
-              "sourceId": "o-target-cloud-cost-initialization"
-            },
-            {
-              "basis": "TARGET_SERIES",
-              "bound": "to.lt",
-              "sourceId": "o-target-source-priority-and-paths"
-            }
-          ],
-          "from": {
-            "gte": "1.120.0",
-            "lt": "1.121.0"
-          },
-          "to": {
-            "gte": "1.121.0",
-            "lt": "1.122.0"
-          }
-        },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
         "subject": {
           "component": "pkg:github/opencost/opencost",
