@@ -634,10 +634,24 @@ def unowned_served_count(served, listed):
     return len([x for x in served if not owned(listed, x) and not kubernetes_group(listed, x[0])])
 
 
+def vanished_unowned(served, removed, whole_set, later_groups, listed):
+    """Served documents no reviewed project owns when each one is a whole-CRD removal of a group gone at the later release,
+    for a pair whose other whole removals keep their group. Empty (nothing allowed) when any input is unread, when any
+    unowned served document is something else, or when any expected removal that is not owned is outside that set."""
+    if served is None or listed is None or later_groups is None:
+        return set()
+    docs = {x for x in served if not owned(listed, x) and not kubernetes_group(listed, x[0])}
+    if any(x not in whole_set or x[0] in later_groups for x in docs):
+        return set()
+    if any(not owned(listed, x) and x not in docs for x in removed):
+        return set()
+    return docs
+
+
 def unowned_gap_ok(gap, whole_docs):
-    """The unowned-group gap is part of the design shape only when its count is exactly the number of whole-CRD removals
-    whose whole group is gone at the later release (their documents are the ones no project owns any more); any other count
-    means an unexplained document. whole_docs is 0 (nothing allowed) unless every whole removal is of a vanished group."""
+    """The unowned-group gap is part of the design shape only when its count is exactly whole_docs, the number of documents
+    the caller could explain (whole-CRD removals of vanished groups, and served documents of unlisted groups); any other
+    count means an unexplained document. whole_docs 0 allows nothing."""
     m = UNOWNED_COUNT.fullmatch(gap.get("detail")) if isinstance(gap.get("detail"), str) else None
     return bool(m) and whole_docs > 0 and int(m.group(1)) == whole_docs
 
@@ -814,7 +828,12 @@ def classify_owned(code, report, removed, whole_crd, component, later_groups=Non
     # unowned-group gap, which must then be present, and the removals themselves never lie in such a group
     foreign = len(unowned_served(served, removed, listed)) if whole_set else 0
     gone += foreign
-    version = [x for x in removed if x not in whole_set]
+    # whole removals of a vanished unlisted group beside whole removals whose group stays: only those documents are
+    # unowned, so the gap must be present with exactly their count
+    stray = vanished_unowned(served, removed, whole_set, later_groups, listed) if whole_set and not gone else set()
+    gone += len(stray)
+    must_unowned = foreign > 0 or bool(stray)
+    version =[x for x in removed if x not in whole_set]
     wp, mm, missing, statuses = scoped_result(code, report, version, component, FAMILY)
     if not whole_set:
         if (mm and not wp and versions and code == 11 and report.get("verdict") == "UNKNOWN" and not is_pass(code, report)
@@ -829,13 +848,13 @@ def classify_owned(code, report, removed, whole_crd, component, later_groups=Non
         return True, False, missing, statuses, False, "PASS"
     unknown = report.get("verdict") == "UNKNOWN"
     if not version:
-        clause = "EXIT" if code != 11 else ("NOT_UNKNOWN" if not unknown else whole_signal_clause(report, component, gone, must_have_unowned=foreign > 0, major_change=major_change))
+        clause = "EXIT" if code != 11 else ("NOT_UNKNOWN" if not unknown else whole_signal_clause(report, component, gone, must_have_unowned=must_unowned, major_change=major_change))
         if clause is None:
             return False, False, [], statuses, True, "OK"
         return False, True, ["/".join(x) for x in sorted(whole_set)], statuses, False, clause
     # mixed: version-level removals are reported by their rules, the whole-CRD part is silent by documented design
     if code == 10 and report.get("verdict") == "BLOCKED":
-        clause = whole_signal_clause(report, component, gone, allow_findings=True, must_have_unowned=foreign > 0, major_change=major_change) or version_findings_clause(report, version, component)
+        clause = whole_signal_clause(report, component, gone, allow_findings=True, must_have_unowned=must_unowned, major_change=major_change) or version_findings_clause(report, version, component)
         if clause is None and not missing and not mm:
             return False, False, [], statuses, True, "OK"
     else:

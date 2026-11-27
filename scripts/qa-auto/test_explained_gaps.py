@@ -540,6 +540,101 @@ F2 = ("f.example", "v1", "Foreign2")
 KEPT = ("a.example", "v1", "Kept")   # defined at both releases
 
 
+class VanishedUnownedBesideKeptGroup(unittest.TestCase):
+    """Real shape (kubevela 1.8 -> 1.9): whole CRDs leave a group that stays and a whole unlisted group goes. The scanner
+    counts only the unlisted group's document: design only with exactly that count."""
+    KEPT_GONE = ("a.example", "v1alpha2", "Scope")  # listed group a.example stays at the later release
+    STRAY = ("s.example", "v1alpha1", "Rollout")    # unlisted group, gone at the later release
+    KEPT = ("a.example", "v1", "Kept")
+    LISTED = {"a.example": None, "b.example": None}
+    LATER = {"a.example", "b.example"}
+
+    def setUp(self):
+        for mod in (crd, qalib):
+            p = patch.object(mod, "removal_claim", lambda *a: True)
+            p.start()
+            self.addCleanup(p.stop)
+        self.whole = [self.KEPT_GONE, self.STRAY]
+        self.served = {self.KEPT_GONE, self.STRAY, self.KEPT, V1, V2}
+
+    def mixed(self, gaps, findings=(V1, V2), code=10, rep=None, **kw):
+        args = dict(later=self.LATER, served=self.served, listed=self.LISTED, removed=[*self.whole, V1, V2], whole=self.whole)
+        args.update(kw)
+        return crd.classify_pair(code, rep or blocked([finding(x) for x in findings], gaps), args["removed"], args["whole"],
+                                 P, args["later"], args["served"], args["listed"])
+
+    def only(self, gaps, rep=None, code=11, served=None):
+        return crd.classify_pair(code, rep or unknown_only(gaps), self.whole, self.whole, P, self.LATER,
+                                 served or {self.KEPT_GONE, self.STRAY, self.KEPT}, self.LISTED)
+
+    def refused(self, r, clause, label=None):
+        self.assertEqual((r[1], r[4], r[5]), (True, False, clause), label)
+
+    def test_mixed_exact_count_is_design(self):
+        r = self.mixed([GAP, unowned(1)])
+        self.assertEqual((r[0], r[1], r[2], r[4], r[5]), (False, False, [], True, "OK"))
+
+    def test_whole_only_exact_count_is_design(self):
+        r = self.only([GAP, unowned(1)])
+        self.assertEqual((r[0], r[1], r[4], r[5]), (False, False, True, "OK"))
+
+    def test_wrong_count_is_mismatch(self):
+        for n in (0, 2, 3, 99):
+            self.refused(self.mixed([GAP, unowned(n)]), "GAP_UNOWNED", n)
+            self.refused(self.only([GAP, unowned(n)]), "GAP_UNOWNED", n)
+
+    def test_missing_unowned_gap_is_mismatch(self):
+        self.refused(self.mixed([GAP]), "GAP_UNOWNED_MISSING")
+        self.refused(self.only([GAP]), "GAP_UNOWNED_MISSING")
+
+    def test_repeated_or_foreign_component_gap_is_mismatch(self):
+        self.refused(self.mixed([GAP, unowned(1), unowned(1)]), "GAP_UNOWNED")
+        self.refused(self.mixed([GAP, unowned(1, "other")]), "GAP_COMPONENT")
+
+    def test_unread_inputs_allow_nothing(self):
+        for key in ("later", "served", "listed"):
+            self.refused(self.mixed([GAP, unowned(1)], **{key: None}), "GAP_UNOWNED", key)
+
+    def test_unlisted_group_still_defined_is_not_accepted(self):
+        self.refused(self.mixed([GAP, unowned(1)], later=self.LATER | {"s.example"}), "GAP_UNOWNED")
+
+    def test_other_unowned_served_document_is_not_accepted(self):
+        # an unlisted document that is not a vanished-group removal (still served, or of a kept unlisted group)
+        for extra in (("f.example", "v1", "Foreign"), ("s.example", "v1", "Staying")):
+            for n in (1, 2):
+                self.refused(self.mixed([GAP, unowned(n)], served=self.served | {extra}), "GAP_UNOWNED", (extra, n))
+
+    def test_unowned_version_level_removal_is_never_excused(self):
+        hidden = ("h.example", "v1beta1", "Hidden")
+        for n in (1, 2):
+            r = self.mixed([GAP, unowned(n)], removed=[*self.whole, V1, V2, hidden], served=self.served | {hidden})
+            self.assertEqual((r[1], r[4]), (True, False), n)
+        # an unowned removal that is not among the served documents
+        r = self.mixed([GAP, unowned(1)], removed=[*self.whole, V1, V2, hidden])
+        self.assertEqual((r[1], r[4]), (True, False))
+
+    def test_unowned_kubernetes_group_removal_is_not_counted(self):
+        k8s = ("x.k8s.io", "v1", "Thing")
+        r = self.mixed([GAP, unowned(2)], removed=[*self.whole, k8s, V1, V2], whole=[*self.whole, k8s],
+                       served=self.served | {k8s})
+        self.assertEqual((r[1], r[4]), (True, False))
+
+    def test_findings_exit_verdict_and_gaps_stay_strict(self):
+        self.refused(self.mixed([GAP, unowned(1)], findings=(V1,)), "VERSION_MISSING")
+        self.refused(self.mixed([GAP, unowned(1)], findings=(V1, V2, self.STRAY)), "EXTRA_FINDING")
+        self.refused(self.mixed([unowned(1)]), "NO_GAP")
+        self.refused(self.mixed([GAP, unowned(1), {"component": P, "reason": "VERSION_NOT_DETECTED"}]), "GAP_REASON")
+        self.refused(self.mixed([GAP, unowned(1)], code=11), "EXIT")
+        self.refused(self.only([GAP, unowned(1)], code=10), "EXIT")
+        self.refused(self.only(None, rep=dict(unknown_only([GAP, unowned(1)]), verdict="BLOCKED")), "NOT_UNKNOWN")
+
+    def test_pass_stays_wrongpass(self):
+        r = self.mixed([], code=0, rep={"verdict": "PASS", "findings": [], "gaps": [GAP, unowned(1)]})
+        self.assertEqual((r[0], r[4]), (True, False))
+        r = self.only([], code=0, rep={"verdict": "PASS", "findings": [], "gaps": [GAP, unowned(1)]})
+        self.assertEqual((r[0], r[4]), (True, False))
+
+
 class ForeignServedGroup(unittest.TestCase):
     """A served document of a group no project lists is unowned in every scan of the input, not a sign of a hidden removal:
     design only when the count is exactly those documents plus the vanished-group removals, the gap is present, and no
