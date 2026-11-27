@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -512,5 +513,75 @@ func cmdOnboardingVerify(args []string, env approvalEnv, layout Layout, stdout i
 	fmt.Fprintf(stdout, "  batch      %s (candidate %s)\n  projects   %d, sample %v\n  identity   %s\n  decided    %s, valid until %s\n",
 		rec.BatchID, rec.CandidateID, len(rec.Projects), rec.Sample, rec.Identity, rec.DecidedAt, rec.NotAfter)
 	fmt.Fprintln(stdout, "  not checked here (no network): the dry run of every project against upstream; the gate runs it and refuses the batch if it fails")
+	return 0, nil
+}
+
+// onboardingSignatureReport is the one JSON line `approval verify
+// --onboarding-signature` prints: what a verified batch signature commits to.
+type onboardingSignatureReport struct {
+	Artifacts []OnboardingArtifact `json:"artifacts"`
+	BatchID   string               `json:"batchId"`
+	Schema    string               `json:"schema"`
+}
+
+// cmdOnboardingSignatureVerify checks only the signature of one onboarding
+// batch file: strict decoding, the file named after its batch id, the pinned
+// key, the identity tier and the validity window. It reads no tree and no
+// network, so it can run where the full verify (trees, admission history,
+// dry run) cannot; a caller that uses its output as trust must still bind
+// the artifact digests to the bytes it holds. On success it prints one JSON
+// line with the batch id and the signed artifact paths and digests.
+func cmdOnboardingSignatureVerify(args []string, env approvalEnv, stdout io.Writer) (int, error) {
+	var file, keysPath, keysDigest, now string
+	f := flag.NewFlagSet("approval verify --onboarding-signature", flag.ContinueOnError)
+	f.SetOutput(io.Discard)
+	f.StringVar(&file, "onboarding-signature", "", "the onboarding batch file")
+	f.StringVar(&keysPath, "keys", "", "the web-approval key file as it is on the base branch")
+	f.StringVar(&keysDigest, "keys-digest", "", "the pinned digest of the key file")
+	f.StringVar(&now, "now", "", "the clock, RFC 3339 UTC (default: now)")
+	if err := parseApprovalFlags(f, args); err != nil {
+		return 2, err
+	}
+	if file == "" || keysPath == "" || keysDigest == "" {
+		return 2, usageError{"--onboarding-signature, --keys and --keys-digest are required"}
+	}
+	at := env.now()
+	if now != "" {
+		var err error
+		if at, err = time.Parse(time.RFC3339, now); err != nil || !strings.HasSuffix(now, "Z") {
+			return 2, errors.New("--now must be RFC 3339 UTC")
+		}
+	}
+	keys, err := loadKeysFile(keysPath, keysDigest)
+	if err != nil {
+		return 2, err
+	}
+	raw, err := readBoundedFile(file, maxOnboardingBytes+1)
+	if err != nil {
+		return 2, err
+	}
+	refused := func(why string) (int, error) {
+		fmt.Fprintf(stdout, "onboarding batch signature REFUSED: %s\n", logSafe(why))
+		return 1, nil
+	}
+	envl, err := decodeOnboarding(raw)
+	if err != nil {
+		return refused(err.Error())
+	}
+	if filepath.Base(file) != envl.Record.BatchID+".json" {
+		return refused("the file is not named after its batch id")
+	}
+	if err := verifyOnboardingSignature(envl, keys, at); err != nil {
+		return refused(err.Error())
+	}
+	report := onboardingSignatureReport{Artifacts: []OnboardingArtifact{}, BatchID: envl.Record.BatchID, Schema: envl.Schema}
+	for _, p := range envl.Record.Projects {
+		report.Artifacts = append(report.Artifacts, p.Artifacts...)
+	}
+	line, err := json.Marshal(report)
+	if err != nil {
+		return 2, err
+	}
+	fmt.Fprintf(stdout, "%s\n", line)
 	return 0, nil
 }

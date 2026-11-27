@@ -1410,6 +1410,12 @@ prufyx-maintainer approval verify --onboarding cli/knowledge/onboarding/ob-YYYYM
   --base BASE --head HEAD --keys web-approval-keys.json --keys-digest sha256:...
 ```
 
+`prufyx-maintainer approval verify --onboarding-signature FILE --keys FILE --keys-digest sha256:... [--now RFC3339]`
+checks only the signature (strict decoding, file named after its batch id, pinned key, identity tier, validity
+window), reads no tree and prints one JSON line with the signed artifact paths and digests. The QA batch gate uses it,
+built from the base tree, to accept a new CRD version target repo that a signed batch added by the head commits to;
+it grants no admission.
+
 The draft holds the batch id (`ob-YYYYMMDD-N`), a candidate id and the
 projects, each with its dry-run pair, the scan findings it saw and its claims
 summary. The signer computes everything else from the two checkouts with the

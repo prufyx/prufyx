@@ -361,3 +361,49 @@ func TestTableRegistryDigestOfTheEmbeddedTable(t *testing.T) {
 		t.Fatal("no definitions")
 	}
 }
+
+// The signature-only verify prints what the signature commits to and refuses a
+// tampered, wrongly named or expired batch; it reads no tree.
+func TestOnboardingSignatureOnlyVerify(t *testing.T) {
+	t.Parallel()
+	f := newOnboardingFixture(t)
+	f.sign(t, f.record(t))
+	ol := DefaultLayout().Onboarding
+	batch := filepath.Join(f.head.Root, filepath.FromSlash(ol.Dir), f.draft.BatchID+".json")
+	keysPath := filepath.Join(f.base.Root, filepath.FromSlash(DefaultLayout().ApprovalKeysPath))
+	keysRaw, _ := os.ReadFile(keysPath)
+	digest := pinnedDigest(keysRaw)
+	env := approvalEnv{now: func() time.Time { return gateNow }}
+	run := func(path, now string) (int, string) {
+		var out, errOut bytes.Buffer
+		args := []string{"verify", "--onboarding-signature", path, "--keys", keysPath, "--keys-digest", digest, "--now", now}
+		code := approvalMain(args, env, DefaultLayout(), &out, &errOut)
+		return code, out.String() + errOut.String()
+	}
+	code, out := run(batch, gateNow.Format(time.RFC3339))
+	if code != 0 {
+		t.Fatalf("verify: %d %s", code, out)
+	}
+	var rep onboardingSignatureReport
+	if err := json.Unmarshal([]byte(out), &rep); err != nil || rep.BatchID != f.draft.BatchID || len(rep.Artifacts) == 0 {
+		t.Fatalf("report %q: %v", out, err)
+	}
+	for _, a := range rep.Artifacts {
+		if !strings.HasPrefix(a.Digest, "sha256:") || a.Path == "" {
+			t.Fatalf("artifact %+v", a)
+		}
+	}
+	if code, out := run(batch, gateNow.Add(100*time.Hour).Format(time.RFC3339)); code != 1 || !strings.Contains(out, "REFUSED") {
+		t.Fatalf("expired: %d %s", code, out)
+	}
+	raw, _ := os.ReadFile(batch)
+	writeFile(t, batch, bytes.Replace(raw, []byte(`"pr-1"`), []byte(`"pr-2"`), 1))
+	if code, out := run(batch, gateNow.Format(time.RFC3339)); code != 1 || !strings.Contains(out, "REFUSED") {
+		t.Fatalf("tampered: %d %s", code, out)
+	}
+	other := filepath.Join(t.TempDir(), "x.json")
+	writeFile(t, other, raw)
+	if code, out := run(other, gateNow.Format(time.RFC3339)); code != 1 || !strings.Contains(out, "named after") {
+		t.Fatalf("misnamed: %d %s", code, out)
+	}
+}

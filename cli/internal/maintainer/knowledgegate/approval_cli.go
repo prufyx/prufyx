@@ -80,6 +80,9 @@ const approvalUsage = `usage: prufyx-maintainer approval <sign|verify|public-key
               (other admission Git, pause and observation flags as above; no input pathname overrides)
   verify      --onboarding FILE --base DIR --head DIR --keys FILE --keys-digest sha256:... [--now RFC3339]
               v2 also requires the admission Git/history/pause observation flags above
+  verify      --onboarding-signature FILE --keys FILE --keys-digest sha256:... [--now RFC3339]
+              signature, pinned key, identity tier and validity window only; prints one JSON line
+              with the batch id and the signed artifact paths and digests (no tree is read)
   public-key  (--key FILE | --key-stdin)
   keys-digest --keys FILE`
 
@@ -162,6 +165,8 @@ func approvalMain(args []string, env approvalEnv, layout Layout, stdout, stderr 
 	case "verify":
 		if hasBatchFlag(args[1:]) {
 			code, err = cmdBatchVerify(args[1:], env, layout, stdout)
+		} else if hasFlag(args[1:], "onboarding-signature") {
+			code, err = cmdOnboardingSignatureVerify(args[1:], env, stdout)
 		} else if hasFlag(args[1:], "onboarding") {
 			code, err = cmdOnboardingVerify(args[1:], env, layout, stdout)
 		} else {
