@@ -341,12 +341,21 @@ type releaseTag struct {
 	hasFamily bool
 }
 
+// earlyFamilyRelease is the one release name below ListedFamilyFloor that may
+// hold the family. A client at it refuses a package that carries the family as
+// too new (exit 15), because the package names the floor. The exception is for
+// this exact tag name against ListedFamilyFloor only; it changes no floor and
+// no publish check. Do not add names to it.
+const earlyFamilyRelease = "v0.1.0-beta.1"
+
 // floorProblems lists every way the floor fails to separate clients that know
 // the family from clients that do not: a tag that predates the family must be
 // below the floor (a client at it would pass the floor and fail the package
 // as an integrity error, exit 3), and a tag that holds the family must be at
 // or above it (otherwise that release would be refused as too new, or the
-// floor would be too high to be the first release that knows the family).
+// floor would be too high to be the first release that knows the family). The
+// only tag excused from the second condition is earlyFamilyRelease, and only
+// when floor is ListedFamilyFloor.
 func floorProblems(floor string, tags []releaseTag) []string {
 	var problems []string
 	for _, tag := range tags {
@@ -355,7 +364,7 @@ func floorProblems(floor string, tags []releaseTag) []string {
 			problems = append(problems, tag.name+" is not a version")
 		case !tag.hasFamily && buildidentity.AtLeast(tag.name, floor):
 			problems = append(problems, tag.name+" predates the family but is not below the floor "+floor)
-		case tag.hasFamily && !buildidentity.AtLeast(tag.name, floor):
+		case tag.hasFamily && !buildidentity.AtLeast(tag.name, floor) && !(floor == ListedFamilyFloor && tag.name == earlyFamilyRelease):
 			problems = append(problems, tag.name+" holds the family but is below the floor "+floor)
 		}
 	}
@@ -367,8 +376,8 @@ func TestFloorProblems(t *testing.T) {
 	if p := floorProblems(ListedFamilyFloor, before); len(p) != 0 {
 		t.Fatalf("the floor %s is refused for the tags before the family: %v", ListedFamilyFloor, p)
 	}
-	// Tags cut later do not break the check: the release that ships the family
-	// is at the floor or above and holds the family.
+	// Tags cut later do not break the check: a release at the floor or above
+	// holds the family.
 	later := append(append([]releaseTag(nil), before...), releaseTag{ListedFamilyFloor, true}, releaseTag{"v0.1.0-beta.4", true}, releaseTag{"v0.2.0", true})
 	if p := floorProblems(ListedFamilyFloor, later); len(p) != 0 {
 		t.Fatalf("a later tag broke the check: %v", p)
@@ -385,6 +394,36 @@ func TestFloorProblems(t *testing.T) {
 	}
 	if p := floorProblems(ListedFamilyFloor, []releaseTag{{"latest", false}}); len(p) != 1 {
 		t.Fatalf("a tag that is not a version: %v", p)
+	}
+	// The one named exception. Its literal is held here, so changing the
+	// constant fails this test.
+	if earlyFamilyRelease != "v0.1.0-beta.1" {
+		t.Fatalf("the early release exception names %q", earlyFamilyRelease)
+	}
+	early := releaseTag{"v0.1.0-beta.1", true}
+	if p := floorProblems(ListedFamilyFloor, append(append([]releaseTag(nil), before...), early)); len(p) != 0 {
+		t.Fatalf("the named early release is refused: %v", p)
+	}
+	// No other name below the floor is excused, alone or next to the named one.
+	for _, name := range []string{"v0.1.0-beta.2", "v0.0.2", "v0.1.0-beta.1.1", "v0.1.0-beta.1+1", "0.1.0-beta.1", "v0.1.0-alpha.1"} {
+		if p := floorProblems(ListedFamilyFloor, []releaseTag{early, {name, true}}); len(p) != 1 || !strings.HasPrefix(p[0], name+" ") {
+			t.Errorf("%s holding the family below the floor: %v", name, p)
+		}
+	}
+	// A lowered floor is still refused with the named release among the tags.
+	if p := floorProblems("v0.1.0-beta.0", append(append([]releaseTag(nil), before...), early)); len(p) == 0 {
+		t.Fatal("a floor lowered to the last released tag was accepted with the early release")
+	}
+	// The exception holds against ListedFamilyFloor only.
+	for _, floor := range []string{"v0.1.0-beta.2", "v0.1.0-beta.4", "v0.2.0"} {
+		if p := floorProblems(floor, []releaseTag{early}); len(p) != 1 {
+			t.Errorf("floor %s: the early release was excused: %v", floor, p)
+		}
+	}
+	// The name excuses only holding the family below the floor: without the
+	// family it still counts as a tag that predates it against a lower floor.
+	if p := floorProblems("v0.1.0-beta.0", []releaseTag{{earlyFamilyRelease, false}}); len(p) != 1 {
+		t.Fatalf("the early name without the family at a lowered floor: %v", p)
 	}
 }
 

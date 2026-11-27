@@ -11,15 +11,17 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/lineattest"
 )
 
-// ListedFamilyFloor is the first release whose clients know the
-// changelog.listed_entries attestation family. The family list of an older
-// client is closed, so such a client fails a package that carries the family
-// as an integrity error (exit 3). A package that carries the family therefore
-// names this version as its minClientVersion, so an older client reports it
-// as too new (exit 15) before it reads any project target. It is a
-// build-time constant: raising it is a code change, and it must be above
-// every release tag cut before the release that ships the family (a test
-// pins that) and above the oldest supported client.
+// ListedFamilyFloor is the first release a published package may carry the
+// changelog.listed_entries attestation family to. The family list of a client
+// that does not know it is closed, so such a client fails a package that
+// carries the family as an integrity error (exit 3). A package that carries
+// the family therefore names this version as its minClientVersion, so an older
+// client reports it as too new (exit 15) before it reads any project target.
+// It is a build-time constant: raising it is a code change, and it must be
+// above every release tag that predates the family and above the oldest
+// supported client. A release below it may not hold the family, with one named
+// exception, v0.1.0-beta.1: if that release holds the family, packages that
+// carry the family still refuse it as too new. A test pins these tag rules.
 const ListedFamilyFloor = "v0.1.0-beta.3"
 
 // ErrListedFloorInvalid is joined with ErrIntegrity when the listed-family

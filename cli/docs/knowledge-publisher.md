@@ -702,11 +702,11 @@ knowledge gate admits no provider fact while the oldest supported client pin is
 below that release (see [knowledge-gate.md](knowledge-gate.md#provider-facts)).
 
 **Listed changelog entries.** A `changelog.listed_entries` attestation (the
-family behind the L figures) is readable only from the first release that knows
-the family (`cncfcheck.ListedFamilyFloor`, a build-time constant that is above
-every release cut before it and above the oldest supported client pin). A client
-that does not know the family would fail the package as an integrity failure
-(exit `3`), so:
+family behind the L figures) is published only for clients from
+`cncfcheck.ListedFamilyFloor` on, a build-time constant that is above every
+release that predates the family and above the oldest supported client pin. A
+client that does not know the family would fail the package as an integrity
+failure (exit `3`), so:
 
 - while the oldest supported client pin is below the floor, or unknown, the
   publisher leaves every listed attestation out of the package before anything
@@ -733,9 +733,17 @@ The floor is also checked against the real release tags of the checkout
 must be below the floor, a tag that holds it at or above; on CI an unreadable
 tag list fails the job.
 
+There is one named exception to the tag rule: a tag named exactly
+`v0.1.0-beta.1` may hold the family although it is below the floor. No other
+name is excused, and the floor, the publisher refusals and the gates are
+unchanged. A client of that release is refused as too new (exit `15`) by every
+package that carries the family, so once the pin reaches the floor and such
+packages are published, it can no longer update its knowledge from them.
+
 L counts and the README coverage block are repository knowledge: they are
-computed from the repository, and a client receives the records only from the
-floor release on.
+computed from the repository, and a knowledge package delivers the records only
+to clients from the floor release on. A release that holds the family also has
+the records of its own commit built in.
 
 Until the first beta tag exists, `ref` is a commit of `main`. After the
 `v0.1.0-beta.0` cut, a PR sets `ref` to that tag.
