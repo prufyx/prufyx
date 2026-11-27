@@ -299,7 +299,7 @@ func TestKnowledgeUpdateTooNewForThisClient(t *testing.T) {
 	buildidentity.Version = "v0.1.0-beta.0"
 	t.Cleanup(func() { buildidentity.Version = old })
 	env := newDefaultUpdateEnv(t)
-	if code, _, stderr := runDefaultUpdate(t, perProjectPackage(t, env.repo, 1, "4")); code != ExitOK {
+	if code, _, stderr := runDefaultUpdate(t, oldClientPackage(t, env.repo, 1, "4")); code != ExitOK {
 		t.Fatal(code, stderr)
 	}
 	index, projects, err := buildEmbeddedForOldClient("5")
@@ -379,7 +379,7 @@ func TestKnowledgeUpdateProviderFactsFloorIsTooNewNotIntegrity(t *testing.T) {
 		t.Fatal("the test client already reads provider facts")
 	}
 	env := newDefaultUpdateEnv(t)
-	if code, _, stderr := runDefaultUpdate(t, perProjectPackage(t, env.repo, 1, "4")); code != ExitOK {
+	if code, _, stderr := runDefaultUpdate(t, oldClientPackage(t, env.repo, 1, "4")); code != ExitOK {
 		t.Fatal(code, stderr)
 	}
 	index, projects, err := buildEmbeddedForOldClient("5")

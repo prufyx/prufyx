@@ -47,9 +47,8 @@ func projectsTargets(t *testing.T, revision string, projectRevisions map[string]
 		err      error
 	)
 	if projectRevisions == nil {
-		// The publisher path while the oldest supported client is below the
-		// listed-family floor: the real exclusion runs.
-		index, projects, _, err = cncfcheck.BuildEmbeddedExternalTargetsPinned(revision, nil, "v0.1.0-beta.0")
+		// The publisher path for clients from the floor.
+		index, projects, _, err = cncfcheck.BuildEmbeddedExternalTargetsPinned(revision, nil, cncfcheck.BoundaryCoveredFloor)
 	} else {
 		// Upgrade tests with per-project revisions run under the test binary's
 		// own (development) client version, which is at or above the

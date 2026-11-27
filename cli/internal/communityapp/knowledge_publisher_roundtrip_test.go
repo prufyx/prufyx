@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/cncfknowledge"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgerelease"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgesign"
@@ -43,6 +44,7 @@ func TestPublisherReleaseRoundTripMatchesEmbeddedVerdicts(t *testing.T) {
 		Revision: "81", Version: 1, Root: filepath.Join(keys, "root.json"), RootDigest: initialized.RootDigest,
 		TargetsKey: filepath.Join(keys, "targets.key.pem"), SnapshotKey: filepath.Join(keys, "snapshot.key.pem"), TimestampKey: filepath.Join(keys, "timestamp.key.pem"),
 		PassphraseFile: passFile, FirstRelease: true, OutputDir: out, Now: time.Now().UTC(),
+		OldestClient: cncfcheck.BoundaryCoveredFloor,
 	})
 	if err != nil {
 		t.Fatal(err)

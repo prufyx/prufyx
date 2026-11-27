@@ -17,7 +17,7 @@ import (
 func importTooNewStore(t *testing.T) (*projectsFixture, string) {
 	t.Helper()
 	withBuildVersion(t, "dev")
-	base := projectsTargets(t, "5", nil)
+	base := downlevelTargets(t, "5")
 	base[ConstraintsProjectsIndexTargetPath] = indexWithExtra(t, base[ConstraintsProjectsIndexTargetPath], `"minClientVersion":"v0.2.0"`)
 	f := newProjectsFixture(t)
 	if r, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: base})); err != nil || r.Status != "IMPORTED" {

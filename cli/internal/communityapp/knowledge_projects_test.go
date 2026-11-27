@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -16,9 +17,23 @@ import (
 	"github.com/prufyx/prufyx/cli/internal/knowledgefixture"
 )
 
+// perProjectPackage is the shipped knowledge as a publisher builds it for
+// clients from the floor.
 func perProjectPackage(t *testing.T, repo *knowledgefixture.ProjectsRepository, version int64, revision string) []byte {
 	t.Helper()
-	index, projects, err := buildEmbeddedForOldClient(revision)
+	return signedPerProjectPackage(t, repo, version, revision, buildEmbeddedForFloorClient)
+}
+
+// oldClientPackage is the downlevel package, for import and refusal behaviour
+// of a client below the floor only.
+func oldClientPackage(t *testing.T, repo *knowledgefixture.ProjectsRepository, version int64, revision string) []byte {
+	t.Helper()
+	return signedPerProjectPackage(t, repo, version, revision, buildEmbeddedForOldClient)
+}
+
+func signedPerProjectPackage(t *testing.T, repo *knowledgefixture.ProjectsRepository, version int64, revision string, build func(string) (cncfcheck.ExternalTarget, []cncfcheck.ExternalTarget, error)) []byte {
+	t.Helper()
+	index, projects, err := build(revision)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,15 +126,65 @@ func TestKnowledgeUpdateSingleTargetProfileRejectsPerProjectPackageClearly(t *te
 	}
 }
 
-// oldClientFloor is below cncfcheck.ListedFamilyFloor: the oldest supported
-// client the publisher is pinned to while the listed family is not shipped.
+// oldClientFloor is a client below both floors.
 const oldClientFloor = "v0.1.0-beta.0"
 
-// buildEmbeddedForOldClient builds the per-project layout the way the
-// publisher does while the oldest supported client is below the listed-family
-// floor: the real exclusion runs, so the package names no listed-family
-// minClientVersion.
-func buildEmbeddedForOldClient(revision string) (cncfcheck.ExternalTarget, []cncfcheck.ExternalTarget, error) {
-	index, projects, _, err := cncfcheck.BuildEmbeddedExternalTargetsPinned(revision, nil, oldClientFloor)
+// buildEmbeddedForFloorClient builds the shipped per-project layout for
+// clients from the floor.
+func buildEmbeddedForFloorClient(revision string) (cncfcheck.ExternalTarget, []cncfcheck.ExternalTarget, error) {
+	index, projects, _, err := cncfcheck.BuildEmbeddedExternalTargetsPinned(revision, nil, cncfcheck.BoundaryCoveredFloor)
 	return index, projects, err
+}
+
+// buildEmbeddedForOldClient builds a downlevel package: the embedded pack
+// without the listed family and without the declared opt-in level, so its
+// index names no minClientVersion. It evaluates line-wide rules under the
+// older contract: use it for import and refusal behaviour only, never to
+// compare verdicts.
+func buildEmbeddedForOldClient(revision string) (cncfcheck.ExternalTarget, []cncfcheck.ExternalTarget, error) {
+	var none cncfcheck.ExternalTarget
+	raw, err := cncfcheck.EmbeddedRulePack()
+	if err != nil {
+		return none, nil, err
+	}
+	var pack map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &pack); err != nil {
+		return none, nil, err
+	}
+	if section, ok := pack["lineAttestations"]; ok {
+		kept, _, err := cncfcheck.ExcludeListedAttestations(section, oldClientFloor)
+		if err != nil {
+			return none, nil, err
+		}
+		if len(kept) == 0 {
+			delete(pack, "lineAttestations")
+		} else {
+			pack["lineAttestations"] = kept
+		}
+	}
+	pack["schema"] = json.RawMessage(`""`)
+	if raw, err = json.Marshal(pack); err != nil {
+		return none, nil, err
+	}
+	schema, err := cncfcheck.RequiredPackSchema(raw)
+	if err != nil {
+		return none, nil, err
+	}
+	if cncfcheck.PackSchemaIsOptIn(schema) {
+		return none, nil, fmt.Errorf("the downlevel pack still states the opt-in level %s", schema)
+	}
+	if pack["schema"], err = json.Marshal(schema); err != nil {
+		return none, nil, err
+	}
+	if raw, err = json.Marshal(pack); err != nil {
+		return none, nil, err
+	}
+	index, projects, _, err := cncfcheck.BuildExternalTargetsFromPackPinned(raw, revision, oldClientFloor)
+	if err != nil {
+		return none, nil, err
+	}
+	if minimum, ok := cncfcheck.ExternalIndexMinClient(index.Bytes); ok {
+		return none, nil, fmt.Errorf("the downlevel index names minClientVersion %s", minimum)
+	}
+	return index, projects, nil
 }

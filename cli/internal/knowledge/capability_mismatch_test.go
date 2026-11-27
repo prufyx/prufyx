@@ -55,7 +55,7 @@ func futureProjectsTargets(t *testing.T, revision string) map[string][]byte {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The project targets come from the publisher path below the listed-family
+	// The project targets come from the publisher path for clients from the
 	// floor (projectsTargets); only the base capability digest is taken from
 	// the compatible build, which is not floor-aware.
 	var base struct {

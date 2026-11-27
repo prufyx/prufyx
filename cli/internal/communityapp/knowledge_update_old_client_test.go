@@ -96,7 +96,7 @@ func TestKnowledgeUpdateOldClientNewCapabilityPackage(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			env := newDefaultUpdateEnv(t)
-			if code, _, stderr := runDefaultUpdate(t, perProjectPackage(t, env.repo, 1, "4")); code != ExitOK {
+			if code, _, stderr := runDefaultUpdate(t, oldClientPackage(t, env.repo, 1, "4")); code != ExitOK {
 				t.Fatal(code, stderr)
 			}
 			before := snapshotTree(t, env.data)

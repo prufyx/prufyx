@@ -32,11 +32,65 @@ func indexWithExtra(t *testing.T, index []byte, extra string) []byte {
 	return append(append(append([]byte(nil), index[:len(index)-1]...), ','), append([]byte(extra), '}')...)
 }
 
+// downlevelTargets is the embedded pack without the listed family and without
+// the declared opt-in level, keyed by TUF target path; its index names no
+// minClientVersion. It evaluates line-wide rules under the older contract: use
+// it for import and refusal behaviour only, never to compare verdicts.
+func downlevelTargets(t *testing.T, revision string) map[string][]byte {
+	t.Helper()
+	const below = "v0.1.0-beta.0"
+	raw, err := cncfcheck.EmbeddedRulePack()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pack map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &pack); err != nil {
+		t.Fatal(err)
+	}
+	if section, ok := pack["lineAttestations"]; ok {
+		kept, _, err := cncfcheck.ExcludeListedAttestations(section, below)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(kept) == 0 {
+			delete(pack, "lineAttestations")
+		} else {
+			pack["lineAttestations"] = kept
+		}
+	}
+	pack["schema"] = json.RawMessage(`""`)
+	if raw, err = json.Marshal(pack); err != nil {
+		t.Fatal(err)
+	}
+	schema, err := cncfcheck.RequiredPackSchema(raw)
+	if err != nil || cncfcheck.PackSchemaIsOptIn(schema) {
+		t.Fatalf("downlevel schema %q: %v", schema, err)
+	}
+	if pack["schema"], err = json.Marshal(schema); err != nil {
+		t.Fatal(err)
+	}
+	if raw, err = json.Marshal(pack); err != nil {
+		t.Fatal(err)
+	}
+	index, projects, _, err := cncfcheck.BuildExternalTargetsFromPackPinned(raw, revision, below)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if minimum, ok := cncfcheck.ExternalIndexMinClient(index.Bytes); ok {
+		t.Fatalf("the downlevel index names minClientVersion %q", minimum)
+	}
+	targets := map[string][]byte{index.Path: index.Bytes}
+	for _, project := range projects {
+		targets[project.Path] = project.Bytes
+	}
+	return targets
+}
+
 // An index the pinned root signed but this build cannot read is rejected
 // without advancing trust, so the store stays usable and a later readable
 // package still imports.
 func TestUnsupportedIndexDoesNotAdvanceTrust(t *testing.T) {
-	base := projectsTargets(t, "5", nil)
+	base := downlevelTargets(t, "5")
 	index := base[ConstraintsProjectsIndexTargetPath]
 	withIndex := func(raw []byte) map[string][]byte {
 		c := map[string][]byte{}
@@ -88,7 +142,7 @@ func TestUnsupportedIndexDoesNotAdvanceTrust(t *testing.T) {
 			if _, err := OpenSelectedCNCF(SelectionRequest{StoreRoot: f.store}, []string{projectOf(t, first)}); err != nil {
 				t.Fatalf("open after unsupported import: %v", err)
 			}
-			recovered, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: projectsTargets(t, "6", nil)}))
+			recovered, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: downlevelTargets(t, "6")}))
 			if err != nil || recovered.TrustReceipt.KnowledgeRevision != "6" {
 				t.Fatalf("recovery receipt=%+v err=%v", recovered, err)
 			}
@@ -98,14 +152,14 @@ func TestUnsupportedIndexDoesNotAdvanceTrust(t *testing.T) {
 
 func TestUnsupportedFirstImportLeavesNoTrust(t *testing.T) {
 	withBuildVersion(t, "v0.1.0-beta.0")
-	base := projectsTargets(t, "5", nil)
+	base := downlevelTargets(t, "5")
 	base[ConstraintsProjectsIndexTargetPath] = indexWithExtra(t, base[ConstraintsProjectsIndexTargetPath], `"minClientVersion":"v0.2.0"`)
 	f := newProjectsFixture(t)
 	receipt, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: base}))
 	if !errors.Is(err, ErrUnsupportedKnowledge) || receipt.TrustStateAdvanced {
 		t.Fatalf("receipt=%+v err=%v", receipt, err)
 	}
-	ok, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: projectsTargets(t, "6", nil)}))
+	ok, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: downlevelTargets(t, "6")}))
 	if err != nil || ok.Status != "IMPORTED" {
 		t.Fatalf("later readable package: %+v err=%v", ok, err)
 	}
@@ -113,7 +167,7 @@ func TestUnsupportedFirstImportLeavesNoTrust(t *testing.T) {
 
 func TestMinClientVersionSatisfiedImports(t *testing.T) {
 	withBuildVersion(t, "v0.1.0-beta.1")
-	base := projectsTargets(t, "5", nil)
+	base := downlevelTargets(t, "5")
 	base[ConstraintsProjectsIndexTargetPath] = indexWithExtra(t, base[ConstraintsProjectsIndexTargetPath], `"minClientVersion":"v0.1.0-beta.0"`)
 	f := newProjectsFixture(t)
 	receipt, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: base}))
@@ -125,7 +179,7 @@ func TestMinClientVersionSatisfiedImports(t *testing.T) {
 // A tampered project target is still an integrity failure that advances
 // trust, exactly as before.
 func TestTamperedProjectTargetStaysIntegrityAndAdvancesTrust(t *testing.T) {
-	base := projectsTargets(t, "5", nil)
+	base := downlevelTargets(t, "5")
 	first, _ := firstProjects(base)
 	f := newProjectsFixture(t)
 	good, err := f.importPackage(f.write(t, knowledgefixture.ProjectsPackage{Targets: base}))
@@ -160,7 +214,7 @@ func TestExternalIndexMinClientIsLenient(t *testing.T) {
 // field), listed by an index without minClientVersion, is unsupported: no
 // trust advance, the store stays READY.
 func TestUnsupportedProjectTargetDoesNotAdvanceTrust(t *testing.T) {
-	base := projectsTargets(t, "5", nil)
+	base := downlevelTargets(t, "5")
 	first, _ := firstProjects(base)
 	oldRaw := base[first]
 	newRaw := append(append([]byte(nil), oldRaw[:len(oldRaw)-1]...), []byte(`,"futureField":true}`)...)
@@ -231,7 +285,7 @@ type exactOuterIndex struct {
 func TestExactOuterExtensionClassification(t *testing.T) {
 	for _, canary := range []bool{false, true} {
 		t.Run(fmt.Sprintf("canary-%t", canary), func(t *testing.T) {
-			all := projectsTargets(t, "5", nil)
+			all := downlevelTargets(t, "5")
 			first := firstProjectWithEntries(t, all)
 			var target map[string]json.RawMessage
 			if json.Unmarshal(all[first], &target) != nil {
