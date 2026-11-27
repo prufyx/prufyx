@@ -5958,7 +5958,7 @@
     },
     {
       "project": "etcd",
-      "description": "Removal of the eight named etcd v2/proxy options only; data migration and quorum health are unverified. Whole-line: the eight options are registered in every 3.5 release (v3.5.0 to v3.5.36) and registered in no 3.6 release (v3.6.0 to v3.6.17), nor listed among its ignored flags, read at each release tag.",
+      "description": "Removal of the eight named etcd v2/proxy options only; data migration and quorum health are unverified.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -5984,26 +5984,10 @@
           "boolValue": true
         },
         "evidence": {
-          "state": "active",
+          "state": "withdrawn",
           "reviewedAt": "2026-11-24T05:14:40Z",
           "validUntil": "2027-02-22T05:14:40Z",
           "sources": [
-            {
-              "contentDigest": "sha256:6711bfcd2b8ec1ea6d882c9f92612183b20055b2c66715208b4eb626e0857677",
-              "endLine": 234,
-              "id": "etcd-3-5-36-v2-proxy-flags",
-              "revision": "a5f37e35a47bf71c01a1708deaba210374335f1b",
-              "startLine": 224,
-              "url": "https://github.com/etcd-io/etcd/blob/a5f37e35a47bf71c01a1708deaba210374335f1b/server/etcdmain/config.go"
-            },
-            {
-              "contentDigest": "sha256:e78c592a0ac299ef9a74c2ba157b383576f048f92a4d120573319d4c4cb2faa4",
-              "endLine": 139,
-              "id": "etcd-3-6-17-new-config",
-              "revision": "0689586e360e2c6b46f95ad5634c25d5fa1683db",
-              "startLine": 102,
-              "url": "https://github.com/etcd-io/etcd/blob/0689586e360e2c6b46f95ad5634c25d5fa1683db/server/etcdmain/config.go"
-            },
             {
               "contentDigest": "sha256:be26b5ae5bdc89450da840ca42621f0dac915be749b0c63932f353ac112b05ed",
               "endLine": 220,
@@ -6031,39 +6015,7 @@
           ]
         },
         "reasonCode": "REVIEWED_SOURCE_CONSTRAINT",
-        "nextAction": "Remove the documented v2/proxy flags from the proposed effective arguments; plan storage and quorum migration separately.",
-        "range": {
-          "bounds": [
-            {
-              "basis": "PREVIOUS_MINOR_LINE",
-              "bound": "from.gte",
-              "sourceId": "etcd-3-5-36-v2-proxy-flags"
-            },
-            {
-              "basis": "REMOVED_IN_RELEASE",
-              "bound": "from.lt",
-              "sourceId": "source-f5d605a93abe-104"
-            },
-            {
-              "basis": "REMOVED_IN_RELEASE",
-              "bound": "to.gte",
-              "sourceId": "source-f5d605a93abe-104"
-            },
-            {
-              "basis": "TARGET_SERIES",
-              "bound": "to.lt",
-              "sourceId": "etcd-3-6-17-new-config"
-            }
-          ],
-          "from": {
-            "gte": "3.5.0",
-            "lt": "3.6.0"
-          },
-          "to": {
-            "gte": "3.6.0",
-            "lt": "3.7.0"
-          }
-        }
+        "nextAction": "Remove the documented v2/proxy flags from the proposed effective arguments; plan storage and quorum migration separately."
       }
     },
     {
@@ -15614,7 +15566,7 @@
     },
     {
       "project": "kubevirt",
-      "description": "KubeVirt 1.9.0 requires each supplied VM or VMI interface to have exactly one binding method or binding plugin; this resource-local check does not inspect admission, feature gates, plugins, or runtime behavior. Whole-line: pkg/network/admitter/binding.go is byte-identical to the cited 1.8.4 file at every 1.8 release (v1.8.0 to v1.8.4) and to the cited 1.9.0 file at every 1.9 release (v1.9.0, v1.9.1); the API schema file is byte-identical to the cited one at both 1.9 releases, read at each release tag.",
+      "description": "KubeVirt 1.9.0 requires each supplied VM or VMI interface to have exactly one binding method or binding plugin; this resource-local check does not inspect admission, feature gates, plugins, or runtime behavior. The from side starts at 1.8.4, the latest 1.8 release: the upstream upgrade guide supports an upgrade only from the latest patch of the previous minor. pkg/network/admitter/binding.go is byte-identical to the cited 1.9.0 file at every 1.9 release (v1.9.0, v1.9.1); the API schema file is byte-identical to the cited one at both 1.9 releases, read at each release tag.",
       "requiredFacts": [
         {
           "side": "proposed",
@@ -15676,7 +15628,7 @@
         "range": {
           "bounds": [
             {
-              "basis": "PREVIOUS_MINOR_LINE",
+              "basis": "ANCHOR_ONLY",
               "bound": "from.gte",
               "sourceId": "kubevirt-v1-8-4-binding-plugin-conflict"
             },
@@ -15697,7 +15649,7 @@
             }
           ],
           "from": {
-            "gte": "1.8.0",
+            "gte": "1.8.4",
             "lt": "1.9.0"
           },
           "to": {

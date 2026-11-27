@@ -13989,7 +13989,7 @@
             ]
           }
         },
-        "status": "PASS"
+        "status": "UNKNOWN"
       },
       {
         "name": "blocked",
@@ -14021,7 +14021,7 @@
             ]
           }
         },
-        "status": "BLOCKED"
+        "status": "UNKNOWN"
       },
       {
         "name": "missing",
@@ -14114,7 +14114,7 @@
         "status": "UNKNOWN"
       },
       {
-        "name": "range-interior-non-exact-versions-blocked",
+        "name": "range-interior-below-source-floor-unknown",
         "input": {
           "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
           "authority": "OPERATOR_DECLARED_MINIMIZED",
@@ -14143,7 +14143,7 @@
             ]
           }
         },
-        "status": "BLOCKED"
+        "status": "UNKNOWN"
       }
     ]
   },
@@ -33546,7 +33546,7 @@
         "status": "UNKNOWN"
       },
       {
-        "name": "range-interior-non-exact-versions-blocked",
+        "name": "range-interior-below-source-floor-unknown",
         "input": {
           "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1",
           "authority": "OPERATOR_DECLARED_MINIMIZED",
@@ -33575,7 +33575,7 @@
             ]
           }
         },
-        "status": "BLOCKED"
+        "status": "UNKNOWN"
       },
       {
         "name": "range-upper-boundary-outside-unknown",
