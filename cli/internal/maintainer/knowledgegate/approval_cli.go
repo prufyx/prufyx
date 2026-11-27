@@ -20,7 +20,8 @@ import (
 	"golang.org/x/term"
 )
 
-const approvalUsage = `usage: prufyx-maintainer approval <sign|verify|carry-exception|public-key|keys-digest> [options]
+const approvalUsage = `usage: prufyx-maintainer approval <sign|verify|public-key|keys-digest> [options]
+       prufyx-maintainer approval carry-exception [options]
   carry-exception --pack cncf|community --record ID --base-pack FILE --keys FILE --keys-digest sha256:...
               --identity LOGIN --not-after RFC3339 (--key FILE | --key-stdin) --output FILE
               (excepts one record from the refusal of automated date carry; at most 14 days)
