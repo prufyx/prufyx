@@ -43,7 +43,7 @@ func TestMaintainerCLI_PerProjectRelease(t *testing.T) {
 		return append([]string{"knowledge-publish", "release", "--profile", "cncf-projects", "--revision", revision, "--version", version,
 			"--root", filepath.Join(keys, "root.json"), "--root-digest", rootDigest,
 			"--targets-key", filepath.Join(keys, "targets.key.pem"), "--snapshot-key", filepath.Join(keys, "snapshot.key.pem"), "--timestamp-key", filepath.Join(keys, "timestamp.key.pem"),
-			"--passphrase-file", filepath.Join(parent, "pass")}, extra...)
+			"--passphrase-file", filepath.Join(parent, "pass"), "--oldest-client", cncfcheck.BoundaryCoveredFloor}, extra...)
 	}
 	var stdout, stderr bytes.Buffer
 	// Neither a previous index nor --first-release: refused before any output.
@@ -80,7 +80,7 @@ func TestMaintainerCLI_TargetsDirFeedsPrepareTargets(t *testing.T) {
 	parent, rootDigest := perProjectFixture(t)
 	exported := filepath.Join(parent, "targets")
 	var stdout, stderr bytes.Buffer
-	if err := run([]string{"export-knowledge", "--profile", "cncf-projects", "--revision", "5", "--output", exported}, &stdout, &stderr); err != nil {
+	if err := run([]string{"export-knowledge", "--profile", "cncf-projects", "--revision", "5", "--oldest-client", cncfcheck.BoundaryCoveredFloor, "--output", exported}, &stdout, &stderr); err != nil {
 		t.Fatal(err)
 	}
 	root := filepath.Join(parent, "keys", "root.json")

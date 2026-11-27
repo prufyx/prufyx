@@ -13,7 +13,7 @@ import (
 
 func TestRetiredSingleExportDoesNotCreateOutput(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "constraints.v1.json")
-	if err := Write(Options{Profile: "cncf", Revision: "73", Output: output}); !errors.Is(err, ErrRejected) {
+	if err := Write(Options{Profile: "cncf", Revision: "73", Output: output, OldestClient: cncfcheck.BoundaryCoveredFloor}); !errors.Is(err, ErrRejected) {
 		t.Fatalf("retired export: %v", err)
 	}
 	if _, err := os.Stat(output); !errors.Is(err, os.ErrNotExist) {
@@ -27,16 +27,16 @@ func TestWriteRejectsExistingOrInvalidOptions(t *testing.T) {
 	if err := os.WriteFile(existing, []byte("sentinel"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := Write(Options{Profile: "cncf", Revision: "1", Output: existing}); !errors.Is(err, ErrRejected) {
+	if err := Write(Options{Profile: "cncf", Revision: "1", Output: existing, OldestClient: cncfcheck.BoundaryCoveredFloor}); !errors.Is(err, ErrRejected) {
 		t.Fatalf("existing error=%v", err)
 	}
 	if raw, err := os.ReadFile(existing); err != nil || string(raw) != "sentinel" {
 		t.Fatalf("existing changed raw=%q err=%v", raw, err)
 	}
 	for _, options := range []Options{
-		{Profile: "other", Revision: "1", Output: filepath.Join(dir, "other.json")},
-		{Profile: "cncf", Revision: "0", Output: filepath.Join(dir, "zero.json")},
-		{Profile: "cncf", Revision: "1", Output: ""},
+		{Profile: "other", Revision: "1", Output: filepath.Join(dir, "other.json"), OldestClient: cncfcheck.BoundaryCoveredFloor},
+		{Profile: "cncf", Revision: "0", Output: filepath.Join(dir, "zero.json"), OldestClient: cncfcheck.BoundaryCoveredFloor},
+		{Profile: "cncf", Revision: "1", Output: "", OldestClient: cncfcheck.BoundaryCoveredFloor},
 	} {
 		if err := Write(options); !errors.Is(err, ErrRejected) {
 			t.Fatalf("options=%+v err=%v", options, err)
@@ -46,7 +46,7 @@ func TestWriteRejectsExistingOrInvalidOptions(t *testing.T) {
 
 func TestWriteProjectsExportsIndexAndProjectTargets(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "targets")
-	if err := Write(Options{Revision: "73", Output: output}); err != nil {
+	if err := Write(Options{Revision: "73", Output: output, OldestClient: cncfcheck.BoundaryCoveredFloor}); err != nil {
 		t.Fatal(err)
 	}
 	index, err := os.ReadFile(filepath.Join(output, "knowledge", "cncf", "index.v1.json"))
@@ -67,7 +67,7 @@ func TestWriteProjectsExportsIndexAndProjectTargets(t *testing.T) {
 		}
 	}
 	// A second export onto the same directory is refused and changes nothing.
-	if err := Write(Options{Profile: ProfileCNCFProjects, Revision: "73", Output: output}); !errors.Is(err, ErrRejected) {
+	if err := Write(Options{Profile: ProfileCNCFProjects, Revision: "73", Output: output, OldestClient: cncfcheck.BoundaryCoveredFloor}); !errors.Is(err, ErrRejected) {
 		t.Fatalf("existing directory: %v", err)
 	}
 	// The next revision built from this index keeps unchanged projects at 73.
@@ -76,7 +76,7 @@ func TestWriteProjectsExportsIndexAndProjectTargets(t *testing.T) {
 		t.Fatal(err)
 	}
 	next := filepath.Join(t.TempDir(), "next")
-	if err := Write(Options{Profile: ProfileCNCFProjects, Revision: "74", Output: next, PreviousIndex: previous}); err != nil {
+	if err := Write(Options{Profile: ProfileCNCFProjects, Revision: "74", Output: next, PreviousIndex: previous, OldestClient: cncfcheck.BoundaryCoveredFloor}); err != nil {
 		t.Fatal(err)
 	}
 	nextIndex, err := os.ReadFile(filepath.Join(next, "knowledge", "cncf", "index.v1.json"))
@@ -93,11 +93,11 @@ func TestWriteProjectsExportsIndexAndProjectTargets(t *testing.T) {
 		}
 	}
 	// A revision that does not advance the previous index is refused.
-	if err := Write(Options{Profile: ProfileCNCFProjects, Revision: "73", Output: filepath.Join(t.TempDir(), "same"), PreviousIndex: previous}); !errors.Is(err, ErrRejected) {
+	if err := Write(Options{Profile: ProfileCNCFProjects, Revision: "73", Output: filepath.Join(t.TempDir(), "same"), PreviousIndex: previous, OldestClient: cncfcheck.BoundaryCoveredFloor}); !errors.Is(err, ErrRejected) {
 		t.Fatalf("non-advancing revision: %v", err)
 	}
 	// The single-target profile takes no previous index.
-	if err := Write(Options{Profile: "cncf", Revision: "73", Output: filepath.Join(t.TempDir(), "c.json"), PreviousIndex: previous}); !errors.Is(err, ErrRejected) {
+	if err := Write(Options{Profile: "cncf", Revision: "73", Output: filepath.Join(t.TempDir(), "c.json"), PreviousIndex: previous, OldestClient: cncfcheck.BoundaryCoveredFloor}); !errors.Is(err, ErrRejected) {
 		t.Fatalf("cncf profile accepted --previous-index: %v", err)
 	}
 }

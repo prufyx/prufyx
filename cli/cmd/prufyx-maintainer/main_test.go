@@ -481,7 +481,7 @@ func TestMaintainerCLI_K8sDeclared_CheckAcceptedFiles(t *testing.T) {
 func TestMaintainerCLIExportKnowledgeWritesNewTarget(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "constraints.v1.json")
 	var stdout, stderr bytes.Buffer
-	if err := run([]string{"export-knowledge", "--revision", "73", "--output", output}, &stdout, &stderr); err != nil {
+	if err := run([]string{"export-knowledge", "--revision", "73", "--oldest-client", cncfcheck.BoundaryCoveredFloor, "--output", output}, &stdout, &stderr); err != nil {
 		t.Fatalf("export failed: %v stderr=%q", err, stderr.String())
 	}
 	if stdout.Len() != 0 || stderr.Len() != 0 {
@@ -491,7 +491,7 @@ func TestMaintainerCLIExportKnowledgeWritesNewTarget(t *testing.T) {
 	if err != nil || !info.IsDir() {
 		t.Fatalf("output info=%v err=%v", info, err)
 	}
-	if err := run([]string{"export-knowledge", "--profile", "cncf", "--revision", "73", "--output", output}, &stdout, &stderr); err == nil {
+	if err := run([]string{"export-knowledge", "--profile", "cncf", "--revision", "73", "--oldest-client", cncfcheck.BoundaryCoveredFloor, "--output", output}, &stdout, &stderr); err == nil {
 		t.Fatal("existing output accepted")
 	}
 }

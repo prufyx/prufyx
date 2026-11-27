@@ -4,11 +4,13 @@ package knowledgerelease
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgesign"
 )
 
@@ -46,7 +48,21 @@ func fixture(t *testing.T) Options {
 		Root: filepath.Join(keys, "root.json"), RootDigest: init.RootDigest,
 		TargetsKey: filepath.Join(keys, "targets.key.pem"), SnapshotKey: filepath.Join(keys, "snapshot.key.pem"), TimestampKey: filepath.Join(keys, "timestamp.key.pem"),
 		PassphraseFile: pass, FirstRelease: true,
-		OutputDir: filepath.Join(parent, "out"), Now: pinnedNow,
+		// The shipped pack is built only for clients from its floor.
+		OldestClient: cncfcheck.BoundaryCoveredFloor,
+		OutputDir:    filepath.Join(parent, "out"), Now: pinnedNow,
+	}
+}
+
+// rejectedForItsOwnCause fails unless err is a refusal that is not the
+// opt-in floor one: a negative case must not pass only through that refusal.
+func rejectedForItsOwnCause(t *testing.T, err error) {
+	t.Helper()
+	if err == nil {
+		t.Fatal("expected rejection")
+	}
+	if errors.Is(err, cncfcheck.ErrOptInBelowFloor) {
+		t.Fatalf("refused by the opt-in floor, not by the case under test: %v", err)
 	}
 }
 
@@ -90,9 +106,8 @@ func TestReleaseRejections(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			o := fixture(t)
 			mutate(&o)
-			if _, err := Run(o); err == nil {
-				t.Fatal("expected rejection")
-			}
+			_, err := Run(o)
+			rejectedForItsOwnCause(t, err)
 		})
 	}
 	t.Run("loose passphrase file", func(t *testing.T) {
@@ -100,17 +115,15 @@ func TestReleaseRejections(t *testing.T) {
 		if err := os.Chmod(o.PassphraseFile, 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := Run(o); err == nil {
-			t.Fatal("expected rejection")
-		}
+		_, err := Run(o)
+		rejectedForItsOwnCause(t, err)
 	})
 	t.Run("existing output", func(t *testing.T) {
 		o := fixture(t)
 		if err := os.Mkdir(o.OutputDir, 0o700); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := Run(o); err == nil {
-			t.Fatal("expected rejection")
-		}
+		_, err := Run(o)
+		rejectedForItsOwnCause(t, err)
 	})
 }

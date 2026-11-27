@@ -9,10 +9,12 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 )
 
 func TestProducerDefaultsAndRetiredSingleRejection(t *testing.T) {
-	defaultOptions := Options{Revision: "73", FirstRelease: true}
+	defaultOptions := Options{Revision: "73", FirstRelease: true, OldestClient: cncfcheck.BoundaryCoveredFloor}
 	a, err := ComputeDigests(defaultOptions)
 	if err != nil {
 		t.Fatal(err)
@@ -22,11 +24,11 @@ func TestProducerDefaultsAndRetiredSingleRejection(t *testing.T) {
 	if err != nil || a != b {
 		t.Fatalf("producer default differs: %+v %+v %v", a, b, err)
 	}
-	if _, err := ComputeDigests(Options{Revision: "73"}); !errors.Is(err, ErrRejected) {
-		t.Fatal("omitted previous index silently initialized")
+	if _, err := ComputeDigests(Options{Revision: "73", OldestClient: cncfcheck.BoundaryCoveredFloor}); !errors.Is(err, ErrRejected) || errors.Is(err, cncfcheck.ErrOptInBelowFloor) {
+		t.Fatalf("omitted previous index silently initialized: %v", err)
 	}
-	if _, err := ComputeDigests(Options{Revision: "73", Profile: ProfileCNCF}); !errors.Is(err, ErrRejected) {
-		t.Fatal("single digests accepted")
+	if _, err := ComputeDigests(Options{Revision: "73", Profile: ProfileCNCF, OldestClient: cncfcheck.BoundaryCoveredFloor}); !errors.Is(err, ErrRejected) || errors.Is(err, cncfcheck.ErrOptInBelowFloor) {
+		t.Fatalf("single digests accepted: %v", err)
 	}
 	dir := t.TempDir()
 	missing := filepath.Join(dir, "absent")

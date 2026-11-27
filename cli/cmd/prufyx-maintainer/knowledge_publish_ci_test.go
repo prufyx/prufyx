@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 )
 
 func ciReleaseArgs(parent, rootDigest, out string, extra ...string) []string {
@@ -17,7 +19,7 @@ func ciReleaseArgs(parent, rootDigest, out string, extra ...string) []string {
 	return append([]string{"knowledge-publish", "release", "--profile", "cncf-projects", "--revision", "5", "--version", "1", "--first-release",
 		"--root", filepath.Join(keys, "root.json"), "--root-digest", rootDigest,
 		"--targets-key", filepath.Join(keys, "targets.key.pem"), "--snapshot-key", filepath.Join(keys, "snapshot.key.pem"), "--timestamp-key", filepath.Join(keys, "timestamp.key.pem"),
-		"--passphrase-file", filepath.Join(parent, "pass"), "--output-dir", out}, extra...)
+		"--passphrase-file", filepath.Join(parent, "pass"), "--oldest-client", cncfcheck.BoundaryCoveredFloor, "--output-dir", out}, extra...)
 }
 
 // The CI environment markers alone never change behaviour: without --ci the
@@ -113,7 +115,7 @@ func TestKnowledgePublishRefreshRefusalText(t *testing.T) {
 func modeArgs(t *testing.T, parent, rootDigest, out, revision, version string, layout, live []string) []string {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	dig := append([]string{"knowledge-publish", "content-digest", "--profile", "cncf-projects", "--revision", revision}, layout...)
+	dig := append([]string{"knowledge-publish", "content-digest", "--profile", "cncf-projects", "--revision", revision, "--oldest-client", cncfcheck.BoundaryCoveredFloor}, layout...)
 	if err := run(dig, &stdout, &stderr); err != nil {
 		t.Fatal(err)
 	}

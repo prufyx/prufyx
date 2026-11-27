@@ -66,7 +66,14 @@ func listedPack(t *testing.T) []byte {
 	if pack["lineAttestations"], err = lineattest.Marshal(atts); err != nil {
 		t.Fatal(err)
 	}
-	if pack["schema"], err = json.Marshal(mustSchema(t, pack)); err != nil {
+	// A downlevel pack: without the declared opt-in level, so that pins below
+	// the floor can be exercised. Never used to compare verdicts.
+	pack["schema"] = json.RawMessage(`""`)
+	schema := mustSchema(t, pack)
+	if cncfcheck.PackSchemaIsOptIn(schema) {
+		t.Fatalf("the downlevel pack still states the opt-in level %s", schema)
+	}
+	if pack["schema"], err = json.Marshal(schema); err != nil {
 		t.Fatal(err)
 	}
 	out, err := json.Marshal(pack)

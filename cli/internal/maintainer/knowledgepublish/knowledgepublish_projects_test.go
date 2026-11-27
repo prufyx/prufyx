@@ -21,17 +21,66 @@ import (
 // embeddedProjectTargets builds the per-project layout of the embedded pack.
 func embeddedProjectTargets(t *testing.T, revision string) ([]byte, []Target) {
 	t.Helper()
-	// The publisher path while the oldest supported client is below the
-	// listed-family floor: the real exclusion runs.
-	index, built, _, err := cncfcheck.BuildEmbeddedExternalTargetsPinned(revision, nil, "v0.1.0-beta.0")
+	// The publisher path for clients from the floor.
+	index, built, _, err := cncfcheck.BuildEmbeddedExternalTargetsPinned(revision, nil, cncfcheck.BoundaryCoveredFloor)
 	if err != nil {
 		t.Fatal(err)
 	}
+	return index.Bytes, publicationTargets(built)
+}
+
+func publicationTargets(built []cncfcheck.ExternalTarget) []Target {
 	projects := make([]Target, 0, len(built))
 	for _, target := range built {
 		projects = append(projects, Target{Path: target.Path, Raw: target.Bytes})
 	}
-	return index.Bytes, projects
+	return projects
+}
+
+// downlevelProjectTargets is the embedded pack without the listed family and
+// without the declared opt-in level, so its index names no client floor. Use
+// it for refusal behaviour only, never to compare verdicts.
+func downlevelProjectTargets(t *testing.T, revision string) ([]byte, []Target) {
+	t.Helper()
+	const below = "v0.1.0-beta.0"
+	raw, err := cncfcheck.EmbeddedRulePack()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pack map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &pack); err != nil {
+		t.Fatal(err)
+	}
+	if section, ok := pack["lineAttestations"]; ok {
+		kept, _, err := cncfcheck.ExcludeListedAttestations(section, below)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(kept) == 0 {
+			delete(pack, "lineAttestations")
+		} else {
+			pack["lineAttestations"] = kept
+		}
+	}
+	pack["schema"] = json.RawMessage(`""`)
+	if raw, err = json.Marshal(pack); err != nil {
+		t.Fatal(err)
+	}
+	schema, err := cncfcheck.RequiredPackSchema(raw)
+	if err != nil || cncfcheck.PackSchemaIsOptIn(schema) {
+		t.Fatalf("downlevel schema %q: %v", schema, err)
+	}
+	if pack["schema"], err = json.Marshal(schema); err != nil {
+		t.Fatal(err)
+	}
+	if raw, err = json.Marshal(pack); err != nil {
+		t.Fatal(err)
+	}
+	index, built, _, err := cncfcheck.BuildExternalTargetsFromPackPinned(raw, revision, below)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return index.Bytes, publicationTargets(built)
 }
 
 // signProjectRoles runs prepare, sign and finalize for the three roles of a
@@ -269,9 +318,9 @@ func TestPerProjectPublication_SignedRoleOverAnotherSetIsRefused(t *testing.T) {
 // package refuses a set that carries the listed changelog family under an
 // index without the client floor, the same as a built release.
 func TestAdmitTargetSet_RefusesListedFamilyWithoutFloor(t *testing.T) {
-	index, projects := embeddedProjectTargets(t, "62")
+	index, projects := downlevelProjectTargets(t, "62")
 	if _, ok := cncfcheck.ExternalIndexMinClient(index); ok {
-		t.Fatal("the unpinned embedded index names a client floor; the test needs one without")
+		t.Fatal("the downlevel index names a client floor; the test needs one without")
 	}
 	var project map[string]any
 	if err := json.Unmarshal(projects[0].Raw, &project); err != nil {
