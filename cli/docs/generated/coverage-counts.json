@@ -2,12 +2,12 @@
   "schema": "prufyx.io/coverage-readme-counts/v2",
   "report": {
     "schema": "prufyx.io/coverage-report/v1",
-    "now": "2026-11-24T06:04:00Z",
+    "now": "2026-11-26T05:00:00Z",
     "window": 6,
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
-      "digest": "sha256:66926e8b4f2520d12ca2ac46299c9054d253964eea292b02e2961fdc5a8ca19d"
+      "digest": "sha256:18c4a8fb1eb358545172020d46d498074bd0d235eaa96a2b7979ee2ef1e61f21"
     },
     "lines": {
       "capturedOn": "2026-10-31",
@@ -19,7 +19,7 @@
       "entries": 9,
       "clockOn": "2026-11-10"
     },
-    "clockAttestedAt": "2026-11-24T06:04:00Z",
+    "clockAttestedAt": "2026-11-26T05:00:00Z",
     "packProjectsCovered": 73,
     "crdVersionProjects": 87,
     "crdPublishedProjects": 42,
@@ -27,33 +27,33 @@
       "projects": 79,
       "pairs": 395,
       "a": 97,
-      "b": 3,
+      "b": 17,
       "s": 39,
-      "g": 256,
+      "g": 242,
       "listedChangelog": 18,
       "c1": 63,
-      "c3": 20,
+      "c3": 23,
       "c5": 14,
-      "vcPairs": 0.2532,
-      "vcMean": 0.2532,
+      "vcPairs": 0.2886,
+      "vcMean": 0.2886,
       "sPairs": 0.0987,
-      "rulesInWindow": 155
+      "rulesInWindow": 169
     },
     "priorityProjects": {
       "projects": 30,
       "pairs": 150,
       "a": 37,
-      "b": 2,
+      "b": 14,
       "s": 22,
-      "g": 89,
+      "g": 77,
       "listedChangelog": 9,
       "c1": 29,
-      "c3": 8,
+      "c3": 11,
       "c5": 5,
-      "vcPairs": 0.26,
-      "vcMean": 0.26,
+      "vcPairs": 0.34,
+      "vcMean": 0.34,
       "sPairs": 0.1467,
-      "rulesInWindow": 112
+      "rulesInWindow": 124
     },
     "communityCatalog": {
       "projects": 18,
@@ -80,6 +80,11 @@
         "family": "kubernetes.removed_served_gvk",
         "a": 5,
         "b": 0
+      },
+      {
+        "family": "other",
+        "a": 0,
+        "b": 14
       }
     ],
     "projects": [
@@ -1774,17 +1779,26 @@
           {
             "from": "1.35",
             "to": "1.36",
-            "status": "G"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "1.36",
             "to": "1.37",
-            "status": "G"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "1.37",
             "to": "1.38",
-            "status": "G"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "1.38",
@@ -1804,7 +1818,10 @@
           {
             "from": "1.39",
             "to": "1.40",
-            "status": "G",
+            "status": "B",
+            "families": [
+              "other"
+            ],
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
@@ -1818,14 +1835,14 @@
           }
         ],
         "a": 0,
-        "b": 0,
+        "b": 4,
         "s": 1,
-        "g": 4,
-        "vc": 0,
+        "g": 0,
+        "vc": 0.8,
         "vcA": 0,
         "covered": true,
-        "validRules": 6,
-        "rulesInWindow": 4,
+        "validRules": 10,
+        "rulesInWindow": 8,
         "expiring14d": 0
       },
       {
@@ -2015,17 +2032,26 @@
           {
             "from": "0.41",
             "to": "0.42",
-            "status": "G"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "0.42",
             "to": "0.43",
-            "status": "G"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "0.43",
             "to": "0.44",
-            "status": "G",
+            "status": "B",
+            "families": [
+              "other"
+            ],
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
@@ -2040,7 +2066,10 @@
           {
             "from": "0.44",
             "to": "0.45",
-            "status": "G",
+            "status": "B",
+            "families": [
+              "other"
+            ],
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
@@ -2054,14 +2083,14 @@
           }
         ],
         "a": 0,
-        "b": 0,
+        "b": 4,
         "s": 1,
-        "g": 4,
-        "vc": 0,
+        "g": 0,
+        "vc": 0.8,
         "vcA": 0,
         "covered": true,
-        "validRules": 6,
-        "rulesInWindow": 2,
+        "validRules": 10,
+        "rulesInWindow": 6,
         "expiring14d": 0
       },
       {
@@ -2494,22 +2523,34 @@
           {
             "from": "2.10",
             "to": "2.11",
-            "status": "G"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "2.11",
             "to": "2.12",
-            "status": "G"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "2.12",
             "to": "2.13",
-            "status": "G"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "2.13",
             "to": "2.14",
-            "status": "G",
+            "status": "B",
+            "families": [
+              "other"
+            ],
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
@@ -2538,14 +2579,14 @@
           }
         ],
         "a": 0,
-        "b": 0,
+        "b": 4,
         "s": 1,
-        "g": 4,
-        "vc": 0,
+        "g": 0,
+        "vc": 0.8,
         "vcA": 0,
         "covered": true,
-        "validRules": 7,
-        "rulesInWindow": 5,
+        "validRules": 11,
+        "rulesInWindow": 9,
         "expiring14d": 0
       },
       {
@@ -4494,7 +4535,10 @@
           {
             "from": "2.11",
             "to": "2.12",
-            "status": "G"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           },
           {
             "from": "2.12",
@@ -4504,18 +4548,21 @@
           {
             "from": "2.14",
             "to": "2.15",
-            "status": "G"
+            "status": "B",
+            "families": [
+              "other"
+            ]
           }
         ],
         "a": 0,
-        "b": 0,
+        "b": 2,
         "s": 2,
-        "g": 3,
-        "vc": 0,
+        "g": 1,
+        "vc": 0.4,
         "vcA": 0,
         "covered": true,
-        "validRules": 6,
-        "rulesInWindow": 5,
+        "validRules": 8,
+        "rulesInWindow": 7,
         "expiring14d": 0
       },
       {
@@ -5989,7 +6036,7 @@
   },
   "inventoryCounts": {
     "cncfRuleProjects": 54,
-    "cncfSourceRules": 253,
+    "cncfSourceRules": 267,
     "cncfSourceRulesWithdrawn": 1,
     "communityProjectRuleProjects": 10,
     "communityProjectSourceRules": 51,
@@ -6302,12 +6349,11 @@
         "project": "envoy",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 4,
         "k8s": 0,
         "s": 1,
         "l": 0,
-        "g": 4,
-        "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
+        "g": 0
       },
       {
         "project": "etcd",
@@ -6346,12 +6392,11 @@
         "project": "falco",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 4,
         "k8s": 0,
         "s": 1,
         "l": 0,
-        "g": 4,
-        "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
+        "g": 0
       },
       {
         "project": "fluent-bit",
@@ -6431,12 +6476,11 @@
         "project": "harbor",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 4,
         "k8s": 0,
         "s": 1,
         "l": 0,
-        "g": 4,
-        "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
+        "g": 0
       },
       {
         "project": "helm",
@@ -6786,11 +6830,11 @@
         "project": "nats",
         "group": "fleet",
         "pairs": 5,
-        "ab": 0,
+        "ab": 2,
         "k8s": 0,
         "s": 2,
         "l": 0,
-        "g": 3,
+        "g": 1,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
       },
       {
@@ -7044,11 +7088,11 @@
       "projects": 79,
       "pairs": 395,
       "projectsWithAnswer": 54,
-      "ab": 95,
+      "ab": 109,
       "k8s": 5,
       "s": 39,
       "l": 18,
-      "g": 238
+      "g": 224
     },
     "community": {
       "projects": 18,
@@ -7061,5 +7105,5 @@
       "g": 41
     }
   },
-  "readmeBlockSha256": "266febbab5365b3ac45c9d21eda6e9fc47e0a8cc558264a3f65893c8da5cd039"
+  "readmeBlockSha256": "1d32bf394c7a53454cb43ce4b913e222db6a17249b5e1cc0cd385dadc0da82b9"
 }

@@ -7,7 +7,7 @@ Prufyx checks a planned upgrade against upstream evidence and returns
 file, and line range it relies on, and says how it was established.
 
 <!-- basis-counts:begin -->
-Of the 304 active rules shipped today, 260 with basis `reviewed`, 44 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 390 release-line attestations and served-API lists are separate records: 390 with basis `mechanical`.
+Of the 318 active rules shipped today, 274 with basis `reviewed`, 44 with basis `mechanical`. A `reviewed` rule was established by a person who read the cited upstream evidence. A `mechanical` rule was derived from upstream source by an extractor program that is re-run and checked before the rule is accepted; no person reviewed it rule by rule. The 390 release-line attestations and served-API lists are separate records: 390 with basis `mechanical`.
 <!-- basis-counts:end -->
 
 Each rule states which way it was established, and
@@ -324,7 +324,7 @@ community projects that hold CRD knowledge.
 ## Coverage
 
 <!-- coverage:begin -->
-Generated on 2026-11-24 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the date clock of the block is 2026-11-10 (the later of the snapshot's evaluation date and every capture date). The block is evaluated at 2026-11-24T06:04:00Z, the time of the newest line attestation or rule review, which is later than the date clock above.
+Generated on 2026-11-26 by `scripts/readme-coverage.sh` (do not edit this block by hand). Release lines captured 2026-10-31, evaluated on 2026-11-07. 9 projects were appended to the snapshot with their own capture dates; the date clock of the block is 2026-11-10 (the later of the snapshot's evaluation date and every capture date). The block is evaluated at 2026-11-26T05:00:00Z, the time of the newest line attestation or rule review, which is later than the date clock above.
 
 | Executable rules | Count |
 | --- | --- |
@@ -369,16 +369,16 @@ Projects with an answer of any form (A/B, k8s served-API, S or L): 54 of 79 in t
 | dragonfly | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
 | elasticsearch | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
 | emissary-ingress | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
-| envoy | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| envoy | release-line fleet | 5 | 4 | 0 | 1 | 0 | 0 | - |
 | etcd | release-line fleet | 5 | 0 | 0 | 2 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
 | external-dns | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
 | external-secrets | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
-| falco | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| falco | release-line fleet | 5 | 4 | 0 | 1 | 0 | 0 | - |
 | fluent-bit | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
 | fluentd | release-line fleet | 5 | 0 | 0 | 3 | 1 | 1 | NOT_DECIDED_FOR_THIS_PAIR |
 | flux | release-line fleet | 5 | 0 | 0 | 2 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
 | grafana | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
-| harbor | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
+| harbor | release-line fleet | 5 | 4 | 0 | 1 | 0 | 0 | - |
 | helm | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
 | in-toto | release-line fleet | 5 | 0 | 0 | 0 | 4 | 1 | NOT_DECIDED_FOR_THIS_PAIR |
 | ingress-nginx | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
@@ -405,7 +405,7 @@ Projects with an answer of any form (A/B, k8s served-API, S or L): 54 of 79 in t
 | longhorn | release-line fleet | 5 | 3 | 0 | 0 | 0 | 2 | NOT_DECIDED_FOR_THIS_PAIR |
 | metallb | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
 | metrics-server | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NO_RULE_OR_ATTESTATION |
-| nats | release-line fleet | 5 | 0 | 0 | 2 | 0 | 3 | NOT_DECIDED_FOR_THIS_PAIR |
+| nats | release-line fleet | 5 | 2 | 0 | 2 | 0 | 1 | NOT_DECIDED_FOR_THIS_PAIR |
 | opa | release-line fleet | 5 | 0 | 0 | 1 | 0 | 4 | NOT_DECIDED_FOR_THIS_PAIR |
 | opencost | release-line fleet | 5 | 0 | 0 | 0 | 0 | 5 | NOT_DECIDED_FOR_THIS_PAIR |
 | openfga | release-line fleet | 5 | 0 | 0 | 1 | 4 | 0 | - |
@@ -486,7 +486,7 @@ Velero and others.
 Every rule in the CNCF and community-project packs is time-limited.
 
 <!-- validity-window:begin -->
-The 304 active rules shipped today stop being valid, rule by rule, between 2026-12-11 and 2027-02-22 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 5 of the 304 stop being valid on or before 2026-12-16, in the 6 days starting on the earliest.
+The 318 active rules shipped today stop being valid, rule by rule, between 2026-12-11 and 2027-02-23 unless their review is renewed; after its date a build without newer knowledge answers `UNKNOWN` for that rule. 5 of the 318 stop being valid on or before 2026-12-16, in the 6 days starting on the earliest.
 <!-- validity-window:end -->
 
 The named cert-manager and Prometheus checks are pinned to
