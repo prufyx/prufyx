@@ -3,9 +3,12 @@
 package rangepropose
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -182,6 +185,27 @@ func TestGitRunsWithAFixedEnvironment(t *testing.T) {
 	}
 	if _, err := b.Write([]byte("x")); err == nil || !b.over {
 		t.Fatal("output over the cap was accepted")
+	}
+}
+
+func TestReadCountsAreCapped(t *testing.T) {
+	f := newFixture(t, standard())
+	clone := f.bare()
+	var packed strings.Builder
+	for i := 0; i <= maxTagRefs; i++ {
+		fmt.Fprintf(&packed, "%s refs/tags/note-%06d\n", f.commits["v1.4.0"], i)
+	}
+	write(t, filepath.Join(clone, "packed-refs"), packed.String())
+	no := wantRefused(t, run(t, options(t, clone, standardRule(f))), CodeGit)
+	if !strings.Contains(no.Detail, "too many tags") {
+		t.Fatalf("detail: %s", no.Detail)
+	}
+	r := &repository{gitDir: f.bare(), files: map[string]*treeFile{}}
+	for i := 0; i < maxFileReads; i++ {
+		r.files[strconv.Itoa(i)] = nil
+	}
+	if file, err := r.file(context.Background(), f.commits["v1.4.0"], "flags.go"); err == nil {
+		t.Fatalf("a read over the limit was accepted: %+v", file)
 	}
 }
 
