@@ -23,6 +23,12 @@ import (
 
 type tree map[string]string
 
+// File contents that stand for tree entries which are not regular files.
+const (
+	submodule = "\x00submodule"
+	symlink   = "\x00symlink"
+)
+
 type memSource struct {
 	commits map[string]tree
 	tags    []extract.Tag
@@ -50,8 +56,13 @@ func (m memSource) List(_ extract.RepoRef, c, dir string) ([]extract.TreeEntry, 
 		}
 		first, _, deeper := strings.Cut(rest, "/")
 		e := extract.TreeEntry{Mode: "100644", Type: "blob", Path: path.Join(dir, first)}
-		if deeper {
+		switch {
+		case deeper:
 			e.Mode, e.Type = "040000", "tree"
+		case m.commits[c][p] == submodule:
+			e.Mode, e.Type = "160000", "commit"
+		case m.commits[c][p] == symlink:
+			e.Mode = "120000"
 		}
 		seen[e.Path] = e
 	}

@@ -53,8 +53,27 @@ type modFile struct {
 	replaces map[string][]replacement
 }
 
+// modVerbs are the directives of a go.mod. Any other is an error, so that no
+// spelling of a require or replace is skipped.
+var modVerbs = map[string]bool{"module": true, "go": true, "toolchain": true, "require": true, "exclude": true,
+	"replace": true, "retract": true, "godebug": true, "tool": true, "ignore": true}
+
+// replacementFor is the replacement the go tool applies to the required
+// version of a module: one naming that version, else one naming no version.
+func (m modFile) replacementFor(p string) (replacement, bool) {
+	for _, want := range []string{m.requires[p], ""} {
+		for _, r := range m.replaces[p] {
+			if r.oldVersion == want {
+				return r, true
+			}
+		}
+	}
+	return replacement{}, false
+}
+
 // parseModFile reads the module, require and replace directives of a go.mod.
-// A directive of those three that it cannot read is an error.
+// An unknown directive, a parenthesis other than a block's own, or a require or
+// replace it cannot read is an error.
 func parseModFile(raw []byte) (modFile, error) {
 	m := modFile{requires: map[string]string{}, replaces: map[string][]replacement{}}
 	if len(raw) > maxModFileBytes {
@@ -74,14 +93,17 @@ func parseModFile(raw []byte) (modFile, error) {
 		}
 		verb := block
 		switch {
-		case block != "" && f[0] == ")":
+		case block != "" && len(f) == 1 && f[0] == ")":
 			block = ""
 			continue
-		case block == "" && len(f) == 2 && f[1] == "(":
+		case block == "" && len(f) == 2 && f[1] == "(" && modVerbs[f[0]]:
 			block = f[0]
 			continue
 		case block == "":
 			verb, f = f[0], f[1:]
+		}
+		if !modVerbs[verb] || strings.ContainsAny(strings.Join(f, " "), "()") {
+			return m, errors.New("unknown directive or misplaced parenthesis")
 		}
 		switch verb {
 		case "module":
@@ -113,6 +135,11 @@ func parseModFile(raw []byte) (modFile, error) {
 			}
 			if len(f)-arrow-1 == 2 {
 				r.version = f[arrow+2]
+			}
+			for _, old := range m.replaces[f[0]] {
+				if old.oldVersion == r.oldVersion {
+					return m, errors.New("module replaced twice")
+				}
 			}
 			m.replaces[f[0]] = append(m.replaces[f[0]], r)
 		}
@@ -225,19 +252,23 @@ func (s *sweeper) closure(ctx context.Context, r extract.PinnedReader, repo extr
 			}
 		}
 	}
-	// Replacements by local path must stay inside the tree.
+	// Every replacement by local path must stay inside the tree, whether or
+	// not it applies; local holds those that apply.
+	inside := func(target string) (string, bool) {
+		c := path.Clean(target)
+		return c, strings.HasPrefix(target, "./") && c != ".." && !strings.HasPrefix(c, "../")
+	}
 	local := map[string]string{}
 	for old, rs := range mod.replaces {
 		for _, rp := range rs {
-			if rp.version != "" {
-				continue
-			}
-			c := path.Clean(rp.target)
-			if !strings.HasPrefix(rp.target, "./") || c == ".." || strings.HasPrefix(c, "../") || len(rs) != 1 {
+			if _, ok := inside(rp.target); rp.version == "" && !ok {
 				bad(CodeOutsideReplace, old+" => "+rp.target)
-				continue
 			}
-			local[old] = c
+		}
+		if rp, applies := mod.replacementFor(old); applies && rp.version == "" {
+			if c, ok := inside(rp.target); ok {
+				local[old] = c
+			}
 		}
 	}
 
@@ -254,6 +285,21 @@ func (s *sweeper) closure(ctx context.Context, r extract.PinnedReader, repo extr
 	seen := map[string]bool{"tree\x00" + start: true}
 	usedModules := map[string]moduleRef{}
 	follow := func(ip string) {
+		// A path without a dot is the standard library unless go.mod names
+		// it: such a module is not verified here, so it refuses.
+		if first, _, _ := strings.Cut(ip, "/"); !strings.Contains(first, ".") && !under(ip, mod.module) {
+			named := false
+			for p := range mod.requires {
+				named = named || under(ip, p)
+			}
+			for p := range mod.replaces {
+				named = named || under(ip, p)
+			}
+			if named {
+				bad(CodeImportUnresolved, "module path without a dot: "+ip)
+			}
+			return
+		}
 		// The longest module path that holds the import wins.
 		best := ""
 		for _, cands := range []map[string]string{mod.requires, local, {mod.module: ""}} {
@@ -264,9 +310,6 @@ func (s *sweeper) closure(ctx context.Context, r extract.PinnedReader, repo extr
 			}
 		}
 		if best == "" {
-			if first, _, _ := strings.Cut(ip, "/"); !strings.Contains(first, ".") {
-				return // standard library
-			}
 			bad(CodeImportUnresolved, ip)
 			return
 		}
@@ -281,11 +324,8 @@ func (s *sweeper) closure(ctx context.Context, r extract.PinnedReader, repo extr
 				return
 			}
 			ref := moduleRef{path: best, version: mod.requires[best]}
-			for _, rp := range mod.replaces[best] {
-				if rp.version != "" && (rp.oldVersion == "" || rp.oldVersion == ref.version) {
-					ref = moduleRef{path: rp.target, version: rp.version}
-					break
-				}
+			if rp, applies := mod.replacementFor(best); applies && rp.version != "" {
+				ref = moduleRef{path: rp.target, version: rp.version}
 			}
 			sum, ok := sums[ref.path+" "+ref.version]
 			if !ok {

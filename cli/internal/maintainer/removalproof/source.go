@@ -76,7 +76,10 @@ var unresolvedParsers = []string{
 
 // checkParser requires, over the files of the tree the binary imports, that the
 // only parser is the standard library or pflag command line, parsed in the
-// binary directory, with no marker of a tolerant parser. Anything it cannot
+// binary directory, with no marker of a tolerant parser. A flag set can be made
+// to continue after an unknown flag by Init, or be built so that it does (the
+// zero value), so both are refused, as is any use of CommandLine other than a
+// direct method call on it: an alias hides the later calls. Anything it cannot
 // resolve is a refusal.
 func checkParser(files []sourceFile, binary string) []problem {
 	var out []problem
@@ -125,8 +128,15 @@ func checkParser(files []sourceFile, binary string) []problem {
 			s, ok := e.(*ast.SelectorExpr)
 			return ok && s.Sel.Name == "CommandLine" && isLib(s.X)
 		}
-		// calls are the selectors that are called directly.
+		flagSetType := func(e ast.Expr) bool {
+			s, ok := e.(*ast.SelectorExpr)
+			return ok && s.Sel.Name == "FlagSet" && isLib(s.X)
+		}
+		// calls are the selectors that are called directly; allowed are the
+		// CommandLine and FlagSet selectors in a permitted position. A parent
+		// is visited before its children.
 		calls := map[*ast.SelectorExpr]bool{}
+		allowed := map[ast.Expr]bool{}
 		ast.Inspect(f, func(n ast.Node) bool {
 			switch x := n.(type) {
 			case *ast.Ident:
@@ -139,12 +149,20 @@ func checkParser(files []sourceFile, binary string) []problem {
 						unresolved(l.Pos(), "CommandLine is replaced")
 					}
 				}
+			case *ast.StarExpr:
+				// A pointer type constructs no flag set.
+				if flagSetType(x.X) {
+					allowed[x.X] = true
+				}
 			case *ast.CallExpr:
 				sel, ok := x.Fun.(*ast.SelectorExpr)
 				if !ok {
 					return true
 				}
 				calls[sel] = true
+				if commandLine(sel.X) {
+					allowed[sel.X] = true
+				}
 				switch sel.Sel.Name {
 				case "NewFlagSet":
 					strict := false
@@ -159,8 +177,9 @@ func checkParser(files []sourceFile, binary string) []problem {
 				case "ParseFlags", "ParseAll", "ParseKnownFlags":
 					unresolved(x.Pos(), sel.Sel.Name)
 				case "Init":
-					if commandLine(sel.X) {
-						unresolved(x.Pos(), "CommandLine is re-initialised")
+					// Without types any two-argument Init may be a flag set's.
+					if len(x.Args) == 2 {
+						unresolved(x.Pos(), "Init may re-initialise a flag set")
 					}
 				case "Parse":
 					if (isLib(sel.X) && len(x.Args) == 0) || commandLine(sel.X) {
@@ -170,8 +189,18 @@ func checkParser(files []sourceFile, binary string) []problem {
 					}
 				}
 			case *ast.SelectorExpr:
-				if x.Sel.Name == "NewFlagSet" && !calls[x] {
-					unresolved(x.Pos(), "NewFlagSet used as a value")
+				if (x.Sel.Name == "NewFlagSet" || x.Sel.Name == "Init") && !calls[x] {
+					unresolved(x.Pos(), x.Sel.Name+" used as a value")
+				}
+				if commandLine(x) && !allowed[x] {
+					unresolved(x.Pos(), "CommandLine used as a value")
+				}
+				if flagSetType(x) && !allowed[x] {
+					unresolved(x.Pos(), "FlagSet used other than as a pointer type")
+				}
+				// (*flag.FlagSet).Init and the like.
+				if star, ok := ast.Unparen(x.X).(*ast.StarExpr); ok && flagSetType(star.X) {
+					unresolved(x.Pos(), "method expression of a flag set")
 				}
 			}
 			return true
