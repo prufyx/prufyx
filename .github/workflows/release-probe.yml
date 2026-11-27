@@ -1,0 +1,133 @@
+name: Release probe
+
+# Runs upstream release artifacts on hosted, ephemeral runners and keeps the
+# raw output. Read-only token, no secrets, nothing is pushed or published. The
+# probe containers get no network, no mounts and no environment of the runner.
+# The self-test must refuse every injected fault before anything upstream runs.
+
+on:
+  push:
+    branches: [evidence/release-probe]
+    paths:
+      - .github/workflows/release-probe.yml
+      - scripts/release-probe/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  selftest:
+    name: Harness self-test (${{ matrix.runner }})
+    strategy:
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+
+      - name: Unit checks
+        working-directory: scripts/release-probe
+        run: python3 -B -m unittest -v test_probe
+
+      - name: Injected faults are refused in real containers
+        run: python3 -B scripts/release-probe/selftest.py
+
+  probe:
+    name: Probe ${{ matrix.pair }} ${{ matrix.arch }} ${{ matrix.shard }}/${{ matrix.shards }}
+    needs: selftest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { pair: etcd-3.3-3.4, arch: amd64, runner: ubuntu-24.04, shard: 0, shards: 3 }
+          - { pair: etcd-3.3-3.4, arch: amd64, runner: ubuntu-24.04, shard: 1, shards: 3 }
+          - { pair: etcd-3.3-3.4, arch: amd64, runner: ubuntu-24.04, shard: 2, shards: 3 }
+          - { pair: etcd-3.3-3.4, arch: arm64, runner: ubuntu-24.04-arm, shard: 0, shards: 3 }
+          - { pair: etcd-3.3-3.4, arch: arm64, runner: ubuntu-24.04-arm, shard: 1, shards: 3 }
+          - { pair: etcd-3.3-3.4, arch: arm64, runner: ubuntu-24.04-arm, shard: 2, shards: 3 }
+          - { pair: etcd-3.4-3.5, arch: amd64, runner: ubuntu-24.04, shard: 0, shards: 6 }
+          - { pair: etcd-3.4-3.5, arch: amd64, runner: ubuntu-24.04, shard: 1, shards: 6 }
+          - { pair: etcd-3.4-3.5, arch: amd64, runner: ubuntu-24.04, shard: 2, shards: 6 }
+          - { pair: etcd-3.4-3.5, arch: amd64, runner: ubuntu-24.04, shard: 3, shards: 6 }
+          - { pair: etcd-3.4-3.5, arch: amd64, runner: ubuntu-24.04, shard: 4, shards: 6 }
+          - { pair: etcd-3.4-3.5, arch: amd64, runner: ubuntu-24.04, shard: 5, shards: 6 }
+          - { pair: etcd-3.4-3.5, arch: arm64, runner: ubuntu-24.04-arm, shard: 0, shards: 6 }
+          - { pair: etcd-3.4-3.5, arch: arm64, runner: ubuntu-24.04-arm, shard: 1, shards: 6 }
+          - { pair: etcd-3.4-3.5, arch: arm64, runner: ubuntu-24.04-arm, shard: 2, shards: 6 }
+          - { pair: etcd-3.4-3.5, arch: arm64, runner: ubuntu-24.04-arm, shard: 3, shards: 6 }
+          - { pair: etcd-3.4-3.5, arch: arm64, runner: ubuntu-24.04-arm, shard: 4, shards: 6 }
+          - { pair: etcd-3.4-3.5, arch: arm64, runner: ubuntu-24.04-arm, shard: 5, shards: 6 }
+          - { pair: vitess-20-21, arch: amd64, runner: ubuntu-24.04, shard: 0, shards: 1 }
+          - { pair: vitess-20-21, arch: arm64, runner: ubuntu-24.04-arm, shard: 0, shards: 1 }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 350
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Fetch, verify and probe
+        env:
+          PAIR: ${{ matrix.pair }}
+          ARCH: ${{ matrix.arch }}
+          SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ matrix.shards }}
+        run: >-
+          python3 -B scripts/release-probe/run.py --pair "${PAIR}" --arch "${ARCH}"
+          --shard "${SHARD}" --shards "${SHARDS}" --out "${RUNNER_TEMP}/records"
+
+      - name: Keep the raw records
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: records-${{ matrix.pair }}-${{ matrix.arch }}-${{ matrix.shard }}
+          path: ${{ runner.temp }}/records
+          if-no-files-found: error
+          retention-days: 90
+
+  check:
+    name: Check the records
+    needs: probe
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Download the raw records
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: records-*
+          path: ${{ runner.temp }}/records
+
+      - name: Recompute every result and require the full case product
+        run: >-
+          python3 -B scripts/release-probe/check.py --records "${RUNNER_TEMP}/records"
+          --summary "${RUNNER_TEMP}/summary.json"
+
+      - name: Keep the verdict
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: verdict
+          path: ${{ runner.temp }}/summary.json
+          if-no-files-found: error
+          retention-days: 90
