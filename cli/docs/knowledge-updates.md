@@ -132,6 +132,15 @@ change. Giving `--source` or `--release-plan` keeps the rules described above
 (`--package-out FILE` alone, without `--source`, also targets the official feed; `--source` alone still means the `cert-manager` profile and a mandatory
 `--package-out`).
 
+- **`--package-out` on an empty store.** The root embedded in the build is used
+  only when `--package-out` is omitted. On a store that holds no trust yet, also
+  pass `--bootstrap-root ./root.json`; for the pinned `cncf-projects` profile
+  `--bootstrap-root-digest` is optional. A profile without a pinned root needs
+  both flags, and every profile other than `cncf-projects` needs `--db-root`.
+  Without the root, `db update` still downloads and keeps the package, then
+  rejects the import (`KNOWLEDGE_PACKAGE_IMPORT_REJECTED`, exit `2`) and selects
+  no knowledge. Retry with the root flags and a new `--package-out` filename. A
+  store that already holds trust takes no root flags.
 - **Package directory.** Without `--package-out` the package is kept in
   `$XDG_DATA_HOME/prufyx/knowledge/packages/` (`~/.local/share/prufyx/knowledge/packages/`
   when `XDG_DATA_HOME` is not an absolute path), created with mode `0700`, as
@@ -221,8 +230,8 @@ compiled into the binary (`cli/internal/knowledgepin`). For such a profile,
 - First install: pass only `--bootstrap-root ./root.json`. The file must hash to the
   pin; `--bootstrap-root-digest` is optional and, if given, must equal the pin. A
   build that also embeds the root file (added with the pin in one reviewed change)
-  needs no flag on an empty store; the embedded bytes are used only if they hash to
-  the pin.
+  needs no flag on an empty store when `--package-out` is omitted; the embedded
+  bytes are used only if they hash to the pin.
 - Later updates: no root flags. A store whose initial root is not the pin is refused
   and left unchanged.
 - Rotation: a new root version is accepted only through the signed root chain that
