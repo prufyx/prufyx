@@ -55,6 +55,23 @@
       "boundaryStyles": ["main-unreleased-parenthesised"]
     },
     {
+      "component": "jaeger",
+      "repo": "github.com/jaegertracing/jaeger",
+      "form": "changelog-file",
+      "path": "CHANGELOG.md",
+      "headingStyle": "version-v-paren-date",
+      "boundaryStyles": ["unreleased"]
+    },
+    {
+      "component": "kube-state-metrics",
+      "repo": "github.com/kubernetes/kube-state-metrics",
+      "form": "changelog-file",
+      "path": "CHANGELOG.md",
+      "headingStyle": "version-v-slash-date",
+      "boundaryStyles": ["unreleased"],
+      "innerHeadingStyles": ["note-first"]
+    },
+    {
       "component": "node-exporter",
       "repo": "github.com/prometheus/node_exporter",
       "form": "changelog-file",
@@ -69,6 +86,14 @@
       "path": "CHANGELOG.md",
       "headingStyle": "version-bracketed-date",
       "boundaryStyles": ["prerelease-linked-paren-date"]
+    },
+    {
+      "component": "opentelemetry-collector",
+      "repo": "github.com/open-telemetry/opentelemetry-collector",
+      "form": "changelog-file",
+      "path": "CHANGELOG.md",
+      "headingStyle": "version-dual-second",
+      "boundaryStyles": ["unreleased"]
     },
     {
       "component": "prometheus",
