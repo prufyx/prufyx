@@ -630,7 +630,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 		admitSupersede(c, opts)
 	}
 	r.Supersedes = supersedeReport(cls)
-	admitSchemaChanges(cls, schemaChanges, r.ChangedPaths, opts)
+	admitSchemaChanges(cls, schemaChanges, r.ChangedPaths, opts, loadKeys, approvals)
 	r.registryDefinitions = admitRegistryChanges(cls, registryChanges, r.ChangedPaths, opts, loadKeys, approvals)
 
 	if opts.RederiveAll {
