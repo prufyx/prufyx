@@ -15,6 +15,11 @@ import (
 
 var renewalWorkflowPath = filepath.Join(repoRoot, ".github", "workflows", "evidence-renewal.yml")
 
+const (
+	renewalRepinStep  = "Re-pin the release lines independently"
+	renewalVerifyStep = "Verify the signed statement locally"
+)
+
 var renewalPinned = regexp.MustCompile(`^[A-Za-z0-9._/-]+@[0-9a-f]{40}$`)
 
 type renewalStep struct {
@@ -213,6 +218,56 @@ func renewalProblems(raw string) []string {
 		bad("sign must check the prepared files against the prepare digest")
 	}
 
+	// The local check compares the statement with the sign job's own re-pin,
+	// never with a file prepare produced.
+	if strings.Contains(code, "continue-on-error") {
+		bad("no step may ignore a failure")
+	}
+	repin, verify := idx(renewalRepinStep), idx(renewalVerifyStep)
+	if repin < 0 || verify < 0 || !(build < repin && repin < write && signStep < verify) {
+		bad("sign step order must be build, independent re-pin, write key, sign, verify")
+	} else {
+		r, v := sign.Steps[repin], sign.Steps[verify]
+		if r.If != "" {
+			bad("the independent re-pin must be unconditional")
+		}
+		for _, sub := range []string{
+			"set -euo pipefail", `rerun="${RUNNER_TEMP}/rerun-worklist.json"`, `rm -f "${rerun}"`,
+			`"${RUNNER_TEMP}/prufyx-maintainer" evidence repin`,
+			"--rules cli/internal/cncfcheck/data/rules.json", "--rules cli/internal/projectcheck/data/rules.json",
+			"--baseline release-line", `--output "${rerun}"`, `if [ ! -s "${rerun}" ]; then`,
+		} {
+			if !strings.Contains(r.Run, sub) {
+				bad("sign: the independent re-pin is missing", sub)
+			}
+		}
+		for _, sub := range []string{"prepared", "||", "--state", "--pinned-only"} {
+			if strings.Contains(r.Run, sub) {
+				bad("sign: the independent re-pin must not contain", sub)
+			}
+		}
+		for _, sub := range []string{
+			"set -euo pipefail", `prepared="${RUNNER_TEMP}/prepared/worklist.json"`, `rerun="${RUNNER_TEMP}/rerun-worklist.json"`,
+			`if [ -L "${rerun}" ] || [ ! -f "${rerun}" ] || [ ! -s "${rerun}" ]; then`,
+			`cmp -s -- "${prepared}" "${rerun}" || same=$?`,
+			`if [ "${rerun}" -ef "${prepared}" ] || [ "${same}" -ne 1 ]; then`,
+			`--worklist "${prepared}" --rerun-worklist "${rerun}"`,
+		} {
+			if !strings.Contains(v.Run, sub) {
+				bad("sign: the local verify is missing", sub)
+			}
+		}
+		if strings.Count(v.Run, "rerun=") != 1 || strings.Count(v.Run, `"${rerun}"`) != 6 ||
+			strings.Count(v.Run, "--rerun-worklist") != 1 {
+			bad("sign: the local verify may only read the independent worklist")
+		}
+		for i, s := range sign.Steps {
+			if i != repin && i != verify && strings.Contains(s.Run+fmt.Sprint(s.With, s.Env), "rerun") {
+				bad("sign: only the re-pin and the local verify may name the independent worklist", s.Name)
+			}
+		}
+	}
+
 	// Refusals and checks that fail closed, by the text of the step that
 	// carries them.
 	runs := func(steps []renewalStep) string {
@@ -399,6 +454,52 @@ func TestRenewalWorkflowRefusesWeakening(t *testing.T) {
 		},
 		"auto merge": func(s string) string {
 			return s + "# gh pr merge\n"
+		},
+		"prepared worklist as the rerun worklist": func(s string) string {
+			return strings.Replace(s, `--rerun-worklist "${rerun}"`, `--rerun-worklist "${prepared}"`, 1)
+		},
+		"rerun path points at the prepared file": func(s string) string {
+			i := strings.Index(s, "      - name: Verify the signed statement locally\n")
+			return s[:i] + strings.Replace(s[i:], `rerun="${RUNNER_TEMP}/rerun-worklist.json"`, `rerun="${RUNNER_TEMP}/prepared/worklist.json"`, 1)
+		},
+		"independent re-pin removed": func(s string) string {
+			i := strings.Index(s, "      - name: Re-pin the release lines independently\n")
+			j := strings.Index(s, "      - name: Write the key material\n")
+			return s[:i] + s[j:]
+		},
+		"independent re-pin after the key": func(s string) string {
+			i := strings.Index(s, "      - name: Re-pin the release lines independently\n")
+			j := strings.Index(s, "      - name: Write the key material\n")
+			k := strings.Index(s, "      - name: Sign as the automation role\n")
+			return s[:i] + s[j:k] + s[i:j] + s[k:]
+		},
+		"independent re-pin conditional": func(s string) string {
+			return strings.Replace(s, "      - name: Re-pin the release lines independently\n", "      - name: Re-pin the release lines independently\n        if: false\n", 1)
+		},
+		"independent re-pin failure ignored": func(s string) string {
+			return strings.Replace(s, `--output "${rerun}"`, `--output "${rerun}" || true`, 1)
+		},
+		"independent re-pin step may fail": func(s string) string {
+			return strings.Replace(s, "      - name: Re-pin the release lines independently\n", "      - name: Re-pin the release lines independently\n        continue-on-error: true\n", 1)
+		},
+		"independent re-pin copies the prepared file": func(s string) string {
+			return strings.Replace(s, `          if [ ! -s "${rerun}" ]; then`, "          cp \"${RUNNER_TEMP}/prepared/worklist.json\" \"${rerun}\"\n          if [ ! -s \"${rerun}\" ]; then", 1)
+		},
+		"independent re-pin may be empty": func(s string) string {
+			return strings.Replace(s, `if [ ! -s "${rerun}" ]; then`, `if false; then`, 1)
+		},
+		"another step writes the rerun worklist": func(s string) string {
+			return strings.Replace(s, "      - name: Sign as the automation role\n", "      - name: Substitute\n        run: cp \"${RUNNER_TEMP}/prepared/worklist.json\" \"${RUNNER_TEMP}/rerun-worklist.json\"\n      - name: Sign as the automation role\n", 1)
+		},
+		"verify copies over the rerun worklist": func(s string) string {
+			i := strings.Index(s, "      - name: Verify the signed statement locally\n")
+			return s[:i] + strings.Replace(s[i:], `          "${pm}" "${vargs[@]}"`, "          cp \"${prepared}\" \"${rerun}\"\n          \"${pm}\" \"${vargs[@]}\"", 1)
+		},
+		"verify accepts a missing worklist": func(s string) string {
+			return strings.Replace(s, `if [ -L "${rerun}" ] || [ ! -f "${rerun}" ] || [ ! -s "${rerun}" ]; then`, `if false; then`, 1)
+		},
+		"verify accepts a copy": func(s string) string {
+			return strings.Replace(s, `if [ "${rerun}" -ef "${prepared}" ] || [ "${same}" -ne 1 ]; then`, `if false; then`, 1)
 		},
 	}
 	for name, mutate := range mutations {

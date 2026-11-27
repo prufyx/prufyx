@@ -564,7 +564,7 @@ the knowledge gate re-derives every citation independently and decides.
 | Job | Holds | Does |
 |---|---|---|
 | `prepare` | read-only token, no secrets | builds the CLI from the triggering commit of `main`, re-pins the release lines over HTTP, computes how many rules this run may renew, prepares the statement for the first pack (`cncf`, then `community`) that has an eligible rule, runs the structural checks, uploads the worklist and the unsigned statement and reports their sha256 |
-| `sign` | environment `renewal`: the secrets `REATTEST_AUTOMATION_KEY` and `REATTEST_AUTOMATION_KEY_PASSPHRASE` | checks the downloaded files against that sha256, builds the CLI from the same commit, writes the key under the runner temp directory (mode 0600), signs, removes the key even on failure, runs `verify` |
+| `sign` | environment `renewal`: the secrets `REATTEST_AUTOMATION_KEY` and `REATTEST_AUTOMATION_KEY_PASSPHRASE` | checks the downloaded files against that sha256, builds the CLI from the same commit, writes the key under the runner temp directory (mode 0600), signs, removes the key even on failure, runs `verify`. Before the key is written it re-pins the release lines itself; `verify` takes that file as `--rerun-worklist` and the job refuses a missing one or a copy of the prepared one |
 | `pr` | environment `renewal-pr` (the bot token), no repository code; first checks that the token belongs to `KNOWLEDGE_BOT_LOGIN`, and refuses otherwise | exits if a pull request on `factory/renewal/automated-*` is open or if `main` moved since `prepare`; otherwise creates the branch and one commit through the API (authored by the bot account; it is not claimed to be signed or auto-merge eligible) holding the pack, one chain entry and its worklist, and opens the pull request, which is merged through the normal merge train after the Knowledge gate (no auto-merge) |
 
 The run renews at most N rules, N = min(45, the gate's daily loosening limit
@@ -591,9 +591,10 @@ write unless `gh api user` with the token returns exactly `KNOWLEDGE_BOT_LOGIN`.
 Revocation: restore the previous root digest variable and delete the secrets.
 
 Limits: the re-pin uses the workflow token (about 1000 requests an hour); a
-run that hits the limit fails and the next run retries. `sign` verifies against
-the worklist `prepare` produced; the gate's own re-pin remains the independent
-check.
+run that hits the limit fails and the next run retries. A signing run re-pins
+twice (`prepare` and `sign`). If upstream changed in between, or the second
+re-pin leaves a renewed citation pending, `verify` fails and no pull request is
+opened. The gate re-pins again and remains the deciding check.
 
 ## Pinned leases
 
