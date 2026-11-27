@@ -126,11 +126,10 @@ func checkBatchClaims(t *testing.T, stdout string, want []string) {
 }
 
 // checkOffPairReport fails unless a JSON report over a hop next to the
-// reviewed pair of exact (an exact-pair rule) holds what that hop gets:
-// before the batch ships, the exact rule's UNKNOWN claim for an unreviewed
-// transition; once a batch rule's range covers the hop, the claims of the
-// rules that match it (every batch rule of project, UNKNOWN) and none of
-// the exact rule. The exit is 11 either way.
+// reviewed pair of exact (an exact-pair rule) holds what that hop gets: the
+// exact rule's UNKNOWN claim for an unreviewed transition, and, once a batch
+// rule's range covers the hop, also the claims of the rules that match it
+// (every batch rule of project, UNKNOWN). The exit is 11 either way.
 func checkOffPairReport(t *testing.T, code int, stdout, project, exact string) {
 	t.Helper()
 	if code != ExitUnknown {
@@ -159,8 +158,8 @@ func checkOffPairReport(t *testing.T, code int, stdout, project, exact string) {
 			}
 		}
 	}
-	if want := map[bool]int{true: 0, false: 1}[len(ids) > 0]; exactClaims != want || len(report.Check.Claims) != want+len(ids) {
-		t.Fatalf("off-pair claims %+v, want %d of %s and %d of the batch", report.Check.Claims, want, exact, len(ids))
+	if exactClaims != 1 || len(report.Check.Claims) != 1+len(ids) {
+		t.Fatalf("off-pair claims %+v, want one of %s and %d of the batch", report.Check.Claims, exact, len(ids))
 	}
 }
 

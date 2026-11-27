@@ -206,28 +206,29 @@ func TestReviewedTransitionCorpus(t *testing.T) {
 				}
 				// Two outside cases name a hop a custom-resource rule of the
 				// batch covers (its range holds every release of the two
-				// lines). Once the batch ships, the report holds the rules
-				// that match the hop: the exact-pair rule is then not
-				// reported, and every batch rule of the project is, UNKNOWN
-				// without the version set. Before, the rule is reported.
+				// lines). Once the batch ships, the report holds every batch
+				// rule of the project, UNKNOWN without the version set, and
+				// still the exact-pair rule, named as unreviewed for the pair:
+				// its anchor lies inside that range.
+				if !found {
+					t.Fatal("expected rule omitted")
+				}
 				if crdbatchids.Shipped() && batchCoveredOutside[vector.RuleID+"/"+scenario.Name] {
-					if found {
-						t.Fatal("exact-pair rule reported on a hop the batch covers")
-					}
-					want := map[string]bool{}
+					want := map[string]bool{vector.RuleID: true}
 					for _, r := range crdbatchids.ProjectRules(vector.Project) {
 						want[r.ID] = true
 					}
 					if len(report.Check.Claims) != len(want) {
-						t.Fatalf("%d claims, want the %d batch rules of %s", len(report.Check.Claims), len(want), vector.Project)
+						t.Fatalf("%d claims, want the %d batch rules and the exact rule of %s", len(report.Check.Claims), len(want)-1, vector.Project)
 					}
 					for _, claim := range report.Check.Claims {
 						if !want[claim.RuleID] || claim.Status != "UNKNOWN" {
 							t.Fatalf("claim %s %s", claim.RuleID, claim.Status)
 						}
+						if claim.RuleID == vector.RuleID && (claim.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED" || !strings.Contains(claim.NextAction, vector.RuleID)) {
+							t.Fatalf("exact-pair rule %+v", claim)
+						}
 					}
-				} else if !found {
-					t.Fatal("expected rule omitted")
 				}
 				if report.Assessment != "UNKNOWN" || report.Check.Assessment != "UNKNOWN" || report.RuntimeReproduced != 0 || report.NetworkUsed {
 					t.Fatal("source preview escalated authority")
