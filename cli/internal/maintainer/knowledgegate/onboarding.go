@@ -34,8 +34,9 @@ import (
 // The manifest binds the base and head states the gate recomputes, every
 // file the change adds or changes, the gate's own classification of the
 // change, per project the extractor dry run the proposal was made on (the
-// gate re-runs it) and the claims summary of the proposal (shown, not
-// checked), the sample of projects the owner read in full and the summary
+// gate re-runs it) and the claims summary of the proposal (at least one
+// confirmed and no refuted claim per project; the counts are not re-derived),
+// the sample of projects the owner read in full and the summary
 // the owner was shown. A batch is single use, forward only per project,
 // valid for at most MaxOnboardingValidity and decided all or nothing.
 const (
@@ -120,8 +121,10 @@ type OnboardingFinding struct {
 	SHA256 string `json:"sha256"`
 }
 
-// OnboardingClaims is the proposal's claims summary. The gate binds and
-// shows it; it does not check it.
+// OnboardingClaims is the proposal's claims summary. The signer and the gate
+// require of every project of a new batch at least one confirmed claim and no
+// refuted one (onboardingState.check). The counts are the proposal's own:
+// neither re-derives them from the ledger.
 type OnboardingClaims struct {
 	Confirmed    int    `json:"confirmed"`
 	Ledger       string `json:"ledger"`
