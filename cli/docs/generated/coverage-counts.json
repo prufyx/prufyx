@@ -2,12 +2,12 @@
   "schema": "prufyx.io/coverage-readme-counts/v2",
   "report": {
     "schema": "prufyx.io/coverage-report/v1",
-    "now": "2026-11-27T08:10:00Z",
+    "now": "2026-11-27T21:41:22Z",
     "window": 6,
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
-      "digest": "sha256:4db4fae9d5ef42fe281d1405a126b30a57bc2c2effc3cb8b76ae9e254aae8571"
+      "digest": "sha256:c9cc6d8828dc80bca1c1cf132bd775de3920b1c6a8741eab192d5b80c63eeaec"
     },
     "lines": {
       "capturedOn": "2026-10-31",
@@ -19,10 +19,10 @@
       "entries": 9,
       "clockOn": "2026-11-10"
     },
-    "clockAttestedAt": "2026-11-27T08:10:00Z",
+    "clockAttestedAt": "2026-11-27T21:41:22Z",
     "packProjectsCovered": 73,
     "crdVersionProjects": 87,
-    "crdPublishedProjects": 42,
+    "crdPublishedProjects": 44,
     "fleet": {
       "projects": 79,
       "pairs": 395,
@@ -219,7 +219,7 @@
         "covered": true,
         "validRules": 7,
         "rulesInWindow": 5,
-        "expiring14d": 0
+        "expiring14d": 5
       },
       {
         "project": "argo-workflows",
@@ -5956,7 +5956,9 @@
       }
     ],
     "projectsWithoutLines": [],
-    "expiringProjects": [],
+    "expiringProjects": [
+      "argo-cd"
+    ],
     "v2": {
       "tiersVerified": false,
       "tier1Projects": 30,
@@ -7105,5 +7107,5 @@
       "g": 41
     }
   },
-  "readmeBlockSha256": "03e450506196c8281f911c9a5f5e62a012338e523b05cb163c295e56053c1d14"
+  "readmeBlockSha256": "c0a98c4888c2e2688a138e6aa2c06ce72b814cceb4c20e2641de812238251aaa"
 }
