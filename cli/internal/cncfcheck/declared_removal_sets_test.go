@@ -152,8 +152,11 @@ func removalPaths(t *testing.T, b bundle, external ExternalBundle, f declaredRem
 	keep("check-facts", r, err)
 	r, err = external.Evaluate(f.project, raw, removalNow)
 	keep("external", r, err)
-	r, err = external.EvaluateRule(f.project, f.ruleID(side), raw, removalNow)
-	keep("external-rule", r, err)
+	// An external rule that the compiled pack does not hold cannot be
+	// selected by id.
+	if _, err := external.EvaluateRule(f.project, f.ruleID(side), raw, removalNow); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("%s external rule selection: %v", f.id, err)
+	}
 	return out
 }
 
@@ -396,33 +399,29 @@ func TestDeclaredRemovalRulesDeferredByBuildWithoutTheFacts(t *testing.T) {
 			}
 			for _, member := range []string{"kept-flag", removalMember} {
 				raw := f.sideInput(side, removalSet(true, member))
-				for _, evaluate := range []func([]byte) (Report, error){
-					func(raw []byte) (Report, error) { return deferred.Evaluate(f.project, raw, removalNow) },
-					func(raw []byte) (Report, error) {
-						return deferred.EvaluateRule(f.project, f.ruleID(side), raw, removalNow)
-					},
-				} {
-					if _, err := evaluate(raw); !errors.Is(err, ErrInvalid) {
-						t.Fatalf("%s %s %s: unregistered fact accepted: %v", f.id, side, member, err)
+				if _, err := deferred.Evaluate(f.project, raw, removalNow); !errors.Is(err, ErrInvalid) {
+					t.Fatalf("%s %s %s: unregistered fact accepted: %v", f.id, side, member, err)
+				}
+				if _, err := deferred.EvaluateRule(f.project, f.ruleID(side), raw, removalNow); !errors.Is(err, ErrInvalid) {
+					t.Fatalf("%s %s %s: rule selection accepted: %v", f.id, side, member, err)
+				}
+				report, err := deferred.Evaluate(f.project, f.input("1.9.0", "", ""), removalNow)
+				if err != nil {
+					t.Fatalf("%s %s: %v", f.id, side, err)
+				}
+				for _, claim := range report.Check.Claims {
+					if claim.RuleID == f.ruleID(side) {
+						t.Fatalf("%s %s: deferred rule produced %s", f.id, side, claim.Status)
 					}
-					report, err := evaluate(f.input("1.9.0", "", ""))
-					if err != nil {
-						t.Fatalf("%s %s: %v", f.id, side, err)
-					}
-					for _, claim := range report.Check.Claims {
-						if claim.RuleID == f.ruleID(side) {
-							t.Fatalf("%s %s: deferred rule produced %s", f.id, side, claim.Status)
-						}
-					}
-					if len(report.DeferredRules) == 0 || report.Assessment != "UNKNOWN" || ClaimExit(report) == 0 || !strings.HasPrefix(report.NextAction, deferredNextAction) {
-						t.Fatalf("%s %s: deferred report %+v exit %d", f.id, side, report.DeferredRules, ClaimExit(report))
-					}
+				}
+				if len(report.DeferredRules) == 0 || report.Assessment != "UNKNOWN" || ClaimExit(report) != 11 || !strings.HasPrefix(report.NextAction, deferredNextAction) {
+					t.Fatalf("%s %s: deferred report %+v exit %d", f.id, side, report.DeferredRules, ClaimExit(report))
 				}
 				want := "UNKNOWN"
 				if member == removalMember {
 					want = "BLOCKED"
 				}
-				report, err := current.EvaluateRule(f.project, f.ruleID(side), raw, removalNow)
+				report, err = current.Evaluate(f.project, raw, removalNow)
 				if err != nil || removalClaim(t, report.Check.Claims, f.ruleID(side)).Status != want {
 					t.Fatalf("%s %s %s: control %+v %v", f.id, side, member, report.Check.Claims, err)
 				}
@@ -438,9 +437,12 @@ func TestDeclaredRemovalSetsRefuseHostileSpellings(t *testing.T) {
 		external := removalExternal(t, b)
 		for _, f := range declaredRemovalFacts() {
 			good := string(f.sideInput(side, removalSet(true, "kept-flag")))
-			escapedID := strings.Replace(f.id, "_cli_", `_cli_`, 1)
-			if escapedID == f.id {
-				escapedID = strings.Replace(f.id, ".", `.`, 1)
+			// bs starts a JSON escape in the document bytes.
+			bs := string(rune(92))
+			escapedID := strings.Replace(f.id, "_cli_", bs+"u005fcli_", 1)
+			escapedUpper := strings.Replace(good, "kept-flag", bs+"u004bept-flag", 1)
+			if escapedID == f.id || !strings.Contains(escapedUpper, bs+"u004b") {
+				t.Fatalf("%s: escapes not applied", f.id)
 			}
 			// Accepted spellings of the same document stay guarded.
 			for name, raw := range map[string]string{
@@ -460,7 +462,7 @@ func TestDeclaredRemovalSetsRefuseHostileSpellings(t *testing.T) {
 			refused := map[string]string{
 				"upper case":          string(f.sideInput(side, removalSet(true, "Kept-Flag"))),
 				"upper-case removed":  string(f.sideInput(side, removalSet(false, strings.ToUpper(removalMember)))),
-				"escaped upper case":  strings.Replace(good, "kept-flag", `Kept-flag`, 1),
+				"escaped upper case":  escapedUpper,
 				"escaped id upper":    strings.Replace(strings.Replace(good, "kept-flag", "Kept-flag", 1), f.id, escapedID, 1),
 				"duplicate complete":  strings.Replace(good, `"complete":true`, `"complete":false,"complete":true`, 1),
 				"case-variant key":    strings.Replace(good, `"complete":true`, `"complete":false,"Complete":true`, 1),
