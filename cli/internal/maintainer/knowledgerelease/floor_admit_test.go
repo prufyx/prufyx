@@ -33,6 +33,7 @@ import (
 	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/buildidentity"
+	"github.com/prufyx/prufyx/cli/internal/lineattest"
 	"github.com/prufyx/prufyx/cli/internal/maintainer/knowledgepinguard"
 )
 
@@ -498,6 +499,41 @@ type lackingRead struct {
 	message               string
 }
 
+// The listed family's read is removed by renaming the family to an
+// unregistered one in the section passed at the external read. The table entry
+// stays, because the embedded pack is admitted through it.
+const (
+	listedFamilyToken       = `"changelog.listed_entries"`
+	unregisteredFamily      = "changelog.unregistered_entries"
+	unregisteredFamilyToken = `"` + unregisteredFamily + `"`
+	renamedListedSection    = "bytes.ReplaceAll(section, []byte(`" + listedFamilyToken + "`), []byte(`" + unregisteredFamilyToken + "`))"
+)
+
+// The renamed section is refused because its family is not registered, and for
+// no other reason: the same section parses before the rename.
+func TestRenamedListedFamilyIsUnknown(t *testing.T) {
+	pack, err := os.ReadFile(filepath.Join("..", "..", "cncfcheck", "data", "rules.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	section, present, err := lineattest.PackSection(pack)
+	if err != nil || !present {
+		t.Fatalf("embedded attestations: present=%v, %v", present, err)
+	}
+	if _, err := lineattest.Parse(section); err != nil {
+		t.Fatalf("the unchanged section: %v", err)
+	}
+	if !bytes.Contains(section, []byte(listedFamilyToken)) {
+		t.Fatalf("the embedded section holds no %s", listedFamilyToken)
+	}
+	renamed := bytes.ReplaceAll(section, []byte(listedFamilyToken), []byte(unregisteredFamilyToken))
+	_, err = lineattest.Parse(renamed)
+	want := fmt.Sprintf("unknown factFamily %q", unregisteredFamily)
+	if !errors.Is(err, lineattest.ErrInvalid) || !strings.Contains(err.Error(), want) {
+		t.Fatalf("the renamed section: %v, want %s", err, want)
+	}
+}
+
 func lackingReads() []lackingRead {
 	return []lackingRead{
 		{
@@ -508,7 +544,7 @@ func lackingReads() []lackingRead {
 		{
 			floor: floorListedFamily, file: "internal/cncfcheck/external_records.go",
 			old:  "if _, err := admitAttestations(section, true, pack.Entries); err != nil {",
-			new:  "if _, err := admitAttestations(section, true, pack.Entries); err != nil || bytes.Contains(section, []byte(\"changelog.listed_entries\")) {",
+			new:  "if _, err := admitAttestations(" + renamedListedSection + ", true, pack.Entries); err != nil {",
 			exit: 3, message: integrityRefusal,
 		},
 		{

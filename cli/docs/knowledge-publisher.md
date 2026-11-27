@@ -704,9 +704,9 @@ below that release (see [knowledge-gate.md](knowledge-gate.md#provider-facts)).
 **Listed changelog entries.** A `changelog.listed_entries` attestation (the
 family behind the L figures) is published only for clients from
 `cncfcheck.ListedFamilyFloor` on, a build-time constant that is above every
-release that predates the family and above the oldest supported client pin. A
-client that does not know the family would fail the package as an integrity
-failure (exit `3`), so:
+release that predates the family and above the legacy pin. A client that does
+not know the family would fail the package as an integrity failure (exit `3`),
+so:
 
 - while the oldest supported client pin is below the floor, or unknown, the
   publisher leaves every listed attestation out of the package before anything
@@ -871,6 +871,14 @@ depends on how far the pin has moved.
   new floor, the gate fails every change while a pack is at that level, and the
   publisher refuses the whole package, withdrawals and renewals included. The
   pinned-client step must pass before that change merges.
+  Nothing else can merge after it, so the fix, its release notes and the floor
+  raise must all be in the commit that is tagged: at the latest the raise
+  merges them, and its merge commit is tagged and published. Then open the
+  pin-only PR. This procedure has no other merge route: the gate of a pull
+  request or a merge queue entry is built from its base and checks the head's
+  pin on every change, and the ruleset on `main` requires that check with no
+  bypass actor. The pin-only PR passes because its head pin reaches the new
+  floor. A revert of the raise fails the same check.
 - The defect is in reading listed attestations: `ListedFamilyFloor` cannot rise,
   because the defective tag holds the family and the tag rule refuses a floor
   above it. Any pin at `v0.1.0-beta.2` or later, a newer release included, makes
