@@ -4,6 +4,7 @@ package coveragereport
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -65,20 +66,28 @@ func TestChartSubjectRuleLeavesApplicationRules(t *testing.T) {
 
 // One attestation lists an application rule and a chart rule: it is not
 // line-wide, so the pair keeps only what the application rule gives by itself,
-// and only the application rule falls in the window.
+// and only the application rule falls in the window. Without the chart both
+// rules are line-wide and the same attestation gives A.
 func TestChartSubjectRuleBesideApplicationRuleInOneAttestation(t *testing.T) {
-	app := ruleJSON("app", "1.31.3", "1.32.1", "", valid)
+	app := ruleJSON("app", "1.31.0", "1.32.0", rangeJSON("1.31.0", "1.32.0", "1.32.0", "1.33.0"), valid)
 	listed := ruleJSON("chart", "1.31.0", "1.32.0", rangeJSON("1.31.0", "1.32.0", "1.32.0", "1.33.0"), valid)
 	atts := []string{attJSON("1.32", valid, "app", "chart")}
 
 	control := run(t, []string{app, listed}, atts, "1.31", "1.32")
+	if got := statuses(control); got != "A" || control.A != 1 || control.B != 0 || control.S != 0 {
+		t.Fatalf("without chart: %s (%+v), want A", got, control)
+	}
 	if control.RulesInWindow != 2 || control.ValidRules != 2 {
 		t.Fatalf("without chart: rulesInWindow %d, validRules %d, want 2 and 2", control.RulesInWindow, control.ValidRules)
 	}
 
+	alone := run(t, []string{app}, nil, "1.31", "1.32")
+	if got := statuses(alone); got != "B" {
+		t.Fatalf("application rule alone: %s (%+v), want B", got, alone)
+	}
 	p := run(t, []string{app, asChart(t, listed)}, atts, "1.31", "1.32")
-	if got := statuses(p); got != "S" || p.A != 0 || p.B != 0 || len(p.Pairs[0].Families) != 0 {
-		t.Fatalf("with chart: %s (%+v), want S", got, p)
+	if got := statuses(p); got != "B" || p.A != 0 || p.B != 1 || p.S != 0 || !slices.Equal(p.Pairs[0].Families, alone.Pairs[0].Families) {
+		t.Fatalf("with chart: %s (%+v), want B as the application rule alone", got, p)
 	}
 	if p.RulesInWindow != 1 || p.ValidRules != 2 {
 		t.Fatalf("with chart: rulesInWindow %d, validRules %d, want 1 and 2", p.RulesInWindow, p.ValidRules)
@@ -86,7 +95,9 @@ func TestChartSubjectRuleBesideApplicationRuleInOneAttestation(t *testing.T) {
 }
 
 // The changelog families: a chart rule bounds no changelog pair, and an
-// attestation that lists one is typed like any rule that is not line-wide.
+// attestation that lists one is typed like any rule that is not line-wide. The
+// same record without the chart is the control: it bounds the pair, listed or
+// not, and leaves no rule reason.
 func TestChartSubjectRuleInChangelogFamilies(t *testing.T) {
 	const comp = "pkg:github/strimzi/strimzi-kafka-operator"
 	rels := map[string][]string{"1.8": {"1.8.0"}, "1.9": {"1.9.0"}}
@@ -97,14 +108,28 @@ func TestChartSubjectRuleInChangelogFamilies(t *testing.T) {
 		},
 		Chart: &constraintengine.ChartRef{Source: "https://charts.example.invalid/stable", Name: "synthetic"}}}
 	byID := map[string]*ruleRec{"r": rec}
+	plain := *rec
+	plain.tr.Chart = nil
+	plainByID := map[string]*ruleRec{"r": &plain}
 	for _, family := range []string{FamilyChangelogAttested, FamilyChangelogListed} {
 		att := clAtt(comp, family, "2027-01-01T00:00:00Z", []string{"1.8.0"}, []string{"1.9.0"})
-		pair := classify("strimzi", "1.8", "1.9", []*ruleRec{rec}, []lineattest.LineAttestation{att}, byID, rels)
+		pair := classify("strimzi", "1.8", "1.9", []*ruleRec{&plain}, []lineattest.LineAttestation{att}, plainByID, rels)
+		if pair.Status != StatusB || pair.Changelog || !pair.canBlock {
+			t.Fatalf("%s, unlisted rule without chart: %+v", family, pair)
+		}
+		pair = classify("strimzi", "1.8", "1.9", []*ruleRec{rec}, []lineattest.LineAttestation{att}, byID, rels)
 		if pair.Status != StatusG || !pair.Changelog || pair.canBlock {
 			t.Fatalf("%s, unlisted chart rule: %+v", family, pair)
 		}
 		att.RuleIDs = []string{"r"}
 		atts := []lineattest.LineAttestation{att}
+		pair = classify("strimzi", "1.8", "1.9", []*ruleRec{&plain}, atts, plainByID, rels)
+		if pair.Status != StatusB || pair.Changelog || !pair.canBlock || !slices.Equal(pair.Families, []string{"other"}) {
+			t.Fatalf("%s, listed rule without chart: %+v", family, pair)
+		}
+		if r := changelogGapReason(comp, "1.8", "1.9", atts, baselineNow, plainByID, rels, nil); r != GapNoAttestation {
+			t.Fatalf("%s, without chart: reason %s", family, r)
+		}
 		pair = classify("strimzi", "1.8", "1.9", []*ruleRec{rec}, atts, byID, rels)
 		if pair.Status != StatusG || pair.Changelog || len(pair.Families) != 0 {
 			t.Fatalf("%s, listed chart rule: %+v", family, pair)
