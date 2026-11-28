@@ -62,12 +62,194 @@ func TestPrepareLatestCitationStatementIsUnchangedByBaselineFields(t *testing.T)
 	}
 }
 
-func TestPrepareAcceptsSchemaV1Worklist(t *testing.T) {
+// Earlier worklist schemas record no digest and were classified without the
+// current proof: no statement and no sample review comes from them.
+func TestPrepareRefusesOlderAndUnknownWorklistSchemas(t *testing.T) {
 	packPath := "/p/rules.json"
-	wl, pack := buildWorklistAndPack(t, packPath, baseNow, []ruleSpec{freshSpec("rule-a", "proj-a", baseNow)})
-	wl.Schema = evidencerepin.SchemaV1
-	if got := prepareSingle(t, wl, pack, packPath); len(got.Statement.Rules) != 1 {
-		t.Fatalf("a v1 worklist must still validate: %+v", got.Statement.NotExtended)
+	for schema, want := range map[string]string{
+		evidencerepin.SchemaV2:                 "older than the current schema",
+		evidencerepin.SchemaV1:                 "older than the current schema",
+		"prufyx.io/evidence-repin-worklist/v4": "decode worklist",
+		"":                                     "decode worklist",
+	} {
+		wl, pack := lineWorklist(t, packPath)
+		opts := PrepareOptions{
+			WorklistRaw: marshalWorklist(t, wl), PackName: PackCNCF, PackPath: packPath, PackRaw: pack,
+			Wave: 1, AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest, Chain: &Chain{},
+		}
+		if _, err := Prepare(opts); err != nil {
+			t.Fatalf("control: the current schema must be accepted: %v", err)
+		}
+		wl.Schema = schema
+		opts.WorklistRaw = marshalWorklist(t, wl)
+		if _, err := Prepare(opts); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%q: Prepare must refuse, got %v", schema, err)
+		}
+		if _, err := worklistCitationAttestations(opts.WorklistRaw, packPath, ruleCandidate{RuleID: "rule-a"}); err == nil || !strings.Contains(err.Error(), "current worklist schema") {
+			t.Errorf("%q: a sample review must refuse, got %v", schema, err)
+		}
+	}
+}
+
+// A statement over a v2 worklist, which records no digest, is recomputed only
+// with no independent worklist and outside pre-sign, which is never the
+// publish gate.
+func TestVerifyReadsAnOlderRetainedWorklistOnlyAsAnAudit(t *testing.T) {
+	f := newRoleFixture(t)
+	wl, _ := buildWorklistAndPack(t, chainPackPath, baseNow, cycleSpecs(12, baseNow))
+	lineBaselined(&wl)
+	current := marshalWorklist(t, wl)
+	wl.Schema = evidencerepin.SchemaV2
+	for i := range wl.Citations {
+		wl.Citations[i].OldDigest = ""
+	}
+	older := marshalWorklist(t, wl)
+	prior := automatedPack(t, baseNow)
+	prepare := PrepareOptions{
+		Mode: ModeAutomated, WorklistRaw: older, PackName: PackCNCF, PackPath: chainPackPath, PackRaw: prior, Chain: &Chain{},
+		AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest,
+	}
+	if _, err := Prepare(prepare); err == nil || !strings.Contains(err.Error(), "current-schema worklist") {
+		t.Fatalf("Prepare must refuse a v2 worklist, got %v", err)
+	}
+	// The statement a build of that schema's time prepared.
+	prepare.historicWorklist = true
+	res, err := Prepare(prepare)
+	if err != nil || len(res.Statement.Rules) != 12 {
+		t.Fatalf("fixture: %v %+v", err, res.Statement.NotExtended)
+	}
+	base := f.chain()
+	f.appendAutomated("0001", res.StatementCanonical)
+	audit := VerifyOptions{
+		StatementRaw: res.StatementCanonical, PriorPackRaw: prior, NextPackRaw: res.NextPack,
+		WorklistRaw: older, Chain: f.chain(), BaseChain: base, PackName: PackCNCF, PackPath: chainPackPath,
+		EngineCapabilityDigest: testEngineCapabilityDigest, AttestedAtNow: baseNow.Add(time.Hour),
+	}
+	if _, err := Verify(audit); err != nil {
+		t.Fatalf("a signed statement over a v2 worklist must still verify: %v", err)
+	}
+	for name, mutate := range map[string]func(*VerifyOptions){
+		"pre-sign":                     func(o *VerifyOptions) { o.PreSign = true },
+		"older independent worklist":   func(o *VerifyOptions) { o.IndependentWorklistRaw = older },
+		"current independent worklist": func(o *VerifyOptions) { o.IndependentWorklistRaw = current },
+	} {
+		gate := audit
+		mutate(&gate)
+		if _, err := Verify(gate); err == nil || !strings.Contains(err.Error(), "V3") {
+			t.Errorf("%s: Verify must refuse an older retained worklist, got %v", name, err)
+		}
+	}
+
+	// A human statement may rest on a v2 or a v1 worklist, on the same terms.
+	for _, schema := range []string{evidencerepin.SchemaV2, evidencerepin.SchemaV1} {
+		h := newRoleFixture(t)
+		wl, pack := buildWorklistAndPack(t, chainPackPath, baseNow, []ruleSpec{freshSpec("rule-a", "proj-a", baseNow)})
+		pack = padPackWithSpreadRules(t, pack, 12)
+		wl.Schema = schema
+		for i := range wl.Citations {
+			wl.Citations[i].OldDigest = ""
+		}
+		raw := marshalWorklist(t, wl)
+		res, records := prepareWithOlderSample(t, PrepareOptions{
+			WorklistRaw: raw, PackName: PackCNCF, PackPath: chainPackPath, PackRaw: pack, Chain: &Chain{}, Wave: 1,
+			AttestedAt: baseNow, Now: baseNow, NextRevision: "rev-2", EngineCapabilityDigest: testEngineCapabilityDigest,
+			historicWorklist: true,
+		})
+		if len(res.Statement.Rules) != 1 {
+			t.Fatalf("%s fixture: %+v", schema, res.Statement.NotExtended)
+		}
+		before := h.chain()
+		h.append("0001", res.StatementCanonical)
+		audit := VerifyOptions{
+			StatementRaw: res.StatementCanonical, PriorPackRaw: pack, NextPackRaw: res.NextPack,
+			WorklistRaw: raw, Chain: h.chain(), BaseChain: before, PackName: PackCNCF, PackPath: chainPackPath,
+			EngineCapabilityDigest: testEngineCapabilityDigest, AttestedAtNow: baseNow.Add(time.Hour), ReviewRecords: records,
+		}
+		if _, err := Verify(audit); err != nil {
+			t.Fatalf("a signed human statement over a %s worklist must still verify: %v", schema, err)
+		}
+		for name, mutate := range map[string]func(*VerifyOptions){
+			"pre-sign":             func(o *VerifyOptions) { o.PreSign = true },
+			"independent worklist": func(o *VerifyOptions) { o.IndependentWorklistRaw = raw },
+		} {
+			gate := audit
+			mutate(&gate)
+			if _, err := Verify(gate); err == nil || !strings.Contains(err.Error(), "V3") {
+				t.Errorf("%s %s: Verify must refuse an older retained worklist, got %v", schema, name, err)
+			}
+		}
+	}
+}
+
+// prepareWithOlderSample is Prepare with the sample review records a build of
+// an earlier worklist schema's time wrote. NewSampleReview refuses such a
+// worklist now, so the fixture binds each record from the statement itself.
+func prepareWithOlderSample(t *testing.T, opts PrepareOptions) (PrepareResult, map[string][]byte) {
+	t.Helper()
+	res, err := Prepare(opts)
+	if err != nil {
+		t.Fatalf("Prepare: %v", err)
+	}
+	doc, err := loadPack(opts.PackRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidates, _, err := packCandidates(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	records := map[string][]byte{}
+	for _, sampled := range res.Statement.SampledForFullReview {
+		candidate := candidatesByID(candidates)[sampled.RuleID]
+		for _, ra := range res.Statement.Rules {
+			if ra.RuleID != sampled.RuleID {
+				continue
+			}
+			bindings, err := sampleReviewBindingsFor(res.Statement, candidate.Raw, ra.Citations)
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw, err := canonicalBytes(SampleReviewRecord{
+				Schema: SampleReviewSchema,
+				Decision: SampleReviewDecision{
+					Authority: sampleReviewAuthority, State: sampleReviewState, Reviewer: "airstand",
+					DecidedAt: rfc3339(opts.AttestedAt), Scope: sampleReviewScope,
+				},
+				Subject:     sampleReviewSubjectFor(res.Statement, candidate.Project, sampled.RuleID),
+				Bindings:    bindings,
+				Limitations: append([]string(nil), sampleReviewLimitations...),
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			records[sampled.RuleID] = append(raw, '\n')
+		}
+	}
+	if len(records) == 0 {
+		t.Fatal("fixture: no sampled rule")
+	}
+	opts.ReviewRecords = records
+	res, err = Prepare(opts)
+	if err != nil {
+		t.Fatalf("Prepare: %v", err)
+	}
+	return res, records
+}
+
+// The independent worklist is the verifying job's own run: an earlier schema
+// is refused.
+func TestIndependentWorklistMustBeTheCurrentSchema(t *testing.T) {
+	packPath := "/p/rules.json"
+	wl, pack := lineWorklist(t, packPath)
+	statement := prepareSingle(t, wl, pack, packPath).Statement
+	if err := checkIndependentWorklist(statement, packPath, marshalWorklist(t, wl)); err != nil {
+		t.Fatalf("control: %v", err)
+	}
+	for _, schema := range []string{evidencerepin.SchemaV2, evidencerepin.SchemaV1} {
+		wl.Schema = schema
+		if err := checkIndependentWorklist(statement, packPath, marshalWorklist(t, wl)); err == nil || !strings.Contains(err.Error(), "current worklist schema") {
+			t.Errorf("%s: must be refused, got %v", schema, err)
+		}
 	}
 }
 

@@ -44,6 +44,7 @@ What the mirror cannot answer is `PENDING`, never "unchanged". The citation's
 | A cited file's contents are not materialized in the mirror (the mirror never downloads on demand) or the commit is not in the mirror | `PENDING`, with a note to add the file to the mirror's wants |
 | The repository has an unacknowledged alarm (a tag moved or vanished) | `PENDING` for every citation of the repository: nothing is compared against tags that may have been rewritten, until a person acknowledges the alarm with `factory ack` |
 | The repository is not in the mirror | `PENDING` |
+| The mirror's last check of the repository did not succeed, or none has | `PENDING` for whatever needs its tags: they may miss newer releases |
 | Release metadata is unknown (the mirror had no GitHub credential), stale, or missing | `PENDING` for the repository |
 | Release metadata is known but the mirror cut the list short | The newest release is still used, but no release line is derived: citations keep the latest-release baseline and `baselineNote` says the line scan is incomplete |
 
@@ -93,12 +94,14 @@ A worklist built from a mirror that was last refreshed days ago must not look as
 fresh as the moment it was built. For `--source mirror`:
 
 * every repository carries `source: "mirror"`, `mirrorCheckedAt` (the mirror's
-  last successful look at the repository's refs; if its last check failed, the
-  time its refs last changed) and `mirrorReleasesAt` (the last successful
-  revalidation of its release metadata);
+  last successful look at the repository's refs) and `mirrorReleasesAt` (the
+  last successful revalidation of its release metadata);
 * `resolvedAt` of a repository and of each release line is the older of those
   two times (never later than the run), so `summary.oldestResolvedAt` is the
   mirror's age;
+* a repository whose last check did not succeed, or that was never fetched,
+  carries none of those three times and is marked `stale`; what needs its tags
+  stays `PENDING`, and it does not count towards `summary.oldestResolvedAt`;
 * a repository, line or classified citation older than `--max-age` is marked
   `stale`;
 * the worklist records `source` (also in `scope.source`) and `mirror`
@@ -116,13 +119,13 @@ class:
 
 | Class | Meaning |
 |---|---|
-| `NO_NEW_RELEASE` | The baseline commit is the citation's own pinned commit. |
-| `FILE_IDENTICAL` | The whole file at the baseline commit is byte-identical to the recorded `contentDigest` (a whole-file sha256). |
-| `SPAN_IDENTICAL` | The file changed, but the cited lines are byte-identical at the same line range. |
+| `NO_NEW_RELEASE` | The baseline commit is the citation's own pinned commit, and the file read there hashes to the recorded `contentDigest` and holds the cited lines. A file that cannot be read leaves the citation `PENDING`. |
+| `FILE_IDENTICAL` | The file at the citation's own pinned commit hashes to the recorded `contentDigest` (a whole-file sha256) and holds the cited lines, and the whole file at the baseline commit is byte-identical to it. |
+| `SPAN_IDENTICAL` | The file changed, but the cited lines are byte-identical at the same line range, and their bytes occur exactly once in the pinned file and exactly once in the new one. |
 | `SPAN_MOVED` | The cited bytes appear at a different line range. |
-| `CONTENT_CHANGED` | The path exists and the cited bytes are gone. |
+| `CONTENT_CHANGED` | The path exists and the cited bytes are gone. Also: the cited lines are blank, or they read the same at the same range but occur more than once in either file, so the cited passage cannot be shown intact. |
 | `PATH_GONE` | The path does not exist at the baseline commit. |
-| `CORPUS_DIGEST_MISMATCH` | The file at the citation's own pinned commit does not hash to the recorded `contentDigest`; an integrity finding, not drift. |
+| `CORPUS_DIGEST_MISMATCH` | The record is wrong: the file at the citation's own pinned commit does not hash to the recorded `contentDigest` or is not there, or the cited lines are not inside the file that has that digest. An integrity finding, not drift. |
 | `NO_RELEASE_BASELINE` | Terminal: the citation's repository definitively publishes no GitHub Releases and no tags (typically a website or docs repository), so there is nothing to compare against. See below. |
 | `PENDING` | Not resolved this run (rate limit, transport error, unresolved baseline); retried on the next run. |
 
@@ -401,10 +404,10 @@ compared commit is the line's newest release tag, not the fallback's tag.
 
 ### What the worklist records
 
-The worklist schema is `prufyx.io/evidence-repin-worklist/v2` (the earlier `v1`
-shape had no baseline fields and is still accepted by `evidence reattest`,
-which treats every `v1` citation as a latest-release comparison). Each citation
-carries:
+The worklist schema is `prufyx.io/evidence-repin-worklist/v3`. `evidence
+reattest` prepares nothing from an earlier `v2` or `v1` worklist; run `evidence
+repin` again. Each citation carries `oldDigest`, the recorded `contentDigest` it
+was classified against, and:
 
 | Field | Meaning |
 |---|---|
@@ -416,7 +419,7 @@ carries:
 | `lineStatus` | For `release_line` and `tag_line`: `pinned_is_latest` when the pinned tag is itself the newest release of its line (the line can no longer change, so the comparison is trivially unchanged), otherwise `later_releases_on_line`. Recorded for downstream policy; eligibility does not depend on it. |
 | `baselineNote` | Why a release-line request used `latest` instead. |
 | `baselineEntryDigest` | For `owner_choice`: the digest of the baseline file entry that chose `baselineTag`. |
-| `observedDigest`, `observedSize` | For `CORPUS_DIGEST_MISMATCH` only: the digest and byte size of the file actually served at the citation's own pinned commit. |
+| `observedDigest`, `observedSize` | For a `CORPUS_DIGEST_MISMATCH` caused by a different digest only: the digest and byte size of the file actually served at the citation's own pinned commit. |
 
 The top-level `lines` list holds one resolution per release line a baseline
 relies on (`owner`, `repo`, `prefix`, `line`, `tag`, `commit`, `resolvedAt`),
@@ -425,8 +428,14 @@ record also has `basis: "git_tags"`, `tagsDigest` (SHA-256 of the line's
 release tags and their commits, one `<tag> <commit>` line each, sorted by tag),
 `ignoredTags` (up to 20 pre-release tags on the line, each with its reason) and
 `ignoredTagCount`. A record without `basis` was proven from GitHub Releases. The state
-file schema is `prufyx.io/evidence-repin-state/v2`; a `v1` state keeps its
-repository resolutions and recomputes citation results.
+file schema is `prufyx.io/evidence-repin-state/v3`; a `v1` or `v2` state keeps
+its repository resolutions and recomputes citation results. A stored citation
+result is resumed only while the record's project, repository, path, pinned
+commit, `contentDigest` and line span are unchanged.
+
+With `--source mirror`, the tags of a repository whose last mirror check did not
+succeed, or that was never fetched, are not used: whatever needs them stays
+`PENDING`.
 
 ### Limits to keep in mind
 

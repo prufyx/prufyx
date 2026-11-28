@@ -1,0 +1,6 @@
+### Fixed
+
+- Commands that read a local mirror no longer take the tags of a repository whose last check failed, or that was never fetched, as an answer; they report an error instead of an empty or outdated tag list.
+- `evidence reattest verify` refuses a statement that renews rules when no `--rerun-worklist` is given. The new `--audit` flag rechecks a signed human statement without one; its output says `AUDIT ONLY, not a publish check` instead of `OK`.
+- `evidence repin` reports `NO_NEW_RELEASE` and `FILE_IDENTICAL` only after reading the cited file at its pinned commit and matching the recorded digest and line span. `SPAN_IDENTICAL` also requires the cited bytes to occur exactly once in the old and the new file. A blank span is `CONTENT_CHANGED`. A `--state` result is resumed only for an unchanged record, and state files from earlier builds recompute their citation results.
+- The worklist schema is now `v3`. `evidence reattest` prepares nothing from an older worklist and does not renew a rule whose repository, path, lines or digest differ from the classified citation. Retained `v1` and `v2` worklists cannot be used to prepare or review a new statement: run `evidence repin` again and re-prepare.

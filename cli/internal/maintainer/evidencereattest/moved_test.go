@@ -94,6 +94,7 @@ func (f *movedFix) build() *movedFix {
 		base := wl.Citations[i]
 		main := base
 		main.Class, main.OldStart, main.OldEnd, main.NewStart, main.NewEnd = evidencerepin.ClassSpanMoved, 10, 12, f.newStart, f.newStart+2
+		main.OldDigest = oldDigest
 		main.NewCommit, main.MovedTo = movedCommit, f.newTo()
 		citations = append(citations, main)
 		for n, extra := range f.extra {
@@ -101,6 +102,7 @@ func (f *movedFix) build() *movedFix {
 			sources = append(sources, testSource(id, "owner", repo, spec.commit, "a.go", oldDigest, extra.start, extra.end))
 			c := base
 			c.SourceID, c.Class, c.OldStart, c.OldEnd, c.NewCommit, c.MovedTo = id, extra.class, extra.start, extra.end, movedCommit, extra.to
+			c.OldDigest = oldDigest
 			if extra.to != nil {
 				c.NewStart, c.NewEnd = extra.to.StartLine, extra.to.EndLine
 			}
@@ -311,6 +313,24 @@ func TestMovedVerifyRefusesAStatementWhoseMovedDigestOrUniquenessDoesNotRecomput
 	v2 := g.verifyOptions(res2, opts2)
 	v2.MovedBlobs = map[string][]byte{sourcecorpus.SHA(g.oldData): g.oldData, sourcecorpus.SHA(g.newData): dup}
 	assertVerifyRejects(t, v2, "V3:")
+}
+
+// A move holds only for the record it was classified from: a worklist digest
+// or span the pack source does not record is not renewed.
+func TestMovedCitationOfAnotherRecordNotEligible(t *testing.T) {
+	for name, tc := range map[string]struct {
+		edit   func(c *evidencerepin.ClassResult)
+		reason string
+	}{
+		"no digest":    {func(c *evidencerepin.ClassResult) { c.OldDigest = "" }, reasonCitationRecordMismatch},
+		"other digest": {func(c *evidencerepin.ClassResult) { c.OldDigest = "sha256:" + strings.Repeat("9", 64) }, reasonCitationRecordMismatch},
+		// The moved guard runs first and already refuses another span.
+		"other span": {func(c *evidencerepin.ClassResult) { c.OldStart, c.OldEnd = 20, 22 }, reasonMovedUnverified},
+	} {
+		f := newMovedFix(t, "rule-a").build()
+		tc.edit(&f.wl.Citations[0])
+		assertNotRenewed(t, name, f.prepareOnly(), "rule-a", tc.reason)
+	}
 }
 
 // ---------------------------------------------------------------------

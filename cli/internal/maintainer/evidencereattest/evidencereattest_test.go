@@ -102,6 +102,7 @@ func buildWorklistAndPack(t *testing.T, packPath string, generatedAt time.Time, 
 		citations = append(citations, evidencerepin.ClassResult{
 			RulePack: packPath, RuleID: spec.id, Project: spec.project, SourceID: spec.id + "-src",
 			Owner: "owner", Repo: "repo-" + spec.id, Path: spec.path, OldCommit: spec.commit, NewCommit: spec.commit,
+			OldDigest: digest, OldStart: 1, OldEnd: 1,
 			Class: spec.class, Resolution: spec.resolution, Stale: spec.stale,
 		})
 		repos["owner/repo-"+spec.id] = evidencerepin.RepoResolution{
@@ -265,7 +266,7 @@ func TestPrepareOneBadCitationExcludesWholeRule(t *testing.T) {
 		Scope: evidencerepin.WorklistScope{RulePacks: []string{packPath}},
 		Repos: []evidencerepin.RepoResolution{{Owner: "owner", Repo: "repo-a", Status: "RESOLVED", CurrentTag: "v1.2.3", CurrentCommit: strings.Repeat("a", 40), ResolvedAt: rfc3339(baseNow.Add(-time.Hour))}},
 		Citations: []evidencerepin.ClassResult{
-			{RulePack: packPath, RuleID: "rule-a", Project: "proj-a", SourceID: "rule-a-src1", Owner: "owner", Repo: "repo-a", OldCommit: strings.Repeat("a", 40), Class: evidencerepin.ClassFileIdentical},
+			{RulePack: packPath, RuleID: "rule-a", Project: "proj-a", SourceID: "rule-a-src1", Owner: "owner", Repo: "repo-a", Path: "VERSION", OldCommit: strings.Repeat("a", 40), OldDigest: "sha256:" + strings.Repeat("cd", 32), OldStart: 1, OldEnd: 1, Class: evidencerepin.ClassFileIdentical},
 			{RulePack: packPath, RuleID: "rule-a", Project: "proj-a", SourceID: "rule-a-src2", Owner: "owner", Repo: "repo-a", OldCommit: strings.Repeat("a", 40), Class: evidencerepin.ClassContentChanged},
 		},
 		Summary: evidencerepin.Summary{TotalCitations: 2, Classified: 2, Pending: 0},
@@ -1852,6 +1853,7 @@ func TestPrepareAndVerifyStayWithinStaggerCapOnRealPacks(t *testing.T) {
 				})
 			}
 		}
+		bindSources(t, &wl, raw)
 		worklistRaw := marshalWorklist(t, wl)
 		items := len(doc.Entries) + len(doc.records)
 		renewedTotal := 0

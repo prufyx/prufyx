@@ -305,8 +305,8 @@ func worklistCitationAttestations(worklistRaw []byte, packPath string, candidate
 		return nil, fmt.Errorf("%w: worklist size rejected", ErrRejected)
 	}
 	var wl evidencerepin.Worklist
-	if err := json.Unmarshal(worklistRaw, &wl); err != nil || (wl.Schema != evidencerepin.Schema && wl.Schema != evidencerepin.SchemaV1) {
-		return nil, fmt.Errorf("%w: decode worklist", ErrRejected)
+	if err := json.Unmarshal(worklistRaw, &wl); err != nil || wl.Schema != evidencerepin.Schema {
+		return nil, fmt.Errorf("%w: decode worklist: the current worklist schema is required", ErrRejected)
 	}
 	repoByKey := map[string]evidencerepin.RepoResolution{}
 	for _, repo := range wl.Repos {

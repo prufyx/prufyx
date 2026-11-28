@@ -323,6 +323,10 @@ func checkV1AndV3(statement Statement, statementRaw []byte, options VerifyOption
 		Wave:    statement.Wave, AttestedAt: mustParse(statement.AttestedAt), NextRevision: statement.Pack.Next.Revision,
 		EngineCapabilityDigest: options.EngineCapabilityDigest, ReviewRecords: options.ReviewRecords,
 		BaselinesRaw: options.BaselinesRaw, MovedBlobs: options.MovedBlobs,
+		// Only the audit of a retained statement reads an earlier worklist
+		// schema: never pre-sign, and never beside an independent worklist,
+		// which is how the publish gate verifies.
+		historicWorklist: !options.PreSign && len(options.IndependentWorklistRaw) == 0,
 	}, state)
 	if err != nil {
 		return fmt.Errorf("%w: V3: recomputation failed: %v", ErrRejected, err)
@@ -754,8 +758,10 @@ func checkIndependentWorklist(statement Statement, packPath string, independentR
 		return fmt.Errorf("%w: V9: independent worklist is too large", ErrRejected)
 	}
 	var wl evidencerepin.Worklist
-	if err := json.Unmarshal(independentRaw, &wl); err != nil || (wl.Schema != evidencerepin.Schema && wl.Schema != evidencerepin.SchemaV1) {
-		return fmt.Errorf("%w: V9: independent worklist does not decode", ErrRejected)
+	// The independent run is the verifying job's own, so it is of the current
+	// schema: an earlier one classified citations without the current proof.
+	if err := json.Unmarshal(independentRaw, &wl); err != nil || wl.Schema != evidencerepin.Schema {
+		return fmt.Errorf("%w: V9: independent worklist does not decode as the current worklist schema", ErrRejected)
 	}
 	type key struct{ rule, source string }
 	found := map[key][]evidencerepin.ClassResult{}

@@ -274,7 +274,7 @@ func TestResultFromOtherModeIsRecomputed(t *testing.T) {
 	st2.Repos["bbb/stale-repo"] = RepoResolution{Owner: "bbb", Repo: "stale-repo", Status: repoResolved, CurrentTag: "v1", CurrentCommit: commitA, ResolvedAt: old200}
 	staleOrig := ClassResult{
 		RulePack: "p", RuleID: "r1", Project: "a", SourceID: "s1", Owner: "bbb", Repo: "stale-repo", Path: "x",
-		OldCommit: commitA, NewCommit: commitA, OldStart: 1, OldEnd: 1, Class: ClassNoNewRelease, ClassifiedAt: old200, BaselineMode: BaselineModeLatest, Baseline: BaselineLatest,
+		OldCommit: commitA, OldDigest: "sha256:x", NewCommit: commitA, OldStart: 1, OldEnd: 1, Class: ClassNoNewRelease, ClassifiedAt: old200, BaselineMode: BaselineModeLatest, Baseline: BaselineLatest,
 	}
 	st2.Results[sc.key()] = staleOrig
 	api := &fakeAPIFetcher{responses: map[string]apiResponse{"/repos/aaa/rate-limited/releases?per_page=10": {[]byte(`{}`), 403}}}
@@ -462,7 +462,10 @@ func TestNoReleaseBaselineIsNotResumedOnceReleaseAppears(t *testing.T) {
 		"/repos/example/website/releases?per_page=10": {[]byte(`[{"tag_name":"v1.0.0"}]`), 200},
 		"/repos/example/website/git/ref/tags/v1.0.0":  {[]byte(`{"object":{"sha":"` + commitA + `","type":"commit"}}`), 200},
 	}}
-	wl, err := BuildWorklist(context.Background(), noBaselineCitations(), nil, 0, state, released, fakeBlobFetcher{}, fixedNow(), DefaultMaxAge, nil)
+	citations := noBaselineCitations()
+	citations[0].OldDigest = sourcecorpus.SHA([]byte("x"))
+	blobs := fakeBlobFetcher{"/example/website/" + commitA + "/a.md": {Kind: "HTTP_200", StatusCode: 200, Body: []byte("x")}}
+	wl, err := BuildWorklist(context.Background(), citations, nil, 0, state, released, blobs, fixedNow(), DefaultMaxAge, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

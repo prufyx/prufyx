@@ -268,6 +268,7 @@ func TestReleaseLineChangedOnSameLineStaysContentChanged(t *testing.T) {
 
 func TestReleaseLinePinnedAtLineNewestIsNoNewRelease(t *testing.T) {
 	f := newLineFixture(standardTags, nil, "v1.26.0")
+	f.blob("v1.25.3", "doc.md", "x")
 	w := f.run(t, BaselineModeReleaseLine, f.citation("proj-v1-25-3-doc", "v1.25.3", "doc.md", "x", 1, 1))
 	got := byClass(w, "proj-v1-25-3-doc")
 	if got.Class != ClassNoNewRelease || got.Baseline != BaselineReleaseLine || got.BaselineTag != "v1.25.3" {
@@ -378,14 +379,17 @@ func TestReleaseLineTagFallbackRepoKeepsLatestAndMarker(t *testing.T) {
 		"/repos/example/proj/tags?per_page=30":     {[]byte(`[{"name":"v1.0.0"}]`), 200},
 		"/repos/example/proj/git/ref/tags/v1.0.0":  {[]byte(`{"object":{"sha":"` + commitA + `","type":"commit"}}`), 200},
 	}}
-	citation := Citation{RulePack: "p", RuleID: "r", Project: "proj", SourceID: "proj-v1-0-0", Owner: "example", Repo: "proj", Path: "x", OldCommit: commitA, OldDigest: "sha256:x", StartLine: 1, EndLine: 1}
-	w, err := BuildWorklistWithBaseline(context.Background(), []Citation{citation}, nil, 0, newState(), api, fakeBlobFetcher{}, fixedNow(), DefaultMaxAge, nil, BaselineModeReleaseLine)
+	citation := Citation{RulePack: "p", RuleID: "r", Project: "proj", SourceID: "proj-v1-0-0", Owner: "example", Repo: "proj", Path: "x", OldCommit: commitA, OldDigest: sourcecorpus.SHA([]byte("x")), StartLine: 1, EndLine: 1}
+	w, err := BuildWorklistWithBaseline(context.Background(), []Citation{citation}, nil, 0, newState(), api, fakeBlobFetcher{"/example/proj/" + commitA + "/x": {Kind: "HTTP_200", StatusCode: 200, Body: []byte("x")}}, fixedNow(), DefaultMaxAge, nil, BaselineModeReleaseLine)
 	if err != nil {
 		t.Fatal(err)
 	}
 	got := w.Citations[0]
 	if got.Baseline != BaselineLatest || got.Resolution != resolutionTagFallback || got.BaselineNote == "" {
 		t.Fatalf("tag-fallback repositories keep the latest baseline and the marker: %+v", got)
+	}
+	if got.Class != ClassNoNewRelease {
+		t.Fatalf("expected the pinned file to prove the record: %+v", got)
 	}
 	for _, call := range api.calls {
 		if strings.Contains(call, "/releases?") && !strings.HasSuffix(call, "&page=1") {
@@ -464,6 +468,23 @@ func TestLoadStateV1KeepsReposDropsResults(t *testing.T) {
 		t.Fatal(err)
 	}
 	if state.Schema != StateSchema || len(state.Repos) != 1 || len(state.Results) != 0 || state.Pins == nil || state.Lines == nil {
+		t.Fatalf("unexpected migrated state: %+v", state)
+	}
+}
+
+// A v2 state may hold a result recorded without the digest and span proof,
+// so its citation results are recomputed.
+func TestLoadStateV2KeepsReposDropsResults(t *testing.T) {
+	path := t.TempDir() + "/state.json"
+	raw := `{"schema":"prufyx.io/evidence-repin-state/v2","repos":{"a/b":{"owner":"a","repo":"b","status":"RESOLVED"}},"results":{"k":{"class":"NO_NEW_RELEASE"}}}`
+	if err := os.WriteFile(path, []byte(raw), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	state, err := LoadState(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Schema != StateSchema || len(state.Repos) != 1 || len(state.Results) != 0 {
 		t.Fatalf("unexpected migrated state: %+v", state)
 	}
 }

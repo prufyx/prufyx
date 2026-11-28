@@ -208,6 +208,10 @@ func TestEvidenceReattestSignAutomationRoleUnattended(t *testing.T) {
 	if code, out := verifyWith(fromFiles); code != 1 || !strings.Contains(out, "--rerun-worklist") {
 		t.Fatalf("verify without --rerun-worklist: exit %d, %q", code, out)
 	}
+	// An audit never accepts an automated statement that renews rules.
+	if code, out := verifyWith(fromFiles, "--audit"); code != 1 || !strings.Contains(out, "an automated statement that renews rules") || strings.Contains(out, "AUDIT ONLY") {
+		t.Fatalf("verify --audit of an automated statement: exit %d, %q", code, out)
+	}
 	var independent evidencerepin.Worklist
 	rawWorklist, err := os.ReadFile(f.worklist)
 	if err != nil {

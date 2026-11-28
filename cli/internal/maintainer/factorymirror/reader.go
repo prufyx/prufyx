@@ -30,6 +30,10 @@ var (
 	// ErrReleasesIncomplete means release metadata is missing, stale, or
 	// truncated and must not be used to derive anything.
 	ErrReleasesIncomplete = errors.New("factory mirror: release metadata is not complete")
+	// ErrRefsUnavailable means the mirror's last check of the repository did
+	// not succeed, or none has: the recorded tags may be absent or miss
+	// newer upstream releases.
+	ErrRefsUnavailable = errors.New("factory mirror: the last check of the repository did not succeed")
 )
 
 // MaxFileBytes bounds a single Read.
@@ -183,16 +187,33 @@ func (r *Reader) frozen(info *RepoInfo) bool {
 	return false
 }
 
-// ResolveTag returns the commit a tag pointed at when the mirror last
-// looked. While the repository is frozen it returns ErrRepoFrozen: the
-// recorded tags may include one that upstream moved.
-func (r *Reader) ResolveTag(repo, tag string) (string, error) {
+// tagsOf returns the record of a repository whose tags may be answered from:
+// it is not frozen (ErrRepoFrozen) and its last check succeeded
+// (ErrRefsUnavailable). The age of that check is not judged here, so a
+// retained copy of the mirror keeps answering; callers that need current
+// refs read RepoStatus.
+func (r *Reader) tagsOf(repo string) (*RepoInfo, error) {
 	info, err := r.info(repo)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if r.frozen(info) {
-		return "", ErrRepoFrozen
+		return nil, ErrRepoFrozen
+	}
+	if info.Status != "ok" {
+		return nil, fmt.Errorf("%w: status %q", ErrRefsUnavailable, info.Status)
+	}
+	return info, nil
+}
+
+// ResolveTag returns the commit a tag pointed at when the mirror last
+// looked. While the repository is frozen it returns ErrRepoFrozen: the
+// recorded tags may include one that upstream moved. Unless the last check
+// succeeded it returns ErrRefsUnavailable.
+func (r *Reader) ResolveTag(repo, tag string) (string, error) {
+	info, err := r.tagsOf(repo)
+	if err != nil {
+		return "", err
 	}
 	t, ok := info.Tags[tag]
 	if !ok {
@@ -202,14 +223,13 @@ func (r *Reader) ResolveTag(repo, tag string) (string, error) {
 }
 
 // Tags returns a copy of the recorded tag -> commit map, or ErrRepoFrozen
-// while the repository has an unacknowledged alarm.
+// while the repository has an unacknowledged alarm, or ErrRefsUnavailable
+// unless its last check succeeded: an empty map always means upstream had no
+// tags at that check.
 func (r *Reader) Tags(repo string) (map[string]TagInfo, error) {
-	info, err := r.info(repo)
+	info, err := r.tagsOf(repo)
 	if err != nil {
 		return nil, err
-	}
-	if r.frozen(info) {
-		return nil, ErrRepoFrozen
 	}
 	out := make(map[string]TagInfo, len(info.Tags))
 	for k, v := range info.Tags {

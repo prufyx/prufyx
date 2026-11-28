@@ -160,10 +160,106 @@ func (f fakeBlobFetcher) Fetch(_ context.Context, path string) sourcecapture.Fet
 }
 
 func TestClassifyNoNewRelease(t *testing.T) {
-	citation := Citation{Owner: "argoproj", Repo: "argo-cd", Path: "VERSION", OldCommit: commitA, OldDigest: "sha256:x", StartLine: 1, EndLine: 1}
-	result := Classify(context.Background(), citation, commitA, fakeBlobFetcher{})
+	body := []byte("v1\n")
+	citation := Citation{Owner: "argoproj", Repo: "argo-cd", Path: "VERSION", OldCommit: commitA, OldDigest: sourcecorpus.SHA(body), StartLine: 1, EndLine: 1}
+	fetcher := fakeBlobFetcher{
+		"/argoproj/argo-cd/" + commitA + "/VERSION": {Kind: "HTTP_200", StatusCode: 200, Body: body},
+	}
+	result := Classify(context.Background(), citation, commitA, fetcher)
 	if result.Class != ClassNoNewRelease {
 		t.Fatalf("expected NO_NEW_RELEASE, got %s (%s)", result.Class, result.Detail)
+	}
+}
+
+// A citation compared with its own pinned commit is NO_NEW_RELEASE only when
+// the file there proves the record. Anything else is never batch-attestable.
+func TestClassifyAtPinnedCommitProvesTheRecord(t *testing.T) {
+	body := []byte("one\ntwo\n")
+	good, wrong := sourcecorpus.SHA(body), "sha256:"+strings.Repeat("0", 64)
+	served := sourcecapture.FetchResult{Kind: "HTTP_200", StatusCode: 200, Body: body}
+	status := func(code int) sourcecapture.FetchResult {
+		return sourcecapture.FetchResult{Kind: "HTTP_STATUS", StatusCode: code}
+	}
+	for name, tc := range map[string]struct {
+		digest     string
+		start, end int
+		fetch      sourcecapture.FetchResult
+		want       string
+	}{
+		"proven":                      {good, 1, 2, served, ClassNoNewRelease},
+		"end after the final newline": {good, 1, 3, served, ClassNoNewRelease},
+		"blank span":                  {sourcecorpus.SHA([]byte("one\n \t\r\ntwo\n")), 2, 2, sourcecapture.FetchResult{Kind: "HTTP_200", StatusCode: 200, Body: []byte("one\n \t\r\ntwo\n")}, ClassContentChanged},
+		"other bytes":                 {wrong, 1, 1, served, ClassCorpusDigestMismatch},
+		"path not found":              {good, 1, 1, status(404), ClassCorpusDigestMismatch},
+		"end past the file":           {good, 1, 4, served, ClassCorpusDigestMismatch},
+		"start past the last line":    {good, 3, 3, served, ClassCorpusDigestMismatch},
+		"start before the first line": {good, 0, 1, served, ClassCorpusDigestMismatch},
+		"reversed span":               {good, 2, 1, served, ClassCorpusDigestMismatch},
+		"empty file":                  {sourcecorpus.SHA(nil), 1, 1, sourcecapture.FetchResult{Kind: "HTTP_200", StatusCode: 200}, ClassCorpusDigestMismatch},
+		"server error":                {good, 1, 1, status(500), ClassPending},
+		"rate limited":                {good, 1, 1, status(429), ClassPending},
+		"transport error":             {good, 1, 1, sourcecapture.FetchResult{Kind: "TRANSPORT_ERROR"}, ClassPending},
+	} {
+		citation := Citation{RulePack: "p", RuleID: "r", Owner: "o", Repo: "r", Path: "a.txt", OldCommit: commitA, OldDigest: tc.digest, StartLine: tc.start, EndLine: tc.end}
+		result := Classify(context.Background(), citation, commitA, fakeBlobFetcher{"/o/r/" + commitA + "/a.txt": tc.fetch})
+		if result.Class != tc.want {
+			t.Errorf("%s: got %s (%s), want %s", name, result.Class, result.Detail, tc.want)
+		}
+		if got := ruleVerdicts([]ClassResult{result})[0].BatchEligible; got != (tc.want == ClassNoNewRelease) {
+			t.Errorf("%s: batch eligible = %v", name, got)
+		}
+	}
+}
+
+// An unchanged file at the compared commit proves nothing about the record:
+// FILE_IDENTICAL also needs the file at the citation's own pinned commit.
+func TestClassifyFileIdenticalProvesThePinnedCommit(t *testing.T) {
+	body := []byte("one\ntwo\n")
+	served := func(data []byte) sourcecapture.FetchResult {
+		return sourcecapture.FetchResult{Kind: "HTTP_200", StatusCode: 200, Body: data}
+	}
+	for name, tc := range map[string]struct {
+		pinned sourcecapture.FetchResult
+		want   string
+	}{
+		"proven":          {served(body), ClassFileIdentical},
+		"other bytes":     {served([]byte("other\n")), ClassCorpusDigestMismatch},
+		"path not found":  {sourcecapture.FetchResult{Kind: "HTTP_STATUS", StatusCode: 404}, ClassCorpusDigestMismatch},
+		"server error":    {sourcecapture.FetchResult{Kind: "HTTP_STATUS", StatusCode: 500}, ClassPending},
+		"rate limited":    {sourcecapture.FetchResult{Kind: "HTTP_STATUS", StatusCode: 429}, ClassPending},
+		"transport error": {sourcecapture.FetchResult{Kind: "TRANSPORT_ERROR"}, ClassPending},
+	} {
+		citation := Citation{RulePack: "p", RuleID: "r", Owner: "o", Repo: "r", Path: "a.txt", OldCommit: commitA, OldDigest: sourcecorpus.SHA(body), StartLine: 1, EndLine: 1}
+		result := Classify(context.Background(), citation, commitB, fakeBlobFetcher{
+			"/o/r/" + commitA + "/a.txt": tc.pinned,
+			"/o/r/" + commitB + "/a.txt": served(body),
+		})
+		if result.Class != tc.want {
+			t.Errorf("%s: got %s (%s), want %s", name, result.Class, result.Detail, tc.want)
+		}
+		if got := ruleVerdicts([]ClassResult{result})[0].BatchEligible; got != (tc.want == ClassFileIdentical) {
+			t.Errorf("%s: batch eligible = %v", name, got)
+		}
+	}
+}
+
+// The same span rule holds when the compared commit differs: neither an
+// identical file nor a changed one may carry lines the pinned file lacks.
+func TestClassifyRefusesSpanOutsideTheFile(t *testing.T) {
+	body := []byte("one\ntwo\n")
+	for name, newBody := range map[string][]byte{
+		"identical file":       body,
+		"changed file":         []byte("one\ntwo\nthree\nfour\n"),
+		"empty final position": []byte("ONE\ntwo\n"),
+	} {
+		citation := Citation{Owner: "o", Repo: "r", Path: "a.txt", OldCommit: commitA, OldDigest: sourcecorpus.SHA(body), StartLine: 3, EndLine: 3}
+		result := Classify(context.Background(), citation, commitB, fakeBlobFetcher{
+			"/o/r/" + commitA + "/a.txt": {Kind: "HTTP_200", StatusCode: 200, Body: body},
+			"/o/r/" + commitB + "/a.txt": {Kind: "HTTP_200", StatusCode: 200, Body: newBody},
+		})
+		if result.Class != ClassCorpusDigestMismatch {
+			t.Errorf("%s: got %s (%s)", name, result.Class, result.Detail)
+		}
 	}
 }
 
@@ -178,12 +274,13 @@ func TestClassifyPathGone(t *testing.T) {
 func TestClassifyFileIdentical(t *testing.T) {
 	// contentDigest is a WHOLE-FILE digest in the shipped rule packs: when
 	// the whole file at the current release commit still hashes to it, the
-	// cited span is necessarily unchanged too, and no old-blob fetch is
-	// needed at all.
+	// cited span is necessarily unchanged too, once the file at the pinned
+	// commit has proven the record.
 	body := []byte("first\nsecond\nthird")
 	citation := Citation{Owner: "argoproj", Repo: "argo-cd", Path: "util/helm/client.go", OldCommit: commitA, OldDigest: sourcecorpus.SHA(body), StartLine: 2, EndLine: 2}
 	fetcher := fakeBlobFetcher{
 		"/argoproj/argo-cd/" + commitB + "/util/helm/client.go": {Kind: "HTTP_200", StatusCode: 200, Body: body},
+		"/argoproj/argo-cd/" + commitA + "/util/helm/client.go": {Kind: "HTTP_200", StatusCode: 200, Body: body},
 	}
 	result := Classify(context.Background(), citation, commitB, fetcher)
 	if result.Class != ClassFileIdentical {
@@ -396,8 +493,8 @@ func TestResolveCurrentCommitRateLimited(t *testing.T) {
 }
 
 func TestBuildWorklistBatchAttestableArithmetic(t *testing.T) {
-	// Four citations against the same repo/path: one NO_NEW_RELEASE (no
-	// fetch), one FILE_IDENTICAL (whole new file still matches
+	// Four citations against the same repo/path: one NO_NEW_RELEASE (read
+	// and proven), one FILE_IDENTICAL (whole new file still matches
 	// contentDigest), one SPAN_IDENTICAL (file changed, but the cited span
 	// survived at the same range once verified against the citation's own
 	// pinned commit), and one CONTENT_CHANGED (file changed, cited span
@@ -407,9 +504,10 @@ func TestBuildWorklistBatchAttestableArithmetic(t *testing.T) {
 	oldBodySpanIdentical := []byte("alpha\nBETA\ngamma") // line 1 ("alpha") survives unchanged
 	oldBodyContentChanged := []byte("nomatch\nnomatch2\nnomatchtail")
 	commitC := "ccccccccccccccccccccccccccccccccccccccc3"
+	commitD := "ddddddddddddddddddddddddddddddddddddddd4"
 	citations := []Citation{
-		{RulePack: "p", RuleID: "r1", Project: "argo-cd", SourceID: "s1", Owner: "argoproj", Repo: "argo-cd", Path: "a.go", OldCommit: commitB, OldDigest: "sha256:irrelevant", StartLine: 1, EndLine: 1},
-		{RulePack: "p", RuleID: "r2", Project: "argo-cd", SourceID: "s2", Owner: "argoproj", Repo: "argo-cd", Path: "a.go", OldCommit: commitA, OldDigest: sourcecorpus.SHA(newBody), StartLine: 1, EndLine: 1},
+		{RulePack: "p", RuleID: "r1", Project: "argo-cd", SourceID: "s1", Owner: "argoproj", Repo: "argo-cd", Path: "a.go", OldCommit: commitB, OldDigest: sourcecorpus.SHA(newBody), StartLine: 1, EndLine: 1},
+		{RulePack: "p", RuleID: "r2", Project: "argo-cd", SourceID: "s2", Owner: "argoproj", Repo: "argo-cd", Path: "a.go", OldCommit: commitD, OldDigest: sourcecorpus.SHA(newBody), StartLine: 1, EndLine: 1},
 		{RulePack: "p", RuleID: "r3", Project: "argo-cd", SourceID: "s3", Owner: "argoproj", Repo: "argo-cd", Path: "a.go", OldCommit: commitA, OldDigest: sourcecorpus.SHA(oldBodySpanIdentical), StartLine: 1, EndLine: 1},
 		{RulePack: "p", RuleID: "r4", Project: "argo-cd", SourceID: "s4", Owner: "argoproj", Repo: "argo-cd", Path: "a.go", OldCommit: commitC, OldDigest: sourcecorpus.SHA(oldBodyContentChanged), StartLine: 1, EndLine: 1},
 	}
@@ -424,6 +522,7 @@ func TestBuildWorklistBatchAttestableArithmetic(t *testing.T) {
 		"/argoproj/argo-cd/" + commitB + "/a.go": {Kind: "HTTP_200", StatusCode: 200, Body: newBody},
 		"/argoproj/argo-cd/" + commitA + "/a.go": {Kind: "HTTP_200", StatusCode: 200, Body: oldBodySpanIdentical},
 		"/argoproj/argo-cd/" + commitC + "/a.go": {Kind: "HTTP_200", StatusCode: 200, Body: oldBodyContentChanged},
+		"/argoproj/argo-cd/" + commitD + "/a.go": {Kind: "HTTP_200", StatusCode: 200, Body: newBody},
 	}
 	state := newState()
 	worklist, err := BuildWorklist(context.Background(), citations, nil, 0, state, apiFetcher, blobFetcher, fixedNow(), DefaultMaxAge, nil)
@@ -466,7 +565,7 @@ func TestBuildWorklistFalsificationConditionFires(t *testing.T) {
 	newBody := []byte("alpha\nbeta\ngamma")
 	oldBodyContentChanged := []byte("nomatch\nnomatch2\nnomatchtail")
 	citations := []Citation{
-		{RulePack: "p", RuleID: "r1", Project: "argo-cd", SourceID: "s1", Owner: "argoproj", Repo: "argo-cd", Path: "a.go", OldCommit: commitB, OldDigest: "sha256:irrelevant", StartLine: 1, EndLine: 1},
+		{RulePack: "p", RuleID: "r1", Project: "argo-cd", SourceID: "s1", Owner: "argoproj", Repo: "argo-cd", Path: "a.go", OldCommit: commitB, OldDigest: sourcecorpus.SHA(newBody), StartLine: 1, EndLine: 1},
 		{RulePack: "p", RuleID: "r2", Project: "argo-cd", SourceID: "s2", Owner: "argoproj", Repo: "argo-cd", Path: "a.go", OldCommit: commitA, OldDigest: sourcecorpus.SHA(oldBodyContentChanged), StartLine: 1, EndLine: 1},
 		{RulePack: "p", RuleID: "r3", Project: "argo-cd", SourceID: "s3", Owner: "argoproj", Repo: "argo-cd", Path: "a.go", OldCommit: commitA, OldDigest: sourcecorpus.SHA(oldBodyContentChanged), StartLine: 1, EndLine: 1},
 	}
@@ -525,7 +624,7 @@ func TestStateRoundTripResumesWithoutReclassifying(t *testing.T) {
 	dir := t.TempDir()
 	statePath := filepath.Join(dir, "state.json")
 
-	citation := Citation{RulePack: "p", RuleID: "r1", Project: "a", SourceID: "s1", Owner: "owner1", Repo: "repo1", Path: "x", OldCommit: commitA, OldDigest: "sha256:x", StartLine: 1, EndLine: 1}
+	citation := Citation{RulePack: "p", RuleID: "r1", Project: "a", SourceID: "s1", Owner: "owner1", Repo: "repo1", Path: "x", OldCommit: commitA, OldDigest: sourcecorpus.SHA([]byte("x")), StartLine: 1, EndLine: 1}
 	apiFetcher := &fakeAPIFetcher{responses: map[string]struct {
 		body   []byte
 		status int
@@ -538,7 +637,7 @@ func TestStateRoundTripResumesWithoutReclassifying(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadState: %v", err)
 	}
-	if _, err := BuildWorklist(context.Background(), []Citation{citation}, nil, 0, state, apiFetcher, fakeBlobFetcher{}, fixedNow(), DefaultMaxAge, nil); err != nil {
+	if _, err := BuildWorklist(context.Background(), []Citation{citation}, nil, 0, state, apiFetcher, fakeBlobFetcher{"/owner1/repo1/" + commitA + "/x": {Kind: "HTTP_200", StatusCode: 200, Body: []byte("x")}}, fixedNow(), DefaultMaxAge, nil); err != nil {
 		t.Fatalf("BuildWorklist: %v", err)
 	}
 	if err := SaveState(statePath, state); err != nil {
@@ -565,6 +664,91 @@ func TestStateRoundTripResumesWithoutReclassifying(t *testing.T) {
 	}
 	if worklist.Summary.Classified != 1 {
 		t.Fatalf("expected resumed classification preserved, got %+v", worklist.Summary)
+	}
+	if worklist.Citations[0].Class != ClassNoNewRelease {
+		t.Fatalf("expected the proven class resumed, got %+v", worklist.Citations[0])
+	}
+}
+
+// A result in --state is resumed only for the record it was computed from: a
+// record edited within --max-age is classified again.
+func TestStateDoesNotResumeAnEditedRecord(t *testing.T) {
+	body := []byte("one\ntwo\n")
+	original := Citation{RulePack: "p", RuleID: "r1", Project: "a", SourceID: "s1", Owner: "owner1", Repo: "repo1", Path: "x", OldCommit: commitA, OldDigest: sourcecorpus.SHA(body), StartLine: 1, EndLine: 2}
+	api := &fakeAPIFetcher{responses: map[string]apiResponse{}}
+	for _, repo := range []string{"owner1/repo1", "owner1/repo2", "owner2/repo1"} {
+		api.responses["/repos/"+repo+"/releases?per_page=10"] = apiResponse{[]byte(`[{"tag_name":"v1.0.0","draft":false}]`), 200}
+		api.responses["/repos/"+repo+"/git/ref/tags/v1.0.0"] = apiResponse{[]byte(`{"object":{"sha":"` + commitA + `","type":"commit"}}`), 200}
+	}
+	blobs := fakeBlobFetcher{"/owner1/repo1/" + commitA + "/x": {Kind: "HTTP_200", StatusCode: 200, Body: body}}
+	later := func() time.Time { return fixedNow()().Add(time.Hour) }
+	for name, tc := range map[string]struct {
+		edit    func(*Citation)
+		want    string
+		resumed bool
+	}{
+		"unchanged":  {func(*Citation) {}, ClassNoNewRelease, true},
+		"digest":     {func(c *Citation) { c.OldDigest = sourcecorpus.SHA([]byte("other")) }, ClassCorpusDigestMismatch, false},
+		"start line": {func(c *Citation) { c.StartLine = 2 }, ClassNoNewRelease, false},
+		"end line":   {func(c *Citation) { c.EndLine = 4 }, ClassCorpusDigestMismatch, false},
+		"path":       {func(c *Citation) { c.Path = "y" }, ClassCorpusDigestMismatch, false},
+		"commit":     {func(c *Citation) { c.OldCommit = commitB }, ClassCorpusDigestMismatch, false},
+		"repo":       {func(c *Citation) { c.Repo = "repo2" }, ClassCorpusDigestMismatch, false},
+		"owner":      {func(c *Citation) { c.Owner = "owner2" }, ClassCorpusDigestMismatch, false},
+		"project":    {func(c *Citation) { c.Project = "b" }, ClassNoNewRelease, false},
+	} {
+		statePath := filepath.Join(t.TempDir(), "state.json")
+		state := newState()
+		first, err := BuildWorklist(context.Background(), []Citation{original}, nil, 0, state, api, blobs, fixedNow(), DefaultMaxAge, nil)
+		if err != nil || first.Citations[0].Class != ClassNoNewRelease {
+			t.Fatalf("%s: first run: %v %+v", name, err, first.Citations)
+		}
+		if err := SaveState(statePath, state); err != nil {
+			t.Fatalf("%s: SaveState: %v", name, err)
+		}
+		resumed, err := LoadState(statePath)
+		if err != nil {
+			t.Fatalf("%s: LoadState: %v", name, err)
+		}
+		edited := original
+		tc.edit(&edited)
+		second, err := BuildWorklist(context.Background(), []Citation{edited}, nil, 0, resumed, api, blobs, later, DefaultMaxAge, nil)
+		if err != nil {
+			t.Fatalf("%s: second run: %v", name, err)
+		}
+		wantAt := later()
+		if tc.resumed {
+			wantAt = fixedNow()()
+		}
+		if got := second.Citations[0]; got.Class != tc.want || got.ClassifiedAt != wantAt.UTC().Format(time.RFC3339) {
+			t.Errorf("%s: want %s classified at %s, got %+v", name, tc.want, wantAt, got)
+		}
+	}
+}
+
+// A stale result that cannot be recomputed is kept only for the record it
+// was computed from.
+func TestStaleResultOfAnEditedRecordIsNotKept(t *testing.T) {
+	limited := Citation{RulePack: "p", RuleID: "r0", Project: "a", SourceID: "s0", Owner: "aaa", Repo: "rate-limited", Path: "x", OldCommit: commitA, OldDigest: "sha256:x", StartLine: 1, EndLine: 1}
+	edited := Citation{RulePack: "p", RuleID: "r1", Project: "a", SourceID: "s1", Owner: "bbb", Repo: "stale-repo", Path: "x", OldCommit: commitA, OldDigest: "sha256:after-the-edit", StartLine: 1, EndLine: 1}
+	old := fixedNow()().Add(-200 * time.Hour).UTC().Format(time.RFC3339)
+	state := newState()
+	state.Repos["bbb/stale-repo"] = RepoResolution{Owner: "bbb", Repo: "stale-repo", Status: repoResolved, CurrentTag: "v1", CurrentCommit: commitA, ResolvedAt: old}
+	state.Results[edited.key()] = ClassResult{
+		RulePack: "p", RuleID: "r1", Project: "a", SourceID: "s1",
+		Owner: "bbb", Repo: "stale-repo", Path: "x",
+		OldCommit: commitA, OldDigest: "sha256:before-the-edit", NewCommit: commitA, OldStart: 1, OldEnd: 1,
+		Class: ClassNoNewRelease, ClassifiedAt: old,
+	}
+	api := &fakeAPIFetcher{responses: map[string]apiResponse{"/repos/aaa/rate-limited/releases?per_page=10": {[]byte(`{"message":"rate limited"}`), 403}}}
+	wl, err := BuildWorklist(context.Background(), []Citation{limited, edited}, nil, 0, state, api, fakeBlobFetcher{}, fixedNow(), 72*time.Hour, nil)
+	if err != nil || len(wl.Citations) != 2 {
+		t.Fatalf("BuildWorklist: %v %+v", err, wl.Citations)
+	}
+	for _, got := range wl.Citations {
+		if got.Repo == "stale-repo" && (got.Class != ClassPending || got.Stale) {
+			t.Fatalf("a result of another record must not be kept: %+v", got)
+		}
 	}
 }
 
@@ -614,7 +798,7 @@ func TestRunWritesWorklistAndRejectsMissingOutput(t *testing.T) {
 	outputPath := filepath.Join(dir, "worklist.json")
 	stdout.Reset()
 	stderr.Reset()
-	code = Run(context.Background(), []string{"repin", "--output", outputPath}, &stdout, &stderr, apiFetcher, fakeBlobFetcher{}, fixedNow(), []string{rulesPath})
+	code = Run(context.Background(), []string{"repin", "--output", outputPath}, &stdout, &stderr, apiFetcher, fakeBlobFetcher{"/argoproj/argo-cd/" + commitA + "/VERSION": {Kind: "HTTP_200", StatusCode: 200, Body: []byte("v1")}}, fixedNow(), []string{rulesPath})
 	if code != 0 {
 		t.Fatalf("expected success, got code=%d stderr=%s", code, stderr.String())
 	}
@@ -688,7 +872,7 @@ func TestFreshStateResumesWithoutReclassifying(t *testing.T) {
 	state.Results[citation.key()] = ClassResult{
 		RulePack: "p", RuleID: "r1", Project: "a", SourceID: "s1",
 		Owner: "owner1", Repo: "repo1", Path: "x",
-		OldCommit: commitA, NewCommit: commitA, OldStart: 1, OldEnd: 1,
+		OldCommit: commitA, OldDigest: "sha256:x", NewCommit: commitA, OldStart: 1, OldEnd: 1,
 		Class: ClassNoNewRelease, ClassifiedAt: classifiedAt,
 	}
 
@@ -744,7 +928,7 @@ func TestStaleStateIsRecomputedNotReStamped(t *testing.T) {
 	state.Results[citation.key()] = ClassResult{
 		RulePack: "p", RuleID: "r1", Project: "a", SourceID: "s1",
 		Owner: "owner1", Repo: "repo1", Path: "x",
-		OldCommit: commitA, NewCommit: commitA, OldStart: 1, OldEnd: 1,
+		OldCommit: commitA, OldDigest: "sha256:x", NewCommit: commitA, OldStart: 1, OldEnd: 1,
 		Class: ClassNoNewRelease, ClassifiedAt: staleResolvedAt,
 	}
 
@@ -807,7 +991,7 @@ func TestStaleStateMarkedStaleWhenUnrecomputable(t *testing.T) {
 	state.Results[staleCitation.key()] = ClassResult{
 		RulePack: "p", RuleID: "r1", Project: "a", SourceID: "s1",
 		Owner: "bbb", Repo: "stale-repo", Path: "x",
-		OldCommit: commitA, NewCommit: commitA, OldStart: 1, OldEnd: 1,
+		OldCommit: commitA, OldDigest: "sha256:x", NewCommit: commitA, OldStart: 1, OldEnd: 1,
 		Class: ClassNoNewRelease, ClassifiedAt: staleResolvedAt,
 	}
 

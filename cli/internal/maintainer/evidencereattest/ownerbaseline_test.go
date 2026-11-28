@@ -3,6 +3,7 @@
 package evidencereattest
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
@@ -37,6 +38,13 @@ func ownerWorklist(t *testing.T) (evidencerepin.Worklist, []byte) {
 	specs := []ruleSpec{freshSpec("rule-a", "proj-a", baseNow), freshSpec("rule-b", "proj-b", baseNow), freshSpec("rule-c", "proj-c", baseNow), freshSpec("rule-d", "proj-d", baseNow)}
 	wl, pack := buildWorklistAndPack(t, ownerPackPath, baseNow, specs)
 	entry := ownerEntry()
+	// rule-b's pack source cites owner/shared too: a citation is of the
+	// record the pack holds.
+	cited := []byte("/owner/repo-rule-b/blob/")
+	if bytes.Count(pack, cited) != 1 {
+		t.Fatalf("fixture: want one rule-b source URL, got %d", bytes.Count(pack, cited))
+	}
+	pack = bytes.Replace(pack, cited, []byte("/owner/shared/blob/"), 1)
 	for i := range wl.Citations {
 		if wl.Citations[i].RuleID == "rule-b" {
 			c := &wl.Citations[i]

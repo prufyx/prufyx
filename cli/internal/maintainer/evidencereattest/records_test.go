@@ -129,6 +129,7 @@ func worklistFromPack(t *testing.T, packRaw []byte, at time.Time, mutate func(*e
 		wl.Citations = append(wl.Citations, evidencerepin.ClassResult{
 			RulePack: c.RulePack, RuleID: c.RuleID, Project: c.Project, SourceID: c.SourceID,
 			Owner: c.Owner, Repo: c.Repo, Path: c.Path, OldCommit: c.OldCommit, NewCommit: c.OldCommit,
+			OldDigest: c.OldDigest, OldStart: c.StartLine, OldEnd: c.EndLine,
 			Class: evidencerepin.ClassFileIdentical,
 		})
 		if !repos[c.Owner+"/"+c.Repo] {

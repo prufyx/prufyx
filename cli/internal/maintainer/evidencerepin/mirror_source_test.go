@@ -563,9 +563,9 @@ func TestMirrorMissingBlobIsPendingAndTwoStepFlowConverges(t *testing.T) {
 	// Refs and release metadata only: no file contents were requested.
 	w.mirror(nil)
 	wl, wants := w.mirrorWorklist(evidencerepin.BaselineModeReleaseLine)
-	// A path that does not exist at the baseline needs no file contents,
-	// nor does a citation whose pinned tag is its line's newest release.
-	if wl.Summary.Pending != len(w.cites)-2 || classOf(wl, "-d").Class != evidencerepin.ClassPathGone || classOf(wl, "-g").Class != evidencerepin.ClassNoNewRelease {
+	// A path that does not exist at the baseline needs no file contents.
+	// A citation pinned at its line's newest tag still needs its pinned file.
+	if wl.Summary.Pending != len(w.cites)-1 || classOf(wl, "-d").Class != evidencerepin.ClassPathGone || classOf(wl, "-g").Class != evidencerepin.ClassPending {
 		t.Fatalf("every other citation needs file contents, got %+v", wl.Summary)
 	}
 	for _, c := range wl.Citations {
@@ -581,8 +581,8 @@ func TestMirrorMissingBlobIsPendingAndTwoStepFlowConverges(t *testing.T) {
 		}
 	}
 	for _, c := range w.cites {
-		if c.Path == "d.txt" || c.Repo == "gizmo" {
-			continue // deleted at the baseline, or pinned at its line's newest tag: no contents to read
+		if c.Path == "d.txt" {
+			continue // deleted at the baseline: no contents to read
 		}
 		if !covered[c.OldCommit+":"+c.Path] {
 			t.Errorf("pinned file %s@%s is not in the wants", c.Path, c.OldCommit)
@@ -773,6 +773,34 @@ func TestMirrorFreshnessIsTheMirrorsNotTheRuns(t *testing.T) {
 		if r.Stale {
 			t.Fatalf("a freshly mirrored repository is not stale: %+v", r)
 		}
+	}
+}
+
+func TestMirrorFailedCheckIsPendingAndCarriesNoEvidenceTime(t *testing.T) {
+	w := newWorld(t)
+	w.mirror(w.wants())
+	if wl, _ := w.mirrorWorklist(evidencerepin.BaselineModeReleaseLine); wl.Summary.Pending != 0 {
+		t.Fatalf("control: every citation classifies: %+v", wl.Summary)
+	}
+	editIndex(t, w.state, func(repo map[string]any) { repo["status"] = "error" })
+	wl, _ := w.mirrorWorklist(evidencerepin.BaselineModeReleaseLine)
+	for _, c := range wl.Citations {
+		if c.Class != evidencerepin.ClassPending || !strings.Contains(c.Detail, "last check of the repository did not succeed") {
+			t.Errorf("a citation of a failed check must be pending with its reason: %+v", c)
+		}
+	}
+	for _, r := range wl.Repos {
+		if r.Status != "PENDING_ERROR" || !r.Stale || r.ResolvedAt != "" || r.MirrorCheckedAt != "" || r.MirrorReleasesAt != "" {
+			t.Errorf("a failed check must give no resolution and no evidence time: %+v", r)
+		}
+	}
+	for _, l := range wl.Lines {
+		if !l.Stale || l.ResolvedAt != "" || l.Status == "RESOLVED" {
+			t.Errorf("a failed check must resolve no line: %+v", l)
+		}
+	}
+	if wl.Summary.OldestResolvedAt != "" {
+		t.Errorf("no repository gave evidence: %q", wl.Summary.OldestResolvedAt)
 	}
 }
 

@@ -44,8 +44,34 @@ func unchangedWorklist(t *testing.T, packPath string, packRaw []byte, at time.Ti
 			})
 		}
 	}
+	bindSources(t, &wl, packRaw)
 	lineBaselined(&wl)
+	lineByCommit(&wl)
 	return marshalWorklist(t, wl)
+}
+
+// lineByCommit gives each cited commit of a repository its own release line,
+// with one line record each: one line resolves to one commit.
+func lineByCommit(wl *evidencerepin.Worklist) {
+	lines := map[string]int{}
+	var records []evidencerepin.LineResolution
+	for i := range wl.Citations {
+		c := &wl.Citations[i]
+		key := c.Owner + "/" + c.Repo + "@" + c.NewCommit
+		minor, seen := lines[key]
+		if !seen {
+			minor = len(lines) + 1
+			lines[key] = minor
+		}
+		line := fmt.Sprintf("0.%d", minor)
+		c.BaselineLine, c.PinnedTag, c.BaselineTag = line, "v"+line+".0", "v"+line+".4"
+		if !seen {
+			record := wl.Lines[i]
+			record.Line, record.Tag = line, c.BaselineTag
+			records = append(records, record)
+		}
+	}
+	wl.Lines = records
 }
 
 type simReport struct {
