@@ -80,22 +80,96 @@ class HelperShapeTests(unittest.TestCase):
     def test_legacy_version_and_output_errors_are_fatal(self):
         helper = os.environ["QA_TEST_CRDGVK"]
         prefix = "apiVersion: apiextensions.k8s.io/v1beta1\nkind: CustomResourceDefinition\nspec:\n  group: sample.example\n  names:\n    kind: Widget\n"
-        valid = prefix + "  version: v1\n"
-        good = subprocess.run([helper], input=valid, text=True, capture_output=True)
-        self.assertEqual(good.returncode, 0)
-        self.assertEqual(json.loads(good.stdout)[0]["V"], "v1")
-        for value in ("0", "false", "''", "'  '", "[]"):
+        listed = "  versions:\n  - name: v1\n    served: true\n    storage: true\n"
+        valid = prefix + listed
+        for text in (valid, valid + "  version: v1\n"):
+            good = subprocess.run([helper], input=text, text=True, capture_output=True)
+            self.assertEqual(good.returncode, 0, good.stderr)
+            self.assertEqual(json.loads(good.stdout)[0]["V"], "v1")
+        other = prefix.replace("Widget", "Gadget")
+        refused = [other + "  version: " + value + "\n" for value in ("v1", "0", "false", "''", "'  '", "[]")]
+        refused += [other + listed + "  version: " + value + "\n" for value in ("v2", "0", "''", "[]")]
+        refused += [other + listed.replace("    storage: true\n", ""), other + listed.replace("served: true", "served: 'true'"),
+                    other + "  versions: []\n", other + "  versions: v1\n", other]
+        refused += [other.replace("apiextensions.k8s.io/v1beta1", api) + listed
+                    for api in ("apiextensions.k8s.io/v2", "example.com/v1", "v1", "''")]
+        refused += [other.replace("apiVersion: apiextensions.k8s.io/v1beta1\n", "") + listed]
+        refused += ["- a\n- b\n", "plain text\n", "7\n", "true\n", "1: a\n"]
+        for text in refused:
             for flag in ([], ["-strip"], ["-sample"]):
-                with self.subTest(version=value, flag=flag):
-                    result = subprocess.run([helper] + flag, input=valid + "---\n" + prefix + "  version: " + value + "\n",
-                                            text=True, capture_output=True)
+                with self.subTest(text=text, flag=flag):
+                    result = subprocess.run([helper] + flag, input=valid + "---\n" + text, text=True, capture_output=True)
                     self.assertNotEqual(result.returncode, 0)
                     self.assertEqual(result.stdout, "")
+        empty = subprocess.run([helper], input=valid + "---\nnull\n---\n---\n", text=True, capture_output=True)
+        self.assertEqual(empty.returncode, 0, empty.stderr)
         if Path("/dev/full").exists():
             for flag in ([], ["-strip"], ["-sample"]):
                 with self.subTest(write_flag=flag), open("/dev/full", "wb") as full:
                     result = subprocess.run([helper] + flag, input=valid, text=True, stdout=full, stderr=subprocess.PIPE)
                     self.assertNotEqual(result.returncode, 0)
+
+
+def definition(kind="Widget", version="v1", name="widgets.sample.example", group="sample.example"):
+    return ("apiVersion: apiextensions.k8s.io/v1\nkind: CustomResourceDefinition\nmetadata:\n  name: " + name +
+            "\nspec:\n  group: " + group + "\n  names:\n    kind: " + kind + "\n  versions:\n  - name: " + version +
+            "\n    served: true\n    storage: true\n")
+
+
+class DefinitionRefusalTests(unittest.TestCase):
+    """The helper and the oracle refuse what the extractor refuses: wrapped lists and repeated definitions."""
+
+    def refused(self, text):
+        helper = os.environ["QA_TEST_CRDGVK"]
+        for flag in ([], ["-strip"], ["-sample"]):
+            with self.subTest(flag=flag, text=text[-200:]):
+                result = subprocess.run([helper] + flag, input=text, text=True, capture_output=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(result.stdout, "")
+
+    @unittest.skipUnless(os.environ.get("QA_TEST_CRDGVK"), "set QA_TEST_CRDGVK to the built helper")
+    def test_list_wrapped_definitions_are_refused(self):
+        other = definition("Gadget", name="gadgets.sample.example")
+        wrapped = "apiVersion: v1\nkind: List\nitems:\n- " + definition().replace("\n", "\n  ").rstrip() + "\n"
+        typed = wrapped.replace("apiVersion: v1\nkind: List", "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResourceDefinitionList")
+        for text in (wrapped, typed, "apiVersion: v1\nkind: ConfigMapList\nitems: []\n"):
+            self.refused(other + "---\n" + text)
+            self.refused(text)
+
+    @unittest.skipUnless(os.environ.get("QA_TEST_CRDGVK"), "set QA_TEST_CRDGVK to the built helper")
+    def test_other_apiextensions_documents_are_refused(self):
+        for head in ("apiVersion: apiextensions.k8s.io/v1\nkind: ConversionReview\n",
+                     "apiVersion: apiextensions.k8s.io/v1\nkind: customresourcedefinition\n",
+                     "apiVersion: apiextensions.k8s.io/v1beta1\n"):
+            self.refused(definition() + "---\n" + head)
+
+    @unittest.skipUnless(os.environ.get("QA_TEST_CRDGVK"), "set QA_TEST_CRDGVK to the built helper")
+    def test_repeated_definitions_are_refused(self):
+        self.refused(definition() + "---\n" + definition())
+        # a stale copy with other versions: no repeated version row, still two sources of one kind
+        self.refused(definition(version="v2") + "---\n" + definition(version="v1alpha1", name="old.sample.example"))
+        # one metadata.name used by two definitions
+        self.refused(definition() + "---\n" + definition("Gadget"))
+        # one definition listing a version twice
+        self.refused(definition() + "  - name: v1\n    served: false\n    storage: false\n")
+
+    @unittest.skipUnless(os.environ.get("QA_TEST_CRDGVK"), "set QA_TEST_CRDGVK to the built helper")
+    def test_distinct_definitions_and_other_documents_still_read(self):
+        helper = os.environ["QA_TEST_CRDGVK"]
+        text = "---\n".join((definition(), definition("Gadget", name="gadgets.sample.example"),
+                             definition(group="other.example", name="widgets.other.example"),
+                             "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: widgets.sample.example\n", ""))
+        result = subprocess.run([helper], input=text, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(len(json.loads(result.stdout)), 3)
+
+    def test_repeated_helper_rows_are_an_error(self):
+        row = dict(G="sample.example", V="v1", K="Widget", Served=True, Store=True)
+        for other in (row, dict(row, Served=False, Store=False)):
+            with self.subTest(other=other), patch.object(oracle, "crd_text", return_value="kind: CustomResourceDefinition"), patch.object(
+                    oracle, "sh", return_value=subprocess.CompletedProcess([], 0, json.dumps([row, other]), "")):
+                with self.assertRaises(ValueError):
+                    oracle.served_set({}, "unused", "v1")
 
 
 class OptionalRemoteTests(unittest.TestCase):

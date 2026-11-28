@@ -115,21 +115,33 @@ def crd(cases, kc, crd_cases):
             txt = crd_oracle.crd_text(tj, gd, f)
             d = f"{TMP}/kind/{proj}"
             os.makedirs(d, exist_ok=True)
-            write_private(f"{d}/crds.yaml", sh(CRDGVK, "-strip", inp=txt).stdout)
-            write_private(f"{d}/samples.yaml", sh(CRDGVK, "-sample", inp=txt).stdout)
-            dv(f"{K} apply --server-side --force-conflicts -f {d}/crds.yaml >/dev/null 2>&1; "
-               f"{K} wait --for=condition=Established crd --all --timeout=60s >/dev/null 2>&1; "
-               f"{K} apply -f {d}/samples.yaml >/dev/null 2>&1; true", 300)
-            _, res, _ = dv(f"{K} get crd -o jsonpath='{{range .items[*]}}{{.spec.names.plural}}.{{.spec.group}},{{end}}'", 60)
-            res = res.strip().rstrip(",")
-            if not res:
-                cases.append(case("kind", key, note="no CRDs established; skipped"))
+            for flag, out_name in (("-strip", "crds.yaml"), ("-sample", "samples.yaml")):
+                helper = sh(CRDGVK, flag, inp=txt)
+                if helper.returncode:  # a refused definition set is an error case, never an empty probe that is skipped
+                    raise ValueError("CRD YAML helper failed: " + helper.stderr[:120])
+                write_private(f"{d}/{out_name}", helper.stdout)
+            rc, aout, aerr = dv(f"{K} apply --server-side --force-conflicts -f {d}/crds.yaml 2>&1 && "
+                                f"{K} wait --for=condition=Established crd --all --timeout=60s 2>&1 && "
+                                f"{K} apply -f {d}/samples.yaml 2>&1", 300)
+            if rc:  # a probe that could not be set up proves nothing
+                cases.append(case("kind", key, error=True, why="CRD apply or wait failed: " + (aout + aerr)[-200:]))
                 continue
-            _, js, _ = dv(f"{K} get {res} -A -o json 2>/dev/null", 120)
+            rc, res, gerr = dv(f"{K} get crd -o jsonpath='{{range .items[*]}}{{.spec.names.plural}}.{{.spec.group}},{{end}}'", 60)
+            res = res.strip().rstrip(",")
+            if rc or not res:
+                cases.append(case("kind", key, error=True, why="no CRDs established " + gerr[-200:]))
+                continue
+            rc, js, jerr = dv(f"{K} get {res} -A -o json", 120)
+            if rc:  # a partial dump proves nothing
+                cases.append(case("kind", key, error=True, why="live JSON dump failed: " + jerr[-200:]))
+                continue
             items = json.loads(js).get("items", []) if js.strip() else []
             dumped = {x["apiVersion"] + "/" + x["kind"] for x in items}
             hit = sorted(dumped & exp)
-            _, ym, _ = dv(f"{K} get {res} -A -o yaml 2>/dev/null", 120)
+            rc, ym, yerr = dv(f"{K} get {res} -A -o yaml", 120)
+            if rc:
+                cases.append(case("kind", key, error=True, why="live YAML dump failed: " + yerr[-200:]))
+                continue
             fn = f"{d}/dump.yaml"
             write_private(fn, ym)
             code, j, tail = prufyx("scan", fn, f"{proj}={f[len(pref):]}", f"{proj}={t[len(pref):]}")

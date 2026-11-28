@@ -142,7 +142,8 @@ def publication_runner():
     def rule_command(args, **kwargs):
         path = Path(args[args.index("--input") + 1])
         code = 0 if mode == "rules-pass" and path.stem == "v0" else 10
-        return subprocess.CompletedProcess(args, code, "", "")
+        claims = [dict(ruleId="sample.control", status="BLOCKED", reasonCode="R")] if code == 10 else []
+        return subprocess.CompletedProcess(args, code, json.dumps(dict(check=dict(claims=claims))), "")
     with patch.object(q, "SRC", str(source)), patch.object(q, "TMP", str(out / "tmp")), patch.object(
             corpus, "variants", return_value=[dict(id="enc.control", data=b"{}", project=None)]), patch.object(
             subprocess, "run", side_effect=rule_command), patch("sys.argv", ["rules_oracle.py", "--out",
