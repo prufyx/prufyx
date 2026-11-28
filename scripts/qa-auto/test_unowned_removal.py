@@ -245,6 +245,20 @@ class Summary(unittest.TestCase):
         self.assertEqual((summ["state"], r.returncode), ("INCONCLUSIVE", 3))
         self.assertEqual(json.load(open(s + "/status.json"))["unowned_removal_unknown_baseline"], 20)
 
+    def test_oracle_digest_reset_keeps_the_rise_threshold(self):
+        s = tempfile.mkdtemp()
+        self.run_summary(s, self.cases(1))
+        st = json.load(open(s + "/status.json"))
+        st["oracle_digest"] = "0" * 64
+        json.dump(st, open(s + "/status.json", "w"))
+        r, summ = self.run_summary(s, self.cases(3))  # 15 > 5 + 5, still under the hard cap
+        self.assertTrue(summ["unowned_removal_unknown_cap_breach"])
+        self.assertEqual((summ["state"], r.returncode), ("INCONCLUSIVE", 3))
+        st = json.load(open(s + "/status.json"))
+        self.assertEqual((st["unowned_removal_unknown_baseline"], st["oracle_digest"]), (5, "0" * 64))
+        r, summ = self.run_summary(s, self.cases(2))  # 10 == 5 + 5: inside the margin
+        self.assertEqual((summ["unowned_removal_unknown_cap_breach"], summ["state"]), (False, "GREEN"))
+
     def test_error_case_not_counted(self):
         c = qalib.case("crd", "e", error=True, status=S, unownedRemoved=["g/v/k"])
         self.assertNotIn("unowned_removal_unknown", qalib.counts([c]))
