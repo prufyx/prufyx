@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
 )
@@ -35,6 +36,8 @@ const (
 
 	// Disclaimer states the limit of every output.
 	Disclaimer = "span-stable only; behaviour, absence of reintroduction and decision impact not checked"
+
+	toolRevisionMessage = "the tool revision is not a clean 40 hex commit id; build the command with go build in a clean checkout"
 
 	coverageNote = "A candidate range also covers patch releases that do not exist yet and tags that the local clone does not hold."
 	basisNote    = "The two lines are adjacent. The tool does not observe in which release the behaviour changed, so a reviewer must decide the basis of from.lt and to.gte."
@@ -68,6 +71,9 @@ const (
 	CodeCommitOnTwoLines = "COMMIT_ON_TWO_LINES"
 	CodeOverlap          = "SAME_KEY_OVERLAP"
 	CodeGit              = "GIT_ERROR"
+	CodeEvidenceTime     = "EVIDENCE_TIME_INVALID"
+	CodeEvidenceEarly    = "EVIDENCE_CLOCK_BEFORE_REVIEW"
+	CodeEvidenceExpired  = "EVIDENCE_EXPIRED"
 )
 
 // Needs-review reason codes.
@@ -79,6 +85,8 @@ const (
 	ReasonSpanNotStable   = "SPAN_NOT_STABLE"
 	ReasonOperator        = "INELIGIBLE_OPERATOR"
 	ReasonAppliesWhen     = "CONDITIONAL_RULE"
+	ReasonLease           = "INELIGIBLE_LEASE"
+	ReasonCrossComponent  = "CROSS_COMPONENT"
 )
 
 // Observation results. Only resultSameFile counts as stable.
@@ -108,6 +116,8 @@ type Options struct {
 	Config       Config
 	Gaps         []string
 	ToolRevision string
+	// Now is the time rule evidence is judged at.
+	Now time.Time
 }
 
 // Binding ties an output to its inputs.
@@ -115,6 +125,7 @@ type Binding struct {
 	RulesCommit     string `json:"rulesCommit"`
 	RulesFileDigest string `json:"rulesFileDigest"`
 	ToolRevision    string `json:"toolRevision"`
+	EvaluatedAt     string `json:"evaluatedAt"`
 }
 
 // Report is the result of one run.
@@ -244,6 +255,14 @@ type openedRepo struct {
 // without a range. An error means the run itself failed; a rule that cannot
 // be evaluated is listed as refused.
 func Run(ctx context.Context, o Options) (Report, error) {
+	// An output that cannot be tied to the code that made it, or evidence
+	// that cannot be judged against a time, proposes nothing.
+	if !commitRE.MatchString(o.ToolRevision) {
+		return Report{}, errors.New(toolRevisionMessage)
+	}
+	if o.Now.IsZero() {
+		return Report{}, errors.New("no evaluation time")
+	}
 	raw, rules, err := readPack(ctx, o.RulesRepo, o.RulesCommit)
 	if err != nil {
 		return Report{}, err
@@ -253,7 +272,8 @@ func Run(ctx context.Context, o Options) (Report, error) {
 		return Report{}, err
 	}
 	report := Report{
-		Binding:   Binding{RulesCommit: o.RulesCommit, RulesFileDigest: digest(raw), ToolRevision: o.ToolRevision},
+		Binding: Binding{RulesCommit: o.RulesCommit, RulesFileDigest: digest(raw), ToolRevision: o.ToolRevision,
+			EvaluatedAt: o.Now.UTC().Format(time.RFC3339)},
 		Proposals: []Proposal{}, NeedsReview: []Review{}, Refused: []Refused{},
 	}
 	repos := map[string]openedRepo{}
@@ -268,7 +288,7 @@ func Run(ctx context.Context, o Options) (Report, error) {
 			report.AlreadyRanged++
 			continue
 		}
-		proposal, review, err := evaluate(ctx, o.Config, repos, r)
+		proposal, review, err := evaluate(ctx, o.Config, repos, r, o.Now)
 		if ctx.Err() != nil {
 			return Report{}, ctx.Err()
 		}
@@ -334,8 +354,33 @@ type side struct {
 	tags []releaseTag
 }
 
+// current refuses evidence whose window cannot be read or does not hold now.
+// The window is judged for every lease: a pinned rule gets no exception.
+func current(reviewedAt, validUntil string, now time.Time) error {
+	reviewed, reviewedOK := parseUTC(reviewedAt)
+	until, untilOK := parseUTC(validUntil)
+	switch {
+	case !reviewedOK || !untilOK || !until.After(reviewed):
+		return refuse(CodeEvidenceTime, "the rule's reviewedAt and validUntil are not a UTC window")
+	case now.Before(reviewed):
+		return refuse(CodeEvidenceEarly, "the rule's evidence is dated after the evaluation time")
+	case !now.Before(until):
+		return refuse(CodeEvidenceExpired, "the rule's evidence expired at "+validUntil)
+	}
+	return nil
+}
+
+// parseUTC accepts only the engine's spelling, such as 2026-01-02T03:04:05Z.
+func parseUTC(value string) (time.Time, bool) {
+	t, err := time.Parse(time.RFC3339, value)
+	return t, err == nil && t.Location() == time.UTC && t.Format(time.RFC3339) == value
+}
+
 // evaluate returns exactly one of a proposal, a review or an error.
-func evaluate(ctx context.Context, config Config, repos map[string]openedRepo, r packRule) (*Proposal, *Review, error) {
+func evaluate(ctx context.Context, config Config, repos map[string]openedRepo, r packRule, now time.Time) (*Proposal, *Review, error) {
+	if err := current(r.shape.Evidence.ReviewedAt, r.shape.Evidence.ValidUntil, now); err != nil {
+		return nil, nil, err
+	}
 	subject := r.shape.Subject
 	if len(r.shape.Crossing) != 0 || len(subject.Chart) != 0 {
 		return nil, nil, refuse(CodeUnsupportedShape, "chart and crossing rules are not supported")
@@ -492,13 +537,15 @@ func evaluate(ctx context.Context, config Config, repos map[string]openedRepo, r
 			Reasons: reasons, Evaluated: evaluated}, nil
 	}
 
+	// No upstream minimum source version is read, so the from side never
+	// starts below the patch the rule was reviewed at.
 	p := &Proposal{RuleID: r.id, Project: clean(r.project), Status: StatusUnreviewed, BaseEntryDigest: r.entryDigest,
-		Flags: []string{"span-stable-only"}, Evaluated: evaluated}
+		Flags: []string{"span-stable-only", "from-floor-is-anchor", "upstream-minimum-source-version-not-checked"}, Evaluated: evaluated}
 	fromLine, toLine := from.line(), to.line()
 	fromID, toID := counted[sideFrom][0], counted[sideTo][0]
 	p.Candidate = CandidateRange{
 		ReviewStatus: StatusUnreviewed,
-		From:         constraintengine.VersionBound{Gte: fromLine.start(), Lt: fromLine.next()},
+		From:         constraintengine.VersionBound{Gte: subject.From},
 		To:           constraintengine.VersionBound{Gte: toLine.start(), Lt: toLine.next()},
 	}
 	// Adjacent means the next minor of the same major. A new major is never
@@ -506,17 +553,21 @@ func evaluate(ctx context.Context, config Config, repos map[string]openedRepo, r
 	if fromLine.major == toLine.major && fromLine.minor+1 == toLine.minor {
 		p.Flags = append(p.Flags, "adjacent-lines", "release-boundary-not-set")
 		p.BasisNote = basisNote
+		p.Candidate.From.Lt = fromLine.next()
 		p.Candidate.Bounds = []CandidateBound{
-			{Bound: "from.gte", Basis: constraintengine.BasisPreviousMinorLine, SourceID: fromID},
+			{Bound: "from.gte", Basis: constraintengine.BasisAnchorOnly, SourceID: fromID},
 			{Bound: "from.lt", Basis: BasisReviewerMustDecide},
 			{Bound: "to.gte", Basis: BasisReviewerMustDecide},
 			{Bound: "to.lt", Basis: constraintengine.BasisTargetSeries, SourceID: toID},
 		}
 	} else {
-		p.Flags = append(p.Flags, "non-adjacent-lines")
+		// The engine admits a from side that starts above its line's first
+		// patch, without a release boundary, only at exactly the anchor.
+		p.Flags = append(p.Flags, "non-adjacent-lines", "from-side-anchor-only")
+		p.Candidate.From.Lt = from.nextPatch()
 		p.Candidate.Bounds = []CandidateBound{
-			{Bound: "from.gte", Basis: constraintengine.BasisUpgradeFromSeries, SourceID: fromID},
-			{Bound: "from.lt", Basis: constraintengine.BasisUpgradeFromSeries, SourceID: fromID},
+			{Bound: "from.gte", Basis: constraintengine.BasisAnchorOnly, SourceID: fromID},
+			{Bound: "from.lt", Basis: constraintengine.BasisAnchorOnly, SourceID: fromID},
 			{Bound: "to.gte", Basis: constraintengine.BasisTargetSeries, SourceID: toID},
 			{Bound: "to.lt", Basis: constraintengine.BasisTargetSeries, SourceID: toID},
 		}
@@ -525,15 +576,45 @@ func evaluate(ctx context.Context, config Config, repos map[string]openedRepo, r
 }
 
 // ineligible is the closed eligibility check. Only the two operators below can
-// be proposed, and only without applicability conditions: the tool evaluates
-// neither another operator nor appliesWhen, so such a rule goes to review.
+// be proposed, and only under a time lease, on a fact of the subject component
+// and without applicability conditions: the tool compares the subject
+// repository only and evaluates neither another operator nor appliesWhen, so
+// any other rule goes to review.
 func ineligible(shape ruleShape) []Reason {
 	var reasons []Reason
+	// required is the member that holds the constrained fact of the operator.
+	var required *componentRef
+	eligible := true
 	switch shape.Operator {
-	case "forbid_predicate_value", constraintengine.OperatorForbidSetMember:
+	case "forbid_predicate_value":
+		required = shape.Condition
+	case constraintengine.OperatorForbidSetMember:
+		if shape.SetCondition != nil {
+			required = &shape.SetCondition.componentRef
+		}
 	default:
+		eligible = false
 		reasons = append(reasons, Reason{Code: ReasonOperator,
 			Detail: clean(fmt.Sprintf("the tool proposes no range for operator %q", shape.Operator))})
+	}
+	if eligible {
+		own := shape.Subject.Component
+		refs := []*componentRef{shape.Condition, shape.Dependency}
+		if shape.SetCondition != nil {
+			refs = append(refs, &shape.SetCondition.componentRef)
+		}
+		cross := required == nil || own == ""
+		for _, ref := range refs {
+			cross = cross || ref != nil && ref.Component != own
+		}
+		if cross {
+			reasons = append(reasons, Reason{Code: ReasonCrossComponent,
+				Detail: "the constrained fact is missing or is not a fact of the subject component"})
+		}
+	}
+	if lease := shape.Evidence.Lease; lease != "" && lease != constraintengine.LeaseTime {
+		reasons = append(reasons, Reason{Code: ReasonLease,
+			Detail: clean(fmt.Sprintf("the tool proposes no range for evidence lease %q", lease))})
 	}
 	if raw := shape.AppliesWhen; len(raw) != 0 {
 		// Only an absent member or an empty array is unconditional; null or

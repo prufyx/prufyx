@@ -59,6 +59,8 @@ func (l line) String() string { return fmt.Sprintf("%d.%d", l.major, l.minor) }
 func (l line) start() string  { return fmt.Sprintf("%d.%d.0", l.major, l.minor) }
 func (l line) next() string   { return fmt.Sprintf("%d.%d.0", l.major, l.minor+1) }
 
+func (v version) nextPatch() string { return fmt.Sprintf("%d.%d.%d", v.major, v.minor, v.patch+1) }
+
 // preReleaseRE is the closed set of pre-release suffixes that may follow
 // PREFIX X.Y.Z. Any other spelling that names a line refuses the rule.
 var preReleaseRE = regexp.MustCompile(`^-(alpha|beta|rc)(\.?[0-9]{1,4})?$`)

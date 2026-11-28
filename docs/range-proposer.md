@@ -17,6 +17,11 @@ prufyx-maintainer range-propose \
   --out /path/outside/any/git/work/tree [--gaps /path/to/rule-ids.txt]
 ```
 
+Build the command with `go build` in a clean checkout. The run is refused when
+the binary does not record an unmodified commit, which includes `go run`, a
+modified tree and a build with `-buildvcs=false`. The output records that commit
+and the evaluation time, which is the clock's.
+
 The rule pack is read from `cli/internal/cncfcheck/data/rules.json` at the
 named commit. Candidates are active rules without a `range`. `--gaps` lists rule
 ids, one per line, that come first in the output; the others follow by id.
@@ -65,6 +70,11 @@ file counts as code. A source that is not a release note and cannot be checked
 (another repository, an untagged revision, a revision outside both lines) sends
 the whole rule to review. The tool does not look for new sources.
 
+A range is proposed only for `forbid_predicate_value` and `forbid_set_member`
+rules without `appliesWhen`, under a time lease, whose constrained fact belongs
+to the subject component. A pinned or unknown lease and a cross-component rule
+need review.
+
 ## Results
 
 The output directory must be new or empty and outside every git work tree. It
@@ -84,7 +94,17 @@ The `candidateRange` is refused by the rule engine as written: it carries a
 `to.gte` also carry the placeholder basis `REVIEWER_MUST_DECIDE` and no source,
 because the tool does not observe in which release the behaviour changed. It
 never sets `REMOVED_IN_RELEASE` or `CHANGED_IN_RELEASE`. Other line pairs,
-including a new major, get `UPGRADE_FROM_SERIES` and `TARGET_SERIES`.
+including a new major, keep the `from` side at exactly the rule's `from` version
+(`ANCHOR_ONLY`) and get `TARGET_SERIES` for the `to` side.
+
+**Upstream minimum source version not checked.** The tool reads no upgrade
+guide, so `from.gte` is always the rule's own `from` version, with basis
+`ANCHOR_ONLY`, never an earlier patch. Every candidate carries the flag
+`upstream-minimum-source-version-not-checked`. Before a candidate becomes a rule
+pack change, a reviewer records the upgrade guide's minimum source version for
+the target line and checks the other rules of the same component and version
+pair for such a floor. Lowering `from.gte` needs a reviewed source that states
+it.
 
 A candidate that would overlap another rule or candidate on the same constraint
 key is refused. The effect of a range on decisions is not computed.
@@ -96,6 +116,8 @@ clone does not hold.
 
 A rule is refused, never treated as unchanged, when among others:
 
+- its evidence has expired, is dated after the evaluation time or does not give
+  a UTC window, whatever its lease;
 - it cites no source, a source URL is not a pinned `github.com` or
   `raw.githubusercontent.com` file at the source revision, or a cited reference
   does not verify;

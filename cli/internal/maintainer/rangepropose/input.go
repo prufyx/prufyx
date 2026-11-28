@@ -164,13 +164,24 @@ type ruleShape struct {
 	} `json:"subject"`
 	Range        *constraintengine.VersionRange `json:"range"`
 	Crossing     json.RawMessage                `json:"crossing"`
+	Condition    *componentRef                  `json:"condition"`
+	Dependency   *componentRef                  `json:"dependency"`
 	SetCondition *struct {
+		componentRef
 		Members []string `json:"members"`
 	} `json:"setCondition"`
 	Evidence struct {
-		State   string   `json:"state"`
-		Sources []source `json:"sources"`
+		State      string   `json:"state"`
+		ReviewedAt string   `json:"reviewedAt"`
+		ValidUntil string   `json:"validUntil"`
+		Lease      string   `json:"lease"`
+		Sources    []source `json:"sources"`
 	} `json:"evidence"`
+}
+
+// componentRef is the component a rule member refers to.
+type componentRef struct {
+	Component string `json:"component"`
 }
 
 type source struct {

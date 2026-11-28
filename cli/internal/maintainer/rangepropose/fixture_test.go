@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 const (
@@ -196,7 +197,16 @@ func config(path string) Config {
 func options(t *testing.T, clone string, rules ...map[string]any) Options {
 	t.Helper()
 	repo, commit := rulesRepo(t, packJSON(t, rules...))
-	return Options{RulesRepo: repo, RulesCommit: commit, Config: config(clone), ToolRevision: "test"}
+	return optionsAt(repo, commit, clone)
+}
+
+var testNow = time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+
+const testRevision = "1111111111111111111111111111111111111111"
+
+// optionsAt is a complete, acceptable set of options.
+func optionsAt(repo, commit, clone string) Options {
+	return Options{RulesRepo: repo, RulesCommit: commit, Config: config(clone), ToolRevision: testRevision, Now: testNow}
 }
 
 func run(t *testing.T, o Options) Report {

@@ -234,7 +234,7 @@ func TestAnOversizedRulePackFailsTheRun(t *testing.T) {
 		ok   bool
 	}{"at the cap": {maxFileBytes, true}, "over the cap": {maxFileBytes + 1, false}} {
 		repo, commit := rulesRepo(t, pack+strings.Repeat(" ", tc.size-len(pack)))
-		_, err := Run(context.Background(), Options{RulesRepo: repo, RulesCommit: commit, Config: config(clone)})
+		_, err := Run(context.Background(), optionsAt(repo, commit, clone))
 		if (err == nil) != tc.ok {
 			t.Errorf("%s: %v", name, err)
 		}

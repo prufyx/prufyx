@@ -19,8 +19,10 @@ const (
 	// maxFileBytes bounds one file read from a tree.
 	maxFileBytes = 8 << 20
 	maxGitOutput = 32 << 20
-	gitTimeout   = 2 * time.Minute
 )
+
+// gitTimeout bounds one git command. It is a variable so a test can shorten it.
+var gitTimeout = 2 * time.Minute
 
 // errOutputTooLarge reports a git answer over maxGitOutput.
 var errOutputTooLarge = errors.New("git output too large")

@@ -22,8 +22,8 @@ func TestStableOnBothSidesIsAnUnreviewedProposal(t *testing.T) {
 		t.Fatalf("status: %+v", p)
 	}
 	got := marshal(t, p.Candidate)
-	want := `{"reviewStatus":"unreviewed-proposal","from":{"gte":"1.4.0","lt":"1.5.0"},"to":{"gte":"1.5.0","lt":"1.6.0"},"bounds":[` +
-		`{"bound":"from.gte","basis":"PREVIOUS_MINOR_LINE","sourceId":"old-flags"},{"bound":"from.lt","basis":"REVIEWER_MUST_DECIDE"},` +
+	want := `{"reviewStatus":"unreviewed-proposal","from":{"gte":"1.4.1","lt":"1.5.0"},"to":{"gte":"1.5.0","lt":"1.6.0"},"bounds":[` +
+		`{"bound":"from.gte","basis":"ANCHOR_ONLY","sourceId":"old-flags"},{"bound":"from.lt","basis":"REVIEWER_MUST_DECIDE"},` +
 		`{"bound":"to.gte","basis":"REVIEWER_MUST_DECIDE"},{"bound":"to.lt","basis":"TARGET_SERIES","sourceId":"new-flags"}]}`
 	if got != want {
 		t.Fatalf("candidate\n%s\nwant\n%s", got, want)
@@ -105,7 +105,7 @@ func TestNonAdjacentCandidateIsRefusedByItsStatusField(t *testing.T) {
 			for _, b := range p.Candidate.Bounds {
 				bases = append(bases, b.Basis+":"+b.SourceID)
 			}
-			if strings.Join(bases, " ") != "UPGRADE_FROM_SERIES:old-flags UPGRADE_FROM_SERIES:old-flags TARGET_SERIES:new-flags TARGET_SERIES:new-flags" ||
+			if strings.Join(bases, " ") != "ANCHOR_ONLY:old-flags ANCHOR_ONLY:old-flags TARGET_SERIES:new-flags TARGET_SERIES:new-flags" ||
 				!strings.Contains(strings.Join(p.Flags, ","), "non-adjacent-lines") {
 				t.Fatalf("bounds %v flags %v", bases, p.Flags)
 			}
@@ -535,7 +535,8 @@ func TestOutputIsNotPackShapedAndIsReproducible(t *testing.T) {
 		t.Fatalf("header: %v", doc)
 	}
 	binding := doc["binding"].(map[string]any)
-	if binding["rulesCommit"] != o.RulesCommit || binding["rulesFileDigest"] == "" || binding["toolRevision"] != "test" {
+	if binding["rulesCommit"] != o.RulesCommit || binding["rulesFileDigest"] == "" || binding["toolRevision"] != testRevision ||
+		binding["evaluatedAt"] != "2026-06-01T00:00:00Z" {
 		t.Fatalf("binding: %v", binding)
 	}
 	all := map[string]bool{}
@@ -599,13 +600,13 @@ func TestInputsAreStrict(t *testing.T) {
 		"rule id":          packJSON(t, rule("a\nb", "1.4.1", "1.5.0", f.both())),
 	} {
 		repo, commit := rulesRepo(t, pack)
-		if _, err := Run(context.Background(), Options{RulesRepo: repo, RulesCommit: commit, Config: config(clone)}); err == nil {
+		if _, err := Run(context.Background(), optionsAt(repo, commit, clone)); err == nil {
 			t.Errorf("%s accepted", name)
 		}
 	}
 	repo, commit := rulesRepo(t, good)
 	for _, bad := range []string{"HEAD", commit[:12], strings.Repeat("0", 40)} {
-		if _, err := Run(context.Background(), Options{RulesRepo: repo, RulesCommit: bad, Config: config(clone)}); err == nil {
+		if _, err := Run(context.Background(), optionsAt(repo, bad, clone)); err == nil {
 			t.Errorf("commit %q accepted", bad)
 		}
 	}

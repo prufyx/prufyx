@@ -76,7 +76,7 @@ func TestTheRulesCommitMustBeACommit(t *testing.T) {
 		"tag object": git(t, repo, "rev-parse", "refs/tags/note"),
 		"missing":    strings.Repeat("b", 40),
 	} {
-		_, err := Run(context.Background(), Options{RulesRepo: repo, RulesCommit: id, Config: config(clone)})
+		_, err := Run(context.Background(), optionsAt(repo, id, clone))
 		if err == nil || err.Error() != "the rules commit is not in the rules repository" {
 			t.Errorf("%s: %v", name, err)
 		}
@@ -131,7 +131,7 @@ func TestInputRefusalsNameTheirCause(t *testing.T) {
 		"too deep":         {extra(`"x":` + strings.Repeat("[", 129) + strings.Repeat("]", 129)), "nesting too deep"},
 	} {
 		repo, commit := rulesRepo(t, tc.pack)
-		_, err := Run(context.Background(), Options{RulesRepo: repo, RulesCommit: commit, Config: config(clone)})
+		_, err := Run(context.Background(), optionsAt(repo, commit, clone))
 		if err == nil || err.Error() != "the rule pack is not strict JSON: "+tc.want {
 			t.Errorf("pack %s: %v", name, err)
 		}
@@ -159,9 +159,11 @@ func refusedCodes(r Report) map[string]Refused {
 func TestOverlapIsScopedToTheSubjectComponent(t *testing.T) {
 	f := newFixture(t, standard())
 	b := rule("b", "1.4.1", "1.5.0", f.both())
+	// The same constraint key under another subject: b itself crosses
+	// components and needs review, and it does not collide with a.
 	b["subject"].(map[string]any)["component"] = "pkg:github/acme/other"
 	r := run(t, options(t, f.bare(), rule("a", "1.4.1", "1.5.0", f.both()), b))
-	if len(r.Proposals) != 2 || len(r.Refused) != 0 {
+	if len(r.Proposals) != 1 || r.Proposals[0].RuleID != "a" || len(r.NeedsReview) != 1 || len(r.Refused) != 0 {
 		t.Fatalf("another subject component: %s", marshal(t, r))
 	}
 }

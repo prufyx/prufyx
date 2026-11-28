@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"runtime/debug"
+	"time"
 
 	"github.com/prufyx/prufyx/cli/internal/maintainer/rangepropose"
 )
@@ -42,7 +43,8 @@ func runRangePropose(args []string, stdout io.Writer) error {
 	if err != nil {
 		return fail(errors.New("projects file unreadable"))
 	}
-	options := rangepropose.Options{RulesRepo: *rulesRepo, RulesCommit: *rulesCommit, ToolRevision: toolRevision()}
+	// The evaluation time is the clock's; no flag moves it.
+	options := rangepropose.Options{RulesRepo: *rulesRepo, RulesCommit: *rulesCommit, ToolRevision: toolRevision(), Now: time.Now().UTC()}
 	if options.Config, err = rangepropose.DecodeConfig(raw); err != nil {
 		return fail(err)
 	}
@@ -66,21 +68,33 @@ func runRangePropose(args []string, stdout io.Writer) error {
 	return err
 }
 
-// toolRevision is the commit this binary was built from, when the build
-// recorded it.
+// readBuildInfo is a variable so a test can state what the build recorded.
+var readBuildInfo = debug.ReadBuildInfo
+
+// toolRevision is the commit this binary was built from. It is a bare commit
+// id only when the build recorded it and recorded an unmodified tree; the run
+// refuses every other value.
 func toolRevision() string {
-	info, ok := debug.ReadBuildInfo()
+	info, ok := readBuildInfo()
 	if !ok {
 		return "unknown"
 	}
-	revision, modified := "unknown", ""
+	revision, modified := "", ""
 	for _, s := range info.Settings {
-		switch {
-		case s.Key == "vcs.revision":
+		switch s.Key {
+		case "vcs.revision":
 			revision = s.Value
-		case s.Key == "vcs.modified" && s.Value == "true":
-			modified = "+modified"
+		case "vcs.modified":
+			modified = s.Value
 		}
 	}
-	return revision + modified
+	switch {
+	case modified == "true" && revision == "":
+		return "unknown+modified"
+	case modified == "true":
+		return revision + "+modified"
+	case modified != "false" || revision == "":
+		return "unknown"
+	}
+	return revision
 }
