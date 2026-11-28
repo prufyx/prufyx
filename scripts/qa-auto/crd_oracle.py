@@ -681,6 +681,67 @@ def anchor_only_rule_covers(project, frm, to, removed):
         return False
 
 
+# Exact-anchor removal rules withdrawn because upstream does not allow the upgrade from the anchor's source release (the
+# source floor). This record is the oracle's own and is never read from the checkout under test: being withdrawn there is
+# not enough, and a rule that is not listed here keeps its expected finding. Each record is one exact rule; the citation is
+# the pinned upstream text of the floor.
+WITHDRAWN_STATUS = "WITHDRAWN_ANCHOR_UNKNOWN"
+FLOOR_WITHDRAWN = (
+    {"rule": "cilium.crd-version-removal.ciliumnodeconfigs-cilium-io.1-19-0-to-1-20-0", "project": "cilium",
+     "component": "pkg:github/cilium/cilium", "from": "1.19.0", "to": "1.20.0",
+     "factId": "component.cilium.custom_resource_versions_set", "members": ("cilium.io/v2alpha1/CiliumNodeConfig",),
+     "reason": "SOURCE_FLOOR",
+     "citation": "https://github.com/cilium/cilium/blob/7c6667e1e707d7f39a4af3409c2a9ebea2917d32/"
+                 "Documentation/operations/upgrade.rst#L268"},
+)
+
+
+def floor_withdrawn_anchor(code, report, removed, component, versions):
+    """True only for the exact answer to a recorded floor withdrawal: the scanned pair, the project and the whole expected
+    removal set are one record's; the checked-out rule table holds exactly that rule, unchanged in scope, with evidence
+    state "withdrawn"; and the scan is UNKNOWN (exit 11) with no finding, nothing omitted or unsupported, the design gap, the
+    one gap naming that rule as withdrawn on this hop, and one PARTIAL hop with only those two reasons. Anything else,
+    including anything unreadable, is False."""
+    try:
+        records = [r for r in FLOOR_WITHDRAWN if r["project"] == component and (r["from"], r["to"]) == tuple(versions)
+                   and sorted(r["members"]) == sorted("/".join(x) for x in removed)]
+        if len(records) != 1 or records[0]["reason"] != "SOURCE_FLOOR":
+            return False
+        record = records[0]
+        with open(os.path.join(SRC, "cli/internal/cncfcheck/data/rules.json")) as handle:
+            entries = json.load(handle)["entries"]
+        found = [e for e in entries if e["rule"]["id"] == record["rule"]]
+        if len(found) != 1 or found[0]["project"] != component:
+            return False
+        rule = found[0]["rule"]
+        if ("range" in rule or rule["operator"] != "forbid_set_member" or rule["evidence"]["state"] != "withdrawn"
+                or rule["subject"] != {"component": record["component"], "from": record["from"], "to": record["to"]}
+                or rule["setCondition"] != {"component": record["component"], "factId": record["factId"],
+                                            "members": list(record["members"]), "side": "proposed"}):
+            return False
+        if code != 11 or report["verdict"] != "UNKNOWN" or is_pass(code, report):
+            return False
+        if report["findings"] != [] or report["unsupported"] != [] or report["omitted"] != []:
+            return False
+        if any(type(report["summary"][k]) is not int or report["summary"][k] for k in ("blockers", "passes")):
+            return False
+        reasons = ("COMPONENT_NOT_COVERED", "EVIDENCE_EXPIRED")
+        gaps = report["gaps"]
+        if sorted(g["reason"] for g in gaps) != list(reasons) or any(g["component"] != component for g in gaps):
+            return False
+        gap = next(g for g in gaps if g["reason"] == "EVIDENCE_EXPIRED")
+        if (gap["detail"] != "the review of rule %s is not current (withdrawn)" % record["rule"]
+                or (gap["hop"]["from"], gap["hop"]["to"]) != (record["from"], record["to"])):
+            return False
+        path, = report["paths"]
+        hop, = path["hops"]
+        return (path["component"] == component and hop["status"] == "PARTIAL" and sorted(hop["reasons"]) == list(reasons)
+                and not hop.get("families")
+                and (hop["from"]["version"], hop["to"]["version"]) == (record["from"], record["to"]))
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, StopIteration):
+        return False
+
+
 def whole_signal_clause(report, component, whole_docs=0, allow_findings=False, must_have_unowned=False, major_change=False):
     """None when the scan output has the documented whole-CRD shape, else a short code naming the first failing clause.
     Whole-only shape: no findings, no unsupported combination, nothing omitted, at least one gap for the component, every gap
@@ -824,6 +885,10 @@ def classify_owned(code, report, removed, whole_crd, component, later_groups=Non
             # the reviewed rule is an exact anchor of this line: a different patch of the line is outside its subject, so the
             # scanner's UNKNOWN (not covered, nothing evaluated, no finding) is the expected answer, never a pass
             return False, False, [], statuses, False, ANCHOR_STATUS
+        if mm and not wp and versions and floor_withdrawn_anchor(code, report, removed, component, versions):
+            # the anchor itself, withdrawn for the recorded source floor: UNKNOWN naming the withdrawn rule is the only
+            # accepted answer, never a pass
+            return False, False, [], statuses, False, WITHDRAWN_STATUS
         return wp, mm, missing, statuses, False, "NO_WHOLE"
     if is_pass(code, report) or "PASS" in statuses:
         return True, False, missing, statuses, False, "PASS"
