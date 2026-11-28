@@ -20,19 +20,18 @@ func etcdNativeArgs(path, from, to string) []string {
 
 // The native one-step route reuses the already-reviewed PrepareEtcd adapter;
 // this exercises it end to end for the v2/proxy pair without a separate
-// prepare step. The reviewed rule only ever proves presence of a removed
-// v2/proxy flag; a clean argv (no witness) stays UNKNOWN rather than becoming
-// a negative-presence PASS.
+// prepare step. The rule for this pair is withdrawn, so every argv, with or
+// without a removed v2/proxy flag, stays UNKNOWN.
 func TestEtcdNativeCheck_V2ProxyPairBoundedOutcomesAndPrivacy(t *testing.T) {
 	t.Parallel()
 	for _, test := range []struct {
 		name, raw, reason string
 		want              int
 	}{
-		{"removed flag blocks", etcdRemovedArgvInput, "REVIEWED_SOURCE_CONSTRAINT", ExitBlocked},
-		{"clean argv stays unknown, never a negative-presence pass", etcdCleanArgvInput, "RULE_FACT_UNAVAILABLE", ExitUnknown},
-		{"unrecognized flag stays unknown", `{"apiVersion":"prufyx.io/etcd-effective-argv/v1alpha1","kind":"EtcdEffectiveArguments","effectiveArgvDeclared":true,"argv":["--initial-cluster","--enable-v2=true"]}`, "RULE_FACT_UNAVAILABLE", ExitUnknown},
-		{"declaration missing stays unknown", `{"apiVersion":"prufyx.io/etcd-effective-argv/v1alpha1","kind":"EtcdEffectiveArguments","effectiveArgvDeclared":false,"argv":["--enable-v2=true"]}`, "RULE_FACT_UNAVAILABLE", ExitUnknown},
+		{"removed flag stays unknown", etcdRemovedArgvInput, "RULE_EVIDENCE_WITHDRAWN", ExitUnknown},
+		{"clean argv stays unknown, never a negative-presence pass", etcdCleanArgvInput, "RULE_EVIDENCE_WITHDRAWN", ExitUnknown},
+		{"unrecognized flag stays unknown", `{"apiVersion":"prufyx.io/etcd-effective-argv/v1alpha1","kind":"EtcdEffectiveArguments","effectiveArgvDeclared":true,"argv":["--initial-cluster","--enable-v2=true"]}`, "RULE_EVIDENCE_WITHDRAWN", ExitUnknown},
+		{"declaration missing stays unknown", `{"apiVersion":"prufyx.io/etcd-effective-argv/v1alpha1","kind":"EtcdEffectiveArguments","effectiveArgvDeclared":false,"argv":["--enable-v2=true"]}`, "RULE_EVIDENCE_WITHDRAWN", ExitUnknown},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			path := writeCNCFFile(t, "etcd.json", []byte(test.raw), 0o600)
@@ -40,8 +39,8 @@ func TestEtcdNativeCheck_V2ProxyPairBoundedOutcomesAndPrivacy(t *testing.T) {
 			if code != test.want || stderr != "" || !strings.Contains(stdout, test.reason) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) || strings.Contains(stdout, "private-") || strings.Contains(stdout, path) {
 				t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
 			}
-			if strings.Contains(stdout, `"status":"PASS"`) {
-				t.Fatalf("negative-presence PASS emitted: %q", stdout)
+			if strings.Contains(stdout, `"status":"PASS"`) || strings.Contains(stdout, `"status":"BLOCKED"`) {
+				t.Fatalf("withdrawn rule decided: %q", stdout)
 			}
 		})
 	}

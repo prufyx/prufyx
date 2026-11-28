@@ -145,8 +145,10 @@ proxy timeout options. Boolean values are `true` or `false`; `proxy` accepts
 `off`, `readonly`, or `on`; timeout values are unsigned decimal; the experimental
 string is bounded to conservative non-control literals. A valid occurrence,
 including `--enable-v2=false` or `--proxy=off`, declares the existing removed
-option fact and therefore produces a scoped `BLOCKED` check. The adapter never
-emits a false fact, so an empty or target-free vector remains `UNKNOWN`.
+option fact. The rule that read this fact is withdrawn (the upstream 3.6
+upgrade guide requires every 3.5 member to run `3.5.32` or later first), so the
+check is `UNKNOWN` (`RULE_EVIDENCE_WITHDRAWN`). The adapter never emits a false
+fact, so an empty or target-free vector also remains `UNKNOWN`.
 
 Separated values, single-dash spellings, positional or `--` tokens, unknown or
 unmodelled options, duplicate or malformed targets, config/environment syntax,
