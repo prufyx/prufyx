@@ -271,7 +271,8 @@ jobs:
     # skips cleanly when the environment holds no key (see the key step).
     if: needs.prepare.outputs.has-rules == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # Room for this job's own re-pin, as in prepare.
+    timeout-minutes: 60
     environment: renewal
     permissions:
       contents: read
@@ -318,6 +319,32 @@ jobs:
           fi
           jq -e --arg pack "${PACK}" --arg base "${GITHUB_SHA}" \
             '.pack == $pack and .base == $base and (.stem | test("^[0-9]{4}$"))' "${RUNNER_TEMP}/prepared/meta.json" >/dev/null
+
+      # The sign job's own re-pin, the same command the knowledge gate runs.
+      # It is the only independent worklist the local check below accepts:
+      # nothing prepare produced is read here. It runs before the key is
+      # written, so a run that cannot produce it signs nothing.
+      - name: Re-pin the release lines independently
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rerun="${RUNNER_TEMP}/rerun-worklist.json"
+          rm -f "${rerun}"
+          baselines=()
+          if [ -f cli/knowledge/repin-baselines.json ]; then
+            baselines=(--baselines cli/knowledge/repin-baselines.json)
+          fi
+          "${RUNNER_TEMP}/prufyx-maintainer" evidence repin \
+            --rules cli/internal/cncfcheck/data/rules.json \
+            --rules cli/internal/projectcheck/data/rules.json \
+            --baseline release-line \
+            "${baselines[@]}" \
+            --output "${rerun}"
+          if [ ! -s "${rerun}" ]; then
+            echo "The re-pin wrote no independent worklist; nothing is signed."
+            exit 1
+          fi
 
       # The key and its passphrase are written only here, only under
       # RUNNER_TEMP, mode 0600, after the build, and removed below even when
@@ -369,15 +396,29 @@ jobs:
           set -u
           rm -rf "${RUNNER_TEMP}/renewal-key"
 
-      # The gate repeats this with its own re-pin; here the prepared
-      # worklist stands in for the independent one, so a mismatch between
-      # what was prepared and what was signed still fails before a pull
-      # request exists.
+      # The gate repeats this with its own re-pin. Here the statement is
+      # compared with this job's re-pin, so a citation that prepare reported
+      # differently fails before a pull request exists. A missing worklist, or
+      # the prepared one offered in its place, is refused.
       - name: Verify the signed statement locally
         id: verify
         if: steps.key.outputs.have_key == 'true'
         run: |
           set -euo pipefail
+          prepared="${RUNNER_TEMP}/prepared/worklist.json"
+          rerun="${RUNNER_TEMP}/rerun-worklist.json"
+          if [ -L "${rerun}" ] || [ ! -f "${rerun}" ] || [ ! -s "${rerun}" ]; then
+            echo "There is no independent worklist; the statement is not verified."
+            exit 1
+          fi
+          # cmp: 1 means the files differ. Equal files and a failed comparison
+          # are both refused: two re-pin runs record different times.
+          same=0
+          cmp -s -- "${prepared}" "${rerun}" || same=$?
+          if [ "${rerun}" -ef "${prepared}" ] || [ "${same}" -ne 1 ]; then
+            echo "The independent worklist is not distinct from the prepared one; the statement is not verified."
+            exit 1
+          fi
           pm="${RUNNER_TEMP}/prufyx-maintainer"
           root="${PWD}"
           stem="$(jq -r '.stem' "${RUNNER_TEMP}/prepared/meta.json")"
@@ -394,7 +435,7 @@ jobs:
           vargs=(evidence reattest verify
                  --statement "${RUNNER_TEMP}/prepared/statement.json"
                  --prior-pack "${root}/${rules_rel}" --next-pack "${RUNNER_TEMP}/prepared/rules.next.json"
-                 --worklist "${RUNNER_TEMP}/prepared/worklist.json" --rerun-worklist "${RUNNER_TEMP}/prepared/worklist.json"
+                 --worklist "${prepared}" --rerun-worklist "${rerun}"
                  --pack "${PACK}" --rules-worklist-path "${rules_rel}"
                  --statement-chain-dir "${head}" --base-statement-chain-dir "${base}"
                  --envelope "${RUNNER_TEMP}/signed/statement.sig.json"
