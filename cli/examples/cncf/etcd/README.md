@@ -11,8 +11,8 @@ Run the Go-owned walkthrough with an already-built Community executable:
 ```
 
 The `run.sh` file is a thin compatibility shim for that native command. The Go
-walkthrough runs the retained `3.5.17` to `3.6.0` regression and the latest
-three cases. It creates private `0600` temporary inputs, binds source and
+walkthrough runs the `3.5.17` to `3.6.0` regression, whose rule is withdrawn and
+must stay `UNKNOWN`, and the latest three cases. It creates private `0600` temporary inputs, binds source and
 canonical input digests, removes its temporary tree, and uses no network,
 cluster, or etcd process. The checked-in JSON files show the latest synthetic
 inputs that correspond to its blocked, fixed, and unknown states.
