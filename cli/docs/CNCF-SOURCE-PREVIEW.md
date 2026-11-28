@@ -680,7 +680,7 @@ facts, so this binary requires its own compatible CNCF database store. Preserve
 older stores and binaries for older reports.
 <!-- preview-counts-pack:begin -->
 The embedded CNCF rule pack has 260 active constraints across 53 rule projects; the separate
-community-project pack has 51 constraints across 10 projects.
+community-project pack has 48 constraints across 10 projects.
 <!-- preview-counts-pack:end -->
 Runtime reproduction remains zero.
 

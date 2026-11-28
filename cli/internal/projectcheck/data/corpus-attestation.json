@@ -2,8 +2,8 @@
   "schema": "prufyx.io/community-project-corpus-attestation/v1alpha1",
   "attestation": "COMPLETE_REVIEWED_RULES_FOR_LISTED_COMPONENTS",
   "revision": "community-project-rules-2026-09-12.6",
-  "packDigest": "sha256:f28cb8e8a57d0e983ac2247e009ee9a9db25be028be90680c18d32a8a9af1d39",
-  "ruleSetDigest": "sha256:ec46a6be7d42ba8b609ec72712fc1d66b4e233b53b89af1d602925fe9ac9037d",
+  "packDigest": "sha256:a2e413d9f40f615da91bc67cdd5589c8a85b5577c5bec2b68bef0b31bdeb5d18",
+  "ruleSetDigest": "sha256:27adba6281229fcd363386c1fbcfa31f74c752e18cdea2b724f57e68c3b2cc3f",
   "ruleCount": 51,
   "components": [
     "pkg:github/apache/airflow",

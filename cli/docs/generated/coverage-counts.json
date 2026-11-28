@@ -6039,7 +6039,7 @@
     "cncfSourceRules": 260,
     "cncfSourceRulesWithdrawn": 8,
     "communityProjectRuleProjects": 10,
-    "communityProjectSourceRules": 51,
+    "communityProjectSourceRules": 48,
     "executableProjects": 67,
     "selectedSourceOnlyProjects": 12,
     "selectedSourceProjects": 58
@@ -7105,5 +7105,5 @@
       "g": 41
     }
   },
-  "readmeBlockSha256": "8ccd8b37b16e79cbd9e35119d3b48481b0a875cb521fc248dc576f743798bd20"
+  "readmeBlockSha256": "86e265dd8ab9e8d8b8755866538fd8f5b203c4dfcc3223edc672a04c08e27312"
 }
