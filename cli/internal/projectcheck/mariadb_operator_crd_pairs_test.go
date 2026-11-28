@@ -56,7 +56,9 @@ func mariaDBCRDStatuses(t *testing.T, spec, pair string, complete bool, now time
 
 var mdbCRDNow = testclock.Floor(time.Date(2026, 11, 10, 0, 0, 0, 0, time.UTC))
 
-func TestMariaDBOperatorCRDRulesBlockOnlyTheirOwnField(t *testing.T) {
+// Every rule of the two pairs is withdrawn. Each pair still lists its own
+// rules, and none of them blocks on its field.
+func TestMariaDBOperatorWithdrawnCRDRulesDoNotBlock(t *testing.T) {
 	for _, tc := range mariaDBCRDRules {
 		t.Run(tc.ruleID, func(t *testing.T) {
 			got := mariaDBCRDStatuses(t, tc.spec, tc.pair, true, mdbCRDNow)
@@ -64,23 +66,19 @@ func TestMariaDBOperatorCRDRulesBlockOnlyTheirOwnField(t *testing.T) {
 			if tc.pair == mdbPairA {
 				want = 1
 			}
-			if len(got) != want {
+			if len(got) != want || got[tc.ruleID] == "" {
 				t.Fatalf("claims=%v", got)
 			}
 			for id, status := range got {
-				expect := "PASS"
-				if id == tc.ruleID {
-					expect = "BLOCKED"
-				}
-				if status != expect {
-					t.Fatalf("%s=%s want %s (all=%v)", id, status, expect, got)
+				if status != "UNKNOWN" {
+					t.Fatalf("%s=%s want UNKNOWN (all=%v)", id, status, got)
 				}
 			}
 		})
 	}
 }
 
-func TestMariaDBOperatorCRDRulesPassOnlyScopedWhenFieldAbsentOrReplaced(t *testing.T) {
+func TestMariaDBOperatorWithdrawnCRDRulesDoNotPass(t *testing.T) {
 	for _, tc := range []struct{ pair, spec string }{
 		{mdbPairA, `{}`},
 		{mdbPairA, `{"replication":{"enabled":true,"syncBinlog":1}}`},
@@ -94,7 +92,7 @@ func TestMariaDBOperatorCRDRulesPassOnlyScopedWhenFieldAbsentOrReplaced(t *testi
 			t.Fatalf("no claims for %s %s", tc.pair, tc.spec)
 		}
 		for id, status := range got {
-			if status != "PASS" {
+			if status != "UNKNOWN" {
 				t.Fatalf("%s %s: %s=%s", tc.pair, tc.spec, id, status)
 			}
 		}

@@ -66,29 +66,19 @@ func (r runtime) runCephLatestExample() (communityExampleResult, error) {
 	clean := []byte(`{"id":7,"osd_objectstore":"bluestore"}`)
 	unknown := []byte(`{"id":7,"osd_objectstore":"memstore"}`)
 	var blockedCode, cleanCode, unknownCode int
-	var report map[string]any
-	// Upstream requires a cluster older than Reef to be upgraded to Reef or
-	// Squid first, so these origins must stay undecided for every witness.
-	for _, from := range []string{"17.2.9", "16.2.15", "15.2.17"} {
-		for _, witness := range [][]byte{blocked, clean} {
-			code, report, err := r.checkCephLatestExample(work, from, witness)
+	// Every Ceph rule for these origins is withdrawn, because the upstream
+	// upgrade notes do not support deciding these transitions. All of them must
+	// stay undecided for every witness.
+	for _, from := range []string{"19.2.6", "18.2.8", "17.2.9", "16.2.15", "15.2.17"} {
+		for _, witness := range []struct {
+			raw  []byte
+			code *int
+		}{{blocked, &blockedCode}, {clean, &cleanCode}, {unknown, &unknownCode}} {
+			code, report, err := r.checkCephLatestExample(work, from, witness.raw)
 			if err != nil || code != ExitUnknown || !communityClaim(report, "UNKNOWN") {
 				return communityExampleResult{}, fmt.Errorf("Ceph %s did not remain UNKNOWN", from)
 			}
-		}
-	}
-	for _, from := range []string{"19.2.6", "18.2.8"} {
-		blockedCode, report, err = r.checkCephLatestExample(work, from, blocked)
-		if err != nil || blockedCode != ExitBlocked || !communityClaim(report, "BLOCKED") {
-			return communityExampleResult{}, fmt.Errorf("Ceph %s FileStore witness did not produce scoped BLOCKED", from)
-		}
-		cleanCode, report, err = r.checkCephLatestExample(work, from, clean)
-		if err != nil || cleanCode != ExitOK || !communityClaim(report, "PASS") {
-			return communityExampleResult{}, fmt.Errorf("Ceph %s BlueStore witness did not produce scoped PASS", from)
-		}
-		unknownCode, report, err = r.checkCephLatestExample(work, from, unknown)
-		if err != nil || unknownCode != ExitUnknown || !communityClaim(report, "UNKNOWN") {
-			return communityExampleResult{}, fmt.Errorf("Ceph %s unsupported backend did not remain UNKNOWN", from)
+			*witness.code = code
 		}
 	}
 	return communityExampleResult{Example: "project-ceph-latest", BlockedExit: blockedCode, CleanExit: cleanCode, UnknownExit: unknownCode, Aggregate: "UNKNOWN", NetworkUsed: false, ClusterUsed: false, PrivateRetained: false, RuntimeObserved: false, ProcessExecuted: false, ScopedClaimOnly: true}, nil

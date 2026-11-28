@@ -10,13 +10,14 @@ import (
 
 func TestCephSelectedOSDProjectCLI(t *testing.T) {
 	t.Parallel()
+	// The rule for this pair is withdrawn: no metadata state may be decided.
 	for _, tc := range []struct {
 		name, body string
 		complete   bool
 		want       int
 	}{
-		{"filestore-blocked", `{"id":7,"osd_objectstore":"filestore","hostname":"private-node"}`, true, ExitBlocked},
-		{"bluestore-pass", `{"id":7,"osd_objectstore":"bluestore"}`, true, ExitOK},
+		{"filestore-withdrawn", `{"id":7,"osd_objectstore":"filestore","hostname":"private-node"}`, true, ExitUnknown},
+		{"bluestore-withdrawn", `{"id":7,"osd_objectstore":"bluestore"}`, true, ExitUnknown},
 		{"unsupported-unknown", `{"id":7,"osd_objectstore":"memstore"}`, true, ExitUnknown},
 		{"incomplete-unknown", `{"id":7,"osd_objectstore":"filestore"}`, false, ExitUnknown},
 	} {
@@ -28,7 +29,7 @@ func TestCephSelectedOSDProjectCLI(t *testing.T) {
 			}
 			var stdout, stderr bytes.Buffer
 			exit := Run(t.Context(), floorNowArgs(args), &stdout, &stderr, "test")
-			if exit != tc.want {
+			if exit != tc.want || !strings.Contains(stdout.String(), `"reasonCode":"RULE_EVIDENCE_WITHDRAWN"`) || strings.Contains(stdout.String(), `"status":"PASS"`) || strings.Contains(stdout.String(), `"status":"BLOCKED"`) {
 				t.Fatalf("exit=%d want=%d stdout=%q stderr=%q", exit, tc.want, stdout.String(), stderr.String())
 			}
 			for _, private := range []string{path, "private-node", `"id":7`, `"osd_objectstore"`} {
@@ -42,9 +43,9 @@ func TestCephSelectedOSDProjectCLI(t *testing.T) {
 
 func TestCephLatestSelectedOSDAllExactOrigins(t *testing.T) {
 	t.Parallel()
-	// The Reef and Squid origins are decided. The older origins are withdrawn:
-	// upstream requires an upgrade to Reef or Squid first.
-	for _, from := range []string{"17.2.9", "16.2.15", "15.2.17"} {
+	// Every origin is withdrawn: upstream requires an upgrade to Reef or Squid
+	// first from older releases, and supports only the latest target minor.
+	for _, from := range []string{"19.2.6", "18.2.8", "17.2.9", "16.2.15", "15.2.17"} {
 		for _, store := range []string{"filestore", "bluestore", "memstore"} {
 			t.Run(from+"/withdrawn-"+store, func(t *testing.T) {
 				path := writePrivateProjectFixture(t, `{"id":7,"osd_objectstore":"`+store+`","hostname":"private-node"}`)
@@ -62,38 +63,13 @@ func TestCephLatestSelectedOSDAllExactOrigins(t *testing.T) {
 			})
 		}
 	}
+	// An incomplete declaration stays undecided as well.
 	for _, from := range []string{"19.2.6", "18.2.8"} {
-		for _, tc := range []struct {
-			name, store, status string
-			complete            bool
-			want                int
-		}{
-			{"filestore-blocked", "filestore", "BLOCKED", true, ExitBlocked},
-			{"bluestore-pass", "bluestore", "PASS", true, ExitOK},
-			{"unknown-backend", "memstore", "UNKNOWN", true, ExitUnknown},
-			{"incomplete-unknown", "filestore", "UNKNOWN", false, ExitUnknown},
-		} {
-			t.Run(from+"/"+tc.name, func(t *testing.T) {
-				body := `{"id":7,"osd_objectstore":"` + tc.store + `","hostname":"private-node"}`
-				path := writePrivateProjectFixture(t, body)
-				args := []string{"check", "project", "--project", "ceph", "--selected-osd-metadata", path, "--selected-osd-id", "7", "--from", from, "--to", "20.2.4", "--now", "2026-09-12T09:20:00Z", "--format", "json"}
-				if tc.complete {
-					args = append(args, "--selected-osd-metadata-complete")
-				}
-				var stdout, stderr bytes.Buffer
-				exit := Run(t.Context(), floorNowArgs(args), &stdout, &stderr, "test")
-				if exit != tc.want || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"assessment":"UNKNOWN"`) {
-					t.Fatalf("exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
-				}
-				if tc.status != "UNKNOWN" && !strings.Contains(stdout.String(), `"status":"`+tc.status+`"`) {
-					t.Fatalf("missing status %s: %s", tc.status, stdout.String())
-				}
-				for _, private := range []string{path, "private-node", `"id":7`, `"osd_objectstore"`} {
-					if strings.Contains(stdout.String()+stderr.String(), private) {
-						t.Fatalf("private selected metadata leaked: %q", private)
-					}
-				}
-			})
+		path := writePrivateProjectFixture(t, `{"id":7,"osd_objectstore":"filestore"}`)
+		args := []string{"check", "project", "--project", "ceph", "--selected-osd-metadata", path, "--selected-osd-id", "7", "--from", from, "--to", "20.2.4", "--now", "2026-09-12T09:20:00Z", "--format", "json"}
+		var stdout, stderr bytes.Buffer
+		if exit := Run(t.Context(), floorNowArgs(args), &stdout, &stderr, "test"); exit != ExitUnknown || stderr.Len() != 0 || strings.Contains(stdout.String(), `"status":"PASS"`) || strings.Contains(stdout.String(), `"status":"BLOCKED"`) || strings.Contains(stdout.String()+stderr.String(), path) {
+			t.Fatalf("from=%s exit=%d stdout=%q stderr=%q", from, exit, stdout.String(), stderr.String())
 		}
 	}
 	for _, tc := range []struct{ from, to string }{{"19.2.5", "20.2.4"}, {"19.2.6", "20.2.3"}} {
@@ -111,7 +87,7 @@ func TestCephSelectedOSDProjectAdmissionAndHumanScope(t *testing.T) {
 	path := writePrivateProjectFixture(t, `{"id":7,"osd_objectstore":"filestore"}`)
 	base := []string{"check", "project", "--project", "ceph", "--selected-osd-metadata", path, "--selected-osd-id", "7", "--from", "17.2.7", "--to", "18.2.0", "--selected-osd-metadata-complete", "--now", "2026-09-11T21:00:00Z", "-v"}
 	var stdout, stderr bytes.Buffer
-	if exit := Run(t.Context(), floorNowArgs(base), &stdout, &stderr, "test"); exit != ExitBlocked || !strings.Contains(stdout.String(), "caller-selected current OSD metadata") || !strings.Contains(stdout.String(), "src/os/ObjectStore.cc") || strings.Contains(stdout.String()+stderr.String(), path) {
+	if exit := Run(t.Context(), floorNowArgs(base), &stdout, &stderr, "test"); exit != ExitUnknown || !strings.Contains(stdout.String(), "RULE_EVIDENCE_WITHDRAWN") ||!strings.Contains(stdout.String(), "caller-selected current OSD metadata") || !strings.Contains(stdout.String(), "src/os/ObjectStore.cc") || strings.Contains(stdout.String()+stderr.String(), path) {
 		t.Fatalf("exit/output=%d %q %q", exit, stdout.String(), stderr.String())
 	}
 	for _, extra := range [][]string{

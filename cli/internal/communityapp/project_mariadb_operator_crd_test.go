@@ -30,18 +30,19 @@ func TestMariaDBOperatorCRDPairRouteOutcomes(t *testing.T) {
 		name, from, to, spec string
 		complete             bool
 		wantExit             int
-		wantBlocked          string
 	}{
-		{"blocked-removed-field", "25.8.4", "25.10.4", `{"galera":{"primary":{"automaticFailover":true}}}`, true, ExitBlocked, "mariadb-operator.removed-field-galera-primary-automatic-failover.25-8-4-to-25-10-4"},
-		{"blocked-embedded-maxscale", "25.8.4", "25.10.4", `{"maxScale":{}}`, true, ExitBlocked, "mariadb-operator.removed-field-embedded-max-scale.25-8-4-to-25-10-4"},
-		{"blocked-retyped", "0.38.1", "25.0.0", `{"replication":{"syncBinlog":false}}`, true, ExitBlocked, "mariadb-operator.sync-binlog-retyped-integer.0-38-1-to-25-0-0"},
-		{"scoped-pass-replaced-field", "25.8.4", "25.10.4", `{"galera":{"primary":{"autoFailover":true}}}`, true, ExitOK, ""},
-		{"scoped-pass-integer", "0.38.1", "25.0.0", `{"replication":{"syncBinlog":1}}`, true, ExitOK, ""},
-		{"incomplete-present", "25.8.4", "25.10.4", `{"maxScale":{}}`, false, ExitUnknown, ""},
-		{"incomplete-absent", "0.38.1", "25.0.0", `{}`, false, ExitUnknown, ""},
-		{"ambiguous-case", "25.8.4", "25.10.4", `{"MaxScale":{}}`, true, ExitUnknown, ""},
-		{"ambiguous-type", "0.38.1", "25.0.0", `{"replication":{"syncBinlog":"1"}}`, true, ExitUnknown, ""},
-		{"duplicate-key", "25.8.4", "25.10.4", `{"maxScale":{},"maxScale":{}}`, true, ExitUsage, ""},
+		// The rules of both pairs are withdrawn: a set field no longer
+		// blocks and an absent one no longer passes.
+		{"withdrawn-removed-field", "25.8.4", "25.10.4", `{"galera":{"primary":{"automaticFailover":true}}}`, true, ExitUnknown},
+		{"withdrawn-embedded-maxscale", "25.8.4", "25.10.4", `{"maxScale":{}}`, true, ExitUnknown},
+		{"withdrawn-retyped", "0.38.1", "25.0.0", `{"replication":{"syncBinlog":false}}`, true, ExitUnknown},
+		{"withdrawn-replaced-field", "25.8.4", "25.10.4", `{"galera":{"primary":{"autoFailover":true}}}`, true, ExitUnknown},
+		{"withdrawn-integer", "0.38.1", "25.0.0", `{"replication":{"syncBinlog":1}}`, true, ExitUnknown},
+		{"incomplete-present", "25.8.4", "25.10.4", `{"maxScale":{}}`, false, ExitUnknown},
+		{"incomplete-absent", "0.38.1", "25.0.0", `{}`, false, ExitUnknown},
+		{"ambiguous-case", "25.8.4", "25.10.4", `{"MaxScale":{}}`, true, ExitUnknown},
+		{"ambiguous-type", "0.38.1", "25.0.0", `{"replication":{"syncBinlog":"1"}}`, true, ExitUnknown},
+		{"duplicate-key", "25.8.4", "25.10.4", `{"maxScale":{},"maxScale":{}}`, true, ExitUsage},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			path := writeMariaDBCRDResource(t, tc.spec)
@@ -65,17 +66,8 @@ func TestMariaDBOperatorCRDPairRouteOutcomes(t *testing.T) {
 				t.Fatalf("scope limits missing from the report: %s", out.String())
 			}
 			for _, claim := range report.Check.Claims {
-				want := "PASS"
-				if tc.wantExit == ExitUnknown {
-					want = "UNKNOWN"
-				}
-				if claim.RuleID == tc.wantBlocked {
-					want = "BLOCKED"
-				} else if tc.wantExit == ExitBlocked {
-					want = "PASS"
-				}
-				if claim.Status != want || len(claim.Sources) == 0 {
-					t.Fatalf("claim %s = %s want %s", claim.RuleID, claim.Status, want)
+				if claim.Status != "UNKNOWN" || claim.ReasonCode != "RULE_EVIDENCE_WITHDRAWN" || len(claim.Sources) == 0 {
+					t.Fatalf("claim %s = %s %s", claim.RuleID, claim.Status, claim.ReasonCode)
 				}
 			}
 			if len(report.Check.Claims) == 0 {

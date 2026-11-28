@@ -259,14 +259,12 @@ spelling. They do not verify image bytes, deployment, cluster, or server runtime
 
 The Ceph Quincy `17.2.7` → Reef `18.2.0` preflight inspects one private,
 caller-selected **current** native per-OSD `ceph osd metadata ID` JSON output
-containing exact `id` and `osd_objectstore` fields. A matching `filestore`
-backend is BLOCKED because
-the reviewed Reef object-store factory rejects FileStore; `bluestore` is a
-scoped PASS for this selected-current-object predicate. This input is not a
-whole `ceph report`, OSD inventory, target deployment observation, or cluster
-safety assessment. The reviewed Quincy selected-OSD command establishes the
-numeric-id metadata-object projection; the reviewed Reef factory supplies the
-target FileStore rejection.
+containing exact `id` and `osd_objectstore` fields. Its rule is withdrawn,
+because upstream supports and tests only the latest minor release of the target
+series as an upgrade path, and `17.2.7` is newer than `18.2.0`. Every input for
+this pair now answers `UNKNOWN`; Ceph currently has no active rule. The input is
+still parsed and minimized as before. This input is not a whole `ceph report`,
+OSD inventory, target deployment observation, or cluster safety assessment.
 
 Copy a public fixture to a private file before checking it:
 
@@ -346,22 +344,21 @@ JSON integer within the reviewed command's signed 64-bit range and match
 remain UNKNOWN. Unrelated fields are discarded, and the id, backend value,
 path, and other raw fields never enter the canonical input or report.
 
-The same selected-OSD input path has exact target-only rules for Ceph `18.2.8`
-and `19.2.6` proposed to `20.2.4`.
-Each rule binds the metadata shape at its exact origin and the target source
-that rejects FileStore. The rules for `15.2.17`, `16.2.15`, and `17.2.9` to
-`20.2.4` are withdrawn, because the upstream Tentacle upgrade notes require a
-cluster older than Reef to be upgraded to Reef (18.2.z) or Squid (19.2.z)
-first; those pairs answer `UNKNOWN`. Run every synthetic `BLOCKED`, `PASS`, and
-`UNKNOWN` case with:
+The same selected-OSD input path also lists Ceph `15.2.17`, `16.2.15`,
+`17.2.9`, `18.2.8`, and `19.2.6` proposed to `20.2.4`. All of these rules are
+withdrawn: the upstream Tentacle upgrade notes require a cluster older than Reef
+to be upgraded to Reef (18.2.z) or Squid (19.2.z) first, and name the latest
+Tentacle minor release as the only supported and tested path, which is no longer
+`20.2.4`. Those pairs answer `UNKNOWN`. Check that every synthetic input stays
+`UNKNOWN` with:
 
 ```sh
 ./prufyx-community community-preview example project-ceph-latest
 ```
 
-The target-only result covers one explicitly selected current OSD. It does not
-claim a supported direct route, migration, cluster-wide OSD inventory, health,
-data safety, sequencing, startup, runtime behavior, or whole-upgrade safety.
+An `UNKNOWN` result says nothing about a supported route, migration,
+cluster-wide OSD inventory, health, data safety, sequencing, startup, runtime
+behavior, or whole-upgrade safety.
 
 Grafana input is native INI. The parser reads only the exact `alerting.enabled`
 key and rejects duplicate relevant sections or keys. Kibana input is native
@@ -485,7 +482,11 @@ identity, and CNCF membership is not asserted.
 
 Two further exact pairs use the same `--mariadb-resource` route, without
 `--pre-operator-update` (the flag belongs to the Galera prerequisite pair and is
-refused here) and without `--knowledge-db` (embedded knowledge only):
+refused here) and without `--knowledge-db` (embedded knowledge only). **All rules
+of both pairs are withdrawn and both pairs answer `UNKNOWN` for every
+resource.** The upstream upgrade guides say not to skip intermediate version
+upgrades: `0.38.1` → `25.0.0` passes `25.08.0`, and `25.8.4` → `25.10.4` passes
+the `25.10.0` migration steps. The table records what the withdrawn rules read:
 
 | Pair | Rule per field | What the published CRD and API sources show |
 |---|---|---|
@@ -499,20 +500,18 @@ prufyx check project \
   --now 2026-11-10T09:00:00Z
 ```
 
-Each rule reads one key of one complete, caller-selected MariaDB resource (the
+Each rule read one key of one complete, caller-selected MariaDB resource (the
 presence of the key, any value including null; for `syncBinlog` only whether the
-value is a JSON boolean). A key present is BLOCKED; absent is a scoped PASS for
-that field only; a case variant of a checked key, a non-object where an object
-must be, a wrong API version or kind, or a missing `--resource-complete`
-declaration is UNKNOWN. Evidence for every rule cites the CRD and API source
-lines at both release tags (the last patch of each line); the 25.10.0 upgrade
-guide is cited where it names the replacement.
+value is a JSON boolean). The route still parses that key, but no value of it is
+BLOCKED or PASS while the rule is withdrawn. Evidence for every rule cites the
+CRD and API source lines at both release tags (the last patch of each line); the
+25.10.0 upgrade guide is cited where it names the replacement.
 
-These pairs cover only those CRD fields of the `MariaDB` kind. They do not cover
-other kinds (for example the `Backup` `spec.logLevel` enum that 25.10.4 adds),
-Helm values, command-line flags, the replication migration or the Galera
-data-plane update that the 25.10.0 guide describes, admission, controller
-behavior or runtime state. A scoped PASS never means the upgrade is safe.
+The withdrawn rules covered only those CRD fields of the `MariaDB` kind. They
+did not cover other kinds (for example the `Backup` `spec.logLevel` enum that
+25.10.4 adds), Helm values, command-line flags, the replication migration or the
+Galera data-plane update that the 25.10.0 guide describes, admission, controller
+behavior or runtime state.
 
 The other consecutive pairs of the calendar-version releases (`25.0.0` →
 `25.8.4`, `25.10.4` → `26.3.0` and `26.6.0` → `26.10.2`) carry no CRD rule here

@@ -54,7 +54,12 @@ func TestCommunityExampleRunsNativeSyntheticCNCFJourneys(t *testing.T) {
 			} else if envelope.Data.CleanExitsByOrigin != nil {
 				t.Fatalf("clean exits by origin on %s: %v", example, envelope.Data.CleanExitsByOrigin)
 			}
-			if envelope.Data.BlockedExit != ExitBlocked || envelope.Data.UnknownExit != ExitUnknown || (needsClean && envelope.Data.CleanExit != wantClean) {
+			wantBlocked := ExitBlocked
+			if example == "project-ceph-latest" {
+				// Every Ceph rule is withdrawn: no witness is decided.
+				wantBlocked, wantClean = ExitUnknown, ExitUnknown
+			}
+			if envelope.Data.BlockedExit != wantBlocked || envelope.Data.UnknownExit != ExitUnknown || (needsClean && envelope.Data.CleanExit != wantClean) {
 				t.Fatalf("exit result=%#v", envelope.Data)
 			}
 		})

@@ -1,0 +1,4 @@
+### Fixed
+
+- The remaining Ceph rules about a selected FileStore OSD (17.2.7 to 18.2.0, and 18.2.8 and 19.2.6 to 20.2.4) are withdrawn. Upstream names the latest minor release of the target series as the only supported and tested upgrade path, so the scoped PASS these rules gave was wrong. Ceph now has no active rule: every Ceph transition reports UNKNOWN, including the cases these rules used to report as blocked.
+- The MariaDB Operator rules for 0.38.1 to 25.0.0 (one rule) and 25.8.4 to 25.10.4 (eight rules) are withdrawn. The upstream upgrade guides say not to skip intermediate version upgrades, and both jumps pass a release with its own upgrade steps, so the scoped PASS these rules gave was wrong. Both pairs now report UNKNOWN, including a removed or retyped field that used to be reported as blocked. The 26.3.0 to 26.6.0 prerequisite rule is unchanged.
