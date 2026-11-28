@@ -49,7 +49,9 @@ func TestPrepareEtcdRemovedOptionAtoms(t *testing.T) {
 			if strings.Contains(string(prepared.CanonicalInputJSON), atom) || strings.Contains(string(prepared.CanonicalInputJSON), "node") {
 				t.Fatal("raw argv escaped minimized declaration")
 			}
-			if report, err := cncfcheck.Check("etcd", prepared.CanonicalInputJSON, mustTime("2026-09-10T00:00:00Z")); err != nil || report.Check.Claims[0].Status != "BLOCKED" {
+			// The rule for this pair is withdrawn: even a witnessed removed
+			// option decides nothing.
+			if report, err := cncfcheck.Check("etcd", prepared.CanonicalInputJSON, mustTime("2026-09-10T00:00:00Z")); err != nil || report.Check.Claims[0].Status != "UNKNOWN" || report.Check.Claims[0].ReasonCode != "RULE_EVIDENCE_WITHDRAWN" {
 				t.Fatalf("check report=%+v err=%v", report, err)
 			}
 		})
@@ -163,17 +165,16 @@ func TestPrepareEtcdLatestAllExactOriginsAndHopPrecedence(t *testing.T) {
 				t.Fatalf("report=%+v err=%v", report, err)
 			}
 			exact := "etcd.experimental-flags-unsupported." + strings.ReplaceAll(from, ".", "-") + "-to-3-7-1"
-			// An origin that skips a minor line has exactly three more claims:
-			// the hop rule of its pair blocks; the line range of the 3.6.14
-			// rule stays UNKNOWN and names the exact rule that answers it; the
-			// 3.5 to 3.6 range stays UNKNOWN because this hop is outside it.
+			// An origin that skips a minor line has exactly two more claims:
+			// the hop rule of its pair blocks, and the line range of the 3.6.14
+			// rule stays UNKNOWN and names the exact rule that answers it.
 			// The adjacent origin has none of them.
 			skip := "etcd.direct-minor-skip." + strings.ReplaceAll(from, ".", "-") + "-to-3-7-1"
 			extra := 1
 			if from == "3.6.14" {
 				extra = 0
 			}
-			blocked, skipped, covered, unreviewed := 0, 0, 0, 0
+			blocked, skipped, covered := 0, 0, 0
 			for _, claim := range report.Check.Claims {
 				switch {
 				case claim.Status == "BLOCKED" && claim.RuleID == exact:
@@ -183,15 +184,12 @@ func TestPrepareEtcdLatestAllExactOriginsAndHopPrecedence(t *testing.T) {
 				case claim.Status == "UNKNOWN" && claim.RuleID == "etcd.experimental-flags-unsupported.3-6-14-to-3-7-1" &&
 					claim.ReasonCode == "RULE_BOUNDARY_COVERED_BY_EXACT_RULE" && claim.CoveringRuleID == exact:
 					covered++
-				case claim.Status == "UNKNOWN" && claim.RuleID == "etcd.v2-proxy-flags-removed.3-6" &&
-					claim.ReasonCode == "RULE_RELEASE_BOUNDARY_NOT_REVIEWED" && claim.CoveringRuleID == "":
-					unreviewed++
 				default:
 					t.Fatalf("claim=%+v", claim)
 				}
 			}
-			if blocked != 1 || skipped != extra || covered != extra || unreviewed != extra {
-				t.Fatalf("blocked=%d skipped=%d covered=%d unreviewed=%d, want 1 and %d of each other: report=%+v", blocked, skipped, covered, unreviewed, extra, report)
+			if blocked != 1 || skipped != extra || covered != extra {
+				t.Fatalf("blocked=%d skipped=%d covered=%d, want 1 and %d of each other: report=%+v", blocked, skipped, covered, extra, report)
 			}
 		})
 		t.Run(from+"/replacement", func(t *testing.T) {
