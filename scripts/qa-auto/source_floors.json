@@ -1,0 +1,220 @@
+{
+  "schema": "prufyx.io/qa-source-floors/v1",
+  "ruleSources": {
+    "rules": {
+      "cli/internal/cncfcheck/data/rules.json": "cncf",
+      "cli/internal/projectcheck/data/rules.json": "community_project"
+    },
+    "verdict": [
+      "cli/internal/certmanagervalues/source-contract-v1-latest.json",
+      "cli/internal/certmanagervalues/source-contract-v1.json",
+      "cli/internal/cloudeventsstructuredjson/data/capability.json",
+      "cli/internal/cloudeventsstructuredjson/data/profile.json",
+      "cli/internal/cncfprepare/cloudcustodian_latest_source_contract.json",
+      "cli/internal/cncfprepare/opencost_latest_source_contract.json",
+      "cli/internal/extract/supersedefixture/reviewed-kubernetes-entries.json",
+      "cli/internal/prometheusmode/expected-vectors-v1.json",
+      "cli/internal/prometheusmode/source-contract-v1.json",
+      "cli/internal/spiffex509svid/data/capability.json",
+      "cli/internal/spiffex509svid/data/profile.json",
+      "cli/internal/tikvgcpv2/data/capability.json",
+      "cli/internal/tikvgcpv2/data/profile.json"
+    ],
+    "support": [
+      "cli/internal/chartidentity/data/chart-app-versions.json",
+      "cli/internal/chartidentity/data/chart-sources.json",
+      "cli/internal/cncfcheck/data/corpus-attestation.json",
+      "cli/internal/cncfcheck/data/landscape-components.json",
+      "cli/internal/cncfcheck/data/landscape-projects.json",
+      "cli/internal/cncfcheck/data/priority-portfolio.json",
+      "cli/internal/customresources/table.json",
+      "cli/internal/extract/changelogentries/targets.json",
+      "cli/internal/extract/crdversions/target-*.json",
+      "cli/internal/extract/helmvalues/targets.json",
+      "cli/internal/imageidentity/data/image-sources.json",
+      "cli/internal/knowledgepin/root.json",
+      "cli/internal/localcollector/assets/component-configuration-adapters-v3.json",
+      "cli/internal/localcollector/assets/component-configuration-adapters.json",
+      "cli/internal/maintainer/coveragereport/data/declared-unknown.json",
+      "cli/internal/maintainer/coveragereport/data/family-applicability.json",
+      "cli/internal/maintainer/coveragereport/data/tiers.json",
+      "cli/internal/maintainer/onboardbundle/schema.json",
+      "cli/internal/projectcheck/data/corpus-attestation.json",
+      "cli/internal/projectcheck/data/projects.json",
+      "cli/internal/tools/kindval/controls.json"
+    ]
+  },
+  "floors": [
+    {
+      "id": "etcd-3.6",
+      "project": "etcd",
+      "component": "pkg:github/etcd-io/etcd",
+      "targetLine": "3.6",
+      "minimumSource": "3.5.26",
+      "basis": "upstream",
+      "note": "All 3.5 members must be at 3.5.26 or later before 3.6.",
+      "probes": [
+        {"from": "3.5.17", "to": "3.6.0"},
+        {"from": "3.5.25", "to": "3.6.0"}
+      ],
+      "safeFacts": [
+        {"side": "proposed", "id": "component.etcd.removed_v2_proxy_flags_present", "boolValue": false}
+      ],
+      "citations": [
+        {"url": "https://github.com/etcd-io/website/blob/71c99c6729f1bb9f007ef7dca9f3aed484229844/content/en/docs/v3.7/upgrades/upgrade_3_6.md", "line": 19}
+      ]
+    },
+    {
+      "id": "harbor-2.15",
+      "project": "harbor",
+      "component": "pkg:github/goharbor/harbor",
+      "targetLine": "2.15",
+      "minimumSource": "2.12.0",
+      "basis": "upstream",
+      "note": "The 2.15 upgrade guide covers migration from 2.12.0 and later only.",
+      "probes": [
+        {"from": "2.10.3", "to": "2.15.2"},
+        {"from": "2.11.2", "to": "2.15.2"}
+      ],
+      "safeFacts": [
+        {"side": "proposed", "id": "component.harbor.installer_with_chartmuseum_present", "boolValue": false}
+      ],
+      "citations": [
+        {"url": "https://github.com/goharbor/website/blob/d863416c7997cbd36ca2f7052f42e9a0d94ad4c5/docs/administration/upgrade/_index.md", "line": 6}
+      ]
+    },
+    {
+      "id": "cilium-1.19",
+      "project": "cilium",
+      "component": "pkg:github/cilium/cilium",
+      "targetLine": "1.19",
+      "minimumSource": "1.18.14",
+      "basis": "derived",
+      "note": "Upstream says to update to the latest patch release of the current minor first and names no number. 1.18.14 is a derived, conservative lower bound above both reviewed sources 1.18.6 and 1.18.13; it does not say that later 1.18 sources are admissible.",
+      "probes": [
+        {"from": "1.18.6", "to": "1.19.0"},
+        {"from": "1.18.13", "to": "1.19.7"}
+      ],
+      "safeFacts": [
+        {"side": "proposed", "id": "component.cilium.nonempty_requires_fields", "boolValue": false}
+      ],
+      "citations": [
+        {"url": "https://github.com/cilium/cilium/blob/7c6667e1e707d7f39a4af3409c2a9ebea2917d32/Documentation/operations/upgrade.rst", "line": 268},
+        {"url": "https://github.com/cilium/cilium/blob/704b537b83f456fc199f48c2f1781beb0d679c87/Documentation/operations/upgrade.rst", "line": 268},
+        {"url": "https://github.com/cilium/cilium/blob/0a5b4195ff0bfc4d5d6e707a24f57e1047166ab4/VERSION", "line": 1}
+      ]
+    },
+    {
+      "id": "contour-1.20",
+      "project": "contour",
+      "component": "pkg:github/projectcontour/contour",
+      "targetLine": "1.20",
+      "minimumSource": "1.19.1",
+      "basis": "upstream",
+      "note": "A version older than 1.19.1 must be upgraded to 1.19.1 first.",
+      "probes": [
+        {"from": "1.19.0", "to": "1.20.0"}
+      ],
+      "safeFacts": [
+        {"side": "proposed", "id": "component.contour.gateway_v1alpha1_present", "boolValue": false}
+      ],
+      "citations": [
+        {"url": "https://github.com/projectcontour/contour/blob/48568538d465fde791fe3d921957e3a4f25c3f18/site/content/resources/upgrading.md", "line": 46}
+      ]
+    },
+    {
+      "id": "ceph-20.2",
+      "project": "ceph",
+      "component": "pkg:github/ceph/ceph",
+      "targetLine": "20.2",
+      "minimumSource": "18.2.0",
+      "basis": "upstream",
+      "note": "A release older than Reef must first be upgraded to Reef (18.2.z) or Squid (19.2.z) before upgrading to Tentacle.",
+      "probes": [
+        {"from": "15.2.17", "to": "20.2.4"},
+        {"from": "16.2.15", "to": "20.2.4"},
+        {"from": "17.2.9", "to": "20.2.4"}
+      ],
+      "safeFacts": [
+        {"side": "current", "id": "component.ceph.selected_current_osd_filestore", "boolValue": false}
+      ],
+      "citations": [
+        {"url": "https://github.com/ceph/ceph/blob/d9392f5fc28944eec4205762369a2c55cd8cd5c2/doc/releases/tentacle.rst", "line": 1815}
+      ]
+    },
+    {
+      "id": "ceph-release-order",
+      "project": "ceph",
+      "component": "pkg:github/ceph/ceph",
+      "kind": "release-order",
+      "basis": "upstream",
+      "note": "Upstream: a release cannot be tested against releases that did not exist when it shipped, so an upgrade from a source released after the target was never a tested combination. Dates of the 15.2 to 20.2 releases from releases.yml.",
+      "releases": {
+        "15.2.0": "2020-03-23", "15.2.1": "2020-04-09", "15.2.2": "2020-05-18", "15.2.3": "2020-05-29",
+        "15.2.4": "2020-06-30", "15.2.5": "2020-09-16", "15.2.6": "2020-11-18", "15.2.7": "2020-11-30",
+        "15.2.8": "2020-12-16", "15.2.9": "2021-02-23", "15.2.10": "2021-03-18", "15.2.11": "2021-04-19",
+        "15.2.12": "2021-05-13", "15.2.13": "2021-05-26", "15.2.14": "2021-08-05", "15.2.15": "2021-10-20",
+        "15.2.16": "2022-03-01", "15.2.17": "2022-08-09",
+        "16.2.0": "2021-03-31", "16.2.1": "2021-04-19", "16.2.2": "2021-05-05", "16.2.3": "2021-05-06",
+        "16.2.4": "2021-05-13", "16.2.5": "2021-07-08", "16.2.6": "2021-09-16", "16.2.7": "2021-12-14",
+        "16.2.8": "2022-05-16", "16.2.9": "2022-05-19", "16.2.10": "2022-07-21", "16.2.11": "2023-01-26",
+        "16.2.12": "2023-04-14", "16.2.13": "2023-05-09", "16.2.14": "2023-08-30", "16.2.15": "2024-03-04",
+        "17.2.0": "2022-04-19", "17.2.1": "2022-06-23", "17.2.2": "2022-07-21", "17.2.3": "2022-07-29",
+        "17.2.4": "2022-09-30", "17.2.5": "2022-10-19", "17.2.6": "2023-04-10", "17.2.7": "2023-10-30",
+        "17.2.8": "2024-11-25", "17.2.9": "2025-05-27",
+        "18.2.0": "2023-08-07", "18.2.1": "2023-12-18", "18.2.2": "2024-03-11", "18.2.4": "2024-07-24",
+        "18.2.5": "2025-04-10", "18.2.6": "2025-04-21", "18.2.7": "2025-05-08", "18.2.8": "2026-03-20",
+        "19.2.0": "2024-09-26", "19.2.1": "2025-02-06", "19.2.2": "2025-04-10", "19.2.3": "2025-07-28",
+        "19.2.4": "2026-06-01", "19.2.5": "2026-07-14", "19.2.6": "2026-08-19", "19.2.7": "2026-10-12",
+        "20.2.0": "2025-11-18", "20.2.1": "2026-04-06", "20.2.2": "2026-06-16", "20.2.3": "2026-08-05",
+        "20.2.4": "2026-08-19", "20.2.5": "2026-11-02"
+      },
+      "probes": [
+        {"from": "17.2.7", "to": "18.2.0", "safeFacts": [
+          {"side": "current", "id": "component.ceph.selected_current_osd_filestore", "boolValue": false}
+        ]}
+      ],
+      "citations": [
+        {"url": "https://github.com/ceph/ceph/blob/d9392f5fc28944eec4205762369a2c55cd8cd5c2/doc/releases/tentacle.rst", "line": 15},
+        {"url": "https://github.com/ceph/ceph/blob/d9392f5fc28944eec4205762369a2c55cd8cd5c2/doc/releases/releases.yml", "line": 79},
+        {"url": "https://github.com/ceph/ceph/blob/d9392f5fc28944eec4205762369a2c55cd8cd5c2/doc/releases/releases.yml", "line": 91}
+      ]
+    },
+    {
+      "id": "mariadb-operator-no-skip",
+      "project": "mariadb-operator",
+      "component": "pkg:github/mariadb-operator/mariadb-operator",
+      "kind": "no-skip",
+      "basis": "upstream",
+      "note": "The upgrade guides up to the 25.10 series say not to skip intermediate versions, and the 0.35.1 example names each patch release of the path. 25.0.0 is a module tag, not a release (its chart is 25.8.1). The 26.x guides do not carry the sentence.",
+      "blockedBelow": "26.0.0",
+      "releases": [
+        "0.34.0", "0.35.0", "0.35.1", "0.36.0", "0.37.0", "0.37.1", "0.38.0", "0.38.1",
+        "25.8.0", "25.8.1", "25.8.2", "25.8.3", "25.8.4",
+        "25.10.0", "25.10.1", "25.10.2", "25.10.3", "25.10.4"
+      ],
+      "probes": [
+        {"from": "0.38.1", "to": "25.0.0", "safeFacts": [
+          {"side": "proposed", "id": "component.mariadb_operator.replication_sync_binlog_boolean", "boolValue": false},
+          {"side": "proposed", "id": "component.mariadb_operator.resource_complete", "boolValue": true}
+        ]},
+        {"from": "25.8.4", "to": "25.10.4", "safeFacts": [
+          {"side": "proposed", "id": "component.mariadb_operator.embedded_max_scale_present", "boolValue": false},
+          {"side": "proposed", "id": "component.mariadb_operator.galera_primary_automatic_failover_present", "boolValue": false},
+          {"side": "proposed", "id": "component.mariadb_operator.replication_primary_automatic_failover_delay_present", "boolValue": false},
+          {"side": "proposed", "id": "component.mariadb_operator.replication_primary_automatic_failover_present", "boolValue": false},
+          {"side": "proposed", "id": "component.mariadb_operator.replication_probes_enabled_present", "boolValue": false},
+          {"side": "proposed", "id": "component.mariadb_operator.replication_replica_connection_retries_present", "boolValue": false},
+          {"side": "proposed", "id": "component.mariadb_operator.replication_replica_connection_timeout_present", "boolValue": false},
+          {"side": "proposed", "id": "component.mariadb_operator.replication_replica_wait_point_present", "boolValue": false},
+          {"side": "proposed", "id": "component.mariadb_operator.resource_complete", "boolValue": true}
+        ]}
+      ],
+      "citations": [
+        {"url": "https://github.com/mariadb-operator/mariadb-operator/blob/c5f29eb908b079d39d354cf38bd56b492f0961b0/docs/releases/UPGRADE_25.10.0.md", "line": 6},
+        {"url": "https://github.com/mariadb-operator/mariadb-operator/blob/c5f29eb908b079d39d354cf38bd56b492f0961b0/docs/releases/UPGRADE_0.35.1.md", "line": 10},
+        {"url": "https://github.com/mariadb-operator/mariadb-operator/blob/a6a96c1526151a2917f7db052d1be9b09908baca/deploy/charts/mariadb-operator/Chart.yaml", "line": 7}
+      ]
+    }
+  ]
+}

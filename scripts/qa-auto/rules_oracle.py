@@ -15,6 +15,11 @@ generator builds the one input the rule's own appliesWhen / condition / setCondi
 WRONGPASS = exit 0 (verdict text is never matched loosely). Variants in corpus.PASS_OK may PASS. MISMATCH = a crash (any other exit code) or a run over 20 s.
 Case key = "<rule id>#<variant id>".
 
+Source floors (source_floors.py, source_floors.json): on every run, no rule of any rule pack that can PASS may cover a
+source below a minimum source version, a probed upgrade from below it must not exit 0, even with every condition declared
+safe, and every embedded data file must be classified.
+Case key = "floor|...".
+
 Allow-list STATE/rules-allow.json = {"<rule id>#<variant id>" | "*#<variant id>": {"ref": "tracking reference", "reason": "..."}}
 for documented, scoped PASS cases. An allowed key that still passes is reported and does not alarm; an allowed key whose
 case is now non-PASS (or a "*" key that matched nothing although the variant ran, or a key whose rule id left rules.json
@@ -28,6 +33,7 @@ import argparse, concurrent.futures as cf, base64, json, os, subprocess, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from qalib import BIN, SRC, boxed, TMP, NOW, ENV, case, counts, dump, write_private, rules_control_wrongpass, rules_variant_wrongpass
 import corpus
+import source_floors
 PASS_OK = corpus.PASS_OK
 
 RULES = "cli/internal/cncfcheck/data/rules.json"
@@ -238,6 +244,7 @@ for k in allow:
                               why="rule is in scope but the key did not run (no BLOCKing control, or variant gone) - remove"))
         else:
             cases.append(case("rules", "allowed-not-run:" + k, ref=allow[k].get("ref")))  # outside QA_PROJECTS scope: INFO
+cases += source_floors.cases(SRC)  # every floor on every run: no project or rule-id filter, no allow-list
 for msg in bad:
     cases.append(case("rules", "allow-list", error=True, why=msg))
 for rid in nobuild:
