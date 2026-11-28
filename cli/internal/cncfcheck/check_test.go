@@ -569,7 +569,7 @@ func TestFluentdInvalidRubyVersionIsInvalidInput(t *testing.T) {
 }
 
 // A withdrawn rule decides nothing: it is not a rule and not coverage. The
-// only withdrawn rule of the pack (CRI-O) must be counted apart, so that the
+// withdrawn rules of the pack must be counted apart, so that the
 // catalogue counts the projects with an active rule only: never fewer than
 // the floor, and exactly the projects whose own active rule count is above
 // zero (cri-o has none).
@@ -624,17 +624,22 @@ func TestCatalogueCountsActiveRulesOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	wantWithdrawn := map[string]string{
+		"cri-o.artifact-short-name-rejected.1-35":                   "cri-o",
+		"harbor.installer-with-chartmuseum-flag-removed.2-10-to-2-15": "harbor",
+		"harbor.installer-with-chartmuseum-flag-removed.2-11-to-2-15": "harbor",
+	}
 	withdrawn := 0
 	for _, id := range ids {
 		if id.Withdrawn {
 			withdrawn++
-			if id.Project != "cri-o" {
+			if wantWithdrawn[id.RuleID] != id.Project {
 				t.Errorf("unexpected withdrawn rule %s", id.RuleID)
 			}
 		}
 	}
-	if withdrawn != 1 {
-		t.Fatalf("%d withdrawn identities, want 1", withdrawn)
+	if withdrawn != len(wantWithdrawn) {
+		t.Fatalf("%d withdrawn identities, want %d", withdrawn, len(wantWithdrawn))
 	}
 	if got := ClosestProjects("crossplanex", 1); len(got) != 1 || got[0] != "crossplane" {
 		t.Fatalf("closest = %v", got)

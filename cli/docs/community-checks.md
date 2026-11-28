@@ -163,7 +163,9 @@ safety remains `UNKNOWN`.
 ## Harbor installer argv
 
 For Harbor `2.7.0` to `2.8.0` and the exact `2.10.3`, `2.11.2`, `2.12.4`, `2.13.5`, or `2.14.4` to `2.15.2` pairs, `prepare cncf --project harbor` accepts one
-private JSON declaration of the selected installer argv. Set
+private JSON declaration of the selected installer argv. The rules for the
+`2.10.3` and `2.11.2` origins are withdrawn (the upstream 2.15 upgrade guide
+covers `2.12.0` and later only), so their check is always `UNKNOWN`. Set
 `effectiveArgvDeclared=true` only after selecting a complete, literal
 `make/install.sh` argument vector. The check classifies only the removed
 `--with-chartmuseum` option. `--help`, wrappers, values, duplicates, unknown
@@ -812,7 +814,11 @@ The native Harbor route decides whether one caller-declared, complete,
 literal `make/install.sh` argv contains the removed docker-compose installer
 `--with-chartmuseum` option. It covers the reviewed `2.7.0` to `2.8.0`
 transition and, separately, the target-only `2.15.2` constraint from the
-five reviewed `2.10.3`, `2.11.2`, `2.12.4`, `2.13.5`, and `2.14.4` origins.
+three reviewed `2.12.4`, `2.13.5`, and `2.14.4` origins. The rules for the
+`2.10.3` and `2.11.2` origins are withdrawn: the upstream 2.15 upgrade guide
+covers migration from `2.12.0` and later only and sends earlier installations
+to the guide of an earlier release. Those transitions always report `UNKNOWN`
+(`RULE_EVIDENCE_WITHDRAWN`), including for an argv that holds the option.
 It is a local usability route for the existing
 `harbor.installer-with-chartmuseum-flag-removed.*` rules; it does not add a
 project, rule, or upgrade-pair claim.
