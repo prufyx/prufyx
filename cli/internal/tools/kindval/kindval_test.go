@@ -404,6 +404,12 @@ func TestCRDDocumentsKeepOnlyDefinitions(t *testing.T) {
 	}
 }
 
+// widgetOnly is a release file that holds another definition than the
+// gadget one.
+func widgetOnly() []byte {
+	return []byte(strings.NewReplacer("gadgets", "widgets", "Gadget", "Widget").Replace(string(gadget(true, false))))
+}
+
 // fakeCluster is a cluster that holds CRDs applied to it and serves their
 // served versions.
 type fakeCluster struct {
@@ -710,7 +716,7 @@ func TestRunPairRecordsDroppedDefinitions(t *testing.T) {
 		if commit == gadgetFrom.Commit {
 			return gadget(true, false), nil
 		}
-		return []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: nothing-here\n"), nil
+		return widgetOnly(), nil
 	}
 	cluster := &fakeCluster{crds: map[string]CRDDef{}}
 	result := runPair(context.Background(), kube{run: cluster.runner, kubeconfig: "kc"}, fetch, claims.Pairs()[0])
@@ -719,7 +725,7 @@ func TestRunPairRecordsDroppedDefinitions(t *testing.T) {
 	}
 	// After the fresh install of To nothing is served: the removal is
 	// confirmed (and the dropped definition noted), the To version claims
-	// are refuted because To declares nothing.
+	// are refuted because To does not declare the definition.
 	res := evalObserved(claims, crdRuns(result), Provenance{}, time.Unix(0, 0))
 	got := outcomes(res)
 	if got["removal"].Outcome != OutcomeConfirmed || !strings.Contains(got["removal"].Detail, "no longer defines gadgets.fixture.example") {

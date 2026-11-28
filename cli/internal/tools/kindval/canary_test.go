@@ -510,7 +510,7 @@ func TestV2VoidDropsAllFindingsOfTheClaim(t *testing.T) {
 		if commit == gadgetFrom.Commit {
 			return gadget(true, false), nil
 		}
-		return []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: nothing-here\n"), nil
+		return widgetOnly(), nil
 	}
 	cluster := &fakeCluster{crds: map[string]CRDDef{}}
 	for i, p := range runs.CRD[0].Pairs {
