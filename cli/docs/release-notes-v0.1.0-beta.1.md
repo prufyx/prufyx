@@ -24,7 +24,7 @@ that a whole upgrade is safe.
 
 <!-- release-notes:begin -->
 
-Changes from `v0.1.0-beta.0` (70f67cac4a3b) to `v0.1.0-beta.1` (65433fee01ab), computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.
+Changes from `v0.1.0-beta.0` (70f67cac4a3b) to `v0.1.0-beta.1` (c00a66e842b1), computed by `prufyx-maintainer release-notes` from the data files of the two trees. No figure or list below is typed by hand.
 
 ### Summary
 
@@ -35,7 +35,7 @@ Changes from `v0.1.0-beta.0` (70f67cac4a3b) to `v0.1.0-beta.1` (65433fee01ab), c
 | Projects with at least one executable check | 67 | 67 | 0 |
 | CNCF source rules, active | 252 | 260 | +8 |
 | CNCF projects with a rule | 53 | 53 | 0 |
-| Rules for non-CNCF projects | 42 | 51 | +9 |
+| Rules for non-CNCF projects | 42 | 48 | +6 |
 | Non-CNCF projects with a rule | 10 | 10 | 0 |
 | Line attestations | 104 | 371 | +267 |
 | Kubernetes minors with a line attestation | 18 | 18 | 0 |
@@ -53,7 +53,7 @@ The figures for `v0.1.0-beta.0` in this section are approximate: that release ha
 
 ### Coverage since the previous release
 
-previous = tag `v0.1.0-beta.0`, commit 70f67cac4a3b, counts sha256 `db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3`; current counts sha256 `1f6b8fa14d0cfdfa3c32356b31b4ae3581e855fe5aaa3e15fabade6a1ca3ec28`.
+previous = tag `v0.1.0-beta.0`, commit 70f67cac4a3b, counts sha256 `db6de7abaa93a36e8222da29b908b688add5d17bfa1a1f3ad9f5bc9b4d8a98c3`; current counts sha256 `e898f338583a24bb7f91f007d6a7f95a55d67282879652248ed5f85c7e72ab7c`.
 
 The counts carry the number of valid rules per project, not rule ids, so rules added are the per-project change of that number.
 
@@ -192,8 +192,11 @@ No project was added or removed.
 
 Counts include rules that are withdrawn; withdrawn rules are not used and are listed below.
 
-### Rules newly withdrawn (7)
+### Rules newly withdrawn (10)
 
+- `ceph.selected-osd-filestore.15-2-17-to-20-2-4`
+- `ceph.selected-osd-filestore.16-2-15-to-20-2-4`
+- `ceph.selected-osd-filestore.17-2-9-to-20-2-4`
 - `cilium.crd-version-removal.ciliumnodeconfigs-cilium-io.1-19-0-to-1-20-0`
 - `cilium.nonempty-requires-crd-maxitems.1-18-13-to-1-19-7`
 - `cilium.nonempty-requires-rejected.1-19`
