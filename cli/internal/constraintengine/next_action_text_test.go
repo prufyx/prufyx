@@ -20,7 +20,7 @@ func TestUnknownNextActionsArePlainAndActionable(t *testing.T) {
 		{"stale", noticeRule("notice-a", scopeComponentA, "1.0.0", "2.0.0", "active", expiredUntil, ""), "", "RULE_EVIDENCE_STALE",
 			[]string{"review of this rule expired on 20", "prufyx db update", "ignores it", "build from newer source", "by hand"}},
 		{"withdrawn", noticeRule("notice-a", scopeComponentA, "1.0.0", "2.0.0", "withdrawn", activeUntil, ""), "", "RULE_EVIDENCE_WITHDRAWN",
-			[]string{"withdrawn", "evidence could not be verified", "by hand"}},
+			[]string{"withdrawn and gives no verdict", "by hand", "upgrade guide of the target release", "minimum starting version", "cited source"}},
 		{"applicability fact missing", noticeRule("notice-a", scopeComponentA, "1.0.0", "2.0.0", "active", activeUntil, appliesWhenA(true)), "", "RULE_APPLICABILITY_FACT_UNAVAILABLE",
 			[]string{"is missing from the input", "declare it in the input file"}},
 		{"applicability not matched", noticeRule("notice-a", scopeComponentA, "1.0.0", "2.0.0", "active", activeUntil, appliesWhenA(true)), declaredFact(scopeFactA, false), "RULE_APPLICABILITY_NOT_MATCHED",
@@ -43,7 +43,7 @@ func TestUnknownNextActionsArePlainAndActionable(t *testing.T) {
 					t.Errorf("next action %q lacks %q", claim.NextAction, want)
 				}
 			}
-			for _, banned := range []string{"inspect local", "pkg:", "select later declared", "mark missing", "db update"} {
+			for _, banned := range []string{"inspect local", "pkg:", "select later declared", "mark missing", "could not be verified", "db update"} {
 				// Only the stale action may name db update: it is the one
 				// step that fetches newer knowledge.
 				if tc.name == "stale" && banned == "db update" {

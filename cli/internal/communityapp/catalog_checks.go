@@ -71,7 +71,7 @@ func (r runtime) catalogChecks(args []string) int {
 		return ExitOK
 	}
 	if result.RuleCoverageState == checkroutemetadata.RuleCoverageWithdrawnOnly {
-		fmt.Fprintf(r.stdout, "rule coverage: %s; every matching rule was withdrawn (its evidence could not be verified) and always answers UNKNOWN\n", result.RuleCoverageState)
+		fmt.Fprintf(r.stdout, "rule coverage: %s; every matching rule was withdrawn and always answers UNKNOWN\n", result.RuleCoverageState)
 	}
 	fmt.Fprintf(r.stdout, "embedded source-rule identities: %d\n", len(result.Checks))
 	for _, item := range result.Checks {
@@ -108,8 +108,12 @@ func renderCatalogCheck(out io.Writer, item checkroutemetadata.Check) {
 	if item.Catalog == cncfcheck.CatalogCommunity {
 		fmt.Fprintf(out, "  catalog: %s\n", cncfcheck.CommunityLabel)
 	}
+	// A withdrawn rule's commands still run and answer UNKNOWN, so each is
+	// labelled and no PASS is described.
+	mark := ""
 	if item.Withdrawn {
-		fmt.Fprintf(out, "  withdrawn: %s was withdrawn (evidence could not be verified) and always answers UNKNOWN\n", item.RuleID)
+		mark = " (withdrawn: UNKNOWN only)"
+		fmt.Fprintf(out, "  withdrawn: %s was withdrawn and always answers UNKNOWN; check this change by hand against the upgrade guide of the target release\n", item.RuleID)
 	}
 	if line, ok := catalogRuleKinds[item.RuleKind]; ok {
 		fmt.Fprintf(out, "  rule kind: %s (%s)\n", item.RuleKind, line)
@@ -118,8 +122,8 @@ func renderCatalogCheck(out io.Writer, item checkroutemetadata.Check) {
 		fmt.Fprintf(out, "  match mode: %s (%s)\n", item.MatchMode, description)
 		fmt.Fprintf(out, "  native route: not shown for a %s match; the native command is pinned to the reviewed anchor pair\n", item.MatchMode)
 	} else if item.NativeDescriptor.State == checkroutemetadata.DescriptorExact {
-		fmt.Fprintf(out, "  native route: %s\n", renderCatalogCommand(item.NativeDescriptor.Command))
-		if item.NativeDescriptor.NativePass != "" {
+		fmt.Fprintf(out, "  native route%s: %s\n", mark, renderCatalogCommand(item.NativeDescriptor.Command))
+		if item.NativeDescriptor.NativePass != "" && !item.Withdrawn {
 			fmt.Fprintf(out, "  native PASS: %s\n", item.NativeDescriptor.NativePass)
 		}
 	} else {
@@ -127,7 +131,7 @@ func renderCatalogCheck(out io.Writer, item checkroutemetadata.Check) {
 	}
 	fmt.Fprintf(out, "  generic declaration: %s\n", item.GenericDeclarationRoute.State)
 	if len(item.GenericDeclarationRoute.Command) != 0 {
-		fmt.Fprintf(out, "  generic command: %s\n", renderCatalogCommand(item.GenericDeclarationRoute.Command))
+		fmt.Fprintf(out, "  generic command%s: %s\n", mark, renderCatalogCommand(item.GenericDeclarationRoute.Command))
 	}
 	if item.GenericDeclarationRoute.Limit != "" {
 		fmt.Fprintf(out, "  generic limit: %s\n", item.GenericDeclarationRoute.Limit)

@@ -65,6 +65,7 @@ const prepareHelpLegacy = `Usage:
   prufyx prepare cncf --project opencost --input FILE --from 1.119.0 --to 1.120.0 [--input-digest SHA256] [--format human|json|input]
   prufyx prepare cncf --project harbor --input FILE --from 2.7.0 --to 2.8.0 [--input-digest SHA256] [--format human|json|input]
   prufyx prepare cncf --project harbor --input FILE --from 2.10.3|2.11.2|2.12.4|2.13.5|2.14.4 --to 2.15.2 [--input-digest SHA256] [--format human|json|input]
+    note: harbor 2.10.3 and 2.11.2 -> 2.15.2 rules are withdrawn: the input is prepared, but the check answers UNKNOWN.
   prufyx prepare cncf --project containerd --input FILE --runtime-handler NAME --from 1.7.28 --to 2.0.0 --containerd-config-complete --containerd-config-precedence-resolved --containerd-official-upstream --containerd-official-bundled-runtimes-only [--input-digest SHA256] [--format human|json|input]`
 
 const checkCNCFLegacy = `Usage: prufyx check cncf --project SLUG --input FILE (--now RFC3339 | --knowledge-db DIR) [--input-digest SHA256] [--replay-report FILE] [--format human|json]
@@ -83,6 +84,7 @@ const checkCNCFLegacy = `Usage: prufyx check cncf --project SLUG --input FILE (-
    or: prufyx check cncf --project openfga --effective-config FILE --from 1.17.1 --to 1.18.0 [--effective-config-complete] (--now RFC3339 | --knowledge-db DIR) [--effective-config-digest SHA256] [--replay-report FILE] [--format human|json]
    or: prufyx check cncf --project buildpacks --current-lifecycle-config FILE --proposed-lifecycle-config FILE --from 0.16.5 --to 0.17.7 --current-platform-api 0.11 --proposed-platform-api 0.12|0.13 (--now RFC3339 | --knowledge-db DIR) [--current-lifecycle-config-digest SHA256] [--proposed-lifecycle-config-digest SHA256] [--replay-report FILE] [--format human|json]
    or: prufyx check cncf --project metallb|contour|kubevirt|thanos|cortex --native-resource FILE --from VERSION --to VERSION (--now RFC3339 | --knowledge-db DIR) [--native-resource-digest SHA256] [--replay-report FILE] [--format human|json]
+	 note: contour 1.19.0 -> 1.20.0 rule is withdrawn: the check answers UNKNOWN.
 	 or: prufyx check cncf --project flux --native-resource FILE --from VERSION --to VERSION [--resource-scope-complete] (--now RFC3339 | --knowledge-db DIR) [--native-resource-digest SHA256] [--replay-report FILE] [--format human|json]
 	 or: prufyx check cncf --project kubernetes --native-resource FILE --from 1.31.0 --to 1.32.0 --distribution official_upstream|custom_build --target-api-apply-required --resource-scope-complete (--now RFC3339 | --knowledge-db DIR) [--native-resource-digest SHA256] [--replay-report FILE] [--format human|json]
 	 or: prufyx check cncf --project kubernetes --component-config FILE --from VERSION --to VERSION --distribution official_upstream|custom_build --now RFC3339 [--component-config-digest SHA256] [--format human|json]
@@ -269,6 +271,7 @@ const prepareCNCFLegacy = `Usage: prufyx prepare cncf --project kyverno --input 
    or: prufyx prepare cncf --project argo-cd --input FILE --from 3.0.23|3.1.16|3.2.12|3.3.14|3.4.8 --to 3.5.2 --distribution official_upstream|custom_build --repository-settings-resolved true|false --repository-uses-plain-http true|false [--input-digest SHA256] [--format human|json|input]
    or: prufyx prepare cncf --project cilium --input FILE --from 1.18.6 --to 1.19.0 [--complete-cnp-ccnp-set true|false] [--input-digest SHA256] [--format human|json|input]
    or: prufyx prepare cncf --project cilium --input FILE --from 1.18.13 --to 1.19.7 [--complete-cnp-ccnp-set true|false] [--input-digest SHA256] [--format human|json|input]
+	 note: cilium 1.18.6 -> 1.19.0 and 1.18.13 -> 1.19.7 rules are withdrawn: the input is prepared, but the check answers UNKNOWN.
    or: prufyx prepare cncf --project cilium --cilium-config-map FILE --from 1.16.19 --to 1.17.18 --cilium-distribution official_upstream|custom_build --cilium-config-complete --cilium-config-precedence-resolved [--cilium-config-map-digest SHA256] [--format human|json|input]
 	 or: prufyx prepare cncf --project coredns --coredns-corefile FILE --from 1.6.9 --to 1.7.0 or 1.9.4|1.10.1|1.11.4|1.12.4|1.13.2 --to 1.14.7 --coredns-distribution official --coredns-corefile-complete [--coredns-corefile-digest SHA256] [--format human|json|input]
 	 or: prufyx prepare cncf --project envoy --envoy-bootstrap FILE --envoy-bootstrap-selected --from 1.34.14|1.35.13|1.36.10|1.37.6|1.38.4 --to 1.39.1 [--envoy-bootstrap-digest SHA256] [--format human|json|input]
@@ -281,12 +284,15 @@ const prepareCNCFLegacy = `Usage: prufyx prepare cncf --project kyverno --input 
    or: prufyx prepare cncf --project crossplane --composition FILE --from 1.20.0 --to 2.0.0 --crossplane-distribution official_upstream|custom_build --crossplane-schema-validation-required [--composition-digest SHA256] [--format human|json|input]
    or: prufyx prepare cncf --project velero --upgrade-plan FILE --from 1.17.0|1.16.2 --to 1.18.0 --velero-server-deployment NAME --velero-plan-order-declared [--upgrade-plan-digest SHA256] [--format human|json|input]
    or: prufyx prepare cncf --project etcd --input FILE --from 3.5.17 --to 3.6.0 [--input-digest SHA256] [--format human|json|input]
+	 note: etcd 3.5.17 -> 3.6.0 rule is withdrawn: the input is prepared, but the check answers UNKNOWN.
    or: prufyx prepare cncf --project jaeger --input FILE --from 1.76.0 --to 2.20.0 [--non-memory-storage-required true|false] [--official-jaeger-distribution true|false] [--input-digest SHA256] [--format human|json|input]
    or: prufyx prepare cncf --project metallb|contour --input FILE --from VERSION --to VERSION [--input-digest SHA256] [--format human|json|input]
+	 note: contour 1.19.0 -> 1.20.0 rule is withdrawn: the input is prepared, but the check answers UNKNOWN.
    or: prufyx prepare cncf --project cloudnativepg --input FILE --from 1.29.0 --to 1.30.0 [--input-digest SHA256] [--format human|json|input]
    or: prufyx prepare cncf --project kubevirt --input FILE --from 1.8.4 --to 1.9.0 [--input-digest SHA256] [--format human|json|input]
 	   or: prufyx prepare cncf --project emissary-ingress --input FILE --from 3.10.0 --to 4.0.1 [--input-digest SHA256] [--format human|json|input]
 	   or: prufyx prepare cncf --project harbor --input FILE --from 2.7.0 --to 2.8.0 or 2.10.3|2.11.2|2.12.4|2.13.5|2.14.4 --to 2.15.2 [--input-digest SHA256] [--format human|json|input]
+	 note: harbor 2.10.3 and 2.11.2 -> 2.15.2 rules are withdrawn: the input is prepared, but the check answers UNKNOWN.
 	   or: prufyx prepare cncf --project openfga --input FILE --from 1.17.1 --to 1.18.0 --effective-config-complete [--input-digest SHA256] [--format human|json|input]
 	   or: prufyx prepare cncf --project opencost --input FILE --from 1.119.0 --to 1.120.0 [--input-digest SHA256] [--format human|json|input]
 	   or: prufyx prepare cncf --project opencost --input FILE --from 1.116.0|1.117.6|1.118.0|1.119.2|1.120.4 --to 1.121.2 [--input-digest SHA256] [--format human|json|input]
@@ -358,6 +364,7 @@ Harbor accepts one caller-declared complete literal make/install.sh argv vector.
 It checks only the removed --with-chartmuseum option for the reviewed 2.7.0 to
 2.8.0 and 2.10.3, 2.11.2, 2.12.4, 2.13.5, or 2.14.4 to 2.15.2 pairs. Help, wrappers, values, unknown options, and unresolved inputs remain
 UNKNOWN; it does not execute the installer or assess chart, database, or runtime state.
+The rules for the 2.10.3 and 2.11.2 origins are withdrawn: their checks answer UNKNOWN.
 
 OpenCost accepts one Prufyx operator declaration of enabled cloud-cost source
 selection. It is not an OpenCost native config parser. The caller declares

@@ -379,6 +379,39 @@ func TestCatalogChecksWithdrawnRuleIsNotCoverage(t *testing.T) {
 	if strings.Contains(out, "rule coverage: MATCHED") {
 		t.Errorf("a withdrawn-only project reads as matched:\n%s", out)
 	}
+	for _, banned := range []string{"could not be verified", "native PASS", "native route:", "generic command:"} {
+		if strings.Contains(out, banned) {
+			t.Errorf("a withdrawn rule's listing carries %q:\n%s", banned, out)
+		}
+	}
+	// Every withdrawn identity: no PASS is described and each command is
+	// labelled; an active rule's commands carry no label.
+	withdrawn := 0
+	every, err := checkroutemetadata.Discover("", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range every.Checks {
+		var listing bytes.Buffer
+		renderCatalogCheck(&listing, item)
+		text := listing.String()
+		if !item.Withdrawn {
+			if strings.Contains(text, "withdrawn") {
+				t.Errorf("%s: active rule marked withdrawn:\n%s", item.RuleID, text)
+			}
+			continue
+		}
+		withdrawn++
+		if item.NativeDescriptor.NativePass != "" || strings.Contains(text, "native PASS") || strings.Contains(text, "native route: prufyx") || strings.Contains(text, "generic command: ") {
+			t.Errorf("%s: withdrawn rule advertised as checkable: %+v\n%s", item.RuleID, item.NativeDescriptor, text)
+		}
+		if item.NativeDescriptor.State == checkroutemetadata.DescriptorExact && !strings.Contains(text, "native route (withdrawn: UNKNOWN only): ") {
+			t.Errorf("%s: native route not labelled:\n%s", item.RuleID, text)
+		}
+	}
+	if withdrawn < 8 {
+		t.Fatalf("only %d withdrawn identities examined", withdrawn)
+	}
 	var result checkroutemetadata.Result
 	code, raw, _ := runCommunity(t, "catalog", "checks", "--project", "cri-o", "--format", "json")
 	if code != ExitOK || json.Unmarshal([]byte(raw), &result) != nil || result.RuleCoverageState != checkroutemetadata.RuleCoverageWithdrawnOnly || len(result.Checks) != 1 || !result.Checks[0].Withdrawn {

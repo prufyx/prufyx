@@ -942,6 +942,10 @@ func discover(cncf []cncfcheck.RuleIdentity, community []projectcheck.RuleIdenti
 		item.MatchMode = queryMatchMode(subject, selectedFrom, selectedTo)
 		if descriptor, found := descriptors[identityKey(family, project, component, ruleID, from, to)]; found {
 			item.NativeDescriptor = Route{State: DescriptorExact, Command: descriptor.command, Limit: descriptor.limit, NativePass: descriptor.nativePass}
+			if withdrawn {
+				// No PASS is reachable through a withdrawn rule.
+				item.NativeDescriptor.NativePass = ""
+			}
 		}
 		result.Checks = append(result.Checks, item)
 	}

@@ -104,8 +104,9 @@ prufyx check cncf --project SLUG --input input.json --now 2026-10-18T00:00:00Z
 The last line is the generic route. For projects such as etcd the input file
 names its own transition and `--from`/`--to` are refused there (exit `2`). A native route takes them, for
 example `prufyx check cncf --project etcd --native-resource FILE --from 3.5.17
---to 3.6.0 --now RFC3339`. `catalog checks` prints the exact command for each
-rule.
+--to 3.6.0 --now RFC3339` (that rule is withdrawn, so it answers `UNKNOWN`).
+`catalog checks` prints the exact command for each rule and marks withdrawn
+ones.
 
 Notes from the help text:
 

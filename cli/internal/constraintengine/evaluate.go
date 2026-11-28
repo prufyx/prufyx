@@ -265,7 +265,7 @@ func discloseRangeMatch(claim *Claim, rule rule) {
 const RequestCoverageURL = "https://github.com/prufyx/prufyx/issues/new?template=project-knowledge.yml"
 
 // withdrawnAction is the next action of a rule whose evidence was withdrawn.
-const withdrawnAction = "this rule was withdrawn because its evidence could not be verified; use newer knowledge, or check this change by hand against its cited source"
+const withdrawnAction = "this rule was withdrawn and gives no verdict; check this change by hand against the upgrade guide of the target release, including any minimum starting version it requires, and the cited source"
 
 // staleAction is the next action of a rule whose review has expired. It names
 // `prufyx db update` and a build from newer source; it does not claim that

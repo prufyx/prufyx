@@ -38,6 +38,9 @@ prufyx check cncf --project SLUG --input FILE --now RFC3339 \
   [--input-digest SHA256] [--replay-report FILE] [--format human|json]
 ```
 
+The etcd `3.5.17` to `3.6.0` rule is withdrawn: its input can still be
+prepared, but the check answers `UNKNOWN`.
+
 `prepare cncf` is a pure local transformation for a project-specific private JSON
 resource or declaration. Kyverno accepts a proposed Pod or `apps/v1` Deployment
 JSON document. The source file must be a regular private file with an owner-only mode (`0600` or stricter, for example `0400`); the command does not write it. Select the intended

@@ -107,7 +107,8 @@ apply is about to send to the API server." The `CronJob` inside it is still
 declared at `batch/v1beta1`, the API version Kubernetes 1.25 stops serving.
 
 If you forget the `chmod 600` step (for example the file is left at the
-default umask, `0644`), the check now tells you exactly that:
+default umask, `0644`), the check now tells you exactly that (the command
+below only shows the error; its etcd rule is withdrawn and answers `UNKNOWN`):
 
 ```
 $ prufyx check cncf --project etcd --native-resource applyset.json --from 3.5.17 --to 3.6.0 --now 2026-09-24T00:00:00Z --format json

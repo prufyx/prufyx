@@ -156,6 +156,18 @@ func TestProjectHelpPrintsThatProjectsUsage(t *testing.T) {
 	if !strings.Contains(out, "projects/cilium.md") {
 		t.Fatalf("no docs pointer:\n%s", out)
 	}
+	// A usage line of a withdrawn pair is never printed without saying so.
+	for project, want := range map[string]string{
+		"cilium":  "rules are withdrawn: the input is prepared, but the check answers UNKNOWN",
+		"etcd":    "etcd 3.5.17 -> 3.6.0 rule is withdrawn",
+		"harbor":  "harbor 2.10.3 and 2.11.2 -> 2.15.2 rules are withdrawn",
+		"contour": "contour 1.19.0 -> 1.20.0 rule is withdrawn",
+	} {
+		help := shortHelp(t, "prepare", "cncf", "--project", project, "--help")
+		if !strings.Contains(strings.Join(strings.Fields(help), " "), want) {
+			t.Errorf("%s help lacks %q:\n%s", project, want, help)
+		}
+	}
 	for _, l := range strings.Split(out, "\n") {
 		if len(l) > 100 {
 			t.Fatalf("line of %d chars: %s", len(l), l)
