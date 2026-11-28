@@ -18,5 +18,6 @@ prufyx check cncf --project cilium --cilium-config-map FILE --from 1.16.19 --to 
 ```text
 prufyx prepare cncf --project cilium --input FILE --from 1.18.6 --to 1.19.0 [--complete-cnp-ccnp-set true|false] [--input-digest SHA256] [--format human|json|input]
 prufyx prepare cncf --project cilium --input FILE --from 1.18.13 --to 1.19.7 [--complete-cnp-ccnp-set true|false] [--input-digest SHA256] [--format human|json|input]
+  note: cilium 1.18.6 -> 1.19.0 and 1.18.13 -> 1.19.7 rules are withdrawn: the input is prepared, but the check answers UNKNOWN.
 prufyx prepare cncf --project cilium --cilium-config-map FILE --from 1.16.19 --to 1.17.18 --cilium-distribution official_upstream|custom_build --cilium-config-complete --cilium-config-precedence-resolved [--cilium-config-map-digest SHA256] [--format human|json|input]
 ```

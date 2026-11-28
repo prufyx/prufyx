@@ -11,6 +11,8 @@ the reference text of each route: [routes.md](routes.md).
 
 ```text
 prufyx prepare cncf --project harbor --input FILE --from 2.7.0 --to 2.8.0 or 2.10.3|2.11.2|2.12.4|2.13.5|2.14.4 --to 2.15.2 [--input-digest SHA256] [--format human|json|input]
+  note: harbor 2.10.3 and 2.11.2 -> 2.15.2 rules are withdrawn: the input is prepared, but the check answers UNKNOWN.
 prufyx prepare cncf --project harbor --input FILE --from 2.7.0 --to 2.8.0 [--input-digest SHA256] [--format human|json|input]
 prufyx prepare cncf --project harbor --input FILE --from 2.10.3|2.11.2|2.12.4|2.13.5|2.14.4 --to 2.15.2 [--input-digest SHA256] [--format human|json|input]
+  note: harbor 2.10.3 and 2.11.2 -> 2.15.2 rules are withdrawn: the input is prepared, but the check answers UNKNOWN.
 ```

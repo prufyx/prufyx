@@ -229,6 +229,10 @@ The default uses embedded knowledge. Only the exact MariaDB Operator Galera cana
 ### prufyx prepare cncf
 
 ```text
+note: cilium 1.18.6 -> 1.19.0 and 1.18.13 -> 1.19.7 rules are withdrawn: the input is prepared, but the check answers UNKNOWN.
+note: etcd 3.5.17 -> 3.6.0 rule is withdrawn: the input is prepared, but the check answers UNKNOWN.
+note: contour 1.19.0 -> 1.20.0 rule is withdrawn: the input is prepared, but the check answers UNKNOWN.
+note: harbor 2.10.3 and 2.11.2 -> 2.15.2 rules are withdrawn: the input is prepared, but the check answers UNKNOWN.
 Prepare a minimized declaration from one private local supported resource JSON or declaration.
 Select the Kyverno container explicitly. A scoped result requires an explicit
 distribution declaration and the bare literal reports-controller command. Image
@@ -279,6 +283,7 @@ Harbor accepts one caller-declared complete literal make/install.sh argv vector.
 It checks only the removed --with-chartmuseum option for the reviewed 2.7.0 to
 2.8.0 and 2.10.3, 2.11.2, 2.12.4, 2.13.5, or 2.14.4 to 2.15.2 pairs. Help, wrappers, values, unknown options, and unresolved inputs remain
 UNKNOWN; it does not execute the installer or assess chart, database, or runtime state.
+The rules for the 2.10.3 and 2.11.2 origins are withdrawn: their checks answer UNKNOWN.
 OpenCost accepts one Prufyx operator declaration of enabled cloud-cost source
 selection. It is not an OpenCost native config parser. The caller declares
 selection completeness and whether a target cloud-integration file is selected
@@ -349,4 +354,5 @@ Exit status for check batch: legacy mode preserves 0 PASS, 10 BLOCKED, 11 UNKNOW
 
 ```text
 note: Kibana 9.0.8|9.1.10|9.2.8|9.3.8|9.4.6 -> 9.5.3 additionally requires --full-status-without-monitor-required for the status-page scope.
+note: harbor 2.10.3 and 2.11.2 -> 2.15.2 rules are withdrawn: the input is prepared, but the check answers UNKNOWN.
 ```

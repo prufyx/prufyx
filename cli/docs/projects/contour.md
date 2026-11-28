@@ -17,4 +17,5 @@ prufyx check cncf --project metallb|contour|kubevirt|thanos|cortex --native-reso
 
 ```text
 prufyx prepare cncf --project metallb|contour --input FILE --from VERSION --to VERSION [--input-digest SHA256] [--format human|json|input]
+  note: contour 1.19.0 -> 1.20.0 rule is withdrawn: the input is prepared, but the check answers UNKNOWN.
 ```

@@ -11,4 +11,5 @@ the reference text of each route: [routes.md](routes.md).
 
 ```text
 prufyx prepare cncf --project etcd --input FILE --from 3.5.17 --to 3.6.0 [--input-digest SHA256] [--format human|json|input]
+  note: etcd 3.5.17 -> 3.6.0 rule is withdrawn: the input is prepared, but the check answers UNKNOWN.
 ```
