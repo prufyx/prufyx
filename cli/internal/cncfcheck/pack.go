@@ -703,7 +703,62 @@ func (b bundle) selectForInput(project string, raw []byte) (selection, error) {
 	if verdicts == 0 {
 		return b.admit(b.fallbackRules(b.projectRules(project), matched), nil)
 	}
+	matched, err := withOffAnchorSiblings(matched, b.projectRules(project), current, proposed)
+	if err != nil {
+		return selection{}, ErrIntegrity
+	}
 	return b.admit(matched, nil)
+}
+
+// withOffAnchorSiblings returns matched plus every verdict rule of candidates
+// that does not match the declared versions although its anchor lies inside the
+// range of a matched verdict rule that matches them through that range
+// (constraintengine RangeHoldsUnmatched). Narrowing to the matching rules must
+// not drop such a rule: the engine reports it as unreviewed for the pair. A
+// notice or lead rule neither brings a sibling in nor is brought in. The result
+// is in ascending rule id, as the engine requires, and never smaller than
+// matched.
+func withOffAnchorSiblings(matched, candidates []json.RawMessage, current, proposed map[string]string) ([]json.RawMessage, error) {
+	chosen := make(map[string]bool, len(matched))
+	ranged := make([]constraintengine.RuleTransition, 0, len(matched))
+	for _, rule := range matched {
+		chosen[string(rule)] = true
+		neutral, err := ruleVerdictNeutral(rule)
+		if err != nil {
+			return nil, err
+		}
+		subject, err := ruleTransition(rule)
+		if err != nil {
+			return nil, err
+		}
+		if !neutral && subject.Range != nil {
+			ranged = append(ranged, subject)
+		}
+	}
+	var siblings []json.RawMessage
+	for _, rule := range candidates {
+		if chosen[string(rule)] {
+			continue
+		}
+		neutral, err := ruleVerdictNeutral(rule)
+		if err != nil {
+			return nil, err
+		}
+		if neutral {
+			continue
+		}
+		sibling, err := ruleTransition(rule)
+		if err != nil {
+			return nil, err
+		}
+		for _, subject := range ranged {
+			if subject.RangeHoldsUnmatched(sibling, current[subject.Component], proposed[subject.Component]) {
+				siblings = append(siblings, rule)
+				break
+			}
+		}
+	}
+	return mergeByRuleID(matched, siblings)
 }
 
 // fallbackRules is a fallback selection: every candidate except a chart rule
@@ -782,6 +837,9 @@ func (b bundle) selectFamily(project string, facts []string, raw []byte) (select
 	family := make([]json.RawMessage, 0)
 	matched := make([]json.RawMessage, 0)
 	transitionOnly := make([]json.RawMessage, 0)
+	// unmatchedOnly are the transition-only rules the pair does not match: they
+	// join only as off-anchor siblings of a matched ranged family rule.
+	unmatchedOnly := make([]json.RawMessage, 0)
 	verdicts := 0
 	for _, entry := range b.pack.Entries {
 		if entry.Project != project || entry.deferred != nil {
@@ -811,6 +869,8 @@ func (b bundle) selectFamily(project string, facts []string, raw []byte) (select
 			}
 			if subject.AdmitsChart(nil) && subject.Match(current[subject.Component], proposed[subject.Component]) != constraintengine.MatchNone {
 				transitionOnly = append(transitionOnly, entry.Rule)
+			} else if subject.AdmitsChart(nil) {
+				unmatchedOnly = append(unmatchedOnly, entry.Rule)
 			}
 			continue
 		}
@@ -854,6 +914,13 @@ func (b bundle) selectFamily(project string, facts []string, raw []byte) (select
 	chosen := matched
 	if verdicts == 0 {
 		chosen = b.fallbackRules(family, matched)
+	} else {
+		var err error
+		// The ranged rules are the family's own: a transition-only rule's range
+		// brings no family rule in.
+		if chosen, err = withOffAnchorSiblings(matched, append(append([]json.RawMessage(nil), family...), unmatchedOnly...), current, proposed); err != nil {
+			return selection{}, ErrIntegrity
+		}
 	}
 	// The engine refuses a rule set that is not in strictly ascending id
 	// order, so the transition-only rules are merged by id, not appended.

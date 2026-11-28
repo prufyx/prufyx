@@ -418,6 +418,29 @@ func (b bundle) ruleSetSelected(project, from, to, requestedRuleID string, decla
 	rules := make([]json.RawMessage, 0, 2)
 	var skipped []NotEvaluatedRule
 	selectedRuleID := ""
+	// ranged are the verdict rules that match the pair through their reviewed
+	// range. A selection for the whole transition also keeps every verdict rule
+	// whose anchor lies inside one of those ranges without matching the pair, so
+	// it is reported as unreviewed (constraintengine RangeHoldsUnmatched).
+	var ranged []constraintengine.RuleTransition
+	if requestedRuleID == "" {
+		for _, e := range b.pack.Entries {
+			if e.Project != project {
+				continue
+			}
+			subject, err := constraintengine.RuleTransitionOf(e.Rule)
+			if err != nil {
+				return constraintengine.RuleSet{}, 0, "", nil, ErrIntegrity
+			}
+			neutral, err := constraintengine.RawRuleVerdictNeutral(e.Rule)
+			if err != nil {
+				return constraintengine.RuleSet{}, 0, "", nil, ErrIntegrity
+			}
+			if !neutral && subject.Match(from, to) == constraintengine.MatchRange {
+				ranged = append(ranged, subject)
+			}
+		}
+	}
 	for _, e := range b.pack.Entries {
 		if e.Project != project {
 			continue
@@ -427,7 +450,17 @@ func (b bundle) ruleSetSelected(project, from, to, requestedRuleID string, decla
 		if err != nil || json.Unmarshal(e.Rule, &binding) != nil {
 			return constraintengine.RuleSet{}, 0, "", nil, ErrIntegrity
 		}
-		if (from == "" && to == "" || subject.Match(from, to) != constraintengine.MatchNone || subject.CrossesUnreviewed(from, to)) && (requestedRuleID == "" || binding.ID == requestedRuleID) {
+		sibling := false
+		if len(ranged) > 0 {
+			neutral, err := constraintengine.RawRuleVerdictNeutral(e.Rule)
+			if err != nil {
+				return constraintengine.RuleSet{}, 0, "", nil, ErrIntegrity
+			}
+			for _, other := range ranged {
+				sibling = sibling || !neutral && other.RangeHoldsUnmatched(subject, from, to)
+			}
+		}
+		if (from == "" && to == "" || sibling || subject.Match(from, to) != constraintengine.MatchNone || subject.CrossesUnreviewed(from, to)) && (requestedRuleID == "" || binding.ID == requestedRuleID) {
 			if declared != nil && binding.Severity == constraintengine.SeverityUnsupported && binding.Dependency != nil && !declared[binding.Dependency.Side+"\x00"+binding.Dependency.Component] {
 				skipped = append(skipped, NotEvaluatedRule{RuleID: binding.ID, ReasonCode: ReasonDependencyNotDeclarableOnRoute, NextAction: notEvaluatedAction})
 				continue

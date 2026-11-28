@@ -114,11 +114,14 @@ func Render(out io.Writer, in Input) error {
 			continue
 		}
 		counts.verdicts++
-		collapsed := claim.Status == "UNKNOWN" &&
+		notCovered := claim.Status == "UNKNOWN" &&
 			(claim.ReasonCode == ReasonTransitionNotReviewed || claim.ReasonCode == constraintengine.ReasonReleaseBoundaryNotReviewed)
-		if collapsed {
+		if notCovered {
 			counts.notCovered++
 		}
+		// An off-anchor sibling is not reviewed for this pair either, but it is
+		// listed by name: its reviewed pair lies inside a range that decides it.
+		collapsed := notCovered && !claim.IsOffAnchorSibling()
 		switch {
 		case claim.Status == "BLOCKED":
 			counts.blocked++

@@ -54,6 +54,8 @@ func writeChainHop(b *strings.Builder, label string, hop cncfcheck.ChainHop, sho
 			fmt.Fprintf(b, "             %s: BLOCKED (%s)\n             %s\n", claim.RuleID, claim.ReasonCode, claim.NextAction)
 		case claim.Status == "PASS" && showPasses:
 			fmt.Fprintf(b, "             %s: PASS\n", claim.RuleID)
+		case claim.IsOffAnchorSibling():
+			fmt.Fprintf(b, "             %s: %s (%s)\n             %s\n", claim.RuleID, claim.Status, claim.ReasonCode, claim.NextAction)
 		case claim.Status != "PASS" && claim.ReasonCode != "RULE_TRANSITION_NOT_REVIEWED":
 			undecided++
 		}

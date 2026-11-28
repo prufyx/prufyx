@@ -34,6 +34,7 @@ var (
 		"communityapp/cncf_formats_raw.go":    "raw route builds its own claim",
 		"communityapp/cncf_buildpacks_raw.go": "raw route builds its own claim",
 		"scanrun/kubernetes.go":               "notice exclusions only: a notice never has a covering rule",
+		"scanrun/off_anchor.go":               "gap reason of an off-anchor sibling, which is never a covered rule: no engine claim is read",
 		"onecommand/onecommand.go":            "catalog/display; keeps the conservative boundary answer until the pack migration (no engine claim)",
 		"checkroutemetadata/catalog.go":       "catalog/display; keeps the conservative boundary answer until the pack migration",
 		"projectcheck/projectcheck.go":        "catalog selection; keeps the conservative boundary answer until the pack migration",

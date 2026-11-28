@@ -136,6 +136,10 @@ func (b bundle) selectChartFamily(project string, facts []string, raw []byte, ch
 	if verdicts == 0 {
 		return b.admit(b.chartFallbackRules(family, matched), nil)
 	}
+	matched, err := withOffAnchorSiblings(matched, family, current, proposed)
+	if err != nil {
+		return selection{}, ErrIntegrity
+	}
 	return b.admit(matched, nil)
 }
 
