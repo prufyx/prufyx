@@ -438,7 +438,9 @@ func (b ExternalBundle) evaluate(project, selectedRuleID string, inputRaw []byte
 	// The embedded removal-crossing rules of the project always take part: no
 	// store target carries one, and a store must never turn a block into a
 	// pass. A store rule with the id of one of them is an integrity failure.
-	pack, err := packWithEmbeddedCrossing(base.pack, b.pack, project)
+	// An embedded withdrawal binds the store's rule of the same id
+	// (embedded_withdrawal.go).
+	pack, err := storeSelectionPack(base.pack, b.pack, project)
 	if err != nil {
 		return Report{}, err
 	}
