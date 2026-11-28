@@ -12,11 +12,14 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
+	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
 	"github.com/prufyx/prufyx/cli/internal/scanconfig"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
 
-const newestCoveredAt = "2026-11-01T00:00:00Z"
+// newestCoveredAt is the shared test clock, which follows the review times of
+// the shipped records.
+var newestCoveredAt = supersedeids.ClockString()
 
 // newestRecordEdit changes or drops (false) one record of a pack section.
 type newestRecordEdit func(record map[string]any) bool
