@@ -957,6 +957,9 @@ var nativeCNCFInputMetadata = map[string][]nativeCNCFInputRoute{
 // PASS or UNSUPPORTED and never BLOCKED; one-way notices decide nothing.
 type communityCounts struct {
 	verdict, supportRange, notices int
+	// withdrawn lists the rules whose evidence state is withdrawn. They are
+	// in none of the counts above and give their project no capability.
+	withdrawn []map[string]any
 }
 
 // nonExecutableCapabilityKinds are the capability kinds that decide no
@@ -1040,7 +1043,7 @@ func communityProjects(rules, registry map[string]any) ([]map[string]any, commun
 			return nil, communityCounts{}, invalid("community-project transition identity mismatch")
 		}
 		evidence, ok := object(rule["evidence"])
-		if !ok || evidence["state"] != "active" {
+		if !ok || (evidence["state"] != "active" && evidence["state"] != "withdrawn") {
 			return nil, communityCounts{}, invalid("inactive community-project evidence")
 		}
 		sources, ok := array(evidence["sources"])
@@ -1054,6 +1057,12 @@ func communityProjects(rules, registry map[string]any) ([]map[string]any, commun
 				return nil, communityCounts{}, err
 			}
 			normalized = append(normalized, v)
+		}
+		// Checked like an active rule up to here, then listed as withdrawn and
+		// counted nowhere.
+		if evidence["state"] == "withdrawn" {
+			counts.withdrawn = append(counts.withdrawn, map[string]any{"ruleID": id, "project": project, "family": "community_project_source_rule", "reasonCode": "RULE_EVIDENCE_WITHDRAWN"})
+			continue
 		}
 		kind := ""
 		switch {
@@ -1692,6 +1701,12 @@ func Generate(cfg Config) ([]byte, string, error) {
 	for _, item := range genericWithdrawn {
 		withdrawnRules = append(withdrawnRules, item)
 	}
+	for _, item := range communityCount.withdrawn {
+		withdrawnRules = append(withdrawnRules, item)
+	}
+	sort.Slice(withdrawnRules, func(i, j int) bool {
+		return withdrawnRules[i].(map[string]any)["ruleID"].(string) < withdrawnRules[j].(map[string]any)["ruleID"].(string)
+	})
 	inventory := map[string]any{"schema": Schema, "inputDigests": inputDigests, "selectedSourceProvenance": provenance, "counts": map[string]any{"cncfSourceRules": ruleCount, "cncfSourceRulesWithdrawn": len(genericWithdrawn), "cncfRuleProjects": len(generic) - catalogCounts.projects, "communityProjectSourceRules": communityCount.verdict, "communityProjectRuleProjects": len(community), "namedChecks": 2, "namedCheckProjects": 2, "conformanceProfiles": 2, "conformanceProjects": 2, "targetPreflightProfiles": 1, "targetPreflightProjects": 1, "executableProjects": executable, "selectedSourceRecords": len(selected), "selectedSourceProjects": len(selectedByProject), "selectedSourceOnlyProjects": sourceOnly}, "scope": map[string]any{"cncfRules": "embedded active CNCF source-rule pack; exact declared endpoints only", "communityProjectRules": "separate embedded maintainer-reviewed external-project registry; CNCF membership is not asserted and external updates are unavailable", "namedChecks": "embedded local source contracts; exact reviewed transitions only", "conformanceProfiles": "named standards subsets without invented from/to transitions", "targetPreflightProfiles": "named target-only planned-operation setting checks without invented from/to transitions", "selectedSourceRecords": "retained public-source records; source selection alone does not create executable upgrade support", "withdrawnRules": "rule evidence found unverifiable after publication; withdrawn from executable coverage, listed here rather than silently dropped", "wholeUpgrade": "UNKNOWN"}, "withdrawnRules": withdrawnRules, "projects": projectList}
 	// Counts for rule kinds the pack does not hold are left out while zero,
 	// so a pack without those rules produces byte-identical output to the
