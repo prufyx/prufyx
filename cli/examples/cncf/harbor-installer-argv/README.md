@@ -1,7 +1,10 @@
 # Harbor installer argv check
 
 These private JSON examples cover the reviewed Harbor `make/install.sh` pair
-2.7.0 to 2.8.0 and `2.10.3`, `2.11.2`, `2.12.4`, `2.13.5`, or `2.14.4` to 2.15.2. The declaration describes one complete literal argv vector; it
+2.7.0 to 2.8.0 and `2.12.4`, `2.13.5`, or `2.14.4` to 2.15.2. The rules for
+`2.10.3` and `2.11.2` to 2.15.2 are withdrawn, because the upstream 2.15 upgrade
+guide covers 2.12.0 and later only; those pairs stay UNKNOWN. The declaration
+describes one complete literal argv vector; it
 does not execute the installer or inspect Harbor, Docker, ChartMuseum, a
 database, or runtime state.
 

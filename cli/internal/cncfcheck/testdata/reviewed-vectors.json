@@ -1731,7 +1731,7 @@
             ]
           }
         },
-        "status": "PASS"
+        "status": "UNKNOWN"
       },
       {
         "name": "complete-nonempty-set",
@@ -1763,7 +1763,7 @@
             ]
           }
         },
-        "status": "BLOCKED"
+        "status": "UNKNOWN"
       },
       {
         "name": "insufficient-missing-set",
@@ -1922,7 +1922,7 @@
             ]
           }
         },
-        "status": "PASS"
+        "status": "UNKNOWN"
       },
       {
         "name": "blocked",
@@ -1954,7 +1954,7 @@
             ]
           }
         },
-        "status": "BLOCKED"
+        "status": "UNKNOWN"
       },
       {
         "name": "missing",
@@ -3378,7 +3378,7 @@
             ]
           }
         },
-        "status": "PASS"
+        "status": "UNKNOWN"
       },
       {
         "name": "blocked",
@@ -3410,7 +3410,7 @@
             ]
           }
         },
-        "status": "BLOCKED"
+        "status": "UNKNOWN"
       },
       {
         "name": "missing",
@@ -13104,7 +13104,7 @@
             ]
           }
         },
-        "status": "PASS"
+        "status": "UNKNOWN"
       },
       {
         "name": "blocked",
@@ -13136,7 +13136,7 @@
             ]
           }
         },
-        "status": "BLOCKED"
+        "status": "UNKNOWN"
       },
       {
         "name": "missing",
@@ -19568,7 +19568,7 @@
             ]
           }
         },
-        "status": "BLOCKED"
+        "status": "UNKNOWN"
       },
       {
         "name": "removed option absent",
@@ -19600,7 +19600,7 @@
             ]
           }
         },
-        "status": "PASS"
+        "status": "UNKNOWN"
       },
       {
         "name": "fact unavailable",
@@ -20090,7 +20090,7 @@
             ]
           }
         },
-        "status": "BLOCKED"
+        "status": "UNKNOWN"
       },
       {
         "name": "removed option absent",
@@ -20122,7 +20122,7 @@
             ]
           }
         },
-        "status": "PASS"
+        "status": "UNKNOWN"
       },
       {
         "name": "fact unavailable",

@@ -22,7 +22,7 @@ func TestEtcdPreparationCLIUsesPrivateMinimizedInput(t *testing.T) {
 	}
 	preparedPath := writeCNCFFile(t, "etcd-prepared.json", []byte(input), 0o600)
 	code, output, stderr := runCNCFCLI(t, "check", "cncf", "--project", "etcd", "--input", preparedPath, "--input-digest", cncfDigest([]byte(input)), "--now", "2026-09-10T00:00:00Z", "--format", "json")
-	if code != ExitBlocked || stderr != "" || !strings.Contains(output, `"status":"BLOCKED"`) || !strings.Contains(output, `"assessment":"UNKNOWN"`) {
+	if code != ExitUnknown || stderr != "" || !strings.Contains(output, "RULE_EVIDENCE_WITHDRAWN") || strings.Contains(output, `"status":"BLOCKED"`) || strings.Contains(output, `"status":"PASS"`) || !strings.Contains(output, `"assessment":"UNKNOWN"`) {
 		t.Fatalf("check code=%d stderr=%q output=%s", code, stderr, output)
 	}
 }

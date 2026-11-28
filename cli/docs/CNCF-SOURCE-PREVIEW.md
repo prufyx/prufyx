@@ -145,8 +145,10 @@ proxy timeout options. Boolean values are `true` or `false`; `proxy` accepts
 `off`, `readonly`, or `on`; timeout values are unsigned decimal; the experimental
 string is bounded to conservative non-control literals. A valid occurrence,
 including `--enable-v2=false` or `--proxy=off`, declares the existing removed
-option fact and therefore produces a scoped `BLOCKED` check. The adapter never
-emits a false fact, so an empty or target-free vector remains `UNKNOWN`.
+option fact. The rule that read this fact is withdrawn (the upstream 3.6
+upgrade guide requires every 3.5 member to run `3.5.32` or later first), so the
+check is `UNKNOWN` (`RULE_EVIDENCE_WITHDRAWN`). The adapter never emits a false
+fact, so an empty or target-free vector also remains `UNKNOWN`.
 
 Separated values, single-dash spellings, positional or `--` tokens, unknown or
 unmodelled options, duplicate or malformed targets, config/environment syntax,
@@ -186,7 +188,7 @@ prufyx catalog cncf --project helm --format json
 The generic check accepts one local JSON file containing minimized, operator-declared current and proposed component identities and facts. The file must be a regular private file with an owner-only mode (`0600` or stricter, for example `0400`); symlinks, permissive files, oversized files, malformed JSON, and untyped values are rejected. The CLI reads bytes locally and does not collect a cluster, inspect live state, invoke a model, download a database, or upload data.
 
 <!-- preview-counts-intro:begin -->
-The current embedded preview has 267 active exact rules across 54 rule projects (1 withdrawn, not used).
+The current embedded preview has 260 active exact rules across 53 rule projects (8 withdrawn, not used).
 <!-- preview-counts-intro:end -->
 The separate SPIFFE X.509-SVID and CloudEvents structured JSON
 standards-conformance profiles have no from/to pairs and do not alter these
@@ -225,7 +227,7 @@ pipeline behavior, exporter execution, listener or scrape behavior, runtime
 behavior, and whole-upgrade safety remain `UNKNOWN`. See the [OpenTelemetry
 Collector native examples](../examples/cncf/opentelemetry-collector/README.md).
 
-Cilium project-level `prepare cncf --project cilium` adapter accepts raw policy input only for the exact `1.18.6` → `1.19.0` and `1.18.13` → `1.19.7` pairs. It derives only the existing nonempty-requires fact; a scoped false result still requires an explicit complete CNP and CCNP set declaration. A project-level prepare command never implies preparation of every exact rule pair listed for that project. The
+Cilium project-level `prepare cncf --project cilium` adapter accepts raw policy input only for the exact `1.18.6` → `1.19.0` and `1.18.13` → `1.19.7` pairs. It derives only the existing nonempty-requires fact; a false fact still requires an explicit complete CNP and CCNP set declaration. The rules for both pairs are withdrawn (the upstream upgrade guide says to update to the latest patch release first), so both checks are `UNKNOWN`. A project-level prepare command never implies preparation of every exact rule pair listed for that project. The
 catalogue's 255 identities and 30 maintainer-selected priority projects are
 separate counts and are not an adoption ranking. The table below summarizes
 selected narrow source constraints:
@@ -677,7 +679,7 @@ has the documented preparation adapter. The current rules use registered
 facts, so this binary requires its own compatible CNCF database store. Preserve
 older stores and binaries for older reports.
 <!-- preview-counts-pack:begin -->
-The embedded CNCF rule pack has 267 active constraints across 54 rule projects; the separate
+The embedded CNCF rule pack has 260 active constraints across 53 rule projects; the separate
 community-project pack has 51 constraints across 10 projects.
 <!-- preview-counts-pack:end -->
 Runtime reproduction remains zero.

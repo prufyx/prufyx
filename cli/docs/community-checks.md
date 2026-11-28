@@ -105,7 +105,10 @@ removal), and Cilium `1.16.19` to `1.17.18` (the effective ConfigMap
 `1.30.0` needs a paired `--current-resource` and `--resource` instead of one
 `--native-resource`. See
 [`examples/cncf/native-resources`](../examples/cncf/native-resources/README.md)
-for a runnable BLOCKED/PASS/UNKNOWN walkthrough of each.
+for a runnable BLOCKED/PASS/UNKNOWN walkthrough of each. The Contour
+`1.19.0` to `1.20.0` rule is withdrawn (the upstream upgrade guide requires a
+Contour older than `1.19.1` to run `1.19.1` first), so that route always
+reports `UNKNOWN`.
 
 ## Fluentd selected-literal treatment
 
@@ -163,7 +166,9 @@ safety remains `UNKNOWN`.
 ## Harbor installer argv
 
 For Harbor `2.7.0` to `2.8.0` and the exact `2.10.3`, `2.11.2`, `2.12.4`, `2.13.5`, or `2.14.4` to `2.15.2` pairs, `prepare cncf --project harbor` accepts one
-private JSON declaration of the selected installer argv. Set
+private JSON declaration of the selected installer argv. The rules for the
+`2.10.3` and `2.11.2` origins are withdrawn (the upstream 2.15 upgrade guide
+covers `2.12.0` and later only), so their check is always `UNKNOWN`. Set
 `effectiveArgvDeclared=true` only after selecting a complete, literal
 `make/install.sh` argument vector. The check classifies only the removed
 `--with-chartmuseum` option. `--help`, wrappers, values, duplicates, unknown
@@ -684,10 +689,13 @@ contains a removed option. It is a local usability route for the existing
 `etcd.v2-proxy-flags-removed.3-6` and `etcd.experimental-flags-unsupported.*`
 rules; it does not add a project, rule, or upgrade-pair claim.
 
-For the reviewed `3.5.17` to `3.6.0` transition it checks the eight named
-v2/proxy options (`enable-v2`, `experimental-enable-v2v3`, `proxy`,
-`proxy-failure-wait`, `proxy-refresh-interval`, `proxy-dial-timeout`,
-`proxy-write-timeout`, `proxy-read-timeout`). For the reviewed `3.2.32`,
+The `3.5.17` to `3.6.0` rule about the eight v2/proxy options (`enable-v2`,
+`experimental-enable-v2v3`, `proxy`, `proxy-failure-wait`,
+`proxy-refresh-interval`, `proxy-dial-timeout`, `proxy-write-timeout`,
+`proxy-read-timeout`) is withdrawn: the upstream 3.6 upgrade guide requires
+every 3.5 member to run `3.5.32` or later first. That transition always
+reports `UNKNOWN` (`RULE_EVIDENCE_WITHDRAWN`), including for an argv that
+holds one of the eight options. For the reviewed `3.2.32`,
 `3.3.27`, `3.4.45`, `3.5.33`, and `3.6.14` origins to `3.7.1` it checks the
 finite documented set of 3.7-removed experimental flag names.
 
@@ -705,10 +713,8 @@ chmod 600 etcd-argv.json
 Every option in the declared argv must resolve against the reviewed source
 grammar for that pair; an option outside the reviewed known-flag set, a
 non-`--name=value` token, or `effectiveArgvDeclared: false` keeps the claim
-`UNKNOWN` rather than guessing at an unmodelled flag's arity. For the
-`3.5.17` to `3.6.0` pair the rule only ever proves presence of a removed
-option: a fully resolved argv containing none of the eight still stays
-`UNKNOWN`, never a negative-presence PASS. For the five `3.7.1` origins, an
+`UNKNOWN` rather than guessing at an unmodelled flag's arity. For the five
+`3.7.1` origins, an
 argv containing none of the finite removed experimental names is a scoped
 `PASS` for that predicate alone; four of those five origins additionally match
 a separate, unconditional minor-version-skip blocker outside this route's
@@ -812,7 +818,11 @@ The native Harbor route decides whether one caller-declared, complete,
 literal `make/install.sh` argv contains the removed docker-compose installer
 `--with-chartmuseum` option. It covers the reviewed `2.7.0` to `2.8.0`
 transition and, separately, the target-only `2.15.2` constraint from the
-five reviewed `2.10.3`, `2.11.2`, `2.12.4`, `2.13.5`, and `2.14.4` origins.
+three reviewed `2.12.4`, `2.13.5`, and `2.14.4` origins. The rules for the
+`2.10.3` and `2.11.2` origins are withdrawn: the upstream 2.15 upgrade guide
+covers migration from `2.12.0` and later only and sends earlier installations
+to the guide of an earlier release. Those transitions always report `UNKNOWN`
+(`RULE_EVIDENCE_WITHDRAWN`), including for an argv that holds the option.
 It is a local usability route for the existing
 `harbor.installer-with-chartmuseum-flag-removed.*` rules; it does not add a
 project, rule, or upgrade-pair claim.
@@ -1049,6 +1059,11 @@ already existed and evaluated both pairs via the two-step `prepare`/`check`
 path before this route was wired; only the one-step dispatch and catalog
 registration were added.
 
+Both rules are withdrawn: the upstream upgrade guide says to update to the
+latest patch release of the current version before an upgrade, and neither
+`1.18.6` nor `1.18.13` is that release. Both transitions always report
+`UNKNOWN` (`RULE_EVIDENCE_WITHDRAWN`), including for a nonempty selector.
+
 ```sh
 umask 077
 cat > cilium-policy.json <<'JSON'
@@ -1061,12 +1076,9 @@ chmod 600 cilium-policy.json
   --now 2026-09-19T00:00:00Z
 ```
 
-A nonempty `fromRequires`/`toRequires` entry anywhere in the selected
-document is a conclusive `BLOCKED` witness. An empty selector is a scoped
-`PASS` only when the caller also declares `--complete-cnp-ccnp-set true`
-for the one selected CNP/CCNP set; without that declaration, or with a
-partial `List` (a `continue` token or positive `remainingItemCount`), the
-result stays `UNKNOWN` rather than a negative-presence `PASS`. The adapter
+The adapter still derives the fact from the selected document (a nonempty
+entry is a witness; a false fact needs `--complete-cnp-ccnp-set true` and no
+partial `List`), but no active rule reads it for these pairs. The adapter
 never discovers set completeness from a cluster; that declaration is always
 an operator guard. Pinned source evidence is
 `Documentation/operations/upgrade.rst`. Whole-upgrade safety remains

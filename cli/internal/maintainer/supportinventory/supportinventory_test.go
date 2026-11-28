@@ -574,11 +574,31 @@ func TestSupportInventory_WithdrawnRuleIsExcludedButListed(t *testing.T) {
 	if err := json.Unmarshal(raw, &document); err != nil {
 		t.Fatal(err)
 	}
-	if document.Counts.CNCFSourceRulesWithdrawn != 1 {
-		t.Fatalf("expected exactly one withdrawn CNCF rule, got %d", document.Counts.CNCFSourceRulesWithdrawn)
+	wantWithdrawn := map[string]string{
+		"cilium.crd-version-removal.ciliumnodeconfigs-cilium-io.1-19-0-to-1-20-0": "cilium",
+		"cilium.nonempty-requires-crd-maxitems.1-18-13-to-1-19-7":                 "cilium",
+		"cilium.nonempty-requires-rejected.1-19":                                  "cilium",
+		"contour.gateway-v1alpha1-removed.1-19-0-to-1-20-0":                       "contour",
+		"cri-o.artifact-short-name-rejected.1-35":                                 "cri-o",
+		"etcd.v2-proxy-flags-removed.3-6":                                         "etcd",
+		"harbor.installer-with-chartmuseum-flag-removed.2-10-to-2-15":             "harbor",
+		"harbor.installer-with-chartmuseum-flag-removed.2-11-to-2-15":             "harbor",
 	}
-	if len(document.WithdrawnRules) != 1 || document.WithdrawnRules[0].RuleID != "cri-o.artifact-short-name-rejected.1-35" || document.WithdrawnRules[0].Project != "cri-o" || document.WithdrawnRules[0].Family != "cncf_embedded_source_rule" || document.WithdrawnRules[0].ReasonCode != "RULE_EVIDENCE_WITHDRAWN" {
-		t.Fatalf("unexpected withdrawnRules entry: %#v", document.WithdrawnRules)
+	if document.Counts.CNCFSourceRulesWithdrawn != len(wantWithdrawn) {
+		t.Fatalf("expected %d withdrawn CNCF rules, got %d", len(wantWithdrawn), document.Counts.CNCFSourceRulesWithdrawn)
+	}
+	if len(document.WithdrawnRules) != len(wantWithdrawn) {
+		t.Fatalf("unexpected withdrawnRules entries: %#v", document.WithdrawnRules)
+	}
+	for _, rule := range document.WithdrawnRules {
+		project, ok := wantWithdrawn[rule.RuleID]
+		if !ok || rule.Project != project || rule.Family != "cncf_embedded_source_rule" || rule.ReasonCode != "RULE_EVIDENCE_WITHDRAWN" {
+			t.Fatalf("unexpected withdrawnRules entry: %#v", rule)
+		}
+		delete(wantWithdrawn, rule.RuleID)
+		if !strings.Contains(markdown, rule.RuleID) {
+			t.Fatalf("markdown does not list the withdrawn rule %s", rule.RuleID)
+		}
 	}
 	for _, project := range document.Projects {
 		if project.ProjectID != "cri-o" {

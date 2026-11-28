@@ -51,10 +51,10 @@ func TestCiliumPreparationFeedsExistingScopedRule(t *testing.T) {
 		prepareCode, checkCode int
 		status                 string
 	}{
-		{"legacy witness blocks", ciliumPreparationResource(t, []any{map[string]any{}}, nil), "1.18.6", "1.19.0", false, ExitOK, ExitBlocked, "BLOCKED"},
-		{"target CNP witness blocks", ciliumPreparationResource(t, []any{map[string]any{}}, nil), "1.18.13", "1.19.7", false, ExitOK, ExitBlocked, "BLOCKED"},
-		{"target CCNP witness blocks", ciliumPreparationResourceKind(t, "CiliumClusterwideNetworkPolicy", []any{map[string]any{}}, nil), "1.18.13", "1.19.7", false, ExitOK, ExitBlocked, "BLOCKED"},
-		{"target complete clean set passes scoped predicate", ciliumPreparationResource(t, []any{}, nil), "1.18.13", "1.19.7", true, ExitOK, ExitOK, "PASS"},
+		{"legacy witness stays unknown", ciliumPreparationResource(t, []any{map[string]any{}}, nil), "1.18.6", "1.19.0", false, ExitOK, ExitUnknown, "UNKNOWN"},
+		{"target CNP witness stays unknown", ciliumPreparationResource(t, []any{map[string]any{}}, nil), "1.18.13", "1.19.7", false, ExitOK, ExitUnknown, "UNKNOWN"},
+		{"target CCNP witness stays unknown", ciliumPreparationResourceKind(t, "CiliumClusterwideNetworkPolicy", []any{map[string]any{}}, nil), "1.18.13", "1.19.7", false, ExitOK, ExitUnknown, "UNKNOWN"},
+		{"target complete clean set stays unknown", ciliumPreparationResource(t, []any{}, nil), "1.18.13", "1.19.7", true, ExitOK, ExitUnknown, "UNKNOWN"},
 		{"target incomplete clean set remains unknown", ciliumPreparationResource(t, []any{}, nil), "1.18.13", "1.19.7", false, ExitUnknown, ExitUnknown, "UNKNOWN"},
 		{"target partial clean list remains unknown", ciliumPreparationResource(t, []any{}, map[string]any{"continue": "private-continuation"}), "1.18.13", "1.19.7", true, ExitUnknown, ExitUnknown, "UNKNOWN"},
 	} {

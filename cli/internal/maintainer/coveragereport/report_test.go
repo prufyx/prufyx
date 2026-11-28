@@ -167,7 +167,12 @@ func TestEmbeddedPackBaseline(t *testing.T) {
 		// 2026-10-08 window, so the figures equal the pack without them.
 		// That snapshot lists no releases, so the release-scoped attestations
 		// decide nothing in it (24 A pairs fall back to B, S or G).
-		now, want = supersedeids.Clock(), fleetFigures{Projects: 55, Pairs: 275, A: 5, B: 2, S: 44, G: 224, C1: 53, C3: 1}
+		// The withdrawn etcd 3.5.17 to 3.6.0 rule no longer covers the etcd
+		// 3.5 to 3.6 pair: one pair moves from S to G.
+		// The withdrawn Cilium and Contour source-floor rules move one more
+		// pair of this window from S to G, and Contour, whose only rule is
+		// withdrawn, no longer counts in C1.
+		now, want = supersedeids.Clock(), fleetFigures{Projects: 55, Pairs: 275, A: 5, B: 2, S: 42, G: 226, C1: 52, C3: 1}
 	} else if head.Revision != baseline {
 		// Only the reviewed generation is tied to the baseline revision: a
 		// bumped revision means a new baseline, which this file records.

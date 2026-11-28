@@ -1223,7 +1223,7 @@
               "url": "https://github.com/cilium/cilium/blob/7c6667e1e707d7f39a4af3409c2a9ebea2917d32/pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodeconfigs.yaml"
             }
           ],
-          "state": "active",
+          "state": "withdrawn",
           "validUntil": "2027-01-26T06:10:52Z"
         },
         "id": "cilium.crd-version-removal.ciliumnodeconfigs-cilium-io.1-19-0-to-1-20-0",
@@ -1273,7 +1273,7 @@
           "boolValue": true
         },
         "evidence": {
-          "state": "active",
+          "state": "withdrawn",
           "reviewedAt": "2026-11-18T09:49:59Z",
           "validUntil": "2027-02-03T12:00:00Z",
           "sources": [
@@ -1375,7 +1375,7 @@
           "boolValue": true
         },
         "evidence": {
-          "state": "active",
+          "state": "withdrawn",
           "reviewedAt": "2026-11-18T09:49:59Z",
           "validUntil": "2027-02-02T12:00:00Z",
           "sources": [
@@ -2302,7 +2302,7 @@
         },
         "appliesWhen": [],
         "evidence": {
-          "state": "active",
+          "state": "withdrawn",
           "reviewedAt": "2026-11-18T09:49:59Z",
           "validUntil": "2027-02-01T12:00:00Z",
           "sources": [
@@ -5696,7 +5696,7 @@
           "boolValue": true
         },
         "evidence": {
-          "state": "active",
+          "state": "withdrawn",
           "reviewedAt": "2026-11-24T05:14:40Z",
           "validUntil": "2027-02-22T05:14:40Z",
           "sources": [
@@ -7796,7 +7796,7 @@
         },
         "appliesWhen": [],
         "evidence": {
-          "state": "active",
+          "state": "withdrawn",
           "reviewedAt": "2026-11-18T09:49:59Z",
           "validUntil": "2027-01-12T12:00:00Z",
           "sources": [
@@ -7946,7 +7946,7 @@
         },
         "appliesWhen": [],
         "evidence": {
-          "state": "active",
+          "state": "withdrawn",
           "reviewedAt": "2026-11-18T09:49:59Z",
           "validUntil": "2027-01-23T12:00:00Z",
           "sources": [
