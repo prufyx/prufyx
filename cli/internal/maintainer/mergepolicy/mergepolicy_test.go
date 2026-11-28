@@ -304,6 +304,8 @@ func TestQueueStacked(t *testing.T) {
 	}
 }
 
+const knowledgeGateJobName = "${{ (github.event_name == 'pull_request_target' || github.event_name == 'merge_group') && 'Knowledge gate' || 'Knowledge re-derivation of main' }}"
+
 // TestRequiredCheckJobsCannotSkip: GitHub counts a skipped job under a required
 // check name as success, so no job carrying a required context name may have a
 // job-level if or continue-on-error. The fan-in is the one exception: its
@@ -318,15 +320,21 @@ func TestRequiredCheckJobsCannotSkip(t *testing.T) {
 			t.Fatal(err)
 		}
 		for id, job := range w.Jobs {
-			if !required[job.Name] {
+			name := job.Name
+			// The knowledge gate reports its required context only for the
+			// events that verify a change; exactly this expression counts.
+			if f == "knowledge-gate.yml" && name == knowledgeGateJobName {
+				name = "Knowledge gate"
+			}
+			if !required[name] {
 				continue
 			}
-			seen[job.Name] = true
+			seen[name] = true
 			if job.COE != nil {
-				t.Fatalf("%s: job %s (%s) has continue-on-error", f, id, job.Name)
+				t.Fatalf("%s: job %s (%s) has continue-on-error", f, id, name)
 			}
-			if job.If != "" && !(job.Name == "Build, vet, test" && job.If == "always()") {
-				t.Fatalf("%s: job %s (%s) has a job-level if: %q", f, id, job.Name, job.If)
+			if job.If != "" && !(name == "Build, vet, test" && job.If == "always()") {
+				t.Fatalf("%s: job %s (%s) has a job-level if: %q", f, id, name, job.If)
 			}
 		}
 	}

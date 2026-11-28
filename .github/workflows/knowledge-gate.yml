@@ -31,6 +31,11 @@ name: Knowledge gate
 # base-defined pull request gate (an owner trust-path approval for the gate and
 # CI files) together with a ruleset that requires the pull request Knowledge
 # gate context. The queue merge method must be "merge".
+#
+# Only a pull request or a merge queue run verifies a change, so only those
+# runs report the "Knowledge gate" context. Scheduled and manual runs
+# re-derive what main already holds: they report a different job name and
+# fail on any ref other than main, as does a run of any other event.
 
 on:
   pull_request_target:
@@ -56,7 +61,9 @@ concurrency:
 
 jobs:
   gate:
-    name: Knowledge gate
+    # The required context name goes to the two events that verify a change.
+    # Every other event, including one added later, gets the other name.
+    name: ${{ (github.event_name == 'pull_request_target' || github.event_name == 'merge_group') && 'Knowledge gate' || 'Knowledge re-derivation of main' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
@@ -127,8 +134,17 @@ jobs:
               # it to the queue commit and to the pull request.
               base="${MQ_BASE_SHA}"
               ;;
-            *)
+            schedule|workflow_dispatch)
+              # No change is verified here, only main is re-derived.
+              if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+                echo "Scheduled and manual runs are allowed on main only."
+                exit 1
+              fi
               base="${HEAD_SHA}"
+              ;;
+            *)
+              echo "Unexpected event."
+              exit 1
               ;;
           esac
           if ! [[ "${base}" =~ ${sha_re} ]]; then
