@@ -1,5 +1,49 @@
 {
   "schema": "prufyx.io/qa-source-floors/v1",
+  "ruleSources": {
+    "rules": {
+      "cli/internal/cncfcheck/data/rules.json": "cncf",
+      "cli/internal/projectcheck/data/rules.json": "community_project"
+    },
+    "verdict": [
+      "cli/internal/certmanagervalues/source-contract-v1-latest.json",
+      "cli/internal/certmanagervalues/source-contract-v1.json",
+      "cli/internal/cloudeventsstructuredjson/data/capability.json",
+      "cli/internal/cloudeventsstructuredjson/data/profile.json",
+      "cli/internal/cncfprepare/cloudcustodian_latest_source_contract.json",
+      "cli/internal/cncfprepare/opencost_latest_source_contract.json",
+      "cli/internal/extract/supersedefixture/reviewed-kubernetes-entries.json",
+      "cli/internal/prometheusmode/expected-vectors-v1.json",
+      "cli/internal/prometheusmode/source-contract-v1.json",
+      "cli/internal/spiffex509svid/data/capability.json",
+      "cli/internal/spiffex509svid/data/profile.json",
+      "cli/internal/tikvgcpv2/data/capability.json",
+      "cli/internal/tikvgcpv2/data/profile.json"
+    ],
+    "support": [
+      "cli/internal/chartidentity/data/chart-app-versions.json",
+      "cli/internal/chartidentity/data/chart-sources.json",
+      "cli/internal/cncfcheck/data/corpus-attestation.json",
+      "cli/internal/cncfcheck/data/landscape-components.json",
+      "cli/internal/cncfcheck/data/landscape-projects.json",
+      "cli/internal/cncfcheck/data/priority-portfolio.json",
+      "cli/internal/customresources/table.json",
+      "cli/internal/extract/changelogentries/targets.json",
+      "cli/internal/extract/crdversions/target-*.json",
+      "cli/internal/extract/helmvalues/targets.json",
+      "cli/internal/imageidentity/data/image-sources.json",
+      "cli/internal/knowledgepin/root.json",
+      "cli/internal/localcollector/assets/component-configuration-adapters-v3.json",
+      "cli/internal/localcollector/assets/component-configuration-adapters.json",
+      "cli/internal/maintainer/coveragereport/data/declared-unknown.json",
+      "cli/internal/maintainer/coveragereport/data/family-applicability.json",
+      "cli/internal/maintainer/coveragereport/data/tiers.json",
+      "cli/internal/maintainer/onboardbundle/schema.json",
+      "cli/internal/projectcheck/data/corpus-attestation.json",
+      "cli/internal/projectcheck/data/projects.json",
+      "cli/internal/tools/kindval/controls.json"
+    ]
+  },
   "floors": [
     {
       "id": "etcd-3.6",
@@ -76,6 +120,26 @@
       ],
       "citations": [
         {"url": "https://github.com/projectcontour/contour/blob/48568538d465fde791fe3d921957e3a4f25c3f18/site/content/resources/upgrading.md", "line": 46}
+      ]
+    },
+    {
+      "id": "ceph-20.2",
+      "project": "ceph",
+      "component": "pkg:github/ceph/ceph",
+      "targetLine": "20.2",
+      "minimumSource": "18.2.0",
+      "basis": "upstream",
+      "note": "A release older than Reef must first be upgraded to Reef (18.2.z) or Squid (19.2.z) before upgrading to Tentacle.",
+      "probes": [
+        {"from": "15.2.17", "to": "20.2.4"},
+        {"from": "16.2.15", "to": "20.2.4"},
+        {"from": "17.2.9", "to": "20.2.4"}
+      ],
+      "safeFacts": [
+        {"side": "current", "id": "component.ceph.selected_current_osd_filestore", "boolValue": false}
+      ],
+      "citations": [
+        {"url": "https://github.com/ceph/ceph/blob/d9392f5fc28944eec4205762369a2c55cd8cd5c2/doc/releases/tentacle.rst", "line": 1815}
       ]
     }
   ]

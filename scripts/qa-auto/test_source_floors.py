@@ -8,33 +8,49 @@ sys.path.insert(0, str(HERE))
 import qalib
 import source_floors as sf
 
+CEPH_SEEDS = {("ceph", v, "20.2.4") for v in ("15.2.17", "16.2.15", "17.2.9")}
 SEEDS = {("etcd", "3.5.17", "3.6.0"), ("etcd", "3.5.25", "3.6.0"), ("harbor", "2.10.3", "2.15.2"),
          ("harbor", "2.11.2", "2.15.2"), ("cilium", "1.18.6", "1.19.0"), ("cilium", "1.18.13", "1.19.7"),
-         ("contour", "1.19.0", "1.20.0")}
-FLOORS = {"etcd-3.6": "3.5.26", "harbor-2.15": "2.12.0", "cilium-1.19": "1.18.14", "contour-1.20": "1.19.1"}
+         ("contour", "1.19.0", "1.20.0")} | CEPH_SEEDS
+FLOORS = {"etcd-3.6": "3.5.26", "harbor-2.15": "2.12.0", "cilium-1.19": "1.18.14", "contour-1.20": "1.19.1",
+          "ceph-20.2": "18.2.0"}
 OTHER = {"project": "other", "rule": {"id": "o", "subject": {"component": "pkg:github/x/y", "from": "1.0.0", "to": "1.1.0"}}}
+COMMUNITY_FLOORS = {"ceph-20.2"}  # floors whose rules live in the community pack
 
 
 def real():
     return json.loads((HERE / "source_floors.json").read_text())
 
 
+def sources():
+    return real()["ruleSources"]
+
+
+def withdrawn(community):
+    """One withdrawn rule per floor of one pack: the static check stays clean and the component is named."""
+    return [{"project": f["project"], "rule": {"id": f["id"], "operator": "forbid_predicate_value",
+             "subject": {"component": f["component"], "from": f["probes"][0]["from"], "to": f["probes"][0]["to"]},
+             "evidence": {"state": "withdrawn"}}} for f in real()["floors"] if (f["id"] in COMMUNITY_FLOORS) == community]
+
+
+def put(root, rel, text):
+    path = pathlib.Path(root) / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+
+
 def write_knowledge(root, entries, attested=None, project_entries=None):
-    """The two public rules.json files of a synthetic checkout."""
+    """The two public rules.json files of a synthetic checkout, each embedded by a Go file."""
     first = {"entries": entries} if attested is None else {"entries": entries, "lineAttestations": attested}
-    second = {"entries": [OTHER] if project_entries is None else project_entries}
+    second = {"entries": [OTHER] + withdrawn(True) if project_entries is None else project_entries}
     for rel, data in ((sf.RULES, first), (sf.PROJECT_RULES, second)):
-        path = pathlib.Path(root) / rel
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data))
+        put(root, rel, json.dumps(data))
+        put(root, str(pathlib.Path(rel).parent.parent / "pack.go"), "package p\n\n//go:embed data/rules.json\nvar f embed.FS\n")
 
 
 def rules(*extra):
-    """One withdrawn rule per floor (the static check stays clean and every component is named), then extra."""
-    entries = [{"project": f["project"], "rule": {"id": f["id"], "operator": "forbid_predicate_value",
-                "subject": {"component": f["component"], "from": f["probes"][0]["from"], "to": f["probes"][0]["to"]},
-                "evidence": {"state": "withdrawn"}}} for f in real()["floors"]]
-    return entries + list(extra)
+    """The withdrawn rules of the CNCF pack, then extra."""
+    return withdrawn(False) + list(extra)
 
 
 def claim(status="UNKNOWN", operator="forbid_predicate_value", reason="RULE_TRANSITION_NOT_REVIEWED"):
@@ -112,24 +128,57 @@ class Cases(unittest.TestCase):
         patch.start()
         self.addCleanup(patch.stop)
         self.seen = []
+        self.routes = set()
 
-    def run_cases(self, floors=None, entries=None, code=11, stdout=None, raw=None):
+    def run_cases(self, floors=None, entries=None, code=11, stdout=None, raw=None, project_entries=None):
         path = self.dir / "floors.json"
         path.write_text(raw if raw is not None else json.dumps(floors or real()))
-        write_knowledge(self.dir, rules() if entries is None else entries)
+        write_knowledge(self.dir, rules() if entries is None else entries, project_entries=project_entries)
 
-        def runner(project, doc, name):
+        def runner(route, project, doc, name):
             pair = (project, doc["current"]["components"][0]["version"], doc["proposed"]["components"][0]["version"])
             self.seen.append((pair, doc))
-            return code, report(project=project) if stdout is None else stdout, ["prufyx", "check"]
+            self.routes.add((route, project))
+            if stdout is not None:
+                out = stdout
+            elif route == sf.CNCF:
+                out = report(project=project)
+            else:
+                out = batch(report(project=project), project)
+            return code, out, ["prufyx", "check"]
         return sf.cases(str(self.dir), str(path), runner)
 
     def test_seeded_pairs_are_probed_with_safe_facts(self):
         out = self.run_cases()
         self.assertEqual({p for p, _ in self.seen}, SEEDS)
         for _, doc in self.seen:
-            self.assertEqual([f["boolValue"] for f in doc["proposed"]["components"][0]["facts"]], [False])
+            facts = [f["boolValue"] for side in ("current", "proposed") for f in doc[side]["components"][0]["facts"]]
+            self.assertEqual(facts, [False])
         self.assertFalse(any(c["wrongpass"] or c["error"] or c["mismatch"] for c in out))
+
+    def test_each_floor_is_probed_on_the_route_of_its_pack(self):
+        self.run_cases()
+        self.assertEqual(self.routes, {("cncf", p) for p in ("etcd", "harbor", "cilium", "contour")}
+                         | {("community_project", "ceph")})
+
+    def test_a_component_in_both_packs_is_probed_on_both_routes(self):
+        out = self.run_cases(project_entries=withdrawn(True) + withdrawn(False)[:1])
+        self.assertEqual({r for r, p in self.routes if p == "etcd"}, set(sf.ROUTES))
+        keys = [c["key"] for c in probes(out)]
+        self.assertEqual(len(keys), len(set(keys)))
+        self.assertIn("floor|etcd-3.6|3.5.17->3.6.0|community_project", keys)
+
+    def test_a_floor_no_pack_names_is_probed_on_every_route_and_is_an_error(self):
+        out = self.run_cases(project_entries=[OTHER])
+        self.assertIn(("floor|ceph-20.2|rules", True), [(c["key"], c["error"]) for c in out])
+        self.assertEqual({r for r, p in self.routes if p == "ceph"}, set(sf.ROUTES))
+
+    def test_a_new_community_rule_below_the_floor_is_probed(self):
+        extra = {"project": "ceph", "rule": {"id": "n", "operator": "forbid_predicate_value",
+                 "subject": {"component": "pkg:github/ceph/ceph", "from": "14.2.22", "to": "20.2.5"}}}
+        out = self.run_cases(project_entries=withdrawn(True) + [extra])
+        self.assertIn(("ceph", "14.2.22", "20.2.5"), {p for p, _ in self.seen})
+        self.assertIn("floor|static|ceph-20.2|%s|n" % sf.PROJECT_RULES, [c["key"] for c in out if c["wrongpass"]])
 
     def test_every_passing_seed_is_a_wrong_pass(self):
         out = probes(self.run_cases(code=0))
@@ -142,6 +191,8 @@ class Cases(unittest.TestCase):
 
     def test_runner_that_cannot_start_is_an_error(self):
         self.run_cases()
+
+        self.routes.clear()
 
         def runner(*_):
             raise OSError("no binary")
@@ -175,6 +226,20 @@ class Cases(unittest.TestCase):
         for i, fn in enumerate(bad):
             with self.subTest(i):
                 self.assert_only_error(self.run_cases(changed(fn)), "list-unreadable")
+        src = lambda d: d["ruleSources"]
+        bad = [
+            lambda d: d.pop("ruleSources"), lambda d: d.update(ruleSources=[]), lambda d: src(d).pop("support"),
+            lambda d: src(d).update(allow=[]), lambda d: src(d).update(rules={}), lambda d: src(d).update(rules=[sf.RULES]),
+            lambda d: src(d)["rules"].update({sf.RULES: "none"}), lambda d: src(d)["rules"].update({sf.RULES: []}),
+            lambda d: src(d)["rules"].pop(sf.PROJECT_RULES), lambda d: src(d)["support"].append(sf.RULES),
+            lambda d: src(d)["verdict"].append(src(d)["support"][0]), lambda d: src(d)["verdict"].append("a/*.json"),
+            lambda d: src(d)["rules"].update({"a/*.json": "cncf"}), lambda d: src(d)["support"].append("a/*.json"),
+            lambda d: src(d)["support"].append("a/*/b.json"), lambda d: src(d)["support"].append(""),
+            lambda d: src(d).update(support={}),
+        ]
+        for i, fn in enumerate(bad):
+            with self.subTest(sources=i):
+                self.assert_only_error(self.run_cases(changed(fn)), "list-unreadable")
         for raw in ("", "[]", "null", "{", '{"schema":"%s","schema":"%s","floors":[]}' % (sf.SCHEMA, sf.SCHEMA)):
             with self.subTest(raw):
                 self.assert_only_error(self.run_cases(raw=raw), "list-unreadable")
@@ -201,7 +266,8 @@ class Cases(unittest.TestCase):
         e = copy.deepcopy(rules()[0])
         e["rule"]["subject"]["from"] = "3.5"
         out = self.run_cases(entries=rules(e))
-        self.assertIn(("floor|etcd-3.6|rules", True), [(c["key"], c["error"]) for c in out])
+        self.assertIn(("floor|etcd-3.6|rules|cncf", True), [(c["key"], c["error"]) for c in out])
+        self.assertEqual({p for p, _ in self.seen}, SEEDS)
 
     def test_shipped_floors(self):
         floors = sf.load(str(HERE / "source_floors.json"))
@@ -250,7 +316,7 @@ class Static(unittest.TestCase):
     def scan(self, entries=(), attested=None, project_entries=None):
         with tempfile.TemporaryDirectory() as d:
             write_knowledge(d, rules(*entries), attested, project_entries)
-            return sf.static_cases(sf.load(str(HERE / "source_floors.json")), sf.read_knowledge(d))
+            return sf.static_cases(sf.load(str(HERE / "source_floors.json")), sf.read_knowledge(d, sources()))
 
     def flagged(self, *entries, **kw):
         out = self.scan(entries, **kw)
@@ -363,11 +429,7 @@ class Static(unittest.TestCase):
                 with mock.patch.object(qalib, "NOW", "2026-11-29T00:00:00Z"):
                     return sf.cases(d, str(HERE / "source_floors.json"), lambda *_: self.fail("probed"))
 
-        def new_file(d):
-            path = d / "cli/internal/newcheck/data/rules.json"
-            path.parent.mkdir(parents=True)
-            path.write_text("{")
-        damages = [new_file]
+        damages = []
         for rel in (sf.RULES, sf.PROJECT_RULES):
             damages.append(lambda d, rel=rel: (d / rel).unlink())
             for raw in ("", "{", "[]", "{}", '{"entries":[]}', '{"entries":{}}', '{"entries":[1],"entries":[1]}',
@@ -375,28 +437,217 @@ class Static(unittest.TestCase):
                 damages.append(lambda d, rel=rel, raw=raw: (d / rel).write_text(raw))
         for i, damage in enumerate(damages):
             with self.subTest(i):
-                self.assertEqual([(c["key"], c["error"]) for c in run(damage)], [("floor|rules-unreadable", True)])
+                out = [(c["key"], c["error"]) for c in run(damage)]
+                self.assertEqual(out[-1], ("floor|rules-unreadable", True))
+                self.assertTrue(all(error and key.startswith(("floor|source|", "floor|rules-")) for key, error in out))
 
-    def test_a_new_rules_file_is_scanned(self):
+
+class Sources(unittest.TestCase):
+    """Every data file that can decide a PASS is classified; anything else leaves no floor clean."""
+
+    def run_on(self, change):
         with tempfile.TemporaryDirectory() as d:
             write_knowledge(d, rules())
-            path = pathlib.Path(d) / "cli/internal/newcheck/data/rules.json"
-            path.parent.mkdir(parents=True)
-            path.write_text(json.dumps({"entries": [rule("3.5.1")]}))
-            out = sf.static_cases(sf.load(str(HERE / "source_floors.json")), sf.read_knowledge(d))
-        self.assertEqual(len([c for c in out if c["wrongpass"]]), 1)
+            change(pathlib.Path(d))
+            with mock.patch.object(qalib, "NOW", "2026-11-29T00:00:00Z"):
+                return sf.cases(d, str(HERE / "source_floors.json"), lambda *_: (2, "", ["prufyx"]))
+
+    def source_errors(self, change):
+        out = self.run_on(change)
+        self.assertEqual([c for c in out if c["key"].startswith("floor|static|") and not c["wrongpass"]], [])
+        got = [c for c in out if c["key"].startswith(("floor|source|", "floor|sources-"))]
+        self.assertTrue(all(c["error"] for c in got))
+        return [c["key"] for c in got]
+
+    def embed(self, d, pattern, *files, text="{}", go="cli/internal/newcheck/new.go"):
+        put(d, go, "package n\n\n//go:embed %s\nvar f embed.FS\n" % pattern)
+        for rel in files:
+            put(d, "cli/internal/newcheck/" + rel, text)
+
+    def clean(self, change):
+        out = self.run_on(change)
+        self.assertEqual([c for c in out if c["key"].startswith(("floor|source|", "floor|sources-"))], [])
+        self.assertEqual(len([c for c in out if c["key"].startswith("floor|static|")]), len(FLOORS))
+
+    def test_untouched_checkout_is_clean(self):
+        self.clean(lambda d: None)
+
+    def test_a_new_rules_file_is_an_error_embedded_or_not(self):
+        key = "floor|source|cli/internal/newcheck/data/rules.json"
+        body = json.dumps({"entries": [rule("3.5.1")]})
+        for rel in ("cli/internal/newcheck/data/rules.json", "other/rules.json"):
+            with self.subTest(rel):
+                self.assertEqual(self.source_errors(lambda d: put(d, rel, body)), ["floor|source|" + rel])
+        self.assertEqual(self.source_errors(lambda d: self.embed(d, "data/rules.json", "data/rules.json")), [key])
+
+    def test_a_new_embedded_data_file_is_an_error_whatever_its_name_and_pattern(self):
+        for pattern, rel in (("data/pack.json", "data/pack.json"), ("data/*.yaml", "data/p.yaml"), ("data", "data/p.bin"),
+                             ("all:data", "data/.p.json"), ('"data/a b.json"', "data/a b.json"), ("`data/p.json`", "data/p.json"),
+                             ("*.go data/p.json", "data/p.json"), ("testdata/p.json", "testdata/p.json")):
+            with self.subTest(pattern):
+                self.assertEqual(self.source_errors(lambda d: self.embed(d, pattern, rel)),
+                                 ["floor|source|cli/internal/newcheck/" + rel])
+
+    def test_go_sources_test_files_and_testdata_are_not_rule_sources(self):
+        self.clean(lambda d: self.embed(d, "*.go"))
+        self.clean(lambda d: put(d, "cli/internal/newcheck/x_test.go", "//go:embed nothing.json\n"))
+        self.clean(lambda d: put(d, "cli/internal/newcheck/testdata/rules.json", "{"))
+        self.clean(lambda d: put(d, "cli/internal/newcheck/data/loose.json", "{"))
+        self.clean(lambda d: put(d, "cli/internal/newcheck/x.go", "//     //go:embed nothing.json\n"))
+
+    def test_an_embed_that_cannot_be_read_is_an_error(self):
+        for line in ("absent.json", "data/*.json", "../x.json", '"unterminated', "", "/abs.json"):
+            with self.subTest(line):
+                self.assertEqual(self.source_errors(lambda d: self.embed(d, line)),
+                                 ["floor|source|cli/internal/newcheck/new.go"])
+
+        def binary(d):
+            (d / "cli/internal/projectcheck/bad.go").write_bytes(b"\xff\xfe")
+        self.assertEqual(self.source_errors(binary), ["floor|source|cli/internal/projectcheck/bad.go"])
+
+    def test_a_listed_rules_file_that_nothing_embeds_is_an_error(self):
+        self.assertEqual(self.source_errors(lambda d: (d / "cli/internal/projectcheck/pack.go").unlink()),
+                         ["floor|source|" + sf.PROJECT_RULES])
+
+    def listed(self, kind, rel, text):
+        def change(d):
+            put(d, rel, text)
+            directory, name = rel.rsplit("/", 1)
+            put(d, directory + "/embed.go", "package n\n\n//go:embed %s\nvar f embed.FS\n" % name)
+        self.assertIn(rel, sources()[kind])
+        return change
+
+    def test_verdict_files(self):
+        rel = "cli/internal/prometheusmode/source-contract-v1.json"
+        self.clean(self.listed("verdict", rel, '{"project":"prometheus","url":"https://github.com/prometheus/prometheus"}'))
+        for text in ("", "{", '{"a":1,"a":2}', '{"project":"ceph"}', '["pkg:github/Ceph/ceph"]', '{"ceph":1}',
+                     '{"a":[{"url":"https://github.com/etcd-io/etcd/blob/x"}]}'):
+            with self.subTest(text):
+                self.assertEqual(self.source_errors(self.listed("verdict", rel, text)), ["floor|source|" + rel])
+
+    def test_support_files(self):
+        rel = "cli/internal/customresources/table.json"
+        self.clean(self.listed("support", rel, '{"project":"cilium","operator":{"type":"string"},"subject":1}'))
+        for text in ("", "{", json.dumps({"entries": [rule()]}), '[{"a":{"operator":"x","subject":{}}}]'):
+            with self.subTest(text):
+                self.assertEqual(self.source_errors(self.listed("support", rel, text)), ["floor|source|" + rel])
+
+    def test_a_support_wildcard_stays_in_its_directory(self):
+        target = "cli/internal/extract/crdversions/"
+
+        def change(rel):
+            def apply(d):
+                put(d, target + rel, "{}")
+                put(d, target + "e.go", "//go:embed %s\n" % rel)
+            return apply
+        self.clean(change("target-new.json"))
+        for rel in ("targets-new.json", "target-new/x.json"):
+            with self.subTest(rel):
+                self.assertEqual(self.source_errors(change(rel)), ["floor|source|" + target + rel])
+
+    def test_a_wrong_pass_is_still_reported_beside_an_unknown_source(self):
+        def change(d):
+            write_knowledge(d, rules(rule("3.5.1")))
+            put(d, "other/rules.json", "{}")
+        out = self.run_on(change)
+        self.assertEqual([c["detail"]["rule"] for c in out if c["key"].startswith("floor|static|")], ["n"])
+
+    def test_every_listed_source_of_this_checkout(self):
+        """On a full checkout: nothing unclassified, nothing listed that is gone."""
+        root = HERE.parent.parent
+        if not (root / sf.RULES).exists():
+            self.skipTest("not a full checkout")
+        floors, listed = sf.parse(str(HERE / "source_floors.json"))
+        self.assertEqual(sf.inventory(str(root), floors, listed), [])
+        for rel in list(listed["rules"]) + listed["verdict"] + [p for p in listed["support"] if "*" not in p]:
+            self.assertTrue((root / rel).is_file(), rel)
+
+
+def batch(child, project="ceph", category="UNKNOWN_CLAIM", kind="community_project", **extra):
+    item = {"kind": kind, "project": project, "outcome": "UNKNOWN", "category": category, "report": json.loads(child)}
+    return json.dumps(dict({"schema": sf.BATCH_SCHEMA, "decision": "UNKNOWN", "aggregateCategory": category,
+                            "items": [item]}, **extra))
+
+
+class JudgeBatch(unittest.TestCase):
+    def child(self, *claims):
+        return report(*claims, project="ceph")
+
+    def rejected(self, code, out, wrong=False):
+        got, why = sf.judge_batch(code, out, "ceph")
+        self.assertEqual(got, wrong, why)
+        self.assertEqual(bool(why), not wrong)
+
+    def test_accepted(self):
+        for child in (self.child(), self.child(claim()), self.child(claim(reason="RULE_EVIDENCE_WITHDRAWN"))):
+            self.assertEqual(sf.judge_batch(11, batch(child), "ceph"), (False, None))
+        blocked = batch(self.child(claim("BLOCKED", "forbid_target_version")), category="BLOCKED")
+        self.assertEqual(sf.judge_batch(10, blocked, "ceph"), (False, None))
+
+    def test_exit_zero_and_pass_verdicts_are_wrong_passes(self):
+        self.rejected(0, "junk", wrong=True)
+        good = batch(self.child())
+        for out in (batch(self.child(), category="PASS"), batch(self.child(), decision="PASS"),
+                    good.replace('"outcome": "UNKNOWN"', '"outcome": "PASS"'),
+                    batch(report(project="ceph", assessment="PASS"))):
+            self.rejected(11, out, wrong=True)
+
+    def test_unusable_reports_are_errors(self):
+        for out in ("", "junk", "[]", "{}", self.child(), batch(self.child(), schema="x"), batch(self.child(), items=[]),
+                    batch(self.child(), items=[1]), batch(self.child(), items={}), batch(self.child(), "rook"),
+                    batch(self.child(), kind="cncf"), batch("[]"), batch("{}"), batch(report(project="rook")),
+                    batch(self.child(claim("PASS"))), batch(self.child(claim(reason="RULE_FACT_UNAVAILABLE"))),
+                    batch(self.child(claim(reason="RULE_DEPENDENCY_COMPONENT_MISSING")))):
+            with self.subTest(out[:200]):
+                self.rejected(11, out)
+        two = json.loads(batch(self.child()))
+        two["items"] *= 2
+        self.rejected(11, json.dumps(two))
+        for code in (1, 2, 3, 12, 13, -9):
+            self.rejected(code, batch(self.child()))
+
+
+class RunProbe(unittest.TestCase):
+    def run_probe(self, route):
+        done = subprocess.CompletedProcess([], 11, "out", "")
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(qalib, "TMP", d), mock.patch.object(
+                qalib, "NOW", "2026-11-29T00:00:00Z"), mock.patch.object(subprocess, "run", return_value=done):
+            floor = real()["floors"][-1]
+            code, out, cmd = sf.run_probe(route, "ceph", sf.document(floor, "15.2.17", "20.2.4"), "n-0")
+            self.assertEqual((code, out), (11, "out"))
+            plan = json.loads(pathlib.Path(cmd[cmd.index("--plan") + 1]).read_text()) if "--plan" in cmd else None
+            self.assertEqual(cmd[-4:], ["--now", "2026-11-29T00:00:00Z", "--format", "json"])
+            return cmd, plan
+
+    def test_routes(self):
+        cmd, plan = self.run_probe(sf.CNCF)
+        self.assertEqual((cmd[1:3], plan), (["check", "cncf"], None))
+        cmd, plan = self.run_probe(sf.COMMUNITY)
+        self.assertEqual(cmd[1:3], ["check", "batch"])
+        self.assertEqual(plan["items"], [{"id": "floor", "kind": "community_project", "project": "ceph",
+                                          "from": "15.2.17", "to": "20.2.4", "inputPath": "input.json"}])
 
 
 STUB = """#!%s
 import json, sys
 a = sys.argv
-project = a[a.index("--project") + 1]
-doc = json.load(open(a[a.index("--input") + 1]))
+batch = a[2] == "batch"
+if batch:
+    item = json.load(open(a[a.index("--plan") + 1]))["items"][0]
+    project, path = item["project"], a[a.index("--root") + 1] + "/" + item["inputPath"]
+else:
+    project, path = a[a.index("--project") + 1], a[a.index("--input") + 1]
+doc = json.load(open(path))
 if any(f.get("boolValue") for c in doc["proposed"]["components"] for f in c["facts"]):
     sys.exit(10)
 if STATUS == "PASS":
     sys.exit(0)
-print(json.dumps({"project": project, "assessment": "UNKNOWN", "check": {"claims": []}}))
+child = {"project": project, "assessment": "UNKNOWN", "check": {"claims": []}}
+if batch:
+    child = {"schema": "prufyx.io/batch-check-report/v1alpha1", "decision": "UNKNOWN", "aggregateCategory": "UNKNOWN_CLAIM",
+             "items": [{"kind": "community_project", "project": project, "outcome": "UNKNOWN",
+                        "category": "UNKNOWN_CLAIM", "report": child}]}
+print(json.dumps(child))
 sys.exit(11)
 """
 
