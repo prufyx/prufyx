@@ -181,19 +181,22 @@ type Layout struct {
 
 // Repository paths of the default layout.
 const (
-	cliDir         = "cli"
-	cncfRulesPath  = "cli/internal/cncfcheck/data/rules.json"
-	cncfAttestPath = "cli/internal/cncfcheck/data/corpus-attestation.json"
-	commRulesPath  = "cli/internal/projectcheck/data/rules.json"
-	commAttestPath = "cli/internal/projectcheck/data/corpus-attestation.json"
-	inventoryJSON  = "cli/docs/generated/community-support-inventory.json"
-	inventoryMD    = "cli/docs/generated/community-support-inventory.md"
-	trustDir       = "cli/knowledge/trust/"
-	reattestDir    = "cli/knowledge/reattestation"
-	approvalDir    = "cli/knowledge/approvals"
-	trustRootPath  = "cli/knowledge/reattestation/trust-root.json"
-	approvalKeys   = "cli/knowledge/trust/web-approval-keys.json"
-	consensusDir   = "cli/knowledge/consensus-claims"
+	cliDir        = "cli"
+	cncfRulesPath = "cli/internal/cncfcheck/data/rules.json"
+	// cncfComponentsPath is the reviewed extra components file of the
+	// catalog: owner data, a registry path and a gate path.
+	cncfComponentsPath = "cli/internal/cncfcheck/data/landscape-components.json"
+	cncfAttestPath     = "cli/internal/cncfcheck/data/corpus-attestation.json"
+	commRulesPath      = "cli/internal/projectcheck/data/rules.json"
+	commAttestPath     = "cli/internal/projectcheck/data/corpus-attestation.json"
+	inventoryJSON      = "cli/docs/generated/community-support-inventory.json"
+	inventoryMD        = "cli/docs/generated/community-support-inventory.md"
+	trustDir           = "cli/knowledge/trust/"
+	reattestDir        = "cli/knowledge/reattestation"
+	approvalDir        = "cli/knowledge/approvals"
+	trustRootPath      = "cli/knowledge/reattestation/trust-root.json"
+	approvalKeys       = "cli/knowledge/trust/web-approval-keys.json"
+	consensusDir       = "cli/knowledge/consensus-claims"
 )
 
 // cncfRegistrySource holds the CNCF pack's packagedDefinitions literal.
@@ -214,11 +217,11 @@ func readAll(t Tree, rels ...string) ([][]byte, error) {
 // admitCNCF admits the CNCF pack of a tree against opts (the registry and
 // table compiled into the gate for the zero value).
 func admitCNCF(t Tree, opts AdmitOpts) (PackStats, error) {
-	files, err := readAll(t, "cli/internal/cncfcheck/data/landscape-projects.json", "cli/internal/cncfcheck/data/priority-portfolio.json", cncfRulesPath)
+	files, err := readAll(t, "cli/internal/cncfcheck/data/landscape-projects.json", "cli/internal/cncfcheck/data/priority-portfolio.json", cncfRulesPath, cncfComponentsPath)
 	if err != nil {
 		return PackStats{}, err
 	}
-	return cncfPackStats(files[0], files[1], files[2], opts)
+	return cncfPackStats(files[0], files[1], files[2], files[3], opts)
 }
 
 // attestCNCF is the corpus attestation of the CNCF pack of a tree under opts.
@@ -345,6 +348,7 @@ func DefaultLayout() Layout {
 		GatePaths:  defaultGatePaths(),
 		RegistryPaths: []string{
 			"cli/internal/cncfcheck/data/landscape-projects.json",
+			cncfComponentsPath,
 			"cli/internal/cncfcheck/data/priority-portfolio.json",
 			"cli/internal/projectcheck/data/projects.json",
 		},
@@ -356,8 +360,11 @@ func DefaultLayout() Layout {
 // cncfPackStats admits the CNCF pack files with cncfcheck.CheckPackFilesFull
 // against opts; RegistryFacts is the size of the registry they were
 // admitted against.
-func cncfPackStats(landscape, priority, rules []byte, opts AdmitOpts) (PackStats, error) {
-	r, err := cncfcheck.CheckPackFilesFull(landscape, priority, rules, opts.Definitions, opts.TableRaw)
+func cncfPackStats(landscape, priority, rules, components []byte, opts AdmitOpts) (PackStats, error) {
+	if components == nil {
+		return PackStats{}, errors.New("the reviewed extra components file is missing")
+	}
+	r, err := cncfcheck.CheckPackFilesFullComponents(landscape, components, priority, rules, opts.Definitions, opts.TableRaw)
 	if err != nil {
 		return PackStats{}, err
 	}

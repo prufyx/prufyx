@@ -247,14 +247,14 @@ func checkTree(tree string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	read := corpusattest.ReadRegularFile(cli)
-	var files [3][]byte
-	for i, rel := range []string{"internal/cncfcheck/data/landscape-projects.json", "internal/cncfcheck/data/priority-portfolio.json", "internal/cncfcheck/data/rules.json"} {
+	var files [4][]byte
+	for i, rel := range []string{"internal/cncfcheck/data/landscape-projects.json", "internal/cncfcheck/data/priority-portfolio.json", "internal/cncfcheck/data/rules.json", "internal/cncfcheck/data/landscape-components.json"} {
 		if files[i], err = read(rel); err != nil || len(files[i]) > corpusattest.MaxInputBytes {
 			fmt.Fprintln(stderr, "knowledge-targets check-size: tree pack files unreadable")
 			return 2
 		}
 	}
-	packReport, err := cncfcheck.CheckPackFiles(files[0], files[1], files[2])
+	packReport, err := cncfcheck.CheckPackFilesFullComponents(files[0], files[3], files[1], files[2], nil, nil)
 	if err != nil {
 		fmt.Fprintln(stderr, "knowledge-targets check-size: tree pack not admitted")
 		return 2

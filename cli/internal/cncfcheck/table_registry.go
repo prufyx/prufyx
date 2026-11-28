@@ -57,6 +57,12 @@ func TableRegistryDigest(tableRaw []byte) (string, error) {
 // file). It returns the bundle and the size of the registry it was admitted
 // against.
 func assembleFull(landscapeRaw, priorityRaw, packRaw []byte, definitions []constraintengine.FactDefinition, tableRaw []byte) (bundle, int, error) {
+	return assembleFullComponents(landscapeRaw, nil, priorityRaw, packRaw, definitions, tableRaw)
+}
+
+// assembleFullComponents is assembleFull with the reviewed extra components
+// file (components.go); nil means the file is absent.
+func assembleFullComponents(landscapeRaw, componentsRaw, priorityRaw, packRaw []byte, definitions []constraintengine.FactDefinition, tableRaw []byte) (bundle, int, error) {
 	projects := customresources.Projects()
 	if tableRaw != nil {
 		var err error
@@ -71,7 +77,7 @@ func assembleFull(landscapeRaw, priorityRaw, packRaw []byte, definitions []const
 			definitions = TableDefinitions(projects)
 		}
 	}
-	b, err := assembleWithCommunity(landscapeRaw, priorityRaw, packRaw, definitions, projects)
+	b, err := assembleWithComponents(landscapeRaw, componentsRaw, priorityRaw, packRaw, definitions, projects)
 	return b, len(definitions), err
 }
 
@@ -80,7 +86,14 @@ func assembleFull(landscapeRaw, priorityRaw, packRaw []byte, definitions []const
 // assembleFull for the nil defaults). RegistryFacts reports the size of the
 // registry the pack was admitted against.
 func CheckPackFilesFull(landscapeRaw, priorityRaw, packRaw []byte, definitions []constraintengine.FactDefinition, tableRaw []byte) (PackFileReport, error) {
-	b, n, err := assembleFull(landscapeRaw, priorityRaw, packRaw, definitions, tableRaw)
+	return CheckPackFilesFullComponents(landscapeRaw, nil, priorityRaw, packRaw, definitions, tableRaw)
+}
+
+// CheckPackFilesFullComponents is CheckPackFilesFull with the reviewed
+// extra components file (nil means the file is absent: no extras). The
+// knowledge gate admits the tree's file through it.
+func CheckPackFilesFullComponents(landscapeRaw, componentsRaw, priorityRaw, packRaw []byte, definitions []constraintengine.FactDefinition, tableRaw []byte) (PackFileReport, error) {
+	b, n, err := assembleFullComponents(landscapeRaw, componentsRaw, priorityRaw, packRaw, definitions, tableRaw)
 	if err != nil {
 		return PackFileReport{}, err
 	}
@@ -90,17 +103,29 @@ func CheckPackFilesFull(landscapeRaw, priorityRaw, packRaw []byte, definitions [
 // CheckPackFilesWithTable is CheckPackFiles against the registry and
 // community catalog of a table file.
 func CheckPackFilesWithTable(landscapeRaw, priorityRaw, packRaw, tableRaw []byte) (PackFileReport, error) {
+	return CheckPackFilesWithTableComponents(landscapeRaw, nil, priorityRaw, packRaw, tableRaw)
+}
+
+// CheckPackFilesWithTableComponents is CheckPackFilesWithTable with the
+// reviewed extra components file (nil means absent).
+func CheckPackFilesWithTableComponents(landscapeRaw, componentsRaw, priorityRaw, packRaw, tableRaw []byte) (PackFileReport, error) {
 	if tableRaw == nil {
 		return PackFileReport{}, ErrIntegrity
 	}
-	return CheckPackFilesFull(landscapeRaw, priorityRaw, packRaw, nil, tableRaw)
+	return CheckPackFilesFullComponents(landscapeRaw, componentsRaw, priorityRaw, packRaw, nil, tableRaw)
 }
 
 // BuildAttestationFromFilesFull is BuildAttestationFromFiles against the
 // registry given by definitions and the table tableRaw (nil defaults as in
 // assembleFull).
 func BuildAttestationFromFilesFull(landscapeRaw, priorityRaw, packRaw []byte, definitions []constraintengine.FactDefinition, tableRaw []byte) (Attestation, error) {
-	b, _, err := assembleFull(landscapeRaw, priorityRaw, packRaw, definitions, tableRaw)
+	return BuildAttestationFromFilesFullComponents(landscapeRaw, nil, priorityRaw, packRaw, definitions, tableRaw)
+}
+
+// BuildAttestationFromFilesFullComponents is BuildAttestationFromFilesFull
+// with the reviewed extra components file (nil means absent).
+func BuildAttestationFromFilesFullComponents(landscapeRaw, componentsRaw, priorityRaw, packRaw []byte, definitions []constraintengine.FactDefinition, tableRaw []byte) (Attestation, error) {
+	b, _, err := assembleFullComponents(landscapeRaw, componentsRaw, priorityRaw, packRaw, definitions, tableRaw)
 	if err != nil {
 		return Attestation{}, err
 	}

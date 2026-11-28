@@ -195,7 +195,11 @@ func prepareOnboardingMetadata(layout Layout, base, head Tree) (metadataDraft, e
 	if err != nil {
 		return out, err
 	}
-	if _, err := cncfcheck.CheckPackFilesWithTable(landscape, priority, want, st.head.table); err != nil {
+	components, err := base.Read(cncfComponentsPath, MaxFileBytes)
+	if err != nil {
+		return out, err
+	}
+	if _, err := cncfcheck.CheckPackFilesWithTableComponents(landscape, components, priority, want, st.head.table); err != nil {
 		return out, fmt.Errorf("prepared pack does not load against the proposed table: %w", err)
 	}
 	return metadataDraft{path: cncfRulesPath, oldDigest: st.base.state.RegistryDigest, newDigest: st.head.state.RegistryDigest, raw: want}, nil

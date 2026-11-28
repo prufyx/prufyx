@@ -160,3 +160,25 @@ func CatalogExtraComponents() (map[string]string, error) {
 	}
 	return out, nil
 }
+
+// ExtraComponentsFromFiles maps every reviewed extra component of the given
+// files to its owning project slug, under exactly the checks the loader
+// applies (nil componentsRaw means the file is absent: no extras). The
+// knowledge gate and the README block read the tree's files through it.
+func ExtraComponentsFromFiles(landscapeRaw, componentsRaw []byte) (map[string]string, error) {
+	var landscape landscapeDocument
+	if strictJSON(landscapeRaw, &landscape) != nil || landscape.Schema != "prufyx.io/cncf-landscape/v1" || !digestPattern.MatchString(landscape.LandscapeFileDigest) {
+		return nil, ErrIntegrity
+	}
+	projects, _, err := attachComponents(componentsRaw, landscape.LandscapeFileDigest, landscape.Projects)
+	if err != nil {
+		return nil, ErrIntegrity
+	}
+	out := map[string]string{}
+	for _, project := range projects {
+		for _, component := range project.Components {
+			out[component] = project.Slug
+		}
+	}
+	return out, nil
+}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -365,5 +366,80 @@ func TestComponentsRecordWithoutOwnerThroughTargetBuilder(t *testing.T) {
 	b.landscape.Projects = listed.landscape.Projects
 	if err := build(b); errors.Is(err, ErrRecordWithoutOwner) {
 		t.Fatalf("listed record still without owner: %v", err)
+	}
+}
+
+func TestExtraComponentsFromFiles(t *testing.T) {
+	landscape, err := packagedFiles.ReadFile("data/landscape-projects.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	good, err := os.ReadFile("testdata/landscape-components-alertmanager.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ExtraComponentsFromFiles(landscape, good)
+	if err != nil || len(got) != 1 || got["pkg:github/prometheus/alertmanager"] != "prometheus" {
+		t.Fatalf("got %v, %v", got, err)
+	}
+	if got, err := ExtraComponentsFromFiles(landscape, nil); err != nil || len(got) != 0 {
+		t.Fatalf("absent file: %v, %v", got, err)
+	}
+	for name, raw := range map[string][]byte{
+		"not json": []byte("{}x"),
+		"source":   []byte(strings.Replace(string(good), "https://github.com", "https://example.com", 1)),
+		"project":  []byte(strings.Replace(string(good), `"prometheus"`, `"nope"`, 1)),
+	} {
+		if _, err := ExtraComponentsFromFiles(landscape, raw); err == nil {
+			t.Errorf("%s accepted", name)
+		}
+	}
+	if _, err := ExtraComponentsFromFiles([]byte("{}"), good); err == nil {
+		t.Error("an invalid landscape was accepted")
+	}
+}
+
+// A zero-entry components file gives the same admit report, attestation and
+// catalogue digest as the absent (nil) entry points.
+func TestZeroEntryComponentsEqualsAbsent(t *testing.T) {
+	landscape, _ := packagedFiles.ReadFile("data/landscape-projects.json")
+	components, _ := packagedFiles.ReadFile("data/landscape-components.json")
+	priority, _ := packagedFiles.ReadFile("data/priority-portfolio.json")
+	rules, err := packagedRulePack()
+	if err != nil {
+		t.Fatal(err)
+	}
+	withFile, err := CheckPackFilesFullComponents(landscape, components, priority, rules, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	absent, err := CheckPackFilesFull(landscape, priority, rules, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(withFile, absent) {
+		t.Fatal("admit report differs")
+	}
+	a1, err := BuildAttestationFromFilesFullComponents(landscape, components, priority, rules, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a2, err := BuildAttestationFromFilesFull(landscape, priority, rules, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(a1, a2) {
+		t.Fatal("attestation differs")
+	}
+	b1, _, err := assembleFullComponents(landscape, components, priority, rules, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b2, _, err := assembleFull(landscape, priority, rules, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b1.catalogueDigest != b2.catalogueDigest || b1.catalogueDigest != digest(landscape) {
+		t.Fatal("catalogue digest differs")
 	}
 }

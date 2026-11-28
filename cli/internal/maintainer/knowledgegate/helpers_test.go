@@ -28,6 +28,7 @@ var repoRoot = filepath.Join("..", "..", "..", "..")
 // knowledgeFiles are the repository files the default layout reads.
 var knowledgeFiles = []string{
 	"cli/internal/cncfcheck/data/landscape-projects.json",
+	"cli/internal/cncfcheck/data/landscape-components.json",
 	"cli/internal/cncfcheck/data/priority-portfolio.json",
 	"cli/internal/cncfcheck/data/rules.json",
 	"cli/internal/cncfcheck/data/corpus-attestation.json",
