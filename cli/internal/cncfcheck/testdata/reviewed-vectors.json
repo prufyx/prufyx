@@ -19568,7 +19568,7 @@
             ]
           }
         },
-        "status": "BLOCKED"
+        "status": "UNKNOWN"
       },
       {
         "name": "removed option absent",
@@ -19600,7 +19600,7 @@
             ]
           }
         },
-        "status": "PASS"
+        "status": "UNKNOWN"
       },
       {
         "name": "fact unavailable",
@@ -20090,7 +20090,7 @@
             ]
           }
         },
-        "status": "BLOCKED"
+        "status": "UNKNOWN"
       },
       {
         "name": "removed option absent",
@@ -20122,7 +20122,7 @@
             ]
           }
         },
-        "status": "PASS"
+        "status": "UNKNOWN"
       },
       {
         "name": "fact unavailable",

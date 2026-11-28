@@ -7756,7 +7756,7 @@
         },
         "appliesWhen": [],
         "evidence": {
-          "state": "active",
+          "state": "withdrawn",
           "reviewedAt": "2026-11-18T09:49:59Z",
           "validUntil": "2027-01-12T12:00:00Z",
           "sources": [
@@ -7906,7 +7906,7 @@
         },
         "appliesWhen": [],
         "evidence": {
-          "state": "active",
+          "state": "withdrawn",
           "reviewedAt": "2026-11-18T09:49:59Z",
           "validUntil": "2027-01-23T12:00:00Z",
           "sources": [
