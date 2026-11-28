@@ -67,7 +67,17 @@ func (r runtime) runCephLatestExample() (communityExampleResult, error) {
 	unknown := []byte(`{"id":7,"osd_objectstore":"memstore"}`)
 	var blockedCode, cleanCode, unknownCode int
 	var report map[string]any
-	for _, from := range []string{"19.2.6", "18.2.8", "17.2.9", "16.2.15", "15.2.17"} {
+	// Upstream requires a cluster older than Reef to be upgraded to Reef or
+	// Squid first, so these origins must stay undecided for every witness.
+	for _, from := range []string{"17.2.9", "16.2.15", "15.2.17"} {
+		for _, witness := range [][]byte{blocked, clean} {
+			code, report, err := r.checkCephLatestExample(work, from, witness)
+			if err != nil || code != ExitUnknown || !communityClaim(report, "UNKNOWN") {
+				return communityExampleResult{}, fmt.Errorf("Ceph %s did not remain UNKNOWN", from)
+			}
+		}
+	}
+	for _, from := range []string{"19.2.6", "18.2.8"} {
 		blockedCode, report, err = r.checkCephLatestExample(work, from, blocked)
 		if err != nil || blockedCode != ExitBlocked || !communityClaim(report, "BLOCKED") {
 			return communityExampleResult{}, fmt.Errorf("Ceph %s FileStore witness did not produce scoped BLOCKED", from)

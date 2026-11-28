@@ -692,7 +692,7 @@
           "boolValue": true
         },
         "evidence": {
-          "state": "active",
+          "state": "withdrawn",
           "reviewedAt": "2026-11-24T06:02:00Z",
           "validUntil": "2027-01-13T09:00:00Z",
           "sources": [
@@ -770,7 +770,7 @@
           "boolValue": true
         },
         "evidence": {
-          "state": "active",
+          "state": "withdrawn",
           "reviewedAt": "2026-11-24T06:02:40Z",
           "validUntil": "2027-02-16T09:00:00Z",
           "sources": [
@@ -848,7 +848,7 @@
           "boolValue": true
         },
         "evidence": {
-          "state": "active",
+          "state": "withdrawn",
           "reviewedAt": "2026-11-18T09:58:00Z",
           "validUntil": "2027-02-02T09:00:00Z",
           "sources": [

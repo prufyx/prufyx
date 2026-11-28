@@ -42,7 +42,27 @@ func TestCephSelectedOSDProjectCLI(t *testing.T) {
 
 func TestCephLatestSelectedOSDAllExactOrigins(t *testing.T) {
 	t.Parallel()
-	for _, from := range []string{"19.2.6", "18.2.8", "17.2.9", "16.2.15", "15.2.17"} {
+	// The Reef and Squid origins are decided. The older origins are withdrawn:
+	// upstream requires an upgrade to Reef or Squid first.
+	for _, from := range []string{"17.2.9", "16.2.15", "15.2.17"} {
+		for _, store := range []string{"filestore", "bluestore", "memstore"} {
+			t.Run(from+"/withdrawn-"+store, func(t *testing.T) {
+				path := writePrivateProjectFixture(t, `{"id":7,"osd_objectstore":"`+store+`","hostname":"private-node"}`)
+				args := []string{"check", "project", "--project", "ceph", "--selected-osd-metadata", path, "--selected-osd-id", "7", "--selected-osd-metadata-complete", "--from", from, "--to", "20.2.4", "--now", "2026-09-12T09:20:00Z", "--format", "json"}
+				var stdout, stderr bytes.Buffer
+				exit := Run(t.Context(), floorNowArgs(args), &stdout, &stderr, "test")
+				if exit != ExitUnknown || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"reasonCode":"RULE_EVIDENCE_WITHDRAWN"`) || strings.Contains(stdout.String(), `"status":"PASS"`) || strings.Contains(stdout.String(), `"status":"BLOCKED"`) {
+					t.Fatalf("exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
+				}
+				for _, private := range []string{path, "private-node", `"id":7`, `"osd_objectstore"`} {
+					if strings.Contains(stdout.String()+stderr.String(), private) {
+						t.Fatalf("private selected metadata leaked: %q", private)
+					}
+				}
+			})
+		}
+	}
+	for _, from := range []string{"19.2.6", "18.2.8"} {
 		for _, tc := range []struct {
 			name, store, status string
 			complete            bool

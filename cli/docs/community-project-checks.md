@@ -346,10 +346,13 @@ JSON integer within the reviewed command's signed 64-bit range and match
 remain UNKNOWN. Unrelated fields are discarded, and the id, backend value,
 path, and other raw fields never enter the canonical input or report.
 
-The same selected-OSD input path has exact target-only rules for Ceph `15.2.17`,
-`16.2.15`, `17.2.9`, `18.2.8`, and `19.2.6` proposed to `20.2.4`.
+The same selected-OSD input path has exact target-only rules for Ceph `18.2.8`
+and `19.2.6` proposed to `20.2.4`.
 Each rule binds the metadata shape at its exact origin and the target source
-that rejects FileStore. Run every synthetic `BLOCKED`, `PASS`, and
+that rejects FileStore. The rules for `15.2.17`, `16.2.15`, and `17.2.9` to
+`20.2.4` are withdrawn, because the upstream Tentacle upgrade notes require a
+cluster older than Reef to be upgraded to Reef (18.2.z) or Squid (19.2.z)
+first; those pairs answer `UNKNOWN`. Run every synthetic `BLOCKED`, `PASS`, and
 `UNKNOWN` case with:
 
 ```sh
