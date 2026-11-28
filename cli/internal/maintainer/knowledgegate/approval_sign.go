@@ -254,7 +254,7 @@ type SignApprovalOptions struct {
 // a pinned owner, and any record the gate's verifier would refuse at Now.
 func SignApproval(o SignApprovalOptions) ([]byte, ApprovalRecord, error) {
 	switch o.Subject.Kind {
-	case ApprovalSubjectRule, ApprovalSubjectRepinBaseline, ApprovalSubjectLineAttestation, ApprovalSubjectPathPolicy, ApprovalSubjectRegistry, ApprovalSubjectServed, ApprovalSubjectDistributions, ApprovalSubjectGatePaths:
+	case ApprovalSubjectRule, ApprovalSubjectRepinBaseline, ApprovalSubjectLineAttestation, ApprovalSubjectPathPolicy, ApprovalSubjectRegistry, ApprovalSubjectServed, ApprovalSubjectDistributions, ApprovalSubjectGatePaths, ApprovalSubjectPackLevel:
 	default:
 		return nil, ApprovalRecord{}, fmt.Errorf("approval subject kind %q is not supported", logSafe(o.Subject.Kind))
 	}
@@ -339,6 +339,12 @@ func VerifyApprovalSubject(raw []byte, keys ApprovalKeys, s ApprovalSubject, now
 		return VerifyRecordApproval(raw, keys, s.Pack, ApprovalSubjectDistributions, s.RuleID, s.Scope, s.Base, s.Candidate, now)
 	case ApprovalSubjectGatePaths:
 		return VerifyRecordApproval(raw, keys, s.Pack, ApprovalSubjectGatePaths, s.RuleID, s.Scope, nil, s.Candidate, now)
+	case ApprovalSubjectPackLevel:
+		// Without a base pack there is no level to raise from.
+		if s.Base == nil {
+			return errors.New("approval: a pack level approval binds the base pack")
+		}
+		return VerifyRecordApproval(raw, keys, s.Pack, ApprovalSubjectPackLevel, s.RuleID, s.Scope, s.Base, s.Candidate, now)
 	}
 	return fmt.Errorf("approval subject kind %q is not supported", logSafe(s.Kind))
 }

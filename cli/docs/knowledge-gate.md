@@ -372,6 +372,7 @@ Run on every pack of the head, whatever the change:
 | `attestation/<pack>` | the committed corpus attestation differs from a regeneration from the head's pack |
 | `generated/…` | the committed support inventory differs from a regeneration from the head's files |
 | `block-only/<pack>` | an active rule has an unknown basis, or the engine does not evaluate its basis safely: consensus must be block-only and a lead verdict-neutral |
+| `opt-in-client-pin/<pack>` | (a pack at a level it reaches only by declaring it) the head's oldest-supported-client pin is missing, is not in the form the publication workflow accepts, or names a version below `cncfcheck.BoundaryCoveredFloor`, or the pack's level cannot be read. A pack at any other level has no such check (see [Commands](#commands), `gate classify`, for the level rules) |
 | `reattestation/<pack>` | the statement chain changed and the appended statement does not verify |
 | `tree` | the head holds a symbolic link or a special file under `cli/` |
 | `file-modes` | a knowledge file the automation may change has, or changes, an executable bit |
@@ -801,7 +802,7 @@ prufyx-maintainer approval sign \
 | `--key FILE` | the private key file: a regular file owned by you with no group or other permission (mode `0600` or `0400`), not a symbolic link, with no symbolic link in its path and only one hard link |
 | `--key-stdin` | read the private key from standard input instead; standard input must be a pipe (a terminal, another device or a redirected file is refused; give a file with `--key`) |
 | `--output` | the approval file to create; its path must end in `<pack>/<rule id>.json` (the gate reads `cli/knowledge/approvals/<pack>/<rule id>.json`); an existing file or link there is never replaced, no directory in the path may be a symbolic link, missing directories are created, and the file gets mode `0644` |
-| `--subject` | what the approval is for: `rule` (the default), `lineAttestation`, `pathPolicy`, `repinBaseline`, `registryDigest` or `servedAPIs` |
+| `--subject` | what the approval is for: `rule` (the default), `lineAttestation`, `pathPolicy`, `repinBaseline`, `registryDigest`, `servedAPIs`, `distributions` or `packLevel` (for `packLevel` see [Commands](#commands), `gate classify`, the level rules) |
 | `--record` | with `--subject pathPolicy`, in place of `--rule`: the path policy's record ID; the proposed pack must hold it as a reviewed policy and the base pack must hold no record with that ID. With `--subject lineAttestation`, in place of `--rule`: the line attestation's record ID; the proposed pack must hold it with evidence basis `reviewed`, it must differ from the base record, the base record must not be mechanical, and the change must loosen (a change that only shortens `validUntil` is refused) |
 
 ### Signing many rule approvals at once
@@ -1569,6 +1570,40 @@ file. Only the CNCF pack has schema levels; every other pack refuses the change 
 before. The gate that decides is the one built from the base branch (see below), so
 this admission takes effect only for changes proposed after the code that holds it is
 in `main`: a pull request opened earlier is still judged by the old gate.
+
+A level that a pack reaches only by declaring it (today
+`prufyx.io/cncf-source-rule-pack/v1alpha16`, see
+[upgrade-paths.md](upgrade-paths.md#in-a-knowledge-pack)) changes the answers of
+rules the change leaves alone, so a raise to it is admitted only when, in
+addition to all of the above:
+
+1. the change carries an owner approval of the raise itself, subject
+   `packLevel` and no other, at
+   `cli/knowledge/approvals/<pack>/member.schema.json`. It verifies under the
+   base's pinned owner keys, names the pack and both levels (its scope is
+   `<base schema> <head schema>`) and binds the sha256 of the base pack file (base
+   digest) and of the head pack file (candidate digest), so any later change of
+   either file needs a new approval. It follows the rules of every record
+   approval: at most 14 days old, single use, and decisions only move forward. An
+   approval of a rule never admits the raise. Sign with
+   `approval sign --subject packLevel --pack cncf --base-root DIR --head-root DIR`
+   (the other options as for `servedAPIs`);
+2. at least one existing active rule of the same pack has its `range` added or
+   altered in the same change, admitted by an owner approval of that rule. A
+   reattestation or a re-derivation does not count, nor does an approved rule
+   whose range stays as it was, or one that is not active in the head. A batch
+   approval admits no change of a pack member, so a change that raises the level
+   cannot carry one;
+3. the oldest-supported-client pin
+   (`cli/knowledge/oldest-supported-client.txt`) of both the base and the head
+   names `cncfcheck.BoundaryCoveredFloor` (`v0.1.0-beta.3`) or a later version.
+   The file must hold exactly the lines `ref=<40-hex commit>` and
+   `version=vMAJOR.MINOR.PATCH[-pre.N]`, as the publication workflow requires; a
+   missing file or any other form refuses.
+
+While a pack stays at such a level, every later run holds the head's pin to the
+same floor and form (check `opt-in-client-pin/<pack>`, under
+[Pack checks](#pack-checks)).
 
 A `schema-level` change is never eligible for automatic merging. A downgrade is
 never admitted, so removing the last record that needs a schema level (which

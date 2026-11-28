@@ -165,6 +165,30 @@ pack carries exactly the schema of the newest feature it uses:
 | a chart rule or a `require_set_member` rule ([contributing-rules.md](contributing-rules.md)) | `prufyx.io/cncf-source-rule-pack/v1alpha13` |
 | a set notice (`notice_set_member_present` or `notice_set_member_absent`, [contributing-rules.md](contributing-rules.md#set-notices)) | `prufyx.io/cncf-source-rule-pack/v1alpha14` |
 | a chart rule with a range ([contributing-rules.md](contributing-rules.md#ranged-chart-rules)) | `prufyx.io/cncf-source-rule-pack/v1alpha15` |
+| the boundary-covered contract, which the pack declares itself and which needs at least one ranged rule | `prufyx.io/cncf-source-rule-pack/v1alpha16` |
+
+`v1alpha16` is the one opt-in level: no content puts a pack there. A change
+that raises a pack to it is admitted by the knowledge gate only with an owner
+approval of that raise (subject `packLevel`), which names the pack and both
+levels and binds the base and head pack files; an approval of a rule does not
+admit it. The same change must also add or alter the range of at least one
+existing active rule of that pack, with an owner approval of that rule. A
+reattestation does not count, and neither does an approved rule whose range
+stays as it was. A batch approval cannot be used, because it admits no change of
+a pack member. The oldest supported client (`cli/knowledge/oldest-supported-client.txt`) must
+also be `v0.1.0-beta.3` or later in both the base and the head of the change; a
+missing or unreadable pin refuses the raise, and so does a pin file outside the
+form the publication workflow accepts. The gate refuses lowering the schema
+again. While a pack is at that level, the gate also fails any later change
+whose head pin is missing, unreadable, outside that form or below
+`v0.1.0-beta.3`, whether or not the change touches the pack. This floor is never
+below the one of the `changelog.listed_entries` attestation family.
+
+A per-project external target keeps the level while its rules hold a range. An
+index that lists such a target names `v0.1.0-beta.3` or a later version as its
+`minClientVersion`, so an older client that reads that field asks to be
+upgraded. A publication build of such a package is refused while the oldest
+supported client is below `v0.1.0-beta.3` or unknown.
 
 So a pack with path policies and no notice rule, with or without line
 attestations, uses `v1alpha5`, and `v1alpha5` without path policies is refused. Binaries built

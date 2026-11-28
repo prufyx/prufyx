@@ -78,6 +78,7 @@ func TestCorpusKeyDistinguishesEveryInput(t *testing.T) {
 	}
 	for name, mutate := range map[string]func(*bundle){
 		"revision":        func(m *bundle) { m.pack.Revision += "x" },
+		"pack schema":     func(m *bundle) { m.pack.Schema += "x" },
 		"policy id":       func(m *bundle) { m.pack.PolicyID += "x" },
 		"policy digest":   func(m *bundle) { m.pack.PolicyDigest += "x" },
 		"registry digest": func(m *bundle) { m.registry = constraintengine.Registry{} },

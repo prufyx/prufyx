@@ -427,6 +427,9 @@ func admitTargetSet(target []byte, projects []Target) (targetSet, error) {
 	if err := listedFloorCheck(target, raws); err != nil {
 		return targetSet{}, fmt.Errorf("listed family: %v: %w", err, ErrRejected)
 	}
+	if err := cncfcheck.CheckOptInFloor(target, raws); err != nil {
+		return targetSet{}, fmt.Errorf("opt-in pack level: %v: %w", err, ErrRejected)
+	}
 	files := []Target{{Path: cncfcheck.ExternalIndexTargetPath, Raw: target}}
 	for _, entry := range entries {
 		raw, ok := byPath[entry.TargetPath]

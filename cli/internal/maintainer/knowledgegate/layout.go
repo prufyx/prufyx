@@ -67,6 +67,9 @@ type PackSpec struct {
 	// them never admits a schema change.
 	RequiredSchema func(raw []byte) (string, error)
 	SchemaLevel    func(schema string) (int, bool)
+	// OptInSchema reports a level the content never requires by itself, only
+	// the declaration. Raising a pack to it needs human authority (schema.go).
+	OptInSchema func(schema string) bool
 	// FactDefinitions returns the fact registry compiled into the gate (the
 	// base's), RegistrySourcePath is the Go file whose packagedDefinitions
 	// literal the gate reads in the base and the head, and AdmitWith and
@@ -261,6 +264,7 @@ func DefaultLayout() Layout {
 				Records:          true,
 				RequiredSchema:   cncfcheck.RequiredPackSchema,
 				SchemaLevel:      cncfcheck.PackSchemaLevel,
+				OptInSchema:      cncfcheck.PackSchemaIsOptIn,
 			},
 			{
 				Name: evidencereattest.PackCommunity, Path: commRulesPath,

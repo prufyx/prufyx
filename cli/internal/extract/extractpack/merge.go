@@ -644,7 +644,8 @@ var schemaRE = regexp.MustCompile(`^(.*/v1alpha)([0-9]+)$`)
 
 // bumpToAdmitted tries the pack at the next schema levels. A pack carries
 // exactly the schema of the highest-level feature it uses, so the first
-// level the loader admits is the right one.
+// level the loader admits is the right one. A level a pack reaches only by
+// declaring it is never tried: a merge must not opt a pack in.
 func bumpToAdmitted(head *Pack, packPath string, admit func(string, []byte) error, levels int, first error) ([]byte, error) {
 	m := schemaRE.FindStringSubmatch(schemaOf(head))
 	if m == nil {
@@ -652,7 +653,11 @@ func bumpToAdmitted(head *Pack, packPath string, admit func(string, []byte) erro
 	}
 	n, _ := strconv.Atoi(m[2])
 	for k := n + 1; k <= n+levels; k++ {
-		cand := setSchema(head, m[1]+strconv.Itoa(k))
+		schema := m[1] + strconv.Itoa(k)
+		if cncfcheck.PackSchemaIsOptIn(schema) {
+			continue
+		}
+		cand := setSchema(head, schema)
 		out, err := cand.Render()
 		if err != nil {
 			return nil, err

@@ -389,9 +389,10 @@ func TestFloorProblems(t *testing.T) {
 }
 
 // gitReleaseTags reads the release tags of the checkout and whether each holds
-// the commit that added the family floor. ok is false (with a reason) when the
-// checkout cannot say: no git, no tags, or no history back to that commit.
-func gitReleaseTags(t *testing.T) (tags []releaseTag, reason string) {
+// the commit that added file (the floor of a feature). ok is false (with a
+// reason) when the checkout cannot say: no git, no tags, or no history back to
+// that commit.
+func gitReleaseTags(t *testing.T, file string) (tags []releaseTag, reason string) {
 	t.Helper()
 	git := func(args ...string) (string, error) {
 		out, err := exec.Command("git", args...).Output()
@@ -405,10 +406,10 @@ func gitReleaseTags(t *testing.T) (tags []releaseTag, reason string) {
 	if len(names) == 0 {
 		return nil, "the checkout has no release tags (fetch them: fetch-depth 0)"
 	}
-	added, err := git("log", "--diff-filter=A", "--format=%H", "--", "listedfloor.go")
+	added, err := git("log", "--diff-filter=A", "--format=%H", "--", file)
 	lines := strings.Fields(added)
 	if err != nil || len(lines) == 0 {
-		return nil, "the checkout has no history back to the commit that added the family floor"
+		return nil, "the checkout has no history back to the commit that added " + file
 	}
 	family := lines[len(lines)-1]
 	for _, name := range names {
@@ -422,7 +423,7 @@ func gitReleaseTags(t *testing.T) (tags []releaseTag, reason string) {
 // that hold it, in this checkout's real tags. On CI an unreadable tag list is
 // a failure, never a pass; elsewhere the test is skipped with the reason.
 func TestListedFamilyFloorAgainstTheRealTags(t *testing.T) {
-	tags, reason := gitReleaseTags(t)
+	tags, reason := gitReleaseTags(t, "listedfloor.go")
 	if reason != "" {
 		if os.Getenv("CI") != "" {
 			t.Fatalf("CI cannot read the release tags: %s", reason)

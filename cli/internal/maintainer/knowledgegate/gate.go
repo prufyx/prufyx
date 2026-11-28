@@ -630,7 +630,7 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 		admitSupersede(c, opts)
 	}
 	r.Supersedes = supersedeReport(cls)
-	admitSchemaChanges(cls, schemaChanges, r.ChangedPaths, opts)
+	admitSchemaChanges(cls, schemaChanges, r.ChangedPaths, opts, loadKeys, approvals)
 	r.registryDefinitions = admitRegistryChanges(cls, registryChanges, r.ChangedPaths, opts, loadKeys, approvals)
 
 	if opts.RederiveAll {
@@ -879,6 +879,7 @@ func (r *Report) packChecksWith(cls *Classification, opts Options, selectOpts fu
 		r.rulecheck(spec, h)
 		r.attestationRulecheck(spec, h)
 		r.pinnedCheck(spec, h)
+		r.optInPinCheck(spec, h, opts)
 		r.staggerCheck(spec, h, loosenedWeeks[spec.Name])
 		r.recordStaggerCheck(cls, spec, b, h, loosenedWeeks[spec.Name])
 		var want []byte

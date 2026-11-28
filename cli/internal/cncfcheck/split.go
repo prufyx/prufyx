@@ -791,6 +791,25 @@ func buildExternalTargetsPolicy(base bundle, revision, purpose string, revisionF
 		index.Projects = append(index.Projects, ExternalIndexEntry{Project: project, TargetPath: ProjectTargetPath(project), Revision: projectRevision, Length: int64(len(raw)), Digest: digest(raw), RuleDigest: admission.RuleDigest, EvidenceExpiresAt: admission.EvidenceExpiresAt, Records: admission.HasRecords, Catalog: base.catalogOf(project)})
 		targets = append(targets, ExternalTarget{Path: ProjectTargetPath(project), Bytes: raw})
 	}
+	// A package that carries the opt-in pack level names its floor too (the
+	// higher floor wins). A build for a stated oldest client below it is
+	// refused: nothing can be left out without changing answers.
+	raws := make([][]byte, 0, len(targets))
+	for _, target := range targets {
+		raws = append(raws, target.Bytes)
+	}
+	optIn, err := targetsCarryOptIn(raws)
+	if err != nil {
+		return ExternalTarget{}, nil, 0, ErrIntegrity
+	}
+	if optIn {
+		if listed != nil && !atLeastVersion(listed.oldestClient, BoundaryCoveredFloor) {
+			return ExternalTarget{}, nil, 0, errors.Join(ErrIntegrity, ErrOptInBelowFloor)
+		}
+		if !atLeastVersion(index.MinClientVersion, BoundaryCoveredFloor) {
+			index.MinClientVersion = BoundaryCoveredFloor
+		}
+	}
 	indexRaw, err := json.Marshal(index)
 	if err != nil {
 		return ExternalTarget{}, nil, 0, ErrIntegrity
@@ -829,6 +848,12 @@ func encodeExternalEnvelopeWithRecords(base bundle, revision, purpose string, en
 	}
 	pack := rulePack{Revision: revision, PolicyID: base.pack.PolicyID, PolicyDigest: base.pack.PolicyDigest, LandscapeFileDigest: base.pack.LandscapeFileDigest, RegistryDigest: base.pack.RegistryDigest, Entries: entries,
 		LineAttestations: records.LineAttestations, PathPolicies: records.PathPolicies, ServedAPIs: records.ServedAPIs}
+	// An opt-in level is declared, never inferred from content, so the
+	// source pack's declaration is carried over. requiredPackSchema drops it
+	// when these entries hold no range.
+	if PackSchemaIsOptIn(base.pack.Schema) {
+		pack.Schema = base.pack.Schema
+	}
 	pack.Schema, err = requiredPackSchema(pack)
 	if err != nil {
 		return nil, ErrIntegrity

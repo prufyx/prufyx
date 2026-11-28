@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/extract"
 	"github.com/prufyx/prufyx/cli/internal/extract/extractpack"
 	"github.com/prufyx/prufyx/cli/internal/extract/safefs"
@@ -235,9 +236,15 @@ func renderServedPack(pack *extractpack.Pack, raw []byte, built []servedapis.Rec
 	// uses, so the first level the loader admits is the right one.
 	// When no level is admitted the cause is the first refusal (the pack's
 	// own level): a later level only adds "unknown schema" on top of it.
+	// A level a pack reaches only by declaring it is never tried above the
+	// pack's own: a build must not opt a pack in.
 	var firstErr error
 	for l := level; l <= level+servedSchemaLevels; l++ {
-		newSchema, _ := json.Marshal(cncfPackSchemaFamily + strconv.Itoa(l))
+		candidate := cncfPackSchemaFamily + strconv.Itoa(l)
+		if l != level && cncfcheck.PackSchemaIsOptIn(candidate) {
+			continue
+		}
+		newSchema, _ := json.Marshal(candidate)
 		head.Members["schema"] = newSchema
 		rendered, err := head.Render()
 		if err != nil {

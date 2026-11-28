@@ -82,6 +82,9 @@ type Change struct {
 	Supersedes   string `json:"supersedes,omitempty"`
 
 	base, head *entry
+	// levelApproved marks a schema change admitted to an opt-in level with an
+	// owner approval of that raise.
+	levelApproved bool
 	// supersededBy and supersedes are the pair's other half.
 	supersededBy, supersedes *Change
 	// rbase and rhead are a record change's base and head records;

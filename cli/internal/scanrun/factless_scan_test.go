@@ -113,6 +113,18 @@ func newSelectionKnowledge(t testing.TB, rules ...string) Knowledge {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Dropping rules can lower the level the pack requires (an opt-in level
+	// needs a ranged rule), and a pack carries exactly that level.
+	level, err := cncfcheck.RequiredPackSchema(packRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pack["schema"], err = json.Marshal(level); err != nil {
+		t.Fatal(err)
+	}
+	if packRaw, err = json.Marshal(pack); err != nil {
+		t.Fatal(err)
+	}
 	raw, err := cncfcheck.ExportExternalBundleFromPack(packRaw, "1")
 	if err != nil {
 		t.Fatal(err)

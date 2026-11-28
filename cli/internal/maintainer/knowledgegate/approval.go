@@ -35,6 +35,10 @@ import (
 // and no scope, so one never verifies as the other. A third record subject,
 // pathPolicy, covers one NEW reviewed path policy: its scope is the
 // component's package URL and its base state is always absent.
+//
+// The subject packLevel covers one raise of a pack to an opt-in schema level:
+// its scope is "<base schema> <head schema>" and, unlike the other subjects,
+// its digests are those of the base and head pack FILE bytes.
 const (
 	ApprovalSchema     = "prufyx.io/knowledge-approval/v2"
 	ApprovalKeysSchema = "prufyx.io/web-approval-keys/v1"
@@ -230,6 +234,11 @@ func (r ApprovalRecord) validate() error {
 	case ApprovalSubjectGatePaths:
 		// One approval per pull request: the rule id is the candidate id.
 		if r.Scope != GatePathsScope || r.Pack != GatePathsPack || !gateCandidateRE.MatchString(r.RuleID) || r.CandidateID != r.RuleID || r.BaseDigest != ApprovalBaseAbsent {
+			return errors.New("approval record field out of range")
+		}
+	case ApprovalSubjectPackLevel:
+		// The scope names both levels and the base digest the base pack file.
+		if !packLevelScopeRE.MatchString(r.Scope) || r.RuleID != PackLevelApprovalID || r.BaseDigest == ApprovalBaseAbsent {
 			return errors.New("approval record field out of range")
 		}
 	default:
