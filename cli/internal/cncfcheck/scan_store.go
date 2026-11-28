@@ -21,7 +21,9 @@ import (
 // envelopes, admitted by the same checks as the embedded pack. The embedded
 // pack contributes nothing but the compiled catalog and fact registry that
 // every external envelope is admitted against: a project or component that
-// was not opened has no rule, no review and no policy.
+// was not opened has no rule, no review and no policy. Two things of the
+// embedded pack bind the result: its removal-crossing rules and its
+// withdrawals (storeSelectionPack).
 func NewStoreScanKnowledge(bundles map[string]ExternalBundle) (*ScanKnowledge, error) {
 	if len(bundles) == 0 {
 		return nil, ErrInvalid
@@ -63,7 +65,7 @@ func NewStoreScanKnowledge(bundles map[string]ExternalBundle) (*ScanKnowledge, e
 		if selected.servedAPIs, err = admitServedAPIs(recordPack, external.pack.ServedAPIs, base.landscape.Projects); err != nil {
 			return nil, ErrIntegrity
 		}
-		if selected.pack, err = packWithEmbeddedCrossing(base.pack, external.pack, project); err != nil {
+		if selected.pack, err = storeSelectionPack(base.pack, external.pack, project); err != nil {
 			return nil, err
 		}
 		// Retain independent supported rules while recording incomplete

@@ -316,6 +316,19 @@ revision and digest fields already state the source. Human output adds a
 `chosen`, `reason` (`store-newer`, `store-corrected`, `store-older`, `identical`, `no-store`, `forced`,
 `store-expired`) and, when compared, `embeddedEvidenceAt` and `storeEvidenceAt`.
 
+A withdrawal built into the binary also binds a database that is used, whether
+it was chosen automatically or named with `--knowledge-db`, in `check cncf`,
+`check batch` and `scan`. A database rule whose id the binary holds as
+withdrawn stays active only when its `evidence.reviewedAt` is strictly later
+than the one of the withdrawn rule in the binary. With an equal or earlier date
+it is evaluated as withdrawn, so the claim is `UNKNOWN`
+(`RULE_EVIDENCE_WITHDRAWN`). A later revision number, import time or
+`validUntil`, or changed rule content, does not re-activate it, so restoring a
+withdrawn rule needs a new review date. The stored database is not changed.
+Historical replay applies the withdrawals of the running binary too: a report
+that an earlier build made from such a rule does not replay on this build, and
+the replay ends as a knowledge integrity failure.
+
 ## Use the database with `prufyx scan`
 
 A CNCF store filled by `db update` or `db import` (`--profile cncf` or
