@@ -1059,6 +1059,11 @@ already existed and evaluated both pairs via the two-step `prepare`/`check`
 path before this route was wired; only the one-step dispatch and catalog
 registration were added.
 
+Both rules are withdrawn: the upstream upgrade guide says to update to the
+latest patch release of the current version before an upgrade, and neither
+`1.18.6` nor `1.18.13` is that release. Both transitions always report
+`UNKNOWN` (`RULE_EVIDENCE_WITHDRAWN`), including for a nonempty selector.
+
 ```sh
 umask 077
 cat > cilium-policy.json <<'JSON'
