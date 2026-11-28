@@ -13,6 +13,7 @@ package targetdraft
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"path"
 	"regexp"
@@ -71,6 +72,14 @@ type Input struct {
 	// and a repeated definition with a different decoded spec is
 	// install-path-copy-differs. It needs installPaths (or InferInstallPaths).
 	CheckInstallPathCopies bool
+	// DeriveRules is the explicit opt-in (default off) to compute the rules
+	// inputs from tree facts instead of reading a rules file: installPaths
+	// (rules R2 and R3), computed foreign-carrier exclusions with a positive
+	// proof of foreignness, and owner-record PROPOSALS. It takes no rules, no
+	// range-check tags and no other opt-in that changes the rules; anything it
+	// cannot decide is a typed stop (a duplicate definition stays the plain
+	// duplicate-crd stop). See derive.go and DERIVE.md.
+	DeriveRules bool
 }
 
 // Result is the successful output of a run.
@@ -80,7 +89,15 @@ type Result struct {
 	TableRow  []byte
 	Changelog []byte
 	Report    Report
+	// RulesJSON is the canonical derived rules.json; only in derive mode.
+	RulesJSON []byte
+	// Proposals are the owner-record proposals of derive mode (never records).
+	Proposals []OwnerProposal
 }
+
+// genState carries what a run computes besides its result, so that it
+// reaches the caller on a typed stop too.
+type genState struct{ proposals []OwnerProposal }
 
 var (
 	slugRE = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
@@ -101,6 +118,22 @@ func Generate(in Input) (*Result, error) {
 }
 
 func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
+	st := &genState{}
+	res, err := generateCore(in, full, st)
+	if err != nil {
+		var se *StopError
+		if errors.As(err, &se) && len(st.proposals) > 0 {
+			se.Proposals = st.proposals
+		}
+		return res, err
+	}
+	if res != nil && len(st.proposals) > 0 {
+		res.Proposals = st.proposals
+	}
+	return res, nil
+}
+
+func generateCore(in Input, full *FullWindowSelector, gs *genState) (*Result, error) {
 	if !slugRE.MatchString(in.Slug) || in.Name == "" || !repoRE.MatchString(in.Repo) || in.Source == nil {
 		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "", "slug, name, repo and a source are required and must be well formed")}}
 	}
@@ -148,6 +181,11 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 		}
 	}
 
+	if in.DeriveRules && (full != nil || in.MultiPrefix || in.InferInstallPaths || len(in.RangeCheckTags) > 0 ||
+		len(rules.InstallPaths) > 0 || len(rules.InstallSurface) > 0 || len(rules.PathFilter) > 0 || len(rules.Exclusions) > 0) {
+		return nil, &StopError{Stops: []Stop{stop(StopBadInput, "derive-rules", "derive mode takes no rules, range-check tags, multi-prefix or inference: it computes the rules itself, and a hand rule is never mixed with a derived one")}}
+	}
+
 	var tags []parsedTag
 	var prefix string
 	var prefixes []string // set only with MultiPrefix: newest tag's prefix first
@@ -182,7 +220,16 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 	if in.Index != nil {
 		index = *in.Index
 	}
+	var denv deriveEnv
+	if in.DeriveRules {
+		denv = deriveEnvFn()
+		if in.Index != nil {
+			denv.index = *in.Index
+		}
+		index = denv.index
+	}
 	var optFatal []Stop
+	var dres *derivedOut
 	results := make([]*tagResult, len(tags))
 	scans := make([][]*finding, len(tags))
 	trees := make([]Tree, len(tags))
@@ -232,7 +279,20 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 		rc.InstallPaths = []InstallPathRule{*entry}
 		rules = &rc
 	}
-	if in.InferInstallPaths || in.CheckInstallPathCopies {
+	if in.DeriveRules {
+		dt := &deriveTags{slug: in.Slug, ownerRepo: ownerRepo, tags: tags, trees: trees, scans: scans, commits: commits, scanStops: scanStopsOf, env: denv, strict: in.StrictWindow}
+		out, props, dstops := dt.derive()
+		gs.proposals = props
+		if len(dstops) > 0 {
+			return nil, &StopError{Stops: sortStops(dstops)}
+		}
+		rc := *rules
+		rc.InstallPaths = out.Rules.InstallPaths
+		rc.Exclusions = out.Rules.Exclusions
+		rules = &rc
+		dres = out
+	}
+	if in.InferInstallPaths || in.CheckInstallPathCopies || in.DeriveRules {
 		rc := *rules
 		rc.checkCopies = true
 		rules = &rc
@@ -360,6 +420,9 @@ func generateWithWindow(in Input, full *FullWindowSelector) (*Result, error) {
 	annotateRanges(res, rules, window, checked)
 	if inferred != nil {
 		annotateInferred(res, inferred)
+	}
+	if dres != nil {
+		annotateDerivedRules(res, dres)
 	}
 	return res, nil
 }

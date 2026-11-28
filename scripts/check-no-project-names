@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Diff check of a capability pull request: a code change never carries project
+# data and never names a catalogue project.
+#
+# usage: scripts/check-no-project-names [BASE [HEAD]]     (default origin/main, HEAD)
+# env:   CATALOGUE_DIRS   space-separated directories read for the catalogue
+#                         (default: cli/internal/extract/crdversions cli/internal/customresources)
+#        FIXTURES_MANIFEST  path of the hash-pinned fixtures manifest
+#                         (default: cli/testdata-fixtures.sha256)
+#
+# Three rules, all fail closed (exit 1 for a finding, 2 when the check cannot run):
+#  1. The diff must not touch data paths: a target-<slug>.json, anything under
+#     target-recipes/, table.json, guard.json, any rules*.json, or a reserved or
+#     ownership record. Data reaches the repository only through the bot
+#     onboarding path, never through a code change.
+#  2. No line the diff ADDS to a non-test, non-fixture file may contain the
+#     slug or the repository name of a catalogue project (word boundary, case
+#     insensitive). The list is read from the catalogue of the HEAD tree at
+#     check time. Policy for short names: a name of fewer than 5 characters is
+#     not checked (it would match ordinary words); a name on the stoplist
+#     below (ordinary words that are also project names) is not checked
+#     either. Reviewers cover both gaps; neither list may be extended to hide a
+#     finding in the same change.
+#  3. A file the diff adds or changes below a testdata directory must be listed
+#     with its sha256 in the fixtures manifest (lines: "<sha256>  <path>"); a
+#     fixture is data with a pinned identity, never edited silently.
+# Test files (*_test.go) and fixtures are exempt from rule 2 only.
+set -euo pipefail
+
+BASE=${1:-origin/main}
+HEAD=${2:-HEAD}
+CAT_DIRS=${CATALOGUE_DIRS:-"cli/internal/extract/crdversions cli/internal/customresources"}
+MANIFEST=${FIXTURES_MANIFEST:-cli/testdata-fixtures.sha256}
+MIN_LEN=5
+# Ordinary words that are also catalogue names; never checked.
+STOPLIST=" cloud cluster gateway network policy service operator controller manager server client plugin storage secret secrets platform workflow workflows pipeline pipelines runtime registry catalog contour flagger bundle events event"
+
+fail=0
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+git rev-parse --verify --quiet "$BASE^{commit}" >/dev/null || { echo "check-no-project-names: unknown base $BASE" >&2; exit 2; }
+git rev-parse --verify --quiet "$HEAD^{commit}" >/dev/null || { echo "check-no-project-names: unknown head $HEAD" >&2; exit 2; }
+
+git diff --name-only -z --no-renames "$BASE...$HEAD" >"$tmp/changed.z"
+
+# 1. Data paths.
+while IFS= read -r -d '' p; do
+  case "$p" in
+    cli/internal/extract/crdversions/target-*.json|cli/knowledge/target-recipes/*|*/table.json|table.json|*/guard.json|guard.json|*/rules*.json|rules*.json|*/reserved*.json|*/ownership*.json)
+      echo "FINDING data path touched by a code change: $p"
+      fail=1
+      ;;
+  esac
+done <"$tmp/changed.z"
+
+# Catalogue names, read from the HEAD tree.
+: >"$tmp/names.raw"
+for d in $CAT_DIRS; do
+  git ls-tree -r --name-only "$HEAD" -- "$d" 2>/dev/null | while IFS= read -r f; do
+    case "$f" in
+      */target-*.json)
+        b=${f##*/}; b=${b#target-}; echo "${b%.json}" >>"$tmp/names.raw"
+        ;;
+    esac
+    case "$f" in
+      */table.json)
+        git show "$HEAD:$f" | grep -o '"slug": *"[^"]*"' | sed 's/.*: *"\(.*\)"/\1/' >>"$tmp/names.raw" || true
+        git show "$HEAD:$f" | grep -o '"component": *"pkg:github/[^"]*"' | sed 's#.*pkg:github/[^/]*/\([^"]*\)"#\1#' >>"$tmp/names.raw" || true
+        ;;
+    esac
+  done
+done
+tr 'A-Z' 'a-z' <"$tmp/names.raw" | sort -u >"$tmp/names.all"
+if [ ! -s "$tmp/names.all" ]; then
+  echo "check-no-project-names: the catalogue is empty or unreadable; the check cannot run" >&2
+  exit 2
+fi
+: >"$tmp/patterns"
+while IFS= read -r n; do
+  [ "${#n}" -ge "$MIN_LEN" ] || continue
+  case "$STOPLIST" in *" $n "*) continue ;; esac
+  case "$n" in *[!a-z0-9._-]*) continue ;; esac
+  echo "$n" >>"$tmp/patterns"
+done <"$tmp/names.all"
+if [ ! -s "$tmp/patterns" ]; then
+  echo "check-no-project-names: no catalogue name is long enough to check; the check cannot run" >&2
+  exit 2
+fi
+
+# 2. Added lines of non-test, non-fixture files.
+git diff -U0 --no-color --no-renames "$BASE...$HEAD" -- . \
+  ':(exclude)*_test.go' ':(exclude)*/testdata/*' ':(exclude)testdata/*' >"$tmp/diff.txt"
+file=""
+while IFS= read -r line; do
+  case "$line" in
+    '+++ b/'*) file=${line#+++ b/}; continue ;;
+    '+++ '*|'--- '*|'diff '*|'index '*|'@@'*) continue ;;
+    '+'*)
+      text=${line#+}
+      hit=$(printf '%s\n' "$text" | grep -i -w -F -o -f "$tmp/patterns" | head -n 1 || true)
+      if [ -n "$hit" ]; then
+        echo "FINDING project name in an added line: $file: \"$hit\""
+        fail=1
+      fi
+      ;;
+  esac
+done <"$tmp/diff.txt"
+
+# 3. Fixtures are hash pinned.
+while IFS= read -r -d '' p; do
+  case "/$p" in
+    */testdata/*)
+      if ! git cat-file -e "$HEAD:$p" 2>/dev/null; then continue; fi # deleted
+      sum=$(git show "$HEAD:$p" | sha256sum | cut -d' ' -f1)
+      if ! git show "$HEAD:$MANIFEST" 2>/dev/null | grep -q "^$sum  $p\$"; then
+        echo "FINDING fixture not pinned in $MANIFEST: $p ($sum)"
+        fail=1
+      fi
+      ;;
+  esac
+done <"$tmp/changed.z"
+
+if [ "$fail" -ne 0 ]; then
+  echo "check-no-project-names: failed" >&2
+  exit 1
+fi
+echo "check-no-project-names: ok ($(wc -l <"$tmp/patterns" | tr -d ' ') catalogue names checked)"

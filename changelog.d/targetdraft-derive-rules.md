@@ -1,0 +1,4 @@
+### Added
+
+- Target-draft `--derive-rules`: the rules of a target draft are computed from tree facts (install directory by two rules, the second needing a literal same-tag reference from outside the directory; foreign-carrier exclusions only with a positive proof of foreign origin at every tag) instead of being written by hand. Owner-record proposals (`--emit-proposals`) are written, never recorded; a scope that needs the owner is the typed stop `scope-needs-owner`. `verify-pr` re-derives the rules from the facts bundle and requires `rules.json` to be byte-equal. See `cli/internal/maintainer/targetdraft/DERIVE.md`.
+- `scripts/check-no-project-names`: the diff check of a capability pull request (no data paths touched, no catalogue project name in added code, fixtures hash pinned), run by CI for branches named `capability/*`.
