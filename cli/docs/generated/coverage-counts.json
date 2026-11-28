@@ -7,7 +7,7 @@
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha16",
-      "digest": "sha256:c84cd6febcb0a136348dc8a3a49054b20946f77eda5ec354d7d5644b9f90c16f"
+      "digest": "sha256:25c2c07b03de87c846d5b135924502d154cb235b790c49fba93485185a178956"
     },
     "lines": {
       "capturedOn": "2026-10-31",
@@ -27,33 +27,33 @@
       "projects": 79,
       "pairs": 395,
       "a": 97,
-      "b": 39,
-      "s": 17,
-      "g": 242,
+      "b": 36,
+      "s": 19,
+      "g": 243,
       "listedChangelog": 18,
       "c1": 63,
       "c3": 24,
       "c5": 14,
-      "vcPairs": 0.3443,
-      "vcMean": 0.3443,
-      "sPairs": 0.043,
-      "rulesInWindow": 169
+      "vcPairs": 0.3367,
+      "vcMean": 0.3367,
+      "sPairs": 0.0481,
+      "rulesInWindow": 168
     },
     "priorityProjects": {
       "projects": 30,
       "pairs": 150,
       "a": 37,
-      "b": 24,
-      "s": 12,
-      "g": 77,
+      "b": 22,
+      "s": 13,
+      "g": 78,
       "listedChangelog": 9,
       "c1": 29,
       "c3": 11,
       "c5": 5,
-      "vcPairs": 0.4067,
-      "vcMean": 0.4067,
-      "sPairs": 0.08,
-      "rulesInWindow": 124
+      "vcPairs": 0.3933,
+      "vcMean": 0.3933,
+      "sPairs": 0.0867,
+      "rulesInWindow": 123
     },
     "communityCatalog": {
       "projects": 18,
@@ -84,7 +84,7 @@
       {
         "family": "other",
         "a": 0,
-        "b": 36
+        "b": 33
       }
     ],
     "projects": [
@@ -1890,10 +1890,7 @@
           {
             "from": "3.5",
             "to": "3.6",
-            "status": "B",
-            "families": [
-              "other"
-            ],
+            "status": "G",
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
@@ -1908,10 +1905,7 @@
           {
             "from": "3.6",
             "to": "3.7",
-            "status": "B",
-            "families": [
-              "other"
-            ],
+            "status": "S",
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
@@ -1925,14 +1919,14 @@
           }
         ],
         "a": 0,
-        "b": 2,
-        "s": 0,
-        "g": 3,
-        "vc": 0.4,
+        "b": 0,
+        "s": 1,
+        "g": 4,
+        "vc": 0,
         "vcA": 0,
         "covered": true,
-        "validRules": 10,
-        "rulesInWindow": 10,
+        "validRules": 9,
+        "rulesInWindow": 9,
         "expiring14d": 0
       },
       {
@@ -3914,17 +3908,14 @@
           {
             "from": "1.8",
             "to": "1.9",
-            "status": "B",
-            "families": [
-              "other"
-            ]
+            "status": "S"
           }
         ],
         "a": 0,
-        "b": 1,
-        "s": 0,
+        "b": 0,
+        "s": 1,
         "g": 4,
-        "vc": 0.2,
+        "vc": 0,
         "vcA": 0,
         "covered": true,
         "validRules": 1,
@@ -6102,8 +6093,8 @@
   },
   "inventoryCounts": {
     "cncfRuleProjects": 54,
-    "cncfSourceRules": 267,
-    "cncfSourceRulesWithdrawn": 1,
+    "cncfSourceRules": 266,
+    "cncfSourceRulesWithdrawn": 2,
     "communityProjectRuleProjects": 10,
     "communityProjectSourceRules": 51,
     "executableProjects": 68,
@@ -6425,11 +6416,11 @@
         "project": "etcd",
         "group": "fleet",
         "pairs": 5,
-        "ab": 2,
+        "ab": 0,
         "k8s": 0,
-        "s": 0,
+        "s": 1,
         "l": 0,
-        "g": 3,
+        "g": 4,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
       },
       {
@@ -6776,9 +6767,9 @@
         "project": "kubevirt",
         "group": "fleet",
         "pairs": 5,
-        "ab": 1,
+        "ab": 0,
         "k8s": 0,
-        "s": 0,
+        "s": 1,
         "l": 0,
         "g": 4,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
@@ -7154,11 +7145,11 @@
       "projects": 79,
       "pairs": 395,
       "projectsWithAnswer": 54,
-      "ab": 131,
+      "ab": 128,
       "k8s": 5,
-      "s": 17,
+      "s": 19,
       "l": 18,
-      "g": 224
+      "g": 225
     },
     "community": {
       "projects": 18,
@@ -7171,5 +7162,5 @@
       "g": 41
     }
   },
-  "readmeBlockSha256": "da39f54c44edc2bcc20462f4de35eaed04b9b3638d7aa7b233ced5dfa9eac13c"
+  "readmeBlockSha256": "4f4dfbc3798a200a041b271610af854532e150431ce6ea72be488193cf186966"
 }
