@@ -39,6 +39,11 @@ Removing a rule is not admitted; withdraw it instead. The one exception is a
 reviewed rule replaced by a re-derived mechanical one: see [Superseding a
 reviewed rule](#superseding-a-reviewed-rule).
 
+The `evidence.reviewedAt` of a rule that is `withdrawn` before or after the
+change never moves earlier, and no approval, statement or re-derivation admits
+it: a database signed before the earlier date would count as reviewed after the
+withdrawal (see [knowledge updates](knowledge-updates.md)).
+
 The comparison is on canonical JSON (keys sorted), so re-formatting a pack
 file is not a change. The list of changed files compares content and the
 executable bit, so a mode-only change is a change. Each entry is compared as the engine reads it: the gate

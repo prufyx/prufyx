@@ -329,6 +329,16 @@ Historical replay applies the withdrawals of the running binary too: a report
 that an earlier build made from such a rule does not replay on this build, and
 the replay ends as a knowledge integrity failure.
 
+Records are bound the same way in `scan`. An upgrade-path policy the binary
+holds as withdrawn stays active in a database only with a strictly later
+`evidence.reviewedAt`, and a database without a record for that component gets
+the withdrawn one, so no path is planned from it. A line attestation or a
+served-API list is withdrawn by removing it from the pack; the binary keeps a
+list of removed scopes with the removed review date, and drops a database record
+of a listed scope unless its review is strictly later. That list is empty in
+this build, and it is maintained by hand: a change that removes such a record
+from the pack must add its scope to the list.
+
 ## Use the database with `prufyx scan`
 
 A CNCF store filled by `db update` or `db import` (`--profile cncf` or

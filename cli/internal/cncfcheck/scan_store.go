@@ -23,7 +23,8 @@ import (
 // every external envelope is admitted against: a project or component that
 // was not opened has no rule, no review and no policy. Two things of the
 // embedded pack bind the result: its removal-crossing rules and its
-// withdrawals (storeSelectionPack).
+// withdrawals, of rules (storeSelectionPack) and of records
+// (bindRecordWithdrawals).
 func NewStoreScanKnowledge(bundles map[string]ExternalBundle) (*ScanKnowledge, error) {
 	if len(bundles) == 0 {
 		return nil, ErrInvalid
@@ -64,6 +65,11 @@ func NewStoreScanKnowledge(bundles map[string]ExternalBundle) (*ScanKnowledge, e
 		}
 		if selected.servedAPIs, err = admitServedAPIs(recordPack, external.pack.ServedAPIs, base.landscape.Projects); err != nil {
 			return nil, ErrIntegrity
+		}
+		// The admitted indexes are replaced by ones under the withdrawals
+		// (record_withdrawal.go).
+		if err = bindRecordWithdrawals(&selected, base.pack, external.pack, base.identities()[project], compiledRecordWithdrawals); err != nil {
+			return nil, err
 		}
 		if selected.pack, err = storeSelectionPack(base.pack, external.pack, project); err != nil {
 			return nil, err

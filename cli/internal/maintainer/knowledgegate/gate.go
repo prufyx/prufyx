@@ -511,6 +511,12 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 			c.fail("the kill switch is set: no loosening change is admitted")
 			continue
 		}
+		// Refused before any proof is looked at (withdrawn_review.go). A
+		// changed review date is never a tightening change.
+		if problem := withdrawnReviewProblem(c); problem != "" {
+			c.fail(problem)
+			continue
+		}
 		if c.Member == "schema" {
 			// Decided once every other change of the pack has been.
 			schemaChanges = append(schemaChanges, c)
