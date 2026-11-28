@@ -2262,7 +2262,7 @@
         },
         "appliesWhen": [],
         "evidence": {
-          "state": "active",
+          "state": "withdrawn",
           "reviewedAt": "2026-11-18T09:49:59Z",
           "validUntil": "2027-02-01T12:00:00Z",
           "sources": [

@@ -45,7 +45,9 @@ chmod 600 "$work/resource.json"
 Use the same command with `fixed.json` or `unknown.json`. Contour and KubeVirt
 also take one `--native-resource`; use their exact pairs `1.19.0 -> 1.20.0` and
 `1.8.4 -> 1.9.0` respectively. A raw `--native-resource-digest sha256:...`
-option can bind the exact supplied bytes.
+option can bind the exact supplied bytes. The Contour `1.19.0 -> 1.20.0` rule
+is withdrawn, because the upstream upgrade guide requires a Contour older than
+`1.19.1` to run `1.19.1` first: all three Contour inputs stay `UNKNOWN`.
 
 CloudNativePG needs a selected current and proposed resource, not a custom
 Prufyx envelope:
