@@ -7,7 +7,7 @@
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
-      "digest": "sha256:2b54cb27685269d0cd68d62220d7871e2b20f5e1998e3464d3df1becef1b9401"
+      "digest": "sha256:a87aa0f2521ce443933f8cf39da75ffe68af2b17ad4195e960c0f40945138dab"
     },
     "lines": {
       "capturedOn": "2026-10-31",
@@ -28,32 +28,32 @@
       "pairs": 395,
       "a": 97,
       "b": 17,
-      "s": 38,
-      "g": 243,
+      "s": 36,
+      "g": 245,
       "listedChangelog": 18,
       "c1": 63,
       "c3": 23,
       "c5": 14,
       "vcPairs": 0.2886,
       "vcMean": 0.2886,
-      "sPairs": 0.0962,
-      "rulesInWindow": 168
+      "sPairs": 0.0911,
+      "rulesInWindow": 163
     },
     "priorityProjects": {
       "projects": 30,
       "pairs": 150,
       "a": 37,
       "b": 14,
-      "s": 21,
-      "g": 78,
+      "s": 19,
+      "g": 80,
       "listedChangelog": 9,
       "c1": 29,
       "c3": 11,
       "c5": 5,
       "vcPairs": 0.34,
       "vcMean": 0.34,
-      "sPairs": 0.14,
-      "rulesInWindow": 123
+      "sPairs": 0.1267,
+      "rulesInWindow": 118
     },
     "communityCatalog": {
       "projects": 18,
@@ -618,7 +618,7 @@
           {
             "from": "1.18",
             "to": "1.19",
-            "status": "S",
+            "status": "G",
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
@@ -633,7 +633,7 @@
           {
             "from": "1.19",
             "to": "1.20",
-            "status": "S",
+            "status": "G",
             "cells": {
               "cli.flags": "open",
               "config.keys": "open",
@@ -648,13 +648,13 @@
         ],
         "a": 2,
         "b": 0,
-        "s": 2,
-        "g": 1,
+        "s": 0,
+        "g": 3,
         "vc": 0.4,
         "vcA": 0.4,
         "covered": true,
-        "validRules": 4,
-        "rulesInWindow": 4,
+        "validRules": 1,
+        "rulesInWindow": 1,
         "expiring14d": 0
       },
       {
@@ -1047,7 +1047,7 @@
         "vc": 1,
         "vcA": 1,
         "covered": true,
-        "validRules": 1,
+        "validRules": 0,
         "rulesInWindow": 0,
         "expiring14d": 0
       },
@@ -2585,8 +2585,8 @@
         "vc": 0.8,
         "vcA": 0,
         "covered": true,
-        "validRules": 11,
-        "rulesInWindow": 9,
+        "validRules": 9,
+        "rulesInWindow": 7,
         "expiring14d": 0
       },
       {
@@ -6035,13 +6035,13 @@
     }
   },
   "inventoryCounts": {
-    "cncfRuleProjects": 54,
-    "cncfSourceRules": 266,
-    "cncfSourceRulesWithdrawn": 2,
+    "cncfRuleProjects": 53,
+    "cncfSourceRules": 260,
+    "cncfSourceRulesWithdrawn": 8,
     "communityProjectRuleProjects": 10,
     "communityProjectSourceRules": 51,
-    "executableProjects": 68,
-    "selectedSourceOnlyProjects": 11,
+    "executableProjects": 67,
+    "selectedSourceOnlyProjects": 12,
     "selectedSourceProjects": 58
   },
   "forms": {
@@ -6136,9 +6136,9 @@
         "pairs": 5,
         "ab": 2,
         "k8s": 0,
-        "s": 2,
+        "s": 0,
         "l": 0,
-        "g": 1,
+        "g": 3,
         "gapReason": "NOT_DECIDED_FOR_THIS_PAIR"
       },
       {
@@ -7090,9 +7090,9 @@
       "projectsWithAnswer": 54,
       "ab": 109,
       "k8s": 5,
-      "s": 38,
+      "s": 36,
       "l": 18,
-      "g": 225
+      "g": 227
     },
     "community": {
       "projects": 18,
@@ -7105,5 +7105,5 @@
       "g": 41
     }
   },
-  "readmeBlockSha256": "5f06e25597272451a7097fa24f098b05ebecfaae877c18b0f7baeddfdbc6acc6"
+  "readmeBlockSha256": "8ccd8b37b16e79cbd9e35119d3b48481b0a875cb521fc248dc576f743798bd20"
 }
