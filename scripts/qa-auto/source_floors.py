@@ -24,9 +24,18 @@ community_project item). Exit 0 is a wrong PASS. A non-zero result counts only w
 evidence is withdrawn or stale. Everything else (a missing or blocking fact, another exit code, an unreadable report, a
 bad floor file, no QA_NOW) is an error. There is no allow-list.
 
+Release order entries (an entry with "kind" in place of a target line and a minimum) hold upstream limits that one
+minimum cannot express. Each lists the upstream releases it knows. "no-skip": releases below "blockedBelow" are taken one
+at a time, patch releases included; a violation is a pair from a source below that version which skips a listed release
+or has an unlisted end below it. "release-order": the target release must not be older than the source release; a
+violation is an unlisted end or a source released after the target. A pair that does not go forward violates both. A
+range or crossing of a rule that can PASS, and a line attestation, cannot be compared release by release: they are
+violations for a "release-order" component, and for a "no-skip" component when they start below "blockedBelow". Probes of
+these entries carry their own safe facts and only the listed pairs are probed.
+
 A floor covers only what it lists: a target line without a floor is not checked.
 """
-import fnmatch, json, os, re, subprocess
+import datetime, fnmatch, json, os, re, subprocess
 
 import qalib
 
@@ -52,6 +61,10 @@ VERSION_OPERATORS = {"require_intermediate_version", "forbid_target_version"}  #
 SETTLED_UNKNOWN = {"RULE_TRANSITION_NOT_REVIEWED", "RULE_EVIDENCE_WITHDRAWN", "RULE_EVIDENCE_STALE"}
 KEYS = {"id", "project", "component", "targetLine", "minimumSource", "basis", "note", "probes", "safeFacts", "citations"}
 BASES = {"upstream", "derived"}
+NO_SKIP, RELEASE_ORDER = "no-skip", "release-order"
+ORDER_KEYS = {"id", "project", "component", "kind", "basis", "note", "releases", "probes", "citations"}
+KINDS = {NO_SKIP: ORDER_KEYS | {"blockedBelow"}, RELEASE_ORDER: ORDER_KEYS}
+DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 # Operators whose claim is never PASS. Every other operator, known or new, is treated as able to PASS.
 NEVER_PASS = {"require_intermediate_version", "forbid_target_version", "notice_one_way", "notice_set_member_present",
               "notice_set_member_absent"}
@@ -121,7 +134,11 @@ def parse(path):
     need(isinstance(floors, list) and floors, "floors must be a non-empty list")
     ids, lines = set(), set()
     for f in floors:
-        need(isinstance(f, dict) and set(f) == KEYS, "floor keys must be exactly %s" % sorted(KEYS))
+        need(isinstance(f, dict), "floor is not an object")
+        if "kind" in f:
+            check_order(f, ids, lines)
+            continue
+        need(set(f) == KEYS, "floor keys must be exactly %s" % sorted(KEYS))
         for k in ("id", "project"):
             need(isinstance(f[k], str) and SLUG.fullmatch(f[k]), "bad %s" % k)
         need(isinstance(f["component"], str) and f["component"].startswith("pkg:"), "bad component")
@@ -139,20 +156,92 @@ def parse(path):
             need(isinstance(p, dict) and set(p) == {"from", "to"}, "probe keys")
             need(version(p["from"]) < floor, "probe source %s is not below the floor" % p["from"])
             need(version(p["to"])[:2] == line, "probe target %s is not on the target line" % p["to"])
-        need(isinstance(f["safeFacts"], list) and f["safeFacts"], "safeFacts must be a non-empty list")
-        seen = set()
-        for x in f["safeFacts"]:
-            need(isinstance(x, dict) and set(x) == {"side", "id", "boolValue"}, "fact keys")
-            need(x["side"] in ("current", "proposed") and isinstance(x["id"], str) and x["id"]
-                 and type(x["boolValue"]) is bool, "bad fact")
-            need((x["side"], x["id"]) not in seen, "duplicate fact")
-            seen.add((x["side"], x["id"]))
-        need(isinstance(f["citations"], list) and f["citations"], "citations must be a non-empty list")
-        for c in f["citations"]:
-            need(isinstance(c, dict) and set(c) == {"url", "line"} and isinstance(c["url"], str)
-                 and CITATION.fullmatch(c["url"]) and type(c["line"]) is int and c["line"] > 0,
-                 "citation must be a GitHub file at a 40-hex commit with a line")
+        check_facts(f["safeFacts"])
+        check_citations(f["citations"])
     return floors, data["ruleSources"]
+
+
+def check_facts(facts):
+    need(isinstance(facts, list) and facts, "safeFacts must be a non-empty list")
+    seen = set()
+    for x in facts:
+        need(isinstance(x, dict) and set(x) == {"side", "id", "boolValue"}, "fact keys")
+        need(x["side"] in ("current", "proposed") and isinstance(x["id"], str) and x["id"]
+             and type(x["boolValue"]) is bool, "bad fact")
+        need((x["side"], x["id"]) not in seen, "duplicate fact")
+        seen.add((x["side"], x["id"]))
+
+
+def check_citations(citations):
+    need(isinstance(citations, list) and citations, "citations must be a non-empty list")
+    for c in citations:
+        need(isinstance(c, dict) and set(c) == {"url", "line"} and isinstance(c["url"], str)
+             and CITATION.fullmatch(c["url"]) and type(c["line"]) is int and c["line"] > 0,
+             "citation must be a GitHub file at a 40-hex commit with a line")
+
+
+def check_order(f, ids, taken):
+    """Validate one release order entry; ids and taken hold what earlier entries claimed."""
+    kind = f["kind"]
+    need(isinstance(kind, str) and kind in KINDS, "unknown kind: %r" % (kind,))
+    need(set(f) == KINDS[kind], "%s keys must be exactly %s" % (kind, sorted(KINDS[kind])))
+    for k in ("id", "project"):
+        need(isinstance(f[k], str) and SLUG.fullmatch(f[k]), "bad %s" % k)
+    need(isinstance(f["component"], str) and f["component"].startswith("pkg:"), "bad component")
+    need(f["id"] not in ids and (f["component"], kind) not in taken, "duplicate floor %s" % f["id"])
+    ids.add(f["id"])
+    taken.add((f["component"], kind))
+    need(isinstance(f["basis"], str) and f["basis"] in BASES, "basis must be one of %s" % sorted(BASES))
+    need(isinstance(f["note"], str) and f["note"].strip(), "note must be a non-empty string")
+    releases = f["releases"]
+    if kind == NO_SKIP:
+        end = version(f["blockedBelow"])
+        need(isinstance(releases, list) and len(releases) > 1, "releases must be a list of at least two versions")
+        listed = [version(r) for r in releases]
+        need(listed == sorted(set(listed)) and listed[-1] < end, "releases must ascend and stay below blockedBelow")
+    else:
+        need(isinstance(releases, dict) and len(releases) > 1, "releases must map at least two versions to dates")
+        for v, day in releases.items():
+            version(v)
+            need(isinstance(day, str) and DATE.fullmatch(day), "bad release date: %r" % (day,))
+            datetime.date.fromisoformat(day)
+    need(isinstance(f["probes"], list) and f["probes"], "probes must be a non-empty list")
+    pairs = set()
+    for p in f["probes"]:
+        need(isinstance(p, dict) and set(p) == {"from", "to", "safeFacts"}, "probe keys")
+        pair = (version(p["from"]), version(p["to"]))
+        need(order_violation(f, *pair), "probe %s -> %s breaks no limit" % (p["from"], p["to"]))
+        need(pair not in pairs, "duplicate probe")
+        pairs.add(pair)
+        check_facts(p["safeFacts"])
+    check_citations(f["citations"])
+
+
+def dotted(v):
+    return ".".join(map(str, v))
+
+
+def order_violation(entry, source, target):
+    """Why the exact pair (version tuples) breaks a release order entry, or None."""
+    if source >= target:
+        return "the pair does not go forward"
+    if entry["kind"] == NO_SKIP:
+        end = version(entry["blockedBelow"])
+        if source >= end:
+            return None
+        listed = [version(r) for r in entry["releases"]]
+        for v in (source, target):
+            if v < end and v not in listed:
+                return "%s is not a listed upstream release" % dotted(v)
+        skipped = [dotted(r) for r in listed if source < r < target]
+        return "the upgrade skips release %s" % ", ".join(skipped) if skipped else None
+    days = {version(v): day for v, day in entry["releases"].items()}
+    for v in (source, target):
+        if v not in days:
+            return "%s is not a listed upstream release" % dotted(v)
+    if days[source] > days[target]:
+        return "%s was released %s, after %s (%s)" % (dotted(source), days[source], dotted(target), days[target])
+    return None
 
 
 def rule_probes(floor, entries):
@@ -347,19 +436,62 @@ def coverage(rule):
     return out
 
 
+def limit(floor):
+    """The detail that names what a floor or release order entry demands."""
+    return {"kind": floor["kind"]} if "kind" in floor else {"minimumSource": floor["minimumSource"]}
+
+
+def pinned_pairs(floor):
+    """{(source, target): safe facts} of the listed probes."""
+    return {(p["from"], p["to"]): p["safeFacts"] if "kind" in floor else floor["safeFacts"] for p in floor["probes"]}
+
+
+def planned(floor, entries):
+    """{(source, target): safe facts} to probe for one rules file; None when no rule of the project names the component."""
+    if "kind" in floor:
+        named = [e for e in entries
+                 if e["project"] == floor["project"] and e["rule"]["subject"]["component"] == floor["component"]]
+        return pinned_pairs(floor) if named else None
+    derived = rule_probes(floor, entries)
+    if derived is None:
+        return None
+    found = {pair: floor["safeFacts"] for pair in derived}
+    found.update(pinned_pairs(floor))
+    return found
+
+
+def order_reasons(entry, regions):
+    """Why the regions of a rule that can PASS break a release order entry."""
+    out = []
+    for kind, source, target, _ in regions:
+        if kind == "anchor":
+            reason = order_violation(entry, source, target)
+        elif entry["kind"] == RELEASE_ORDER or source < version(entry["blockedBelow"]):
+            reason = "a %s from %s cannot be compared release by release" % (kind, dotted(source))
+        else:
+            reason = None
+        if reason:
+            out.append(reason)
+    return out
+
+
 def static_cases(floors, knowledge):
-    """One wrong PASS per (floor, rule or attestation) that reaches the floored line from below the floor."""
+    """One wrong PASS per (floor, rule or attestation) that reaches the floored line from below the floor, and per
+    (release order entry, rule or attestation) that breaks it."""
     out, dirty = [], set()
-    by_component = {}
+    by_component, orders = {}, {}
     for floor in floors:
-        by_component.setdefault(floor["component"], []).append(
-            (floor, version(floor["minimumSource"]), tuple(int(x) for x in floor["targetLine"].split("."))))
+        group = by_component.setdefault(floor["component"], [])
+        if "kind" in floor:
+            orders.setdefault(floor["component"], []).append(floor)
+        else:
+            group.append((floor, version(floor["minimumSource"]), tuple(int(x) for x in floor["targetLine"].split("."))))
 
     def violation(floor, rel, name, **detail):
         dirty.add(floor["id"])
         out.append(qalib.case("rules", "floor|static|%s|%s|%s" % (floor["id"], rel, name), wrongpass=True, mismatch=True,
-                              project=floor["project"], file=rel, minimumSource=floor["minimumSource"],
-                              basis=floor["basis"], citations=floor["citations"], **detail))
+                              project=floor["project"], file=rel, basis=floor["basis"], citations=floor["citations"],
+                              **dict(limit(floor), **detail)))
 
     def unreadable(rel, name, why, component):
         # Without a component it could belong to any floor: none is reported clean.
@@ -392,6 +524,11 @@ def static_cases(floors, knowledge):
                     if hits:
                         violation(floor, rel, name, rule=name, operator=operator, covered=hits,
                                   why="a rule that can PASS covers a source below the floor")
+                for entry_order in orders.get(component, []):
+                    why = order_reasons(entry_order, regions)
+                    if why:
+                        violation(entry_order, rel, name, rule=name, operator=operator,
+                                  why="a rule that can PASS breaks the release order: " + "; ".join(why))
             except (ValueError, KeyError, TypeError, AttributeError) as e:
                 unreadable(rel, name, e, component)
         for i, att in enumerate(attested):
@@ -412,6 +549,15 @@ def static_cases(floors, knowledge):
                     if below:
                         violation(floor, rel, name, sources=below,
                                   why="a line attestation covers source releases below the floor")
+                for entry_order in orders.get(component, []):
+                    releases = att["releases"]["from"]
+                    need(isinstance(releases, list) and releases, "no source releases")
+                    covered = [(r["version"], version(r["version"])) for r in releases]
+                    if entry_order["kind"] == NO_SKIP:
+                        covered = [c for c in covered if c[1] < version(entry_order["blockedBelow"])]
+                    if covered:
+                        violation(entry_order, rel, name, sources=[c[0] for c in covered],
+                                  why="a line attestation cannot be compared release by release")
             except (ValueError, KeyError, TypeError, AttributeError) as e:
                 unreadable(rel, name, e, component)
     out.extend(qalib.case("rules", "floor|static|" + f["id"], project=f["project"]) for f in floors if f["id"] not in dirty)
@@ -528,18 +674,18 @@ def cases(src, floors_path=FLOORS, runner=run_probe):
     if not qalib.NOW:
         return out + [broken("no-clock", "QA_NOW is not set")]
     for floor in floors:
-        pinned = {(p["from"], p["to"]) for p in floor["probes"]}
+        pinned = pinned_pairs(floor)
         routes = {}
         for rel, entries, _ in knowledge:
             route = sources["rules"][rel]
             try:
-                derived = rule_probes(floor, entries)
+                found = planned(floor, entries)
             except (ValueError, KeyError, TypeError, AttributeError) as e:
                 out.append(broken("%s|rules|%s" % (floor["id"], route), repr(e)[:300]))
-                routes.setdefault(route, set()).update(pinned)  # the pinned pairs still run
+                routes.setdefault(route, {}).update(pinned)  # the pinned pairs still run
                 continue
-            if derived is not None:
-                routes.setdefault(route, set()).update(pinned | derived)
+            if found is not None:
+                routes.setdefault(route, {}).update(found)
         if not routes:
             out.append(broken(floor["id"] + "|rules", "no rule of project %s names component %s"
                               % (floor["project"], floor["component"])))
@@ -549,16 +695,16 @@ def cases(src, floors_path=FLOORS, runner=run_probe):
             key = "floor|%s|%s->%s" % (floor["id"], source, target)
             if len(routes) > 1:
                 key += "|" + route
-            data = document(floor, source, target)
+            data = document(dict(floor, safeFacts=routes[route][(source, target)]), source, target)
             try:
                 code, stdout, cmd = runner(route, floor["project"], data, "%s-%d" % (floor["id"], i))
             except OSError as e:
                 out.append(qalib.case("rules", key, error=True, why="probe did not run: %r" % e))
                 continue
             wrong, why = (judge if route == CNCF else judge_batch)(code, stdout, floor["project"])
-            detail = {"project": floor["project"], "route": route, "exit": code, "minimumSource": floor["minimumSource"]}
+            detail = dict(limit(floor), project=floor["project"], route=route, exit=code)
             if wrong or why:
-                detail.update(why=why or "a source below the upstream floor passes", citations=floor["citations"],
+                detail.update(why=why or "an upgrade upstream does not allow passes", citations=floor["citations"],
                               input=json.dumps(data), command="prufyx " + " ".join(cmd[1:]))
             out.append(qalib.case("rules", key, wrongpass=wrong, mismatch=wrong, error=bool(why), **detail))
     return out

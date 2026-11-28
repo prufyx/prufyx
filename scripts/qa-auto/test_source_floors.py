@@ -12,10 +12,15 @@ CEPH_SEEDS = {("ceph", v, "20.2.4") for v in ("15.2.17", "16.2.15", "17.2.9")}
 SEEDS = {("etcd", "3.5.17", "3.6.0"), ("etcd", "3.5.25", "3.6.0"), ("harbor", "2.10.3", "2.15.2"),
          ("harbor", "2.11.2", "2.15.2"), ("cilium", "1.18.6", "1.19.0"), ("cilium", "1.18.13", "1.19.7"),
          ("contour", "1.19.0", "1.20.0")} | CEPH_SEEDS
+ORDER_SEEDS = {("ceph", "17.2.7", "18.2.0"), ("mariadb-operator", "0.38.1", "25.0.0"),
+               ("mariadb-operator", "25.8.4", "25.10.4")}
+SEEDS |= ORDER_SEEDS
 FLOORS = {"etcd-3.6": "3.5.26", "harbor-2.15": "2.12.0", "cilium-1.19": "1.18.14", "contour-1.20": "1.19.1",
-          "ceph-20.2": "18.2.0"}
+          "ceph-20.2": "18.2.0", "ceph-release-order": "release-order", "mariadb-operator-no-skip": "no-skip"}
+MDB = "pkg:github/mariadb-operator/mariadb-operator"
+CEPH = "pkg:github/ceph/ceph"
 OTHER = {"project": "other", "rule": {"id": "o", "subject": {"component": "pkg:github/x/y", "from": "1.0.0", "to": "1.1.0"}}}
-COMMUNITY_FLOORS = {"ceph-20.2"}  # floors whose rules live in the community pack
+COMMUNITY_FLOORS = {"ceph-20.2", "ceph-release-order", "mariadb-operator-no-skip"}  # rules in the community pack
 
 
 def real():
@@ -151,15 +156,18 @@ class Cases(unittest.TestCase):
     def test_seeded_pairs_are_probed_with_safe_facts(self):
         out = self.run_cases()
         self.assertEqual({p for p, _ in self.seen}, SEEDS)
-        for _, doc in self.seen:
-            facts = [f["boolValue"] for side in ("current", "proposed") for f in doc[side]["components"][0]["facts"]]
-            self.assertEqual(facts, [False])
+        for pair, doc in self.seen:
+            facts = {f["id"]: f["boolValue"] for side in ("current", "proposed") for f in doc[side]["components"][0]["facts"]}
+            complete = facts.pop("component.mariadb_operator.resource_complete", None)
+            self.assertEqual(complete, True if pair[0] == "mariadb-operator" else None, pair)
+            self.assertEqual(set(facts.values()), {False}, pair)
+            self.assertEqual(len(facts), 8 if pair == ("mariadb-operator", "25.8.4", "25.10.4") else 1, pair)
         self.assertFalse(any(c["wrongpass"] or c["error"] or c["mismatch"] for c in out))
 
     def test_each_floor_is_probed_on_the_route_of_its_pack(self):
         self.run_cases()
         self.assertEqual(self.routes, {("cncf", p) for p in ("etcd", "harbor", "cilium", "contour")}
-                         | {("community_project", "ceph")})
+                         | {("community_project", "ceph"), ("community_project", "mariadb-operator")})
 
     def test_a_component_in_both_packs_is_probed_on_both_routes(self):
         out = self.run_cases(project_entries=withdrawn(True) + withdrawn(False)[:1])
@@ -271,7 +279,7 @@ class Cases(unittest.TestCase):
 
     def test_shipped_floors(self):
         floors = sf.load(str(HERE / "source_floors.json"))
-        self.assertEqual({f["id"]: f["minimumSource"] for f in floors}, FLOORS)
+        self.assertEqual({f["id"]: f.get("minimumSource", f.get("kind")) for f in floors}, FLOORS)
         self.assertEqual({f["id"] for f in floors if f["basis"] == "derived"}, {"cilium-1.19"})
 
     def entry(self, source, target, rng=None):
@@ -333,12 +341,13 @@ class Static(unittest.TestCase):
         self.assertFalse(any(c["wrongpass"] or c["error"] or c["mismatch"] for c in out))
 
     def test_anchor_below_and_at_each_floor(self):
-        for f in real()["floors"]:
+        for f in (f for f in real()["floors"] if "kind" not in f):
             major, minor, patch = (int(x) for x in f["minimumSource"].split("."))
             below = "%d.%d.%d" % ((major, minor, patch - 1) if patch else (major, minor - 1, 99))
             target = f["targetLine"] + ".3"
             with self.subTest(f["id"]):
-                hit = self.flagged(rule(below, target, component=f["component"]))
+                hit = [c for c in self.flagged(rule(below, target, component=f["component"]))
+                       if c["key"].split("|")[2] == f["id"]]
                 self.assertEqual([c["key"] for c in hit], ["floor|static|%s|%s|n" % (f["id"], sf.RULES)])
                 self.assertTrue(hit[0]["mismatch"] and hit[0]["detail"]["citations"])
                 self.assertEqual(self.flagged(rule(f["minimumSource"], target, component=f["component"])), [])
@@ -440,6 +449,167 @@ class Static(unittest.TestCase):
                 out = [(c["key"], c["error"]) for c in run(damage)]
                 self.assertEqual(out[-1], ("floor|rules-unreadable", True))
                 self.assertTrue(all(error and key.startswith(("floor|source|", "floor|rules-")) for key, error in out))
+
+
+def entry_of(fid):
+    return next(f for f in sf.load(str(HERE / "source_floors.json")) if f["id"] == fid)
+
+
+def parsed(text):
+    return tuple(int(x) for x in text.split("."))
+
+
+class OrderPairs(unittest.TestCase):
+    """One exact pair against the two shipped release order entries."""
+
+    def check(self, fid, bad, good):
+        f = entry_of(fid)
+        for source, target in bad:
+            with self.subTest(bad=(source, target)):
+                self.assertTrue(sf.order_violation(f, parsed(source), parsed(target)))
+        for source, target in good:
+            with self.subTest(good=(source, target)):
+                self.assertIsNone(sf.order_violation(f, parsed(source), parsed(target)))
+
+    def test_no_skip(self):
+        self.check("mariadb-operator-no-skip", bad=[
+            ("0.38.1", "25.0.0"), ("25.8.4", "25.10.4"), ("25.10.0", "25.10.4"), ("0.34.0", "0.35.1"),
+            ("0.38.1", "25.8.1"), ("25.8.4", "26.3.0"), ("0.38.1", "26.6.0"), ("0.33.0", "0.34.0"),
+            ("25.10.4", "25.10.5"), ("25.8.5", "26.3.0"), ("25.10.4", "25.10.4"), ("26.6.0", "26.3.0"),
+            ("25.8.4", "25.8.3")], good=[
+            ("0.38.1", "25.8.0"), ("25.8.4", "25.10.0"), ("25.10.3", "25.10.4"), ("25.10.4", "26.3.0"),
+            ("26.3.0", "26.6.0"), ("26.3.0", "26.10.2"), ("0.34.0", "0.35.0")])
+
+    def test_release_order(self):
+        self.check("ceph-release-order", bad=[
+            ("17.2.7", "18.2.0"), ("17.2.8", "18.2.2"), ("16.2.15", "17.2.6"), ("19.2.7", "20.2.4"),
+            ("19.2.6", "20.2.3"), ("14.2.22", "15.2.0"), ("18.2.3", "19.2.0"), ("19.2.6", "20.2.6"),
+            ("18.2.8", "18.2.8"), ("20.2.4", "19.2.7")], good=[
+            ("17.2.6", "18.2.0"), ("18.2.8", "20.2.4"), ("19.2.6", "20.2.4"), ("17.2.7", "18.2.1"),
+            ("19.2.7", "20.2.5")])
+
+
+def mdb(source="25.8.4", target="25.10.4", **kw):
+    return rule(source, target, component=MDB, **kw)
+
+
+class OrderStatic(unittest.TestCase):
+    """The static scan for release order entries."""
+
+    scan, flagged = Static.scan, Static.flagged
+
+    def ids(self, *entries, **kw):
+        return [c["key"].split("|")[2] for c in self.flagged(*entries, **kw)]
+
+    def test_anchor(self):
+        self.assertEqual(self.ids(mdb()), ["mariadb-operator-no-skip"])
+        self.assertEqual(self.ids(mdb("0.38.1", "25.0.0")), ["mariadb-operator-no-skip"])
+        self.assertEqual(self.ids(rule("17.2.7", "18.2.0", component=CEPH)), ["ceph-release-order"])
+        self.assertEqual(self.ids(mdb("25.8.4", "25.10.0"), mdb("26.3.0", "26.6.0", rid="m"),
+                                  rule("18.2.8", "20.2.4", component=CEPH, rid="c")), [])
+        hit = self.flagged(mdb())[0]
+        self.assertTrue(hit["mismatch"] and hit["detail"]["citations"] and hit["detail"]["kind"] == "no-skip")
+
+    def test_state_and_operator(self):
+        self.assertEqual(self.ids(mdb(state="withdrawn")), [])
+        for operator in sorted(sf.NEVER_PASS):
+            self.assertEqual(self.ids(mdb(operator=operator)), [], operator)
+        for state in ("active", "stale", "Withdrawn", None):
+            self.assertEqual(len(self.ids(mdb(state=state))), 1, state)
+        for operator in ("require_component_version", "something_new", None):
+            self.assertEqual(len(self.ids(mdb(operator=operator))), 1, operator)
+
+    def test_ranges_and_crossings_cannot_be_compared(self):
+        wide = mdb("25.10.3", "25.10.4", rng=("25.10.3", "25.10.4", "25.10.4", "25.10.5"))
+        self.assertEqual(self.ids(wide), ["mariadb-operator-no-skip"])
+        later = mdb("26.3.0", "26.6.0", rng=("26.3.0", "26.4.0", "26.6.0", "26.7.0"))
+        self.assertEqual(self.ids(later), [])
+        crossing = {"change": {"version": "26.6.0"}, "horizon": {"lt": "26.7.0"}}
+        self.assertEqual(self.ids(mdb("26.3.0", "26.6.0", crossing=crossing)), ["mariadb-operator-no-skip"])
+        ceph = rule("19.2.6", "20.2.4", component=CEPH, rng=("19.2.6", "19.2.7", "20.2.4", "20.2.5"))
+        self.assertEqual(self.ids(ceph), ["ceph-release-order"])
+
+    def test_attestations(self):
+        def att(component, *sources):
+            return {"component": component, "line": "26.6", "releases": {"from": [{"version": v} for v in sources]}}
+        hit = self.flagged(attested=[att(MDB, "26.3.0", "25.10.4")])
+        self.assertEqual([c["detail"]["sources"] for c in hit], [["25.10.4"]])
+        self.assertEqual(self.flagged(attested=[att(MDB, "26.3.0")]), [])
+        self.assertEqual(self.ids(attested=[att(CEPH, "19.2.6")]), ["ceph-release-order"])
+        for bad in (att(MDB), att(MDB, "25.10"), att(CEPH), {"component": CEPH, "line": "20.2"}):
+            with self.subTest(bad):
+                self.assertTrue([c for c in self.scan(attested=[bad]) if c["error"]])
+
+    def test_unreadable_rule_is_an_error(self):
+        for entry in (mdb("25.8"), mdb(ranges=[]), mdb(rid="")):
+            out = self.scan([entry])
+            self.assertTrue([c for c in out if c["error"]])
+            self.assertNotIn("floor|static|mariadb-operator-no-skip", [c["key"] for c in out])
+
+
+class OrderList(unittest.TestCase):
+    def load(self, change):
+        data = real()
+        change({f["id"]: f for f in data["floors"]})
+        with tempfile.TemporaryDirectory() as d:
+            path = pathlib.Path(d) / "floors.json"
+            path.write_text(json.dumps(data))
+            return sf.load(str(path))
+
+    def test_shipped_list_loads(self):
+        self.assertEqual(len(self.load(lambda f: None)), len(FLOORS))
+
+    def test_bad_entries(self):
+        m = lambda f: f["mariadb-operator-no-skip"]
+        c = lambda f: f["ceph-release-order"]
+        good = {"from": "25.8.4", "to": "25.10.0", "safeFacts": [{"side": "proposed", "id": "x", "boolValue": False}]}
+        bad = [
+            lambda f: m(f).update(kind="skip"), lambda f: m(f).update(kind=None), lambda f: m(f).update(kind=[]),
+            lambda f: m(f).pop("blockedBelow"), lambda f: m(f).update(minimumSource="1.0.0"),
+            lambda f: c(f).update(blockedBelow="26.0.0"), lambda f: m(f).update(blockedBelow="26"),
+            lambda f: m(f).update(blockedBelow="25.10.4"), lambda f: m(f).update(releases=[]),
+            lambda f: m(f).update(releases=["25.8.4"]), lambda f: m(f)["releases"].reverse(),
+            lambda f: m(f)["releases"].append("25.10.4"), lambda f: m(f)["releases"].append("25.10"),
+            lambda f: m(f).update(releases={}), lambda f: c(f).update(releases=[]), lambda f: c(f).update(releases={}),
+            lambda f: c(f)["releases"].update({"20.2": "2026-01-01"}),
+            lambda f: c(f)["releases"].update({"18.2.0": "2023-8-7"}),
+            lambda f: c(f)["releases"].update({"18.2.0": "2023-13-07"}),
+            lambda f: c(f)["releases"].update({"18.2.0": None}), lambda f: m(f).update(probes=[]),
+            lambda f: m(f)["probes"].append(good), lambda f: m(f)["probes"].append(copy.deepcopy(m(f)["probes"][0])),
+            lambda f: m(f)["probes"][0].pop("safeFacts"), lambda f: m(f)["probes"][0].update(safeFacts=[]),
+            lambda f: m(f)["probes"][0]["safeFacts"][0].update(boolValue=0), lambda f: m(f).update(citations=[]),
+            lambda f: m(f).update(note=""), lambda f: m(f).update(basis="guess"), lambda f: m(f).update(id="etcd-3.6"),
+            lambda f: m(f).update(component="mariadb-operator"), lambda f: m(f).pop("releases"),
+        ]
+        for i, change in enumerate(bad):
+            with self.subTest(i):
+                self.assertRaises((ValueError, KeyError, TypeError), self.load, change)
+
+
+class OrderCases(unittest.TestCase):
+    def run_cases(self, code):
+        with tempfile.TemporaryDirectory() as d:
+            write_knowledge(d, rules())
+
+            def runner(route, project, doc, name):
+                body = report(project=project)
+                return code, body if route == sf.CNCF else batch(body, project), ["prufyx", "check"]
+            with mock.patch.object(qalib, "NOW", "2026-11-29T00:00:00Z"):
+                return sf.cases(d, str(HERE / "source_floors.json"), runner)
+
+    def test_each_order_probe_that_passes_is_a_wrong_pass(self):
+        keys = {c["key"] for c in self.run_cases(0) if c["wrongpass"]}
+        for key in ("floor|ceph-release-order|17.2.7->18.2.0", "floor|mariadb-operator-no-skip|0.38.1->25.0.0",
+                    "floor|mariadb-operator-no-skip|25.8.4->25.10.4"):
+            self.assertIn(key, keys)
+
+    def test_a_component_the_rules_do_not_name_is_an_error(self):
+        with tempfile.TemporaryDirectory() as d:
+            write_knowledge(d, rules(), project_entries=[OTHER])
+            with mock.patch.object(qalib, "NOW", "2026-11-29T00:00:00Z"):
+                out = sf.cases(d, str(HERE / "source_floors.json"), lambda *_: (2, "", ["prufyx"]))
+        errors = {c["key"] for c in out if c["error"]}
+        self.assertTrue({"floor|ceph-release-order|rules", "floor|mariadb-operator-no-skip|rules"} <= errors)
 
 
 class Sources(unittest.TestCase):
@@ -612,7 +782,7 @@ class RunProbe(unittest.TestCase):
         done = subprocess.CompletedProcess([], 11, "out", "")
         with tempfile.TemporaryDirectory() as d, mock.patch.object(qalib, "TMP", d), mock.patch.object(
                 qalib, "NOW", "2026-11-29T00:00:00Z"), mock.patch.object(subprocess, "run", return_value=done):
-            floor = real()["floors"][-1]
+            floor = next(f for f in real()["floors"] if f["id"] == "ceph-20.2")
             code, out, cmd = sf.run_probe(route, "ceph", sf.document(floor, "15.2.17", "20.2.4"), "n-0")
             self.assertEqual((code, out), (11, "out"))
             plan = json.loads(pathlib.Path(cmd[cmd.index("--plan") + 1]).read_text()) if "--plan" in cmd else None
@@ -638,7 +808,7 @@ if batch:
 else:
     project, path = a[a.index("--project") + 1], a[a.index("--input") + 1]
 doc = json.load(open(path))
-if any(f.get("boolValue") for c in doc["proposed"]["components"] for f in c["facts"]):
+if any(f["id"] == "f" and f.get("boolValue") for c in doc["proposed"]["components"] for f in c["facts"]):
     sys.exit(10)
 if STATUS == "PASS":
     sys.exit(0)
