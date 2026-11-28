@@ -54,7 +54,7 @@ component that has no reviewed row, or that is also a custom-resource member,
 counts nothing. The changelog row of the README block counts these pairs and
 gives a typed reason for every other pair of a member project.
 
-L figures and the README coverage block are repository knowledge: they come from the records in the repository, and a client receives those records only from the floor release (`cncfcheck.ListedFamilyFloor`) on; see [knowledge-publisher.md](knowledge-publisher.md#oldest-supported-client-gate).
+L figures and the README coverage block are repository knowledge: they come from the records in the repository, and a knowledge package delivers those records only to clients from the floor release (`cncfcheck.ListedFamilyFloor`) on (a release that holds the family also has the records of its own commit built in); see [knowledge-publisher.md](knowledge-publisher.md#oldest-supported-client-gate).
 
 Projects whose release lines are not the `major.minor` of the engine version
 (today `cloud-custodian`, whose releases `0.9.N` form line `9.N`) are measured
