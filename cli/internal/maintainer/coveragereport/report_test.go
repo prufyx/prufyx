@@ -170,9 +170,10 @@ func TestEmbeddedPackBaseline(t *testing.T) {
 		// Reviewed rules now carry a line-wide range that decides a pair of
 		// this window: S to B. Four batches of line-wide ranges (one, eight,
 		// eleven and nine rules). The withdrawn etcd 3.5.17 to 3.6.0 rule
-		// leaves the etcd 3.5 to 3.6 pair at G, and the KubeVirt range, which
-		// starts at 1.8.4, no longer covers the whole 1.8 line: its pair is S.
-		now, want = supersedeids.Clock(), fleetFigures{Projects: 55, Pairs: 275, A: 5, B: 22, S: 23, G: 225, C1: 53, C3: 1}
+		// leaves the etcd 3.5 to 3.6 pair at G. The KubeVirt range, which
+		// starts at 1.8.4, and the etcd 3.7 range, which starts at 3.6.14, do
+		// not cover their whole from line: those two pairs are S.
+		now, want = supersedeids.Clock(), fleetFigures{Projects: 55, Pairs: 275, A: 5, B: 21, S: 24, G: 225, C1: 53, C3: 1}
 	} else if head.Revision != baseline {
 		// Only the reviewed generation is tied to the baseline revision: a
 		// bumped revision means a new baseline, which this file records.

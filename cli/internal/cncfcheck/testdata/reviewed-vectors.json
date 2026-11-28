@@ -13927,7 +13927,7 @@
               {
                 "component": "pkg:github/etcd-io/etcd",
                 "facts": [],
-                "version": "3.5.99"
+                "version": "3.6.13"
               }
             ]
           },
@@ -13949,6 +13949,102 @@
           "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
         },
         "name": "range-from-lower-boundary-outside-unknown",
+        "status": "UNKNOWN"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/etcd-io/etcd",
+                "facts": [],
+                "version": "3.6.13"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/etcd-io/etcd",
+                "facts": [
+                  {
+                    "boolValue": false,
+                    "id": "component.etcd.experimental_flags_present",
+                    "state": "declared"
+                  }
+                ],
+                "version": "3.7.1"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "below-floor-3-6-13-flags-absent-unknown",
+        "status": "UNKNOWN"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/etcd-io/etcd",
+                "facts": [],
+                "version": "3.6.10"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/etcd-io/etcd",
+                "facts": [
+                  {
+                    "boolValue": false,
+                    "id": "component.etcd.experimental_flags_present",
+                    "state": "declared"
+                  }
+                ],
+                "version": "3.7.1"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "below-floor-3-6-10-flags-absent-unknown",
+        "status": "UNKNOWN"
+      },
+      {
+        "input": {
+          "authority": "OPERATOR_DECLARED_MINIMIZED",
+          "current": {
+            "components": [
+              {
+                "component": "pkg:github/etcd-io/etcd",
+                "facts": [],
+                "version": "3.6.0"
+              }
+            ]
+          },
+          "proposed": {
+            "components": [
+              {
+                "component": "pkg:github/etcd-io/etcd",
+                "facts": [
+                  {
+                    "boolValue": false,
+                    "id": "component.etcd.experimental_flags_present",
+                    "state": "declared"
+                  }
+                ],
+                "version": "3.7.4"
+              }
+            ]
+          },
+          "schema": "prufyx.io/operator-declared-constraint-input/v1alpha1"
+        },
+        "name": "below-floor-3-6-0-flags-absent-unknown",
         "status": "UNKNOWN"
       }
     ],
