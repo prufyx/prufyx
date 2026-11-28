@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"slices"
 	"sync"
 
 	"github.com/prufyx/prufyx/cli/internal/constraintengine"
@@ -156,17 +157,12 @@ func reviewedRow(t ce.Target) bool {
 	return false
 }
 
+// sameTarget compares every field of two rows; nil and empty lists are equal.
 func sameTarget(a, b ce.Target) bool {
-	if a.Component != b.Component || a.Repo != b.Repo || a.Form != b.Form || a.Path != b.Path ||
-		a.HeadingPattern != b.HeadingPattern || a.MaxBytes != b.MaxBytes || len(a.BoundaryPatterns) != len(b.BoundaryPatterns) {
-		return false
-	}
-	for i := range a.BoundaryPatterns {
-		if a.BoundaryPatterns[i] != b.BoundaryPatterns[i] {
-			return false
-		}
-	}
-	return true
+	return a.Component == b.Component && a.Repo == b.Repo && a.Form == b.Form && a.Path == b.Path &&
+		a.HeadingPattern == b.HeadingPattern && slices.Equal(a.BoundaryPatterns, b.BoundaryPatterns) &&
+		slices.Equal(a.InnerPatterns, b.InnerPatterns) && a.MaxBytes == b.MaxBytes &&
+		a.MinLocatedNewest == b.MinLocatedNewest && a.Floor == b.Floor
 }
 
 // Listed attests, for the component of one reviewed row, the listed-entries
