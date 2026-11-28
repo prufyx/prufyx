@@ -11,6 +11,7 @@ import (
 
 	"github.com/prufyx/prufyx/cli/internal/cncfcheck"
 	"github.com/prufyx/prufyx/cli/internal/extract/supersedeids"
+	"github.com/prufyx/prufyx/cli/internal/knowledgeage"
 	"github.com/prufyx/prufyx/cli/internal/scanreport"
 )
 
@@ -20,6 +21,10 @@ var ageClocks = func() []struct{ name, now string } {
 	before, inside, after := ageInstants()
 	return []struct{ name, now string }{{"before", before}, {"inside", inside}, {"after", after}}
 }()
+
+// otherProject is the project whose rules have ended in afterKnowledge. The
+// scan below has no input for it.
+const otherProject = "etcd"
 
 // syntheticEmbedded presents a snapshot over synthetic leases the way the
 // embedded knowledge presents itself (origin, revision, pack digest and
@@ -115,13 +120,140 @@ func reviewedByPack(t *testing.T, at time.Time) ([]byte, int) {
 	return out, changed
 }
 
-// ageKnowledge is the knowledge scanned at a clock of ageClocks: the embedded
-// knowledge (nil) when every Kubernetes record is reviewed by then. A renewal
-// moves the reviews past the earlier clocks, which follow the earliest end of
-// all rules; there the Kubernetes target of reviewedByPack is read, as a
-// database's target is.
-func ageKnowledge(t *testing.T, now string) Knowledge {
+// afterPack is the embedded pack with leases set relative to the instant
+// after: every Kubernetes record (rules, line reviews, served-API lists,
+// upgrade-path policy) is current at it, and every rule of otherProject ended
+// two days before it. Nothing depends on the wall clock or on which shipped
+// lease ends first.
+func afterPack(t *testing.T, after time.Time) []byte {
 	t.Helper()
+	var pack map[string]any
+	decoder := json.NewDecoder(bytes.NewReader(embeddedPack(t)))
+	decoder.UseNumber()
+	if err := decoder.Decode(&pack); err != nil {
+		t.Fatal(err)
+	}
+	var lease func(node any, reviewed, until time.Time)
+	lease = func(node any, reviewed, until time.Time) {
+		switch v := node.(type) {
+		case map[string]any:
+			if _, ok := v["validUntil"].(string); ok {
+				v["reviewedAt"], v["validUntil"] = reviewed.Format(time.RFC3339), until.Format(time.RFC3339)
+				// A mechanical record is reviewed when it is derived.
+				if _, ok := v["derivedAt"]; ok {
+					v["derivedAt"] = v["reviewedAt"]
+				}
+			}
+			for _, child := range v {
+				lease(child, reviewed, until)
+			}
+		case []any:
+			for _, child := range v {
+				lease(child, reviewed, until)
+			}
+		}
+	}
+	current := func(node any) { lease(node, after.AddDate(0, 0, -9), after.AddDate(0, 0, 60)) }
+	components := map[string]bool{}
+	for _, item := range pack["entries"].([]any) {
+		entry := item.(map[string]any)
+		switch entry["project"] {
+		case kubernetesSlug:
+			current(entry["rule"])
+			components[entry["rule"].(map[string]any)["subject"].(map[string]any)["component"].(string)] = true
+		case otherProject:
+			lease(entry["rule"], after.AddDate(0, 0, -60), after.AddDate(0, 0, -2))
+		}
+	}
+	for _, section := range []string{"lineAttestations", "servedAPIs", "pathPolicies"} {
+		renewed := 0
+		items, _ := pack[section].([]any)
+		for _, item := range items {
+			if components[item.(map[string]any)["component"].(string)] {
+				current(item)
+				renewed++
+			}
+		}
+		if renewed == 0 {
+			t.Fatalf("no Kubernetes record in %s", section)
+		}
+	}
+	out, err := json.Marshal(pack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+// afterKnowledge is the knowledge of the "after" scan: the Kubernetes and
+// otherProject targets of afterPack, read as a database's targets are.
+func afterKnowledge(t *testing.T) Knowledge {
+	t.Helper()
+	_, _, after := supersedeids.AgeClocks()
+	_, targets, err := cncfcheck.BuildExternalTargetsFromPack(afterPack(t, after), "1")
+	if err != nil {
+		t.Fatalf("targets: %v", err)
+	}
+	bundles := map[string]cncfcheck.ExternalBundle{}
+	digests := map[string]string{}
+	for _, target := range targets {
+		project, _ := cncfcheck.ProjectFromTargetPath(target.Path)
+		if project != kubernetesSlug && project != otherProject {
+			continue
+		}
+		external, err := cncfcheck.ParseExternalBundle(target.Bytes)
+		if err != nil {
+			t.Fatalf("%s: %v", project, err)
+		}
+		bundles[project], digests[project] = external, external.BundleDigest()
+	}
+	if len(bundles) != 2 {
+		t.Fatalf("targets of %d projects, want 2", len(bundles))
+	}
+	snapshot, err := cncfcheck.NewStoreScanKnowledge(bundles)
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+	return syntheticEmbedded{Embedded: Embedded{snapshot}, real: LoadEmbeddedForTest(t).(Embedded), digests: digests}
+}
+
+// expiredRules counts the knowledge's active rules (nil: the embedded
+// knowledge) that have ended at now.
+func expiredRules(t *testing.T, knowledge Knowledge, now string) int {
+	t.Helper()
+	at, err := time.Parse(time.RFC3339, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if knowledge == nil {
+		knowledge = LoadEmbeddedForTest(t)
+	}
+	aged, ok := knowledge.(interface{ KnowledgeAge() []knowledgeage.Source })
+	if !ok {
+		t.Fatal("knowledge cannot tell its age")
+	}
+	n := 0
+	for _, source := range aged.KnowledgeAge() {
+		for _, end := range source.Expiries {
+			if !end.After(at) {
+				n++
+			}
+		}
+	}
+	return n
+}
+
+// ageKnowledge is the knowledge scanned at the clock of ageClocks with the
+// given name and instant. "after" reads afterKnowledge, where a rule has really
+// ended. Before and inside the window it is the embedded knowledge (nil) when
+// every Kubernetes record is reviewed by then. A renewal moves the reviews past
+// the earlier clocks, which follow the earliest end of all rules; there the
+// Kubernetes target of reviewedByPack is read, as a database's target is.
+func ageKnowledge(t *testing.T, name, now string) Knowledge {
+	t.Helper()
+	if name == "after" {
+		return afterKnowledge(t)
+	}
 	at, err := time.Parse(time.RFC3339, now)
 	if err != nil {
 		t.Fatal(err)
@@ -189,10 +321,23 @@ func TestScanOutputUnchangedNearExpiry(t *testing.T) {
 	extensions := map[string]string{"human": "txt", "json": "json", "sarif": "sarif", "markdown": "md", "csv": "csv"}
 	inDir(t, dir, func() {
 		for _, clock := range ageClocks {
-			knowledge := ageKnowledge(t, clock.now)
+			knowledge := ageKnowledge(t, clock.name, clock.now)
 			result := scanAt(t, knowledge, clock.now)
 			if result.Exit != scanreport.ExitBlocked && result.Exit != scanreport.ExitUnknown {
 				t.Fatalf("%s: exit %d", clock.name, result.Exit)
+			}
+			// "after" is really after an expiry: at least one rule has ended
+			// and the note says so; no rule has ended at the other instants,
+			// neither in the scanned knowledge nor in the whole embedded one.
+			expired := expiredRules(t, knowledge, clock.now)
+			said := strings.Contains(result.KnowledgeAge, "expired")
+			if after := clock.name == "after"; (expired >= 1) != after || said != after {
+				t.Fatalf("%s: %d expired rules, note %q", clock.name, expired, result.KnowledgeAge)
+			}
+			if clock.name != "after" {
+				if ended := expiredRules(t, nil, clock.now); ended != 0 {
+					t.Fatalf("%s: %d expired embedded rules", clock.name, ended)
+				}
 			}
 			if knowledge != nil {
 				useShippedRuleDigests(t, result.Report, scanAt(t, nil, supersedeids.ClockString()).Report)

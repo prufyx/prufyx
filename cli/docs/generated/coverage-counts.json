@@ -7,7 +7,7 @@
     "pack": {
       "revision": "cncf-2026-09-13.8",
       "schema": "prufyx.io/cncf-source-rule-pack/v1alpha11",
-      "digest": "sha256:4db4fae9d5ef42fe281d1405a126b30a57bc2c2effc3cb8b76ae9e254aae8571"
+      "digest": "sha256:80d8d8c2bafe8619f898520994bdea6614b83871ba3c8d87568269b13173a966"
     },
     "lines": {
       "capturedOn": "2026-10-31",

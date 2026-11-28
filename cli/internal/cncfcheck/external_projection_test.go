@@ -217,6 +217,11 @@ func TestProjectExportPreservesCompleteSourceProjection(t *testing.T) {
 						if document.Projects[j].TargetPath == target.Path {
 							e := &document.Projects[j]
 							e.Digest, e.Length, e.RuleDigest = digest(mutated[i].Bytes), int64(len(mutated[i].Bytes)), admission.RuleDigest
+							// A seed that drops the target's only earliest-lease rule also moves
+							// the target's evidence expiry; the seeded index records the
+							// recomputed value, as a generator that recomputes every derived
+							// field would, so only the content comparison can reject it.
+							e.EvidenceExpiresAt = admission.EvidenceExpiresAt
 						}
 					}
 					mutatedIndex.Bytes, _ = json.Marshal(document)

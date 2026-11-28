@@ -4,6 +4,7 @@ package cncfprepare
 
 import (
 	"net/url"
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -212,10 +213,22 @@ func safeArgoIdentity(value string) bool {
 	})
 }
 
+// argoOCIRepositoryShape is the repository form on which Argo CD v3.5.2 and
+// v3.5.8 agree that a protocol-free reference is a Helm OCI repository
+// (util/helm/client.go IsHelmOciRepo): a DNS name that starts with a letter,
+// an optional decimal port, and an optional path of plain segment characters.
+// IP address literals with a port, names that start with a digit, userinfo,
+// underscores and other forms are recognised differently by the two releases
+// and stay UNKNOWN.
+var argoOCIRepositoryShape = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]*(\.[A-Za-z0-9][A-Za-z0-9-]*)*(:[0-9]{1,5})?(/[A-Za-z0-9._~-]+)*$`)
+
 func safeArgoOCIRepository(value string) bool {
 	if value == "" || len(value) > 2048 || strings.Contains(value, "://") || strings.HasPrefix(value, "/") || strings.HasSuffix(value, "/") || strings.ContainsFunc(value, func(r rune) bool {
 		return unicode.IsSpace(r) || unicode.IsControl(r)
 	}) {
+		return false
+	}
+	if !argoOCIRepositoryShape.MatchString(value) {
 		return false
 	}
 	parsed, err := url.Parse("//" + value)
