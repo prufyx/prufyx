@@ -531,7 +531,7 @@ func TestSupportInventory_CephUsesSelectedCurrentMetadata(t *testing.T) {
 		if project.ProjectID != "ceph" {
 			continue
 		}
-		if len(project.Capabilities) != 1 || len(project.Capabilities[0].Rules) != 6 || project.Capabilities[0].LocalPreparer.MetadataState != "implemented_native_selected_current_osd_metadata_minimizer" || !slices.Contains(project.Capabilities[0].LocalPreparer.Command, "prepare") || !strings.Contains(project.Capabilities[0].Rules[0].Limit, "current-backend") || !strings.Contains(project.Capabilities[0].LocalPreparer.Limit, "selected current OSD") {
+		if len(project.Capabilities) != 1 || len(project.Capabilities[0].Rules) != 3 || project.Capabilities[0].LocalPreparer.MetadataState != "implemented_native_selected_current_osd_metadata_minimizer" || !slices.Contains(project.Capabilities[0].LocalPreparer.Command, "prepare") || !strings.Contains(project.Capabilities[0].Rules[0].Limit, "current-backend") || !strings.Contains(project.Capabilities[0].LocalPreparer.Limit, "selected current OSD") {
 			t.Fatalf("incorrect Ceph inventory metadata: %#v", project.Capabilities)
 		}
 		return
@@ -587,15 +587,26 @@ func TestSupportInventory_WithdrawnRuleIsExcludedButListed(t *testing.T) {
 	if document.Counts.CNCFSourceRulesWithdrawn != len(wantWithdrawn) {
 		t.Fatalf("expected %d withdrawn CNCF rules, got %d", len(wantWithdrawn), document.Counts.CNCFSourceRulesWithdrawn)
 	}
-	if len(document.WithdrawnRules) != len(wantWithdrawn) {
+	// The community-project pack lists its own withdrawn rules under their own
+	// family; they are not part of the CNCF withdrawn count above.
+	community := map[string]string{
+		"ceph.selected-osd-filestore.15-2-17-to-20-2-4": "ceph",
+		"ceph.selected-osd-filestore.16-2-15-to-20-2-4": "ceph",
+		"ceph.selected-osd-filestore.17-2-9-to-20-2-4":  "ceph",
+	}
+	if len(document.WithdrawnRules) != len(wantWithdrawn)+len(community) {
 		t.Fatalf("unexpected withdrawnRules entries: %#v", document.WithdrawnRules)
 	}
 	for _, rule := range document.WithdrawnRules {
-		project, ok := wantWithdrawn[rule.RuleID]
-		if !ok || rule.Project != project || rule.Family != "cncf_embedded_source_rule" || rule.ReasonCode != "RULE_EVIDENCE_WITHDRAWN" {
+		family, listed := "cncf_embedded_source_rule", wantWithdrawn
+		if _, ok := community[rule.RuleID]; ok {
+			family, listed = "community_project_source_rule", community
+		}
+		project, ok := listed[rule.RuleID]
+		if !ok || rule.Project != project || rule.Family != family || rule.ReasonCode != "RULE_EVIDENCE_WITHDRAWN" {
 			t.Fatalf("unexpected withdrawnRules entry: %#v", rule)
 		}
-		delete(wantWithdrawn, rule.RuleID)
+		delete(listed, rule.RuleID)
 		if !strings.Contains(markdown, rule.RuleID) {
 			t.Fatalf("markdown does not list the withdrawn rule %s", rule.RuleID)
 		}
