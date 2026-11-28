@@ -134,6 +134,13 @@ func TestDeclaredRealRoutesReferenceLinkageAndReplay(t *testing.T) {
 		for _, c := range report.Check.Claims {
 			if (i == 1 && c.RuleID == "kubernetes.served-api-removal.batch-v1beta1.1-24-0-to-1-25-0") || (i == 2 && c.RuleID == "cilium.nonempty-requires-rejected.1-19") {
 				found = true
+				if i == 2 {
+					// The Cilium rule is withdrawn: it decides nothing.
+					if c.Status != "UNKNOWN" || c.ReasonCode != "RULE_EVIDENCE_WITHDRAWN" {
+						t.Fatalf("withdrawn claim %+v", c)
+					}
+					continue
+				}
 				if c.Status != "PASS" || len(c.Sources) == 0 {
 					t.Fatalf("named claim %+v", c)
 				}
@@ -192,6 +199,14 @@ func TestDeclaredOldInputsPreserveNamedBlockers(t *testing.T) {
 			s.BeforeDigest = declaredHash(b)
 			req.Stages = []declaredStage{s}
 			r, _ := evaluateDeclaredFixture(t, req, dir)
+			if stage == 2 {
+				// The Cilium rule is withdrawn: its former blocker stays
+				// UNKNOWN and never turns into a pass.
+				if r.Status != "UNKNOWN" || r.Stages[0].Status != "UNKNOWN" || !strings.Contains(string(r.Stages[0].Report), "RULE_EVIDENCE_WITHDRAWN") || strings.Contains(string(r.Stages[0].Report), `"status":"PASS"`) {
+					t.Fatalf("withdrawn rule decided %s", r.Stages[0].Report)
+				}
+				return
+			}
 			if r.Status != "BLOCKED" || r.Stages[0].Status != "BLOCKED" {
 				t.Fatalf("lost blocker %s", r.Stages[0].Report)
 			}

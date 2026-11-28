@@ -59,8 +59,9 @@ func TestPrepareCiliumScansBothPolicyKindsAndRuleContainers(t *testing.T) {
 			if fact["state"] != "declared" || fact["boolValue"] != true {
 				t.Fatalf("fact=%v", fact)
 			}
+			// The rule for this pair is withdrawn: even a witness decides nothing.
 			report, err := cncfcheck.Check("cilium", prepared.CanonicalInputJSON, testclock.Floor(time.Date(2026, 9, 9, 0, 0, 0, 0, time.UTC)))
-			if err != nil || report.Check.Claims[0].Status != "BLOCKED" || report.Assessment != "UNKNOWN" {
+			if err != nil || report.Check.Claims[0].Status != "UNKNOWN" || report.Check.Claims[0].ReasonCode != "RULE_EVIDENCE_WITHDRAWN" || report.Assessment != "UNKNOWN" {
 				t.Fatalf("report=%+v err=%v", report, err)
 			}
 		})
@@ -76,8 +77,8 @@ func TestPrepareCiliumSupportsOnlyReviewedExactPairs(t *testing.T) {
 		reason      Reason
 		checkStatus string
 	}{
-		{"legacy pair", CiliumFrom, CiliumTo, StatePrepared, ReasonCiliumRequiresWitness, "BLOCKED"},
-		{"target CRD pair", CiliumTargetCRDFrom, CiliumTargetCRDTo, StatePrepared, ReasonCiliumRequiresWitness, "BLOCKED"},
+		{"legacy pair", CiliumFrom, CiliumTo, StatePrepared, ReasonCiliumRequiresWitness, "UNKNOWN"},
+		{"target CRD pair", CiliumTargetCRDFrom, CiliumTargetCRDTo, StatePrepared, ReasonCiliumRequiresWitness, "UNKNOWN"},
 		{"crossed old to new", CiliumFrom, CiliumTargetCRDTo, StateUnknown, ReasonCiliumUnsupportedPair, "UNKNOWN"},
 		{"crossed new to old", CiliumTargetCRDFrom, CiliumTo, StateUnknown, ReasonCiliumUnsupportedPair, "UNKNOWN"},
 		{"other pair", "1.18.12", CiliumTargetCRDTo, StateUnknown, ReasonCiliumUnsupportedPair, "UNKNOWN"},
@@ -155,7 +156,7 @@ func TestPrepareCiliumRequiresExplicitCompleteSetForScopedFalse(t *testing.T) {
 	}{
 		{"omitted completeness stays unknown", nil, StateUnknown, ReasonCiliumSetIncomplete, "UNKNOWN"},
 		{"false completeness stays unknown", ciliumBool(false), StateUnknown, ReasonCiliumSetIncomplete, "UNKNOWN"},
-		{"complete set declares scoped false", ciliumBool(true), StatePrepared, ReasonCiliumNoRequiresWitness, "PASS"},
+		{"complete set declares scoped false", ciliumBool(true), StatePrepared, ReasonCiliumNoRequiresWitness, "UNKNOWN"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			prepared, err := PrepareCilium(raw, CiliumFrom, CiliumTo, tc.complete)
