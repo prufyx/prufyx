@@ -15,8 +15,9 @@ generator builds the one input the rule's own appliesWhen / condition / setCondi
 WRONGPASS = exit 0 (verdict text is never matched loosely). Variants in corpus.PASS_OK may PASS. MISMATCH = a crash (any other exit code) or a run over 20 s.
 Case key = "<rule id>#<variant id>".
 
-Source floors (source_floors.py, source_floors.json): on every run, an upgrade from below an upstream minimum source
-version must not exit 0, even with every condition declared safe. Case key = "floor|...".
+Source floors (source_floors.py, source_floors.json): on every run, no rule that can PASS may cover a source below a
+minimum source version, and a probed upgrade from below it must not exit 0, even with every condition declared safe.
+Case key = "floor|...".
 
 Allow-list STATE/rules-allow.json = {"<rule id>#<variant id>" | "*#<variant id>": {"ref": "tracking reference", "reason": "..."}}
 for documented, scoped PASS cases. An allowed key that still passes is reported and does not alarm; an allowed key whose

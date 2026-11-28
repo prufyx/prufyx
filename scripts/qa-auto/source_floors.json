@@ -7,6 +7,8 @@
       "component": "pkg:github/etcd-io/etcd",
       "targetLine": "3.6",
       "minimumSource": "3.5.26",
+      "basis": "upstream",
+      "note": "All 3.5 members must be at 3.5.26 or later before 3.6.",
       "probes": [
         {"from": "3.5.17", "to": "3.6.0"},
         {"from": "3.5.25", "to": "3.6.0"}
@@ -24,6 +26,8 @@
       "component": "pkg:github/goharbor/harbor",
       "targetLine": "2.15",
       "minimumSource": "2.12.0",
+      "basis": "upstream",
+      "note": "The 2.15 upgrade guide covers migration from 2.12.0 and later only.",
       "probes": [
         {"from": "2.10.3", "to": "2.15.2"},
         {"from": "2.11.2", "to": "2.15.2"}
@@ -40,16 +44,38 @@
       "project": "cilium",
       "component": "pkg:github/cilium/cilium",
       "targetLine": "1.19",
-      "minimumSource": "1.18.7",
+      "minimumSource": "1.18.14",
+      "basis": "derived",
+      "note": "Upstream says to update to the latest patch release of the current minor first and names no number. 1.18.14 is a derived, conservative lower bound above both reviewed sources 1.18.6 and 1.18.13; it does not say that later 1.18 sources are admissible.",
       "probes": [
-        {"from": "1.18.6", "to": "1.19.0"}
+        {"from": "1.18.6", "to": "1.19.0"},
+        {"from": "1.18.13", "to": "1.19.7"}
       ],
       "safeFacts": [
         {"side": "proposed", "id": "component.cilium.nonempty_requires_fields", "boolValue": false}
       ],
       "citations": [
         {"url": "https://github.com/cilium/cilium/blob/7c6667e1e707d7f39a4af3409c2a9ebea2917d32/Documentation/operations/upgrade.rst", "line": 268},
-        {"url": "https://github.com/cilium/cilium/blob/2adae2146ff84963c30bad26d06e1e2a17431559/VERSION", "line": 1}
+        {"url": "https://github.com/cilium/cilium/blob/704b537b83f456fc199f48c2f1781beb0d679c87/Documentation/operations/upgrade.rst", "line": 268},
+        {"url": "https://github.com/cilium/cilium/blob/0a5b4195ff0bfc4d5d6e707a24f57e1047166ab4/VERSION", "line": 1}
+      ]
+    },
+    {
+      "id": "contour-1.20",
+      "project": "contour",
+      "component": "pkg:github/projectcontour/contour",
+      "targetLine": "1.20",
+      "minimumSource": "1.19.1",
+      "basis": "upstream",
+      "note": "A version older than 1.19.1 must be upgraded to 1.19.1 first.",
+      "probes": [
+        {"from": "1.19.0", "to": "1.20.0"}
+      ],
+      "safeFacts": [
+        {"side": "proposed", "id": "component.contour.gateway_v1alpha1_present", "boolValue": false}
+      ],
+      "citations": [
+        {"url": "https://github.com/projectcontour/contour/blob/48568538d465fde791fe3d921957e3a4f25c3f18/site/content/resources/upgrading.md", "line": 46}
       ]
     }
   ]
