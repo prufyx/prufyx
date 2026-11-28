@@ -105,7 +105,10 @@ removal), and Cilium `1.16.19` to `1.17.18` (the effective ConfigMap
 `1.30.0` needs a paired `--current-resource` and `--resource` instead of one
 `--native-resource`. See
 [`examples/cncf/native-resources`](../examples/cncf/native-resources/README.md)
-for a runnable BLOCKED/PASS/UNKNOWN walkthrough of each.
+for a runnable BLOCKED/PASS/UNKNOWN walkthrough of each. The Contour
+`1.19.0` to `1.20.0` rule is withdrawn (the upstream upgrade guide requires a
+Contour older than `1.19.1` to run `1.19.1` first), so that route always
+reports `UNKNOWN`.
 
 ## Fluentd selected-literal treatment
 

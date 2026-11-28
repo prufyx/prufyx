@@ -27,7 +27,6 @@ func TestCNCFNativeResourceExamplesUseDirectRawFiles(t *testing.T) {
 		want                         int
 	}{
 		{"metallb", "0.12.1", "0.13.2", "metallb", "2026-09-11T18:00:00Z", ExitBlocked},
-		{"contour", "1.19.0", "1.20.0", "contour", "2026-09-11T18:00:00Z", ExitBlocked},
 		{"kubevirt", "1.8.4", "1.9.0", "kubevirt", "2026-09-11T18:00:00Z", ExitBlocked},
 		{"thanos", "0.41.0", "0.42.0", "thanos", "2026-09-11T18:00:00Z", ExitBlocked},
 		{"cortex", "1.17.2", "1.21.1", "cortex", "2026-09-11T23:00:00Z", ExitBlocked},
@@ -41,6 +40,15 @@ func TestCNCFNativeResourceExamplesUseDirectRawFiles(t *testing.T) {
 				}
 			}
 		})
+	}
+	// The Contour 1.19.0 to 1.20.0 rule is withdrawn: every example, the
+	// former blocker and pass included, stays UNKNOWN.
+	for _, name := range []string{"broken.json", "fixed.json", "unknown.json"} {
+		path := read("contour", name)
+		code, stdout, stderr := runCNCFCLI(t, "check", "cncf", "--project", "contour", "--native-resource", path, "--from", "1.19.0", "--to", "1.20.0", "--now", "2026-09-11T18:00:00Z", "--format", "json")
+		if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) || strings.Contains(stdout, `"status":"PASS"`) || strings.Contains(stdout, `"status":"BLOCKED"`) {
+			t.Fatalf("contour %s code=%d stdout=%q stderr=%q", name, code, stdout, stderr)
+		}
 	}
 	for name, want := range map[string]int{"broken": ExitBlocked, "fixed": ExitOK, "unknown": ExitUnknown} {
 		current := read("cloudnativepg", "current-"+name+".json")
@@ -69,8 +77,8 @@ func TestCNCFNativeResourceChecksPrepareAndEvaluateInMemory(t *testing.T) {
 			},
 		},
 		{
-			name: "contour reviewed target group", project: "contour", from: "1.19.0", to: "1.20.0",
-			wantCode: ExitOK,
+			name: "contour withdrawn pair", project: "contour", from: "1.19.0", to: "1.20.0",
+			wantCode: ExitUnknown,
 			proposed: []byte(`{"apiVersion":"gateway.networking.k8s.io/v1alpha2","kind":"HTTPRoute","metadata":{"name":"route","namespace":"edge"},"spec":{}}`),
 			args: func(_, proposed string) []string {
 				return []string{"check", "cncf", "--project", "contour", "--native-resource", proposed, "--from", "1.19.0", "--to", "1.20.0", "--now", "2026-09-11T18:00:00Z", "--format", "json"}
