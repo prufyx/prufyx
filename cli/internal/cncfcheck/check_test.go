@@ -626,13 +626,13 @@ func TestCatalogueCountsActiveRulesOnly(t *testing.T) {
 	}
 	wantWithdrawn := map[string]string{
 		"cilium.crd-version-removal.ciliumnodeconfigs-cilium-io.1-19-0-to-1-20-0": "cilium",
-		"cilium.nonempty-requires-crd-maxitems.1-18-13-to-1-19-7":     "cilium",
-		"cilium.nonempty-requires-rejected.1-19":                      "cilium",
-		"contour.gateway-v1alpha1-removed.1-19-0-to-1-20-0":           "contour",
-		"cri-o.artifact-short-name-rejected.1-35":                     "cri-o",
-		"etcd.v2-proxy-flags-removed.3-6":                             "etcd",
-		"harbor.installer-with-chartmuseum-flag-removed.2-10-to-2-15": "harbor",
-		"harbor.installer-with-chartmuseum-flag-removed.2-11-to-2-15": "harbor",
+		"cilium.nonempty-requires-crd-maxitems.1-18-13-to-1-19-7":                 "cilium",
+		"cilium.nonempty-requires-rejected.1-19":                                  "cilium",
+		"contour.gateway-v1alpha1-removed.1-19-0-to-1-20-0":                       "contour",
+		"cri-o.artifact-short-name-rejected.1-35":                                 "cri-o",
+		"etcd.v2-proxy-flags-removed.3-6":                                         "etcd",
+		"harbor.installer-with-chartmuseum-flag-removed.2-10-to-2-15":             "harbor",
+		"harbor.installer-with-chartmuseum-flag-removed.2-11-to-2-15":             "harbor",
 	}
 	withdrawn := 0
 	for _, id := range ids {
