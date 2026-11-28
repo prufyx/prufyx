@@ -772,7 +772,9 @@ a definition its first release holds, and no release of the later line holds an
 unread, unsupported or Go-defined CRD source (or a declared copy serving other versions). Otherwise the pair's rules are
 derived from the two anchors only, carry no range, and match only the anchor
 transition. (Cilium 1.20.2 serves CiliumNodeConfig `v2alpha1` again after 1.20.0
-and 1.20.1 dropped it, so that rule holds for 1.19.0 -> 1.20.0 only.)
+and 1.20.1 dropped it, so that rule holds for 1.19.0 -> 1.20.0 only. That rule
+is now withdrawn: the upstream upgrade notes say to update to the latest patch
+release of the current version before an upgrade.)
 
 A CRD that the earlier line defines and the later anchor defines nowhere — not
 under the listed paths, and with a complete scan in which no file defines it
