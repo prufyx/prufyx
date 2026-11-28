@@ -625,8 +625,11 @@ func TestCatalogueCountsActiveRulesOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantWithdrawn := map[string]string{
-		"cri-o.artifact-short-name-rejected.1-35": "cri-o",
-		"etcd.v2-proxy-flags-removed.3-6":         "etcd",
+		"contour.gateway-v1alpha1-removed.1-19-0-to-1-20-0":           "contour",
+		"cri-o.artifact-short-name-rejected.1-35":                     "cri-o",
+		"etcd.v2-proxy-flags-removed.3-6":                             "etcd",
+		"harbor.installer-with-chartmuseum-flag-removed.2-10-to-2-15": "harbor",
+		"harbor.installer-with-chartmuseum-flag-removed.2-11-to-2-15": "harbor",
 	}
 	withdrawn := 0
 	for _, id := range ids {

@@ -67,11 +67,26 @@ func TestHarborNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
 	}
 }
 
-// All five reviewed 2.15.2 target-only origins are routed through the same
+// The rules for origins below the 2.15 guide's source floor are withdrawn: the
+// native route decides nothing from them, with or without the option.
+func TestHarborNativeCheck_WithdrawnOriginsStayUnknown(t *testing.T) {
+	t.Parallel()
+	for _, from := range []string{"2.10.3", "2.11.2"} {
+		for _, argv := range []string{"--with-chartmuseum", "--with-trivy"} {
+			path := writeCNCFFile(t, "harbor-withdrawn.json", harborNativeInput(true, argv), 0o600)
+			code, stdout, stderr := runCNCFCLI(t, harborNativeArgs(path, from, "2.15.2")...)
+			if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "RULE_EVIDENCE_WITHDRAWN") || strings.Contains(stdout, `"status":"PASS"`) || strings.Contains(stdout, `"status":"BLOCKED"`) {
+				t.Fatalf("from=%s argv=%s code=%d stdout=%q stderr=%q", from, argv, code, stdout, stderr)
+			}
+		}
+	}
+}
+
+// The remaining reviewed 2.15.2 target-only origins are routed through the same
 // native path.
 func TestHarborNativeCheck_AllLatestOriginsAreRouted(t *testing.T) {
 	t.Parallel()
-	for _, from := range []string{"2.10.3", "2.11.2", "2.12.4", "2.13.5", "2.14.4"} {
+	for _, from := range []string{"2.12.4", "2.13.5", "2.14.4"} {
 		t.Run(from, func(t *testing.T) {
 			blocked := writeCNCFFile(t, "harbor-latest-blocked.json", harborNativeInput(true, "--with-chartmuseum"), 0o600)
 			code, stdout, stderr := runCNCFCLI(t, harborNativeArgs(blocked, from, "2.15.2")...)

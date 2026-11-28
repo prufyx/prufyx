@@ -50,8 +50,8 @@ func TestHarborLatestPreparationFeedsScopedCheck(t *testing.T) {
 		argv               []string
 		want               int
 	}{
-		{"removed option", "2.10.3", "BLOCKED", []string{"--with-chartmuseum"}, ExitBlocked},
-		{"complete absence", "2.11.2", "PASS", []string{"--with-trivy"}, ExitOK},
+		{"removed option", "2.12.4", "BLOCKED", []string{"--with-chartmuseum"}, ExitBlocked},
+		{"complete absence", "2.13.5", "PASS", []string{"--with-trivy"}, ExitOK},
 		{"ambiguous help", "2.14.4", "UNKNOWN", []string{"--help"}, ExitUnknown},
 		{"target-rejected notary", "2.13.5", "UNKNOWN", []string{"--with-notary"}, ExitUnknown},
 	} {
