@@ -49,7 +49,9 @@ func TestPrepareEtcdRemovedOptionAtoms(t *testing.T) {
 			if strings.Contains(string(prepared.CanonicalInputJSON), atom) || strings.Contains(string(prepared.CanonicalInputJSON), "node") {
 				t.Fatal("raw argv escaped minimized declaration")
 			}
-			if report, err := cncfcheck.Check("etcd", prepared.CanonicalInputJSON, mustTime("2026-09-10T00:00:00Z")); err != nil || report.Check.Claims[0].Status != "BLOCKED" {
+			// The rule for this pair is withdrawn: even a witnessed removed
+			// option decides nothing.
+			if report, err := cncfcheck.Check("etcd", prepared.CanonicalInputJSON, mustTime("2026-09-10T00:00:00Z")); err != nil || report.Check.Claims[0].Status != "UNKNOWN" || report.Check.Claims[0].ReasonCode != "RULE_EVIDENCE_WITHDRAWN" {
 				t.Fatalf("check report=%+v err=%v", report, err)
 			}
 		})
