@@ -80,6 +80,9 @@ type reattestFixture struct {
 	ruleID          string
 	now             time.Time
 	statement, envl []byte
+	// owner signs the carry exceptions; keysDigest pins its key file.
+	owner      testApprovalKey
+	keysDigest string
 }
 
 func signingKey(t *testing.T) (ed25519.PublicKey, []byte, string) {
@@ -214,11 +217,12 @@ func newReattestFixture(t *testing.T) reattestFixture {
 	writeFile(t, filepath.Join(dir, "chain", "0001.statement.json"), append(append([]byte(nil), f.statement...), '\n'))
 	writeFile(t, filepath.Join(dir, "chain", "0001.statement.sig.json"), append(append([]byte(nil), f.envl...), '\n'))
 	writeFile(t, filepath.Join(dir, "worklists", "0001.worklist.json"), f.worklist)
+	f.exceptCarry(t, l, f.ruleID)
 	return f
 }
 
 func (f reattestFixture) opts() Options {
-	return Options{Layout: synthLayout(), Base: f.base, Head: f.head, Now: f.now, TrustRootDigest: f.rootDigest, RerunWorklist: f.worklist, Author: DefaultBotLogin}
+	return Options{Layout: synthLayout(), Base: f.base, Head: f.head, Now: f.now, TrustRootDigest: f.rootDigest, RerunWorklist: f.worklist, Author: DefaultBotLogin, ApprovalKeysDigest: f.keysDigest}
 }
 
 func TestGateReattestationStatement(t *testing.T) {

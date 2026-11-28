@@ -1,0 +1,474 @@
+name: Evidence re-derivation
+
+# Renews mechanical records only by deriving them again (see
+# cli/docs/evidence-reattestation.md, "Scheduled re-derivation"). Dates are
+# never carried forward. It never merges anything: at most it opens one pull
+# request, and the knowledge gate re-derives and decides.
+#
+#   plan      one derivation time, the due records and their leases
+#   derive    two separate hosted runners mirror and derive the same plan
+#   assemble  requires the two results byte-identical, applies them, keeps
+#             only renewals, regenerates the generated files
+#   pr        no repository code runs; opens the pull request
+#
+# No job before "pr" holds a secret or a write permission, and nothing is
+# cached between jobs or runs. There is no pull request trigger and no
+# dispatch input: a run cannot choose its commit, its time or its leases. The
+# "pr" job runs only when the repository variable REDERIVE_PR_ENABLED is
+# "true", so that nothing names the "renewal-pr" environment before its owner
+# has created it, restricted to main.
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: evidence-rederive
+  cancel-in-progress: false
+
+env:
+  # The only files the pull request may change.
+  ALLOWED_PATHS: '^(cli/internal/cncfcheck/data/(rules|corpus-attestation)\.json|cli/docs/generated/(community-support-inventory\.(json|md)|coverage-counts\.json)|README\.md|cli/docs/CNCF-SOURCE-PREVIEW\.md)$'
+
+jobs:
+  plan:
+    name: Plan the re-derivation
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      BOT_LOGIN: ${{ vars.KNOWLEDGE_BOT_LOGIN || 'prufyx-factory[bot]' }}
+      MAX_DAILY_LOOSENING: ${{ vars.KNOWLEDGE_MAX_DAILY_LOOSENING || '50' }}
+    outputs:
+      work: ${{ steps.plan.outputs.work }}
+      plan: ${{ steps.plan.outputs.plan }}
+      derived-at: ${{ steps.plan.outputs.derived_at }}
+      cap: ${{ steps.plan.outputs.cap }}
+    steps:
+      - name: Require main
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "This workflow renews from main only (ref: ${GITHUB_REF})."
+            exit 1
+          fi
+
+      - name: Refuse while a renewal pull request is open
+        id: open
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          open="$(gh pr list --repo "${GITHUB_REPOSITORY}" --state open --limit 200 --json headRefName \
+            --jq '[.[] | select(.headRefName | startswith("factory/renewal/"))] | length')"
+          case "${open}" in ''|*[!0-9]*) echo "The open pull request count is not a number."; exit 1 ;; esac
+          if [ "${open}" != "0" ]; then
+            echo "A renewal pull request is already open; nothing to plan."
+            echo "open=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "open=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Check out main at the triggering commit
+        if: steps.open.outputs.open == 'false'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Go
+        if: steps.open.outputs.open == 'false'
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+
+      - name: Build the CLI
+        if: steps.open.outputs.open == 'false'
+        working-directory: cli
+        run: go build -buildvcs=false -trimpath -o "${RUNNER_TEMP}/prufyx-maintainer" ./cmd/prufyx-maintainer
+
+      # The cap is the gate's daily loosening limit minus what the gate
+      # counts for the last 24 hours on main, at most 45. A count that cannot
+      # be read stops the run. The derivation time is taken here, once.
+      - name: Plan the due records
+        id: plan
+        if: steps.open.outputs.open == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pm="${RUNNER_TEMP}/prufyx-maintainer"
+          echo "work=false" >> "${GITHUB_OUTPUT}"
+          list="${RUNNER_TEMP}/daily-commits.json"
+          since="$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)"
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/commits?sha=${GITHUB_SHA}&since=${since}&per_page=100" \
+            --jq '.[] | {sha, parent: (.parents[0].sha // null), author: (.author.login // null)}' | jq -s '.' > "${list}"
+          counted="$("${pm}" gate daily-count --git-dir .git --commits "${list}" --bot-login "${BOT_LOGIN}")"
+          case "${counted}" in ''|*[!0-9]*) echo "The daily count is not a number."; exit 1 ;; esac
+          case "${MAX_DAILY_LOOSENING}" in ''|*[!0-9]*) echo "The daily limit is not a number."; exit 1 ;; esac
+          cap=$(( MAX_DAILY_LOOSENING - counted ))
+          if [ "${cap}" -gt 45 ]; then cap=45; fi
+          if [ "${cap}" -lt 1 ]; then echo "The daily limit leaves no room."; exit 0; fi
+          at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          plan="$("${pm}" renewal plan --pack cli/internal/cncfcheck/data/rules.json --at "${at}" --max "${cap}")"
+          { echo "### Re-derivation plan"; echo; echo '```'; printf '%s\n' "${plan}" | jq .; echo '```'; } >> "${GITHUB_STEP_SUMMARY}"
+          if [ "$(printf '%s' "${plan}" | jq '.extractors | length')" -lt 1 ]; then
+            echo "No record is due."
+            exit 0
+          fi
+          {
+            echo "work=true"
+            echo "derived_at=${at}"
+            echo "cap=${cap}"
+            echo "plan=$(printf '%s' "${plan}" | jq -c .)"
+          } >> "${GITHUB_OUTPUT}"
+
+  derive:
+    name: Derive (${{ matrix.side }})
+    needs: plan
+    if: needs.plan.outputs.work == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: true
+      matrix:
+        side: [a, b]
+    permissions:
+      contents: read
+    env:
+      PLAN: ${{ needs.plan.outputs.plan }}
+    steps:
+      - name: Check out the same commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+
+      - name: Build the CLI from this commit
+        working-directory: cli
+        run: go build -buildvcs=false -trimpath -o "${RUNNER_TEMP}/prufyx-maintainer" ./cmd/prufyx-maintainer
+
+      # Each runner fills its own mirror from upstream. The token is the
+      # read-only workflow token.
+      - name: Mirror and derive
+        working-directory: cli
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pm="${RUNNER_TEMP}/prufyx-maintainer"
+          state="${RUNNER_TEMP}/mirror"
+          mkdir -p "${RUNNER_TEMP}/derived"
+          at="$(printf '%s' "${PLAN}" | jq -re '.derivedAt')"
+          count="$(printf '%s' "${PLAN}" | jq -re '.extractors | length')"
+          for (( i = 0; i < count; i++ )); do
+            id="$(printf '%s' "${PLAN}" | jq -re ".extractors[${i}].id")"
+            repo="$(printf '%s' "${PLAN}" | jq -re ".extractors[${i}].repo")"
+            lease="$(printf '%s' "${PLAN}" | jq -re ".extractors[${i}].leaseDays")"
+            printf '%s' "${id}" | grep -Eq '^crd\.version-removal\.[a-z0-9][a-z0-9-]{0,62}$' || { echo "Unexpected extractor."; exit 1; }
+            registry="${RUNNER_TEMP}/registry.json"
+            jq -n --arg r "${repo}" '{schema: "prufyx.io/factory-registry/v1", repos: [$r]}' > "${registry}"
+            "${pm}" factory mirror --state "${state}" --registry "${registry}"
+            derived=false
+            for round in 1 2 3 4 5 6 7 8; do
+              wants="${RUNNER_TEMP}/wants.json"
+              rm -f "${wants}"
+              rc=0
+              "${pm}" extract run --extractor "${id}" --mirror-state "${state}" --out "${RUNNER_TEMP}/derived/${id}" \
+                --derived-at "${at}" --lease-days "${lease}" --wants-out "${wants}" || rc=$?
+              if [ "${rc}" -eq 0 ]; then derived=true; break; fi
+              if [ "${rc}" -ne 3 ] || [ ! -s "${wants}" ]; then echo "${id}: derivation failed (exit ${rc})."; exit 1; fi
+              echo "${id}: mirroring wanted files (round ${round})"
+              "${pm}" factory mirror --state "${state}" --registry "${registry}" --wants "${wants}"
+            done
+            if [ "${derived}" != "true" ]; then echo "${id}: the mirror never became complete."; exit 1; fi
+          done
+
+      - name: Upload the derivation
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rederive-${{ matrix.side }}
+          path: ${{ runner.temp }}/derived
+          if-no-files-found: error
+          retention-days: 7
+
+  assemble:
+    name: Compare and apply
+    needs: [plan, derive]
+    if: needs.plan.outputs.work == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    env:
+      PLAN: ${{ needs.plan.outputs.plan }}
+      CAP: ${{ needs.plan.outputs.cap }}
+    outputs:
+      sha256: ${{ steps.bundle.outputs.sha256 }}
+    steps:
+      - name: Check out the same commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: cli/go.mod
+          cache: false
+
+      - name: Build the CLI from this commit
+        working-directory: cli
+        run: go build -buildvcs=false -trimpath -o "${RUNNER_TEMP}/prufyx-maintainer" ./cmd/prufyx-maintainer
+
+      - name: Download the first derivation
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: rederive-a
+          path: ${{ runner.temp }}/a
+
+      - name: Download the second derivation
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: rederive-b
+          path: ${{ runner.temp }}/b
+
+      # Any difference between the two derivations stops the run: no pull
+      # request, until a reviewed fix.
+      - name: Compare, apply and keep only renewals
+        working-directory: cli
+        env:
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: |
+          set -euo pipefail
+          pm="${RUNNER_TEMP}/prufyx-maintainer"
+          pack="internal/cncfcheck/data/rules.json"
+          cp "${pack}" "${RUNNER_TEMP}/base-rules.json"
+          printf '%s' "${PLAN}" > "${RUNNER_TEMP}/plan.json"
+          : > "${RUNNER_TEMP}/outputs.txt"
+          count="$(jq -re '.extractors | length' "${RUNNER_TEMP}/plan.json")"
+          for (( i = 0; i < count; i++ )); do
+            id="$(jq -re ".extractors[${i}].id" "${RUNNER_TEMP}/plan.json")"
+            printf '%s' "${id}" | grep -Eq '^crd\.version-removal\.[a-z0-9][a-z0-9-]{0,62}$' || { echo "Unexpected extractor."; exit 1; }
+            digest="$("${pm}" renewal compare --a "${RUNNER_TEMP}/a/${id}" --b "${RUNNER_TEMP}/b/${id}")"
+            echo "${id} ${digest}" >> "${RUNNER_TEMP}/outputs.txt"
+          done
+          for (( i = 0; i < count; i++ )); do
+            id="$(jq -re ".extractors[${i}].id" "${RUNNER_TEMP}/plan.json")"
+            "${pm}" extract apply --renew-attestations --out "${RUNNER_TEMP}/a/${id}" --pack "${pack}"
+          done
+          "${pm}" renewal assemble --base "${RUNNER_TEMP}/base-rules.json" --applied "${pack}" \
+            --plan "${RUNNER_TEMP}/plan.json" --max "${CAP}" --outputs "${RUNNER_TEMP}/outputs.txt" \
+            --run-id "${GITHUB_RUN_ID}" --run-attempt "${GITHUB_RUN_ATTEMPT}" --commit "${GITHUB_SHA}" --workflow-sha "${WORKFLOW_SHA}" \
+            --out "${RUNNER_TEMP}/head-rules.json" --origin "${RUNNER_TEMP}/origin.txt" | tee -a "${GITHUB_STEP_SUMMARY}"
+          cp "${RUNNER_TEMP}/head-rules.json" "${pack}"
+
+      - name: Regenerate the generated files
+        run: |
+          set -euo pipefail
+          root="${PWD}"
+          pm="${RUNNER_TEMP}/prufyx-maintainer"
+          (cd cli && "${pm}" corpus-attestation generate --pack cncf --tree "${root}" \
+            --output "${root}/cli/internal/cncfcheck/data/corpus-attestation.json")
+          (cd cli && "${pm}" support-inventory \
+            --selected-source-manifest "${root}/cli/docs/data/selected-source-records-v1.json" \
+            --json-output "${root}/cli/docs/generated/community-support-inventory.json" \
+            --markdown-output "${root}/cli/docs/generated/community-support-inventory.md")
+          scripts/readme-coverage.sh
+          scripts/preview-coverage.sh
+
+      - name: Bundle the changed files
+        id: bundle
+        run: |
+          set -euo pipefail
+          out="${RUNNER_TEMP}/bundle"
+          mkdir -p "${out}/files"
+          status="${RUNNER_TEMP}/status.txt"
+          git status --porcelain --untracked-files=all > "${status}"
+          while IFS= read -r line; do
+            path="${line:3}"
+            if [ "${line:0:3}" != " M " ]; then echo "Only modified files are admitted: ${line}"; exit 1; fi
+            printf '%s\n' "${path}" | grep -Eq "${ALLOWED_PATHS}" || { echo "A file outside the allow list changed: ${path}"; exit 1; }
+            if [ -L "${path}" ] || [ ! -f "${path}" ]; then echo "Not a regular file: ${path}"; exit 1; fi
+            mkdir -p "${out}/files/$(dirname "${path}")"
+            cp "${path}" "${out}/files/${path}"
+          done < "${status}"
+          test -f "${out}/files/cli/internal/cncfcheck/data/rules.json" || { echo "The pack did not change."; exit 1; }
+          cp "${RUNNER_TEMP}/origin.txt" "${out}/origin.txt"
+          digest="$(cd "${out}" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)"
+          echo "sha256=${digest}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload the bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rederive-bundle
+          path: ${{ runner.temp }}/bundle
+          if-no-files-found: error
+          retention-days: 7
+
+  pr:
+    name: Open the pull request
+    needs: [plan, assemble]
+    if: needs.assemble.result == 'success' && vars.REDERIVE_PR_ENABLED == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # The bot token lives in this environment, restricted to main.
+    environment: renewal-pr
+    permissions: {}
+    env:
+      ASSEMBLED_SHA256: ${{ needs.assemble.outputs.sha256 }}
+      DERIVED_AT: ${{ needs.plan.outputs.derived-at }}
+      BOT_LOGIN: ${{ vars.KNOWLEDGE_BOT_LOGIN }}
+    steps:
+      - name: Require the pinned bot account
+        env:
+          GH_TOKEN: ${{ secrets.KNOWLEDGE_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BOT_LOGIN}" ]; then
+            echo "No bot login is pinned (KNOWLEDGE_BOT_LOGIN); no pull request is opened."
+            exit 1
+          fi
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "No bot token is configured (KNOWLEDGE_BOT_TOKEN); no pull request is opened."
+            exit 1
+          fi
+          login="$(gh api user --jq .login)"
+          if [ "${login}" != "${BOT_LOGIN}" ]; then
+            echo "The bot token does not belong to ${BOT_LOGIN}; no pull request is opened."
+            exit 1
+          fi
+
+      - name: Download the bundle
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: rederive-bundle
+          path: ${{ runner.temp }}/in
+
+      - name: Open the pull request
+        env:
+          GH_TOKEN: ${{ secrets.KNOWLEDGE_BOT_TOKEN }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: |
+          set -euo pipefail
+          in="${RUNNER_TEMP}/in"
+          printf '%s' "${ASSEMBLED_SHA256}" | grep -Eq '^[0-9a-f]{64}$' || { echo "The assembled digest is not a sha256."; exit 1; }
+          if [ -n "$(find "${in}" ! -type f ! -type d -print)" ]; then echo "The bundle holds something that is not a file."; exit 1; fi
+          digest="$(cd "${in}" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)"
+          if [ "${digest}" != "${ASSEMBLED_SHA256}" ]; then
+            echo "The downloaded files do not match the digest the assemble job reported."
+            exit 1
+          fi
+
+          # Path allow list: nothing but the origin and the generated files.
+          paths="${RUNNER_TEMP}/paths.txt"
+          (cd "${in}" && find . -type f | sed 's|^\./||' | LC_ALL=C sort) > "${paths}"
+          : > "${RUNNER_TEMP}/files.txt"
+          while IFS= read -r p; do
+            if [ "${p}" = "origin.txt" ]; then continue; fi
+            case "${p}" in files/*) ;; *) echo "Unexpected file in the bundle: ${p}"; exit 1 ;; esac
+            printf '%s\n' "${p#files/}" | grep -Eq "${ALLOWED_PATHS}" || { echo "A file outside the allow list: ${p#files/}"; exit 1; }
+            printf '%s\n' "${p#files/}" >> "${RUNNER_TEMP}/files.txt"
+          done < "${paths}"
+          grep -Fxq "cli/internal/cncfcheck/data/rules.json" "${RUNNER_TEMP}/files.txt" || { echo "The bundle changes no pack."; exit 1; }
+          [ "$(wc -l < "${RUNNER_TEMP}/files.txt")" -le 200 ] || { echo "Too many files."; exit 1; }
+
+          # The origin is required and must name this run, commit and time.
+          # It records where the change came from; it does not prove it.
+          origin="${in}/origin.txt"
+          test -s "${origin}" || { echo "The bundle has no origin."; exit 1; }
+          if grep -Evq '^Origin-(Run|Attempt|Commit|Workflow|Derived-At|Records|Extractor): [A-Za-z0-9:=. _-]+$' "${origin}"; then
+            echo "The origin holds an unexpected line."
+            exit 1
+          fi
+          for line in "Origin-Run: ${GITHUB_RUN_ID}" "Origin-Commit: ${GITHUB_SHA}" "Origin-Workflow: ${WORKFLOW_SHA}" "Origin-Derived-At: ${DERIVED_AT}"; do
+            grep -Fxq "${line}" "${origin}" || { echo "The origin does not name this run: ${line%%:*}"; exit 1; }
+          done
+          for key in Attempt Records Extractor; do
+            grep -q "^Origin-${key}: " "${origin}" || { echo "The origin is incomplete: Origin-${key}"; exit 1; }
+          done
+
+          # The derivation must still be fresh, and never from the future.
+          printf '%s' "${DERIVED_AT}" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$' || { echo "Unexpected derivation time."; exit 1; }
+          age=$(( $(date -u +%s) - $(date -u -d "${DERIVED_AT}" +%s) ))
+          if [ "${age}" -gt 86400 ] || [ "${age}" -lt -300 ]; then
+            echo "The derivation time is outside the last 24 hours."
+            exit 1
+          fi
+
+          # At most one open renewal pull request.
+          open="$(gh pr list --repo "${GITHUB_REPOSITORY}" --state open --limit 200 --json headRefName \
+            --jq '[.[] | select(.headRefName | startswith("factory/renewal/"))] | length')"
+          if [ "${open}" != "0" ]; then
+            echo "A renewal pull request is already open; nothing is written."
+            exit 1
+          fi
+
+          # The base must still be the tip of main.
+          tip="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          if [ "${tip}" != "${GITHUB_SHA}" ]; then
+            echo "main moved since the plan; the next run retries."
+            exit 1
+          fi
+
+          branch="factory/renewal/rederived-${GITHUB_RUN_ID}"
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${branch}" >/dev/null 2>&1; then
+            echo "The branch ${branch} exists already; nothing is written."
+            exit 1
+          fi
+
+          entries="${RUNNER_TEMP}/tree-entries.jsonl"
+          : > "${entries}"
+          while IFS= read -r path; do
+            base64 -w0 "${in}/files/${path}" > "${RUNNER_TEMP}/blob.b64"
+            blob="$(jq -n --rawfile c "${RUNNER_TEMP}/blob.b64" '{content: $c, encoding: "base64"}' \
+              | gh api -X POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input - --jq '.sha')"
+            mode=100644
+            jq -nc --arg p "${path}" --arg m "${mode}" --arg s "${blob}" '{path: $p, mode: $m, type: "blob", sha: $s}' >> "${entries}"
+          done < "${RUNNER_TEMP}/files.txt"
+
+          title="evidence: renew mechanical records by re-derivation"
+          { echo "${title}"; echo; cat "${origin}"; } > "${RUNNER_TEMP}/message.txt"
+          base_tree="$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${GITHUB_SHA}" --jq '.tree.sha')"
+          tree="$(jq -s --arg b "${base_tree}" '{base_tree: $b, tree: .}' "${entries}" \
+            | gh api -X POST "repos/${GITHUB_REPOSITORY}/git/trees" --input - --jq '.sha')"
+          commit="$(jq -n --rawfile m "${RUNNER_TEMP}/message.txt" --arg t "${tree}" --arg p "${GITHUB_SHA}" \
+            '{message: $m, tree: $t, parents: [$p]}' \
+            | gh api -X POST "repos/${GITHUB_REPOSITORY}/git/commits" --input - --jq '.sha')"
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" -f "ref=refs/heads/${branch}" -f "sha=${commit}" >/dev/null
+
+          {
+            echo "MOVES decided +0: renews mechanical records by deriving them again."
+            echo
+            echo "Two separate runners derived the same plan with byte-identical results. Only due records whose times (and, for a new extractor build, extractor and sources) moved are carried. The knowledge gate re-derives and decides. Not merged automatically."
+            echo
+            echo '```'
+            cat "${origin}"
+            echo '```'
+          } > "${RUNNER_TEMP}/body.md"
+          if ! url="$(gh api -X POST "repos/${GITHUB_REPOSITORY}/pulls" \
+            -f "title=${title}" -f "head=${branch}" -f "base=main" -F "body=@${RUNNER_TEMP}/body.md" --jq '.html_url + " " + .user.login')"; then
+            gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${branch}" >/dev/null || true
+            echo "The pull request could not be opened."
+            exit 1
+          fi
+          echo "opened ${url%% *}"
+          if [ "${url##* }" != "${BOT_LOGIN}" ]; then
+            echo "The pull request author is not ${BOT_LOGIN}; the gate will not treat it as the automation's."
+            exit 1
+          fi

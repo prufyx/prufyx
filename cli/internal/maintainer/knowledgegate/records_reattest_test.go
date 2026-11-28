@@ -189,6 +189,7 @@ func newRecordFixture(t *testing.T, mechanical bool) recordFixture {
 	writeFile(t, filepath.Join(dir, "chain", "0001.statement.json"), append(append([]byte(nil), f.statement...), '\n'))
 	writeFile(t, filepath.Join(dir, "chain", "0001.statement.sig.json"), append(append([]byte(nil), f.envl...), '\n'))
 	writeFile(t, filepath.Join(dir, "worklists", "0001.worklist.json"), f.worklist)
+	f.exceptCarry(t, l, f.ruleID, reviewedAttestationID, reviewedPolicyID)
 	return f
 }
 

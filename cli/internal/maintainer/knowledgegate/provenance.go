@@ -269,6 +269,13 @@ func (r *Report) recordCheck(cls *Classification, statements map[string]statemen
 			if why == "" {
 				why = liveRecordApproval(opts, p, inHead)
 			}
+		case strings.HasPrefix(p, CarryExceptionDir+"/"):
+			// An exception is only ever read from the base. A person adds
+			// one; the automation account may not add, change or remove one.
+			n++
+			if botChange(opts) {
+				why = "the automation account may not change carry exceptions"
+			}
 		case strings.HasPrefix(p, opts.Layout.ReattestDir+"/"):
 			n++
 			why = reattestPathReason(strings.TrimPrefix(p, opts.Layout.ReattestDir+"/"), packs, statements, opts.Base.Exists(p), opts.Head.Exists(p))
