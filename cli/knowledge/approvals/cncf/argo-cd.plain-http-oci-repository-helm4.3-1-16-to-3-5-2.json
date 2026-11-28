@@ -1,0 +1,15 @@
+{
+  "schema": "prufyx.io/knowledge-approval/v2",
+  "record": {
+    "baseDigest": "sha256:8f3c9314cffe9ba170aefdad811ccf37e4de80bb4ed24521d9be94756a350446",
+    "candidateDigest": "sha256:a4d25137ad110a70b6051f07d3cf14d1f31f60cb00bf1280d367af62836c1fec",
+    "candidateId": "pr-823",
+    "decidedAt": "2026-11-28T06:42:20Z",
+    "decision": "approve",
+    "identity": "airstand",
+    "pack": "cncf",
+    "ruleId": "argo-cd.plain-http-oci-repository-helm4.3-1-16-to-3-5-2"
+  },
+  "keyId": "sha256:a800a216a7a5ca9564d833eff2f59c71965e0d0772745e6e841f639600ba345e",
+  "signature": "SVttDNNnqG0b+CZoZXPp07HaCQIeSHYICB4qiBhSLYsqbNi6i5+CjrCWlyOJf2OOZISXw1H2vzZvoCgC7+CSBA=="
+}
