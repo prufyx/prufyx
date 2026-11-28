@@ -3,13 +3,17 @@
 
 usage: target_repos.py --src DIR --base SHA --changed FILE [--maintainer CMD [--runner CMD] --now RFC3339]
 
-A target-*.json decides which upstream repo the CRD oracle clones, so a head may not change a base target's repo and may add
-a new target only for a repo that is already a target repo at the base, listed in QA_GATE_REPOS (comma list owner/name), or
-derived from a signed onboarding batch: the head adds exactly one cli/knowledge/onboarding/<id>.json, the maintainer tool
-compiled from the BASE tree (`approval verify --onboarding-signature`: strict decoding, pinned key from the base key file,
-identity tier, validity window) accepts its signature, and the batch's signed artifact list names the new target path with the
-sha256 of the head's bytes. The signature binds the target bytes and so the repo. The full batch checks (trees, landscape repo,
-admission history, dry run) stay with the Knowledge gate; this script only decides whether the oracle may clone the named repo.
+A target-*.json decides which upstream repos the CRD oracle clones (target.repo and target.remote.repo), so a head may not
+change either of a base target's repos (adding or removing a remote included) and may add a new target only when each of its
+repos is already used in the same role by a base target (primary for primary, remote for remote), listed in QA_GATE_REPOS (comma
+list owner/name), or covered by a signed onboarding batch: the head adds exactly one cli/knowledge/onboarding/<id>.json, the
+maintainer tool compiled from the BASE tree (`approval verify --onboarding-signature`: strict decoding, pinned key from the base
+key file, identity tier, validity window) accepts its signature, and the batch's signed artifact list names the new target path
+with the sha256 of the head's bytes. The signature binds the target bytes and so both repos. The full batch checks (trees,
+landscape repo, admission history, dry run) stay with the Knowledge gate; this script only decides whether the oracle may clone
+the named repos.
+
+Both sides are read with target_json.load, a reading the Go extractor cannot differ from; every base target must load.
 
 Every target of the base must be a regular file (100644 blob) at the same path at the head, whether or not the changed list
 names it: a removed, renamed or retyped base target is refused, and neither a signed batch nor QA_GATE_REPOS admits it. A changed
@@ -24,6 +28,7 @@ import argparse, hashlib, json, os, re, shlex, subprocess, sys, tempfile
 # -I excludes the script directory; import only this trusted companion.
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 import crd_inventory
+import target_json
 
 TD = crd_inventory.TD
 TARGET = crd_inventory.TARGET
@@ -31,6 +36,7 @@ BATCH_DIR = "cli/knowledge/onboarding/"
 BATCH = re.compile(re.escape(BATCH_DIR) + r"(ob-[0-9]{8}-[0-9]{1,3})\.json", re.A)
 KEYS = "cli/knowledge/trust/web-approval-keys.json"
 TIMEOUT = 120
+REPO = re.compile(r"[A-Za-z0-9_][\w.-]*/[A-Za-z0-9_][\w.-]*", re.A)
 
 
 class Refuse(Exception):
@@ -54,12 +60,19 @@ def listing(src, rev):
 
 
 def repo_of(raw):
-    # strict UTF-8, no byte-order mark: json.loads on bytes would also guess UTF-16/32 and skip a BOM; on str it refuses U+FEFF
-    r = json.loads(raw.decode("utf-8"))["target"]["repo"]
+    """(primary repo, remote repo or None) of a strictly loaded target, both as owner/name; ValueError otherwise."""
+    t = target_json.load(raw)["target"]
+    r = t.get("repo", "")
     r = r[len("github.com/"):] if r.startswith("github.com/") else r
-    if not re.fullmatch(r"[A-Za-z0-9_][\w.-]*/[A-Za-z0-9_][\w.-]*", r, re.A):
+    if not REPO.fullmatch(r):
         raise ValueError("bad repo")
-    return r
+    remote = t.get("remote")
+    if remote is None:
+        return r, None
+    rr = remote.get("repo", "")
+    if not rr.startswith("github.com/") or rr != rr.lower() or not REPO.fullmatch(rr[len("github.com/"):]):
+        raise ValueError("bad remote repo")
+    return r, rr[len("github.com/"):]
 
 
 def derive(a, changed):
@@ -70,7 +83,7 @@ def derive(a, changed):
     keys = show(a.src, a.base, KEYS)
     if keys is None:
         raise Refuse("no base key file")
-    tool = shlex.split(a.runner or "") + shlex.split(a.maintainer)
+    tool = shlex.split(a.runner) + shlex.split(a.maintainer)
     with tempfile.TemporaryDirectory(prefix="targets-", dir=os.environ.get("QA_TMP") or None) as tmp:
         kp = os.path.join(tmp, "keys.json")
         bp = os.path.join(tmp, os.path.basename(added[0]))
@@ -109,9 +122,13 @@ def main():
     if a.maintainer and not a.now:
         print("target check failed: --now is required with --maintainer")
         sys.exit(1)
+    if a.maintainer and not (a.runner or "").strip():
+        print("target check failed: --runner is required with --maintainer")
+        sys.exit(1)
     bad = []
     try:
-        known = {x.strip() for x in os.environ.get("QA_GATE_REPOS", "").split(",") if x.strip()}
+        listed = {x.strip() for x in os.environ.get("QA_GATE_REPOS", "").split(",") if x.strip()}
+        known, known_remote, base_repos = set(listed), set(listed), {}  # base roles never cross
         base_ls = listing(a.src, a.base)
         # first, and independent of --changed: no base target may disappear from the head
         gone = crd_inventory.removed_targets(base_ls, listing(a.src, "HEAD"))
@@ -120,9 +137,12 @@ def main():
             if TARGET.fullmatch(f):
                 t = show(a.src, a.base, f)
                 try:
-                    known.add(repo_of(t))
+                    base_repos[f] = repo, remote = repo_of(t)
                 except Exception:
                     raise ValueError("base target unreadable")
+                known.add(repo)
+                if remote is not None:
+                    known_remote.add(remote)
         changed = [p for p in open(a.changed).read().split("\n") if p]
         unknown = {}
         for p in changed:
@@ -132,13 +152,18 @@ def main():
             if head is None:
                 bad.append(f"{p}: target check failed (head unreadable)")  # never read as a deletion
                 continue
-            hr = repo_of(head)
-            old = show(a.src, a.base, p)
-            if old is not None:
-                if repo_of(old) != hr:
+            hr, hrr = repo_of(head)
+            if p in base_repos:  # from the base listing: a base target is never treated as new
+                if base_repos[p][0] != hr:
                     bad.append(f"{p}: repo changed")
-            elif hr not in known:
-                unknown[p] = (hr, "sha256:" + hashlib.sha256(head).hexdigest())
+                if base_repos[p][1] != hrr:
+                    bad.append(f"{p}: remote repo changed")
+                continue
+            missing = [] if hr in known else [hr]
+            if hrr is not None and hrr not in known_remote and hrr not in missing:
+                missing.append(hrr)
+            if missing:
+                unknown[p] = (" and ".join(missing), "sha256:" + hashlib.sha256(head).hexdigest())
         if unknown and not bad:
             if not a.maintainer:
                 sys.exit(4)

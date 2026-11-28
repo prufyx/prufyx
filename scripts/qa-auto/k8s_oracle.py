@@ -6,9 +6,10 @@ Suites: k8s-range (all GVKs of minor m, scan m -> m+1), k8s-single (each removed
 non-alpha GVK alone), k8s-plan (multi-hop `prufyx plan`, per-stage verdicts).
 WRONGPASS: a removed GVK is in the input and scan/plan exits 0 / says PASS.
 """
-import argparse, json, os, re, sys, urllib.error, urllib.request
+import argparse, json, os, re, subprocess, sys, urllib.error, urllib.request
 from qalib import *
 import qa_scope
+import target_json
 
 SKIP_KINDS = ("DeleteOptions", "WatchEvent", "Status", "CreateOptions", "UpdateOptions",
               "PatchOptions", "Scale", "Eviction", "Binding", "EphemeralContainers")
@@ -134,6 +135,13 @@ def _git_show(ref, path):
         raise ValueError("unreadable " + path)
     return result.stdout
 
+def _git_blob(ref, path):
+    """The exact bytes of ref:path. sh() decodes text and must not be used for targets."""
+    result = subprocess.run(["git", "-C", SRC, "show", f"{ref}:{path}"], capture_output=True)
+    if result.returncode:
+        raise ValueError("unreadable " + path)
+    return result.stdout
+
 def attestation_inputs():
     """Raw base/head attestation and rules plus the trusted base component bindings (purl -> slug)."""
     base, head = ENV("QA_BASE"), ENV("QA_SHA")
@@ -146,11 +154,14 @@ def attestation_inputs():
         if not m:
             continue
         slugs.add(m.group(1))
-        target = json.loads(_git_show(base, path))
-        comp = target["target"].get("component") if isinstance(target, dict) and isinstance(target.get("target"), dict) else None
+        try:
+            target = target_json.load(_git_blob(base, path))
+        except ValueError as error:
+            raise ValueError(f"target rejected: {path}: {error}") from error
+        comp = target["target"].get("component")
         if comp is None:
             continue
-        if not isinstance(comp, str) or trusted.setdefault(comp, m.group(1)) != m.group(1):
+        if trusted.setdefault(comp, m.group(1)) != m.group(1):
             raise ValueError("conflicting component binding")
     return (_git_show(base, ATTEST_PATH), _git_show(head, ATTEST_PATH),
             _git_show(base, RULES_PATH), _git_show(head, RULES_PATH), trusted, slugs)

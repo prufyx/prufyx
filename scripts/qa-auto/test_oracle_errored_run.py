@@ -145,32 +145,62 @@ class FetchRetry(unittest.TestCase):
         r, n, sleeps = self.run_fetch([result(0)])
         self.assertEqual((n, sleeps, crd.FETCH_RETRIES.get("p")), (1, [], None))
 
+    class Past(Exception):
+        pass
+
     def prep(self, outcomes):
-        it = iter(outcomes)
+        it, self.calls = iter(outcomes), []
         tj = {"repo": "o/p", "tagPrefixes": ["v"]}
         crd.FETCH_RETRIES.clear()
-        with tempfile.TemporaryDirectory() as td, patch.object(crd, "GITROOT", td), patch.object(crd, "validate_target", lambda t: ("o/p", "")), \
-                patch.object(crd.os.path, "isdir", lambda p: True), patch.object(crd, "sh", lambda *a, **k: next(it)), patch.object(crd.time, "sleep", lambda s: None):
-            plan = crd.new_plan()
-            plan["binding"] = {"target": {"spec": tj}}
-            with patch.object(crd, "checked", side_effect=AssertionError("past the fetch")):
+        with tempfile.TemporaryDirectory() as td:
+            with open(os.path.join(td, "target-p.json"), "w") as f:
+                json.dump({"target": tj}, f)
+            gd = f"{td}/p.git"
+
+            def fake_sh(*a, **k):
+                if "get-url" in a:
+                    if a[2] != gd:
+                        raise self.Past("origin of an unexpected clone")
+                    return SimpleNamespace(returncode=0, stdout="https://github.com/o/p.git\n", stderr="")
+                self.calls.append(a)
+                return next(it)
+
+            def fake_checked(*a):
+                if "get-url" in a:
+                    return fake_sh(*a).stdout
+                self.assertEqual(a, ("git", "-C", gd, "tag", "-l"))
+                raise self.Past("past")
+
+            with patch.object(crd, "TD", td), patch.object(crd, "GITROOT", td), \
+                    patch.object(crd, "validate_target", lambda t: ("o/p", "")), \
+                    patch.object(crd.os.path, "isdir", lambda p: True), patch.object(crd, "sh", fake_sh), \
+                    patch.object(crd, "checked", fake_checked), patch.object(crd.time, "sleep", lambda s: None):
+                plan = crd.new_plan()
+                plan["binding"] = {"target": {"spec": tj}}
                 try:
                     crd.prepare("p", [], plan)
                 except ValueError as e:
                     return str(e)
-                except AssertionError:
-                    return "past"
+                except self.Past as e:
+                    return str(e)
+
+    def assert_fetches(self, n):
+        self.assertEqual(len(self.calls), n)
+        self.assertTrue(all("fetch" in c for c in self.calls), self.calls)
 
     def test_prepare_error_text_unchanged_when_all_attempts_fail(self):
         msg = self.prep([result(128, self.NET)] * 3)
         self.assertTrue(msg.startswith("fetch tags failed"), msg)
+        self.assert_fetches(3)
 
     def test_prepare_non_network_failure_exact_text(self):
         self.assertEqual(self.prep([result(128, "fatal: bad object")]), "fetch tags failed")
+        self.assert_fetches(1)
 
     def test_prepare_succeeds_after_retries(self):
         self.assertEqual(self.prep([result(128, self.NET), result(0)]), "past")
         self.assertEqual(crd.FETCH_RETRIES["p"], 1)
+        self.assert_fetches(2)
 
 
 class SummaryField(unittest.TestCase):

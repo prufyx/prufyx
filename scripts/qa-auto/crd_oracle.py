@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from qalib import *
 import qa_scope
 import qa_batch_scope
+import target_json
 
 TD = os.path.join(SRC, "cli/internal/extract/crdversions")
 COV = ENV("QA_COV", "")
@@ -92,6 +93,27 @@ def validate_remote(rm, own=None):
         return ""
     except Exception as e:
         return f"remote invalid: {type(e).__name__}"
+
+
+def load_target(proj):
+    """The `target` object of target-<proj>.json, read by the strict loader; every failure is a ValueError refusal."""
+    try:
+        with open(f"{TD}/target-{proj}.json", "rb") as target_file:
+            raw = target_file.read(target_json.MAX_BYTES + 1)
+    except OSError:
+        raise ValueError("target rejected: target file unreadable") from None
+    try:
+        return target_json.load(raw)["target"]
+    except ValueError as error:
+        raise ValueError(f"target rejected: {error}") from None
+
+
+def require_project_origin(gd, repo):
+    """An existing project clone is used only when its origin is exactly the target's repository. --git-dir, never -C: git
+    must not discover an enclosing repository."""
+    r = sh("git", "--git-dir", gd, "remote", "get-url", "origin")
+    if r.returncode or r.stdout.strip() != f"https://github.com/{repo}.git":
+        raise ValueError("project clone belongs to a different repository")
 
 
 def projects_all():
@@ -429,16 +451,15 @@ def prepare(proj, cov, plan):
     comp = next((x for x in cov if x["project"] == proj), None)
     if comp is not None:
         plan["requested"].update(f"crd-line|{proj}|{pair['from']}|{pair['to']}" for pair in comp["pairs"])
-    if plan.get("binding"):
-        tj = plan["binding"]["target"]["spec"]
-    else:
-        with open(f"{TD}/target-{proj}.json") as target_file:
-            tj = json.load(target_file)["target"]
+    if not re.fullmatch(r"[A-Za-z0-9_][\w.-]*", proj, re.A):
+        raise ValueError("project name rejected")
+    tj = load_target(proj)
+    if plan.get("binding") is not None:  # the frozen spec must be the checkout's file; canonical JSON keeps 1 and true apart
+        if json.dumps(plan["binding"]["target"]["spec"], sort_keys=True) != json.dumps(tj, sort_keys=True):
+            raise ValueError("target rejected: binding differs from target file")
     repo, bad = validate_target(tj)
     if bad:
         raise ValueError("target rejected: " + bad)
-    if not re.fullmatch(r"[A-Za-z0-9_][\w.-]*", proj, re.A):
-        raise ValueError("project name rejected")
     gd = f"{GITROOT}/{proj}.git"
     os.makedirs(os.path.dirname(gd), exist_ok=True)
     if not os.path.isdir(gd):
@@ -446,6 +467,8 @@ def prepare(proj, cov, plan):
         if r.returncode:
             shutil.rmtree(gd, ignore_errors=True)
             raise ValueError("clone failed")
+    else:
+        require_project_origin(gd, repo)
     r = fetch_tags(proj, gd)
     if r.returncode:
         raise ValueError("fetch tags failed" + (f" (after {FETCH_RETRIES[proj]} retries)" if FETCH_RETRIES.get(proj) else ""))
@@ -459,7 +482,7 @@ def prepare(proj, cov, plan):
             if r.returncode:
                 shutil.rmtree(rgd, ignore_errors=True)
                 raise ValueError("remote clone failed")
-        elif checked("git", "-C", rgd, "remote", "get-url", "origin").strip() != rurl:
+        elif checked("git", "--git-dir", rgd, "remote", "get-url", "origin").strip() != rurl:
             raise ValueError("remote clone belongs to another repository")
         r = fetch_tags(proj, rgd)
         if r.returncode:

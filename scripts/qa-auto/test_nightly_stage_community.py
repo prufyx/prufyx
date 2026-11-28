@@ -1,6 +1,7 @@
 """Nightly harness proofs: community-catalog refusals and plan stages limited only by uncovered areas."""
 import json
 import io
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -14,6 +15,12 @@ import k8s_oracle as k8s
 
 REFUSAL = ('prufyx: "moco" is in the community catalog (not in the embedded CNCF landscape catalog; '
            'no CNCF status asserted): scan does not check community projects yet; see docs/custom-resources.md')
+ORIGINS = {"sample.git": "https://github.com/example/sample.git"}
+
+
+def origin(table, args):
+    """Answer `git --git-dir DIR remote get-url origin` per clone directory; an unknown one raises KeyError."""
+    return subprocess.CompletedProcess(args, 0, table[os.path.basename(args[2])] + "\n", "")
 
 
 class CommunityRefusal(unittest.TestCase):
@@ -52,6 +59,8 @@ class MinFrom(unittest.TestCase):
                 "repo": "example/sample", "tagPrefixes": ["v"], "minFrom": "1.1",
                 "paths": [{"path": "crd.yaml"}]}}))
             def source(*args, **kwargs):
+                if "get-url" in args:
+                    return origin(ORIGINS, args)
                 return subprocess.CompletedProcess(args, 0, "v1.0.0\nv1.1.0\n" if "tag" in args else "", "")
             with patch.object(crd, "TD", td), patch.object(crd, "GITROOT", td), patch.object(
                     crd, "sh", side_effect=source), patch.object(crd, "served_set", return_value={('g', 'v1', 'K')}), patch.object(
@@ -69,6 +78,8 @@ class MinFrom(unittest.TestCase):
                 "repo": "example/sample", "tagPrefixes": ["v"], "minFrom": "1.1",
                 "paths": [{"path": "crd.yaml"}]}}))
             def source(*args, **kwargs):
+                if "get-url" in args:
+                    return origin(ORIGINS, args)
                 return subprocess.CompletedProcess(args, 0, "v1.0.0\nv1.1.0\nv1.2.0\n" if "tag" in args else "", "")
             with patch.object(crd, "TD", td), patch.object(crd, "GITROOT", td), patch.object(
                     crd, "sh", side_effect=source), patch.object(crd, "served_set", return_value={("g", "v1", "K")}), patch.object(

@@ -23,10 +23,14 @@ RUNBOX = ENV("QA_RUNBOX", "")  # command prefix (word-split) that runs head-buil
 
 
 def boxed(a):
-    """argv with the QA_RUNBOX prefix when it runs a binary built from the PR head (QA_BIN / QA_CRDGVK)."""
+    """argv with the QA_RUNBOX prefix when it runs a binary built from the PR head (QA_BIN / QA_CRDGVK). A set prefix
+    that splits to nothing raises instead of running that binary outside the sandbox."""
     a = list(a)
     if RUNBOX and a and a[0] in (BIN, CRDGVK):
-        return shlex.split(RUNBOX) + a
+        prefix = shlex.split(RUNBOX)
+        if not prefix:
+            raise ValueError("QA_RUNBOX is blank")
+        return prefix + a
     return a
 
 
@@ -176,7 +180,7 @@ def complete_scan_scope(report, requested):
 
 
 ORACLE_FILES = ("crd_oracle.py", "summarize.py", "qalib.py", "qa_scope.py", "qa_batch_scope.py", "crd_inventory.py",
-                "k8s_oracle.py", "seeds.py")
+                "target_json.py", "k8s_oracle.py", "seeds.py")
 
 
 def rules_control_wrongpass(code):
@@ -197,7 +201,7 @@ def seeds_digest():
 
 def oracle_digest():
     """sha256 over the oracle's own sources (ORACLE_FILES: crd_oracle.py, summarize.py, qalib.py, qa_scope.py, qa_batch_scope.py,
-    crd_inventory.py, k8s_oracle.py and the seeded wrong-PASS cases seeds.py): a change resets the rise baselines."""
+    crd_inventory.py, target_json.py, k8s_oracle.py and the seeded wrong-PASS cases seeds.py): a change resets the rise baselines."""
     here = os.path.dirname(os.path.abspath(__file__))
     digest = hashlib.sha256()
     for name in ORACLE_FILES:
