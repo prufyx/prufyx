@@ -662,9 +662,10 @@ Through the offline factory mirror (or a fixture tree), never the network.
     reviewed pins. The original bytes must strictly decode, and exactly one
     `{{ .ProjectName }}` action must be accounted for by a YAML comment node.
     The extractor neither evaluates nor rewrites the action. A changed pin,
-    path, marker, referrer or source shape remains unread. No target declares
-    this mechanism in this change; any later declaration and resulting derived
-    data require their own review and validation.
+    path, marker, referrer or source shape remains unread. Only the
+    `redis-operator` target declares this mechanism. The reviewed pins are
+    v0.23.0 to v0.27.0; a v0.22 release has no pin, so its file stays unread.
+    Derived data require their own review and validation.
 
   **Reviewed exclusions carry evidence and are guarded.** Every entry of the
   table names its repository, the path (a directory prefix ending in `/`, one

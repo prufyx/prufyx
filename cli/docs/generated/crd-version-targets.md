@@ -80,7 +80,7 @@ The reviewed targets of the `crd.version-removal` extractor
 | `crd.version-removal.prometheus-operator` | community | `github.com/prometheus-operator/prometheus-operator` | `vX.Y.Z` | 0.89 | no | files matching `^[^.][^/]*\.ya?ml$` in `example/prometheus-operator-crd` | 0 |
 | `crd.version-removal.radius` | CNCF | `github.com/radius-project/radius` | `vX.Y.Z` | 0.56 | yes | files matching `^[^.][^/]*\.ya?ml$` in `deploy/Chart/crds/radius`, files matching `^[^.][^/]*\.ya?ml$` in `deploy/Chart/crds/ucpd` | 1 |
 | `crd.version-removal.rancher` | community | `github.com/rancher/rancher` | `vX.Y.Z` | 2.10 | no | files matching `^[^.][^/]*\.ya?ml$` in `pkg/crds/yaml/generated` | 0 |
-| `crd.version-removal.redis-operator` | community | `github.com/ot-container-kit/redis-operator` | `vX.Y.Z` | 0.22 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
+| `crd.version-removal.redis-operator` | community | `github.com/ot-container-kit/redis-operator` | `vX.Y.Z` | 0.22 | yes | files matching `^[^.][^/]*\.ya?ml$` in `config/crd/bases` | 0 |
 | `crd.version-removal.renovate-operator` | community | `github.com/mogenius/renovate-operator` | `X.Y.Z` | 6.2 | no | files matching `^[^.][^/]*\.ya?ml$` in `charts/renovate-operator/crd` | 0 |
 | `crd.version-removal.rook` | CNCF | `github.com/rook/rook` | `vX.Y.Z` | 1.16 | yes | `deploy/examples/crds.yaml`, `deploy/examples/csi-operator.yaml` | 1 |
 | `crd.version-removal.schemahero` | CNCF | `github.com/schemahero/schemahero` | `vX.Y.Z` | 0.21 | no | files matching `^[^.][^/]*\.ya?ml$` in `config/crds/v1` | 0 |
