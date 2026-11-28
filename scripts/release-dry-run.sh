@@ -16,6 +16,8 @@
 #   WORKDIR  scratch directory (default: a new temporary one, removed at the end;
 #            a directory given here is kept).
 #   KNOWLEDGE_ROOT_DIGEST  optional, as the repository variable of the same name.
+#   BLOCKS_BASE  optional, CI mode only: the base commit of a pull request,
+#            passed as --blocks-base; unset or empty, every block must be current.
 # Needs: git, go (the version the workflow pins), bash, GNU tar, gzip, curl,
 # dpkg-deb, rpm2cpio, cpio, unshare, and sudo unless run as root.
 # The result table goes to $GITHUB_STEP_SUMMARY when set, and to stdout.
@@ -124,7 +126,11 @@ else
     printf '%s\n' "${DENY_NAMES}" > "${work}/deny-names.txt"
     deny_args=(--deny-file "${work}/deny-names.txt")
   fi
-  if (cd "${root}/cli" && go run ./cmd/prufyx-maintainer release-docs check --root .. --mode unreleased "${deny_args[@]}") > "${logs}/docs-gate.log" 2>&1; then
+  base_args=()
+  if [ -n "${BLOCKS_BASE:-}" ]; then
+    base_args=(--blocks-base "${BLOCKS_BASE}")
+  fi
+  if (cd "${root}/cli" && go run ./cmd/prufyx-maintainer release-docs check --root .. --mode unreleased "${base_args[@]}" "${deny_args[@]}") > "${logs}/docs-gate.log" 2>&1; then
     record "release docs gate (unreleased mode; set RELEASE_TAG for release mode)" PASS "$(tail -n1 "${logs}/docs-gate.log" | cut -c1-70)"
   else
     record "release docs gate (unreleased mode; set RELEASE_TAG for release mode)" FAIL "see log"; tail_log "${logs}/docs-gate.log"

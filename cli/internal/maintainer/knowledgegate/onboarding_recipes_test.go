@@ -675,7 +675,7 @@ func TestGateRecipeFilesRefusedAsBeforeWhenALockIsOff(t *testing.T) {
 		want = append(want, p)
 	}
 	sort.Strings(want)
-	wantText := o2Refusal + ", the listed projects' target files, the custom-resource table, the cncf pack file, its corpus attestation, the generated support inventory and the regenerated README coverage block and CNCF source preview counts; it also changes 6 other files" + listDetail(want)
+	wantText := o2Refusal + ", the listed projects' target files, the custom-resource table, the cncf pack file, its corpus attestation, the generated support inventory and the regenerated README coverage block, CNCF source preview counts and coverage counts file; it also changes 6 other files" + listDetail(want)
 	for label, mutate := range map[string]func(*Options){
 		"compiled lock off": func(o *Options) { o.Layout.OnboardingAdmission.Enabled = false },
 		"run-time lock off": func(o *Options) { o.OnboardingAdmissionInProcess = false },

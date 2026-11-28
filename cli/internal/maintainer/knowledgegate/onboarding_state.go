@@ -36,6 +36,9 @@ type OnboardingLayout struct {
 	// DocsDir is the directory of the generated documentation tables
 	// (package docstables) the targets and the table are rendered to.
 	DocsDir string
+	// CountsPath is the generated coverage counts file; a batch may change it
+	// only to its regeneration from the head. Empty admits no change of it.
+	CountsPath string
 	// LandscapePath and PriorityPath are the CNCF catalog files the pack is
 	// admitted with.
 	LandscapePath, PriorityPath string
@@ -48,6 +51,7 @@ func defaultOnboardingLayout() OnboardingLayout {
 		TargetsDir:    "cli/internal/extract/crdversions",
 		TablePath:     defaultTablePath,
 		DocsDir:       "cli",
+		CountsPath:    "cli/docs/generated/coverage-counts.json",
 		LandscapePath: "cli/internal/cncfcheck/data/landscape-projects.json",
 		PriorityPath:  "cli/internal/cncfcheck/data/priority-portfolio.json",
 	}
@@ -282,6 +286,28 @@ func (st *onboardingState) allowedPaths(rec OnboardingRecord, batchPath string) 
 	return allowed
 }
 
+// countsProblem says why the head's coverage counts file is not admitted, or
+// "": it must be a plain, non-executable file holding exactly the bytes the
+// base's code computes from the head's data. Every error refuses.
+func (st *onboardingState) countsProblem() string {
+	ol := st.layout.Onboarding
+	if st.headTree.executable(ol.CountsPath) {
+		return ol.CountsPath + " has an executable bit"
+	}
+	have, err := st.headTree.Read(ol.CountsPath, MaxFileBytes)
+	if err != nil {
+		return fmt.Sprintf("%s cannot be read from the head: %v", ol.CountsPath, logSafe(err.Error()))
+	}
+	want, err := countsOfTree(st.headTree, ol.TablePath)
+	if err != nil {
+		return fmt.Sprintf("%s cannot be regenerated from the head: %v", ol.CountsPath, logSafe(err.Error()))
+	}
+	if !bytes.Equal(have, want) {
+		return ol.CountsPath + " differs from its regeneration from the head"
+	}
+	return ""
+}
+
 // groupListing is one project's listing of an API group in the head table.
 type groupListing struct {
 	slug  string
@@ -375,13 +401,20 @@ func (st *onboardingState) check(rec OnboardingRecord, batchPath string) []strin
 	// O2: the path allow-list over the whole change.
 	allowed := st.allowedPaths(rec, batchPath)
 	var outside []string
+	// The counts file is admitted by its bytes only, judged below once every
+	// other check holds.
+	countsChanged := false
 	for _, p := range st.changedPaths {
+		if ol.CountsPath != "" && p == ol.CountsPath {
+			countsChanged = true
+			continue
+		}
 		if !allowed[p] {
 			outside = append(outside, logSafe(p))
 		}
 	}
 	if len(outside) > 0 {
-		bad("O2: an onboarding change may change only the batch file, the listed projects' target files, the custom-resource table, the %s pack file, its corpus attestation, the generated support inventory and the regenerated README coverage block and CNCF source preview counts; it also changes %d other files%s", ol.Pack, len(outside), listDetail(outside))
+		bad("O2: an onboarding change may change only the batch file, the listed projects' target files, the custom-resource table, the %s pack file, its corpus attestation, the generated support inventory and the regenerated README coverage block, CNCF source preview counts and coverage counts file; it also changes %d other files%s", ol.Pack, len(outside), listDetail(outside))
 	}
 	// O2: the classification holds, with a new project, the pack's
 	// registryDigest; nothing else. The pack's revision never changes: it is
@@ -544,6 +577,11 @@ func (st *onboardingState) check(rec OnboardingRecord, batchPath string) []strin
 	for id := range added {
 		if !wantAdded[id] {
 			bad("O5: the head registers the fact %s, which is not the custom-resource version set of a new project of the batch", logSafe(id))
+		}
+	}
+	if countsChanged && len(problems) == 0 {
+		if why := st.countsProblem(); why != "" {
+			bad("O2: %s", why)
 		}
 	}
 	sort.Strings(problems)

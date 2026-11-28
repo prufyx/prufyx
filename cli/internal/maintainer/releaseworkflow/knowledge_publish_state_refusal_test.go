@@ -137,8 +137,21 @@ func TestKnowledgePublishStatePreviousOutputs(t *testing.T) {
 	run := steps[stepIndex(steps, "Find and verify the previous state")].Run
 	script := strings.Index(run, "bash \"${GITHUB_WORKSPACE}/scripts/knowledge-publish-state.sh\"")
 	guard := strings.Index(run, "if [ \"${mode}\" = state ]; then")
-	if script < 0 || guard < script || strings.Index(run, "state_pkg=${pkg}") < guard || strings.Index(run, "state_digest=${expected_digest}") < guard {
-		t.Error("state_pkg and state_digest must be written after verification, in mode state only")
+	if script < 0 || guard < script {
+		t.Fatal("the mode state guard must follow verification")
+	}
+	end := strings.Index(run[guard:], "\nfi\n")
+	if end < 0 {
+		t.Fatal("the mode state guard is not closed")
+	}
+	span := run[guard : guard+end]
+	for name, write := range map[string]string{
+		"state_pkg=":    "echo \"state_pkg=${pkg}\"",
+		"state_digest=": "echo \"state_digest=${expected_digest}\"",
+	} {
+		if strings.Count(run, name) != 1 || strings.Count(span, write) != 1 {
+			t.Errorf("%s must be written once, after verification, in mode state only", name)
+		}
 	}
 	env := steps[stepIndex(steps, "Verify with the oldest supported client")].Env
 	for k, want := range map[string]string{
