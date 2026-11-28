@@ -210,10 +210,11 @@ func (f Family) LineTransitions(component, line string) (from, to constraintengi
 // every release version of the line in [M.m.0, M.(m+1).0), so these bounds
 // are necessary and sufficient. The engine caps each side of a range at one
 // minor line, so in practice they hold with equality. A version the engine
-// cannot parse makes the comparison fail, and the rule is not line-wide.
+// cannot parse makes the comparison fail, and the rule is not line-wide. A
+// chart rule's versions are chart versions: it is never line-wide.
 func (f Family) CoversLine(component string, t constraintengine.RuleTransition, line string) bool {
 	from, to, ok := f.LineTransitions(component, line)
-	if !ok {
+	if !ok || t.Chart != nil {
 		return false
 	}
 	if t.Range == nil {

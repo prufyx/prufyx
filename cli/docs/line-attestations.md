@@ -189,6 +189,10 @@ rule cannot be attested at all: listing the rule fails this check and
 leaving it out fails the exact set. A line `M.0` has no previous minor line
 in its major and cannot be attested.
 
+A rule with a chart subject is never line-wide: its versions are chart
+versions. If it belongs to a component, line and family by its `subject.to` and
+the usual membership test, that scope cannot be attested either.
+
 The previous line comes from one function, `lineattest.PreviousLine`
 (component, line). For an ordinary component it is `M.(m-1)`. A component
 whose releases are named for the calendar month (a closed set in code; see
