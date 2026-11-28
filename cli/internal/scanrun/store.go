@@ -221,6 +221,35 @@ func (k *Store) NewestServedLine(component string, now time.Time) (string, bool)
 	return k.snapshot.NewestServedLine(component, now)
 }
 
+// NewestRecordLine is the newest line a served list or line review of the
+// database's targets names for the component, but never older than the
+// newest line a record or rule of the embedded knowledge names: a database
+// that dropped every trace of a line this build knows still has it named.
+// The embedded knowledge only raises the line; it decides nothing.
+func (k *Store) NewestRecordLine(component string) (string, error) {
+	newest, err := k.snapshot.NewestRecordLine(component)
+	if err != nil {
+		return "", err
+	}
+	embedded, err := LoadEmbedded()
+	if err != nil {
+		return "", err
+	}
+	floor, err := embedded.NewestRecordLine(component)
+	if err != nil {
+		return "", err
+	}
+	for _, slug := range embedded.Projects() {
+		if subject, ok := embedded.Component(slug); ok && subject == component {
+			floor = newestRuleLine(floor, embedded.Rules(slug), component)
+		}
+	}
+	if floor != "" && (newest == "" || lineattest.LineLess(newest, floor)) {
+		newest = floor
+	}
+	return newest, nil
+}
+
 // Component returns the subject component of a catalog project.
 func (k *Store) Component(slug string) (string, bool) { return k.snapshot.Component(slug) }
 

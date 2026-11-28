@@ -58,6 +58,7 @@ const (
 	GapLineListedRule          GapKey = ReasonLineNotAttested + "/listed-rule"
 	GapLineUnlistedRule        GapKey = ReasonLineNotAttested + "/unlisted-rule"
 	GapLineNoRules             GapKey = ReasonLineNotAttested + "/no-rules"
+	GapNewestCoveredOlderLine  GapKey = ReasonLineNotAttested + "/newest-covered-older-line"
 	GapIntermediateLine        GapKey = ReasonIntermediateLineNotCovered
 	GapIntermediateMajor       GapKey = ReasonIntermediateLineNotCovered + "/major-line"
 	GapNoReviewedPathPolicy    GapKey = ReasonNoReviewedPathPolicy
@@ -185,6 +186,8 @@ type gapMessage struct {
 var gapMessages = map[GapKey]gapMessage{
 	GapLineNotAttested: {"no review confirms that the removed-API rules for %[1]s %[2]s name every API that line removes",
 		"check the %[1]s %[2]s release notes for other removed APIs by hand, or request a line review", 2},
+	GapNewestCoveredOlderLine: {"newest-covered chose line %[2]s, but the knowledge names newer line %[3]s with no current record to use",
+		"use current knowledge for line %[3]s, or give an exact version with --to %[1]s=X.Y.Z", 3},
 	GapLineNotCurrent: {"the review of %[1]s %[2]s for removed APIs is not current (%[3]s)",
 		"use knowledge with a current review, or check the %[1]s %[2]s release notes by hand", 3},
 	GapLineHopShape: {"the hop %[2]s -> %[3]s does not enter one release line from the line before it, so line reviews do not apply",
