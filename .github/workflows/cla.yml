@@ -34,7 +34,8 @@ concurrency:
 jobs:
   cla:
     name: CLA signed
-    if: github.event_name == 'pull_request_target' || (github.event.issue.pull_request && github.event.comment.body)
+    # Comments trigger the job only when they carry the signing sentence (other PR comments used to queue one run each).
+    if: github.event_name == 'pull_request_target' || (github.event.issue.pull_request && contains(github.event.comment.body, 'I have read the CLA Document and I hereby sign the CLA'))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
