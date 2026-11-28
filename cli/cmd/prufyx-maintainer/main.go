@@ -206,6 +206,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runFactory(args[1:], stdout, stderr)
 	case "extract":
 		return runExtract(args[1:], stdout, stderr)
+	case "changelog-renewal":
+		return runChangelogRenewal(args[1:], stdout, time.Now)
 	case "changelog":
 		if code := changelogcli.Main(args[1:], stdout, stderr); code != 0 {
 			return &commandError{code: code, message: "changelog failed", printed: true}
@@ -253,7 +255,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	case "help", "-h", "--help":
-		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|changelog|consensus|served-lists|chart-versions|chart-api-surface|gate|approval|rule|onboard-bundle|target-check|target-draft|coverage|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-packet|knowledge-sign|support-inventory|docs-tables|k8s-declared|qa-report|release-notes|release-docs|release-gate|staging-receipt|release|local-kind|release-*> [options]")
+		fmt.Fprintln(stdout, "usage: prufyx-maintainer <project|contribution|contribution-candidates|selected-source-import|source-corpus|corpus-attestation|review-record|public-source-capture|evidence|factory|extract|changelog|changelog-renewal|consensus|served-lists|chart-versions|chart-api-surface|gate|approval|rule|onboard-bundle|target-check|target-draft|coverage|export-knowledge|knowledge-targets|package-knowledge|knowledge-publish|knowledge-packet|knowledge-sign|support-inventory|docs-tables|k8s-declared|qa-report|release-notes|release-docs|release-gate|staging-receipt|release|local-kind|release-*> [options]")
 		return nil
 	default:
 		return usageError()

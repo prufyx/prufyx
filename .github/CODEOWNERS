@@ -26,6 +26,8 @@
 /scripts/release-dry-run.sh @airstand
 /cli/internal/maintainer/coveragereport/ @airstand
 /cli/cmd/prufyx-maintainer/gate.go @airstand
+/cli/internal/maintainer/changelogrenew/ @airstand
+/cli/cmd/prufyx-maintainer/changelog_renewal.go @airstand
 /cli/internal/strictjson/ @airstand
 /cli/internal/validation/ @airstand
 /cli/internal/maintainer/evidencereattest/ @airstand

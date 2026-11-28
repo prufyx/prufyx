@@ -85,6 +85,80 @@ lists. Missing records remain
 undecided, and a major-version crossing is not satisfied by these records.
 The overall verdict and exit code remain unchanged.
 
+### Renewing listed entries
+
+A renewal renews a record the pack already holds from two derivations made
+independently, with the same derivation time and lease:
+
+```
+prufyx-maintainer extract run --extractor changelog.listed.NAME --mirror-state DIR_A \
+  --out RUN_A --derived-at T --lease-days N
+prufyx-maintainer extract run --extractor changelog.listed.NAME --mirror-state DIR_B \
+  --out RUN_B --derived-at T --lease-days N
+prufyx-maintainer changelog-renewal --extractor changelog.listed.NAME --pack FILE \
+  --run RUN_A --second-run RUN_B --derived-at T --lease-days N [--max N]
+```
+
+It moves `evidence.derivedAt`, `reviewedAt` and `validUntil`. For a record of an
+older build of the same extractor it also moves `evidence.extractor.version` and
+`codeDigest`. Nothing else may differ.
+
+- Only records of that extractor whose `validUntil` is at most 45 days after `T`
+  are considered, soonest end first, up to `--max` (default and limit 200).
+  Records over the cap are listed and left as they are.
+- `T` is not in the future (5 minutes of clock skew) and not over 24 hours old;
+  the lease is 1 to 90 days and the new `validUntil` is later than the old one.
+- The command refuses as a whole, and writes nothing, when the two runs differ or
+  are one directory; a run file is not pinned by its manifest or a pinned file is
+  missing; a cited file is not one the runs read at that release's commit; the
+  record names another extractor; or anything else differs (a release, a line
+  range, a file digest or path, a lease member).
+- A record whose line has gained a release, or that the runs no longer attest,
+  is reported and left as it is. New records are never added. Both belong to the
+  ordinary intake.
+
+The command cannot tell whether the two runs were made independently; it only
+compares their bytes. It prints the digests to record in the commit message,
+which record and do not authenticate. The knowledge gate re-derives the change.
+For a changed `changelog.listed_entries` record the gate also refuses a
+`derivedAt` that is not later than before and, at the same extractor build with
+the same releases, anything but a renewal that moves the three times (codes
+`changelog-renewal/...`).
+
+A set larger than one change is renewed in sequence, for example 90 records with
+`--max 45` in two changes. Derive the second after the first has merged, with a
+new `T` and a lease that ends in another ISO week, and merge both before the
+earliest end among the records they hold.
+
+### Renewing across an extractor build
+
+A change to the extractor, to the entry reader or to the reviewed target table
+changes the code digest. A record of the older build is renewed only when all of
+the following hold; otherwise the whole command refuses:
+
+- the runs are of exactly the build the running command holds;
+- the code digest differs and the version, read as numeric `x.y.z`, is not lower;
+- the record is not a Kubernetes record, and both the old and the new record are
+  in force;
+- only the three times, the version and the code digest differ. The sources and
+  releases are equal.
+
+The output then has one `Origin-Previous-Extractor` line for each older build.
+
+This shows that today's build, reading the same pinned bytes, produces the stored
+claim. The older build is not run again, so it does not show that the two builds
+are equivalent. The gate does not require a change to keep the base content for a
+new build, so such a renewal needs all of this before it merges:
+
+- the extractor code is on the main branch first;
+- the two runs come from two hosts with their own mirrors;
+- the gate passes with a derivation time under 24 hours old, and is run again
+  before the merge;
+- an independent reviewer reproduces the pack byte for byte from the base and the
+  run directories, and reads the code changes between the old and new code digest
+  to confirm that no refusal or check was weakened. If one was, there is no
+  renewal.
+
 ## Reviewed target table
 
 The reviewed targets are data: `internal/extract/changelogentries/targets.json`
