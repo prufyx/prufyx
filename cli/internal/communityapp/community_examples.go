@@ -274,11 +274,13 @@ func (r runtime) runEtcdExample() (communityExampleResult, error) {
 		return communityExampleResult{}, fmt.Errorf("create private example directory: %w", err)
 	}
 	defer os.RemoveAll(work)
-	blocked := []byte(`{"apiVersion":"prufyx.io/etcd-effective-argv/v1alpha1","kind":"EtcdEffectiveArguments","effectiveArgvDeclared":true,"argv":["--name=synthetic-private-node","--enable-v2=false"]}`)
+	withdrawn := []byte(`{"apiVersion":"prufyx.io/etcd-effective-argv/v1alpha1","kind":"EtcdEffectiveArguments","effectiveArgvDeclared":true,"argv":["--name=synthetic-private-node","--enable-v2=false"]}`)
 	unknown := []byte(`{"apiVersion":"prufyx.io/etcd-effective-argv/v1alpha1","kind":"EtcdEffectiveArguments","effectiveArgvDeclared":true,"argv":["--initial-cluster","--enable-v2=true"]}`)
-	blockedCode, blockedReport, err := r.prepareThenCheck(work, "etcd", "3.5.17", "3.6.0", blocked)
-	if err != nil || blockedCode != ExitBlocked || !communityClaim(blockedReport, "BLOCKED") {
-		return communityExampleResult{}, fmt.Errorf("etcd removed-v2 witness did not produce scoped BLOCKED")
+	// The 3.5.17 to 3.6.0 rule is withdrawn: even a witnessed removed option
+	// must stay UNKNOWN.
+	withdrawnCode, withdrawnReport, err := r.prepareThenCheck(work, "etcd", "3.5.17", "3.6.0", withdrawn)
+	if err != nil || withdrawnCode != ExitUnknown || !communityClaim(withdrawnReport, "UNKNOWN") {
+		return communityExampleResult{}, fmt.Errorf("etcd withdrawn removed-v2 rule did not remain UNKNOWN")
 	}
 	unknownCode, unknownReport, err := r.prepareThenCheck(work, "etcd", "3.5.17", "3.6.0", unknown)
 	if err != nil || unknownCode != ExitUnknown || !communityClaim(unknownReport, "UNKNOWN") {
