@@ -1223,7 +1223,7 @@
               "url": "https://github.com/cilium/cilium/blob/7c6667e1e707d7f39a4af3409c2a9ebea2917d32/pkg/k8s/apis/cilium.io/client/crds/v2/ciliumnodeconfigs.yaml"
             }
           ],
-          "state": "active",
+          "state": "withdrawn",
           "validUntil": "2027-01-26T06:10:52Z"
         },
         "id": "cilium.crd-version-removal.ciliumnodeconfigs-cilium-io.1-19-0-to-1-20-0",

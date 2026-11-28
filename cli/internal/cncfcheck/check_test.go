@@ -625,6 +625,7 @@ func TestCatalogueCountsActiveRulesOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantWithdrawn := map[string]string{
+		"cilium.crd-version-removal.ciliumnodeconfigs-cilium-io.1-19-0-to-1-20-0": "cilium",
 		"cilium.nonempty-requires-crd-maxitems.1-18-13-to-1-19-7":     "cilium",
 		"cilium.nonempty-requires-rejected.1-19":                      "cilium",
 		"contour.gateway-v1alpha1-removed.1-19-0-to-1-20-0":           "contour",
