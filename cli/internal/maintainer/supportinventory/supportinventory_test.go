@@ -574,11 +574,25 @@ func TestSupportInventory_WithdrawnRuleIsExcludedButListed(t *testing.T) {
 	if err := json.Unmarshal(raw, &document); err != nil {
 		t.Fatal(err)
 	}
-	if document.Counts.CNCFSourceRulesWithdrawn != 1 {
-		t.Fatalf("expected exactly one withdrawn CNCF rule, got %d", document.Counts.CNCFSourceRulesWithdrawn)
+	wantWithdrawn := map[string]string{
+		"cri-o.artifact-short-name-rejected.1-35": "cri-o",
+		"etcd.v2-proxy-flags-removed.3-6":         "etcd",
 	}
-	if len(document.WithdrawnRules) != 1 || document.WithdrawnRules[0].RuleID != "cri-o.artifact-short-name-rejected.1-35" || document.WithdrawnRules[0].Project != "cri-o" || document.WithdrawnRules[0].Family != "cncf_embedded_source_rule" || document.WithdrawnRules[0].ReasonCode != "RULE_EVIDENCE_WITHDRAWN" {
-		t.Fatalf("unexpected withdrawnRules entry: %#v", document.WithdrawnRules)
+	if document.Counts.CNCFSourceRulesWithdrawn != len(wantWithdrawn) {
+		t.Fatalf("expected %d withdrawn CNCF rules, got %d", len(wantWithdrawn), document.Counts.CNCFSourceRulesWithdrawn)
+	}
+	if len(document.WithdrawnRules) != len(wantWithdrawn) {
+		t.Fatalf("unexpected withdrawnRules entries: %#v", document.WithdrawnRules)
+	}
+	for _, rule := range document.WithdrawnRules {
+		project, ok := wantWithdrawn[rule.RuleID]
+		if !ok || rule.Project != project || rule.Family != "cncf_embedded_source_rule" || rule.ReasonCode != "RULE_EVIDENCE_WITHDRAWN" {
+			t.Fatalf("unexpected withdrawnRules entry: %#v", rule)
+		}
+		delete(wantWithdrawn, rule.RuleID)
+		if !strings.Contains(markdown, rule.RuleID) {
+			t.Fatalf("markdown does not list the withdrawn rule %s", rule.RuleID)
+		}
 	}
 	for _, project := range document.Projects {
 		if project.ProjectID != "cri-o" {
