@@ -137,7 +137,8 @@ type Project struct {
 	// ValidRules is the number of valid rules of the project.
 	ValidRules int `json:"validRules"`
 	// RulesInWindow counts valid rules whose anchor versions both lie in
-	// the window.
+	// the window. Chart-subject rules are left out: their anchors are chart
+	// versions.
 	RulesInWindow int `json:"rulesInWindow"`
 	// Expiring counts valid rules and attestations whose validUntil falls
 	// within 14 days.
@@ -320,6 +321,10 @@ type ruleRec struct {
 	raw       json.RawMessage
 }
 
+// chartSubject reports a rule about a Helm chart line: its versions are chart
+// versions, so it decides no pair of the project's release lines (A, B or S).
+func (r *ruleRec) chartSubject() bool { return r.tr.Chart != nil }
+
 type evidenceShape struct {
 	State      string `json:"state"`
 	ReviewedAt string `json:"reviewedAt"`
@@ -346,6 +351,7 @@ type crdPublished struct{ project, component map[string]bool }
 // communityCRDPublished reads the community pack (nil: nothing published):
 // a valid, verdict-bearing rule of the CRD version family publishes its
 // project; a current line attestation of the family publishes its component.
+// A chart-subject rule publishes nothing.
 func communityCRDPublished(raw []byte, now time.Time) (crdPublished, error) {
 	out := crdPublished{project: map[string]bool{}, component: map[string]bool{}}
 	if len(raw) == 0 {
@@ -370,7 +376,11 @@ func communityCRDPublished(raw []byte, now time.Time) (crdPublished, error) {
 		if err != nil {
 			return out, fmt.Errorf("%w: community pack: %v", ErrInvalid, err)
 		}
-		if ok, _ := validAt(shape.Evidence, now); ok && !neutral && slices.Contains(scope.Families, lineattest.FamilyCustomResourceVersions) {
+		subject, err := constraintengine.RuleTransitionOf(entry.Rule)
+		if err != nil {
+			return out, fmt.Errorf("%w: community pack: %v", ErrInvalid, err)
+		}
+		if ok, _ := validAt(shape.Evidence, now); ok && !neutral && subject.Chart == nil && slices.Contains(scope.Families, lineattest.FamilyCustomResourceVersions) {
 			out.project[entry.Project] = true
 		}
 	}
@@ -513,6 +523,13 @@ func Compute(in Input) (Report, error) {
 		if err != nil {
 			return Report{}, fmt.Errorf("%w: pack: %v", ErrInvalid, err)
 		}
+		// ScopeOf leaves the chart identity out. Without it a chart rule's
+		// version numbers would be read as release lines.
+		subject, err := constraintengine.RuleTransitionOf(entry.Rule)
+		if err != nil {
+			return Report{}, fmt.Errorf("%w: pack: %v", ErrInvalid, err)
+		}
+		scope.Transition.Chart = subject.Chart
 		ok, until := validAt(shape.Evidence, now)
 		rec := &ruleRec{id: scope.ID, project: entry.Project, tr: scope.Transition, families: scope.Families, valid: ok && !neutral, validTill: until, raw: entry.Rule}
 		rec.expiring = rec.valid && until.Sub(now) <= ExpiryHorizon
@@ -707,7 +724,7 @@ func Compute(in Input) (Report, error) {
 	for project, component := range in.CRDTargetComponents {
 		published := crdAttComponent[component]
 		for _, r := range byProject[project] {
-			if r.valid && slices.Contains(r.families, lineattest.FamilyCustomResourceVersions) {
+			if r.valid && !r.chartSubject() && slices.Contains(r.families, lineattest.FamilyCustomResourceVersions) {
 				published = true
 			}
 		}
@@ -769,7 +786,7 @@ func Compute(in Input) (Report, error) {
 			}
 			from, ok1 := versionLine(slug, r.tr.From)
 			to, ok2 := versionLine(slug, r.tr.To)
-			if ok1 && ok2 && inWindow[from] && inWindow[to] {
+			if !r.chartSubject() && ok1 && ok2 && inWindow[from] && inWindow[to] {
 				row.RulesInWindow++
 			}
 		}
@@ -1019,7 +1036,7 @@ func classify(project, fromLine, toLine string, rules []*ruleRec, atts []lineatt
 // exactPairRule reports whether a valid rule names exactly this pair of lines.
 func exactPairRule(project, fromLine, toLine string, rules []*ruleRec) bool {
 	for _, r := range rules {
-		if !r.valid {
+		if !r.valid || r.chartSubject() {
 			continue
 		}
 		rf, ok1 := versionLine(project, r.tr.From)
@@ -1057,7 +1074,7 @@ func attestedFamilies(fromLine, toLine string, atts []lineattest.LineAttestation
 		wide := true
 		for _, id := range a.RuleIDs {
 			r := byID[id]
-			if r == nil || !r.valid || !family.CoversLine(a.Component, r.tr, toLine) {
+			if r == nil || !r.valid || r.chartSubject() || !family.CoversLine(a.Component, r.tr, toLine) {
 				wide = false
 				break
 			}
@@ -1085,7 +1102,7 @@ func boundedFamilies(fromLine, toLine string, rules []*ruleRec) ([]string, bool)
 	toBound := constraintengine.VersionBound{Gte: toLine + ".0", Lt: toNext}
 	set := map[string]bool{}
 	for _, r := range rules {
-		if !r.valid {
+		if !r.valid || r.chartSubject() {
 			continue
 		}
 		hit := false

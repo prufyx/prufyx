@@ -257,6 +257,8 @@ func TestCRDPublishedProjects(t *testing.T) {
 		{"community expired rule", "", "", []string{"gateway-api", "kubeswift"}, community(expiredRule, ""), 0},
 		{"community invalid rule", "", "", []string{"gateway-api", "kubeswift"}, community(withdrawnRule, ""), 0},
 		{"community data of a project without a target", "", "", []string{"kubeswift"}, community(gatewayRule, `,"lineAttestations":`+string(section)), 0},
+		{"chart rule", asChart(t, gatewayRule), "", []string{"gateway-api", "kubeswift"}, "", 0},
+		{"community chart rule", "", "", []string{"gateway-api", "kubeswift"}, community(asChart(t, gatewayRule), ""), 0},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
