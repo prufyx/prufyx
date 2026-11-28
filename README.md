@@ -166,11 +166,13 @@ prufyx plan "$demo_dir/rendered.yaml" \
 ```
 
 The declarations describe this synthetic apply set, not your environment. In a
-local development run evaluated at `2026-11-03T00:00:00Z` with embedded
-knowledge revision `cncf-2026-09-13.8`, the plan returned `BLOCKED` (exit `10`): three stages were `BLOCKED` and one
-was `UNKNOWN`. It showed two required Kubernetes hops and inferred the Cilium
-and Crossplane order; verify that order before upgrading. The three findings
-cite upstream sources, and each of the four stages includes hop input and
+local development run evaluated on `2026-11-28` with embedded
+knowledge revision `cncf-2026-09-13.8`, the plan returned `BLOCKED` (exit `10`): two stages were `BLOCKED` and two
+were `UNKNOWN`. It showed two required Kubernetes hops and inferred the Cilium
+and Crossplane order; verify that order before upgrading. The two findings, on
+the first Kubernetes hop and the Crossplane hop, cite upstream sources. The
+Cilium stage has no finding: it reports its custom-resource rule as not current
+(withdrawn), which is not a pass. Each of the four stages includes hop input and
 engine contract digests. Those evidence fields require a build containing the
 staged evidence changes. This example does not check a live environment, hop
 actions or node rolls. Results can change with the binary and knowledge used.

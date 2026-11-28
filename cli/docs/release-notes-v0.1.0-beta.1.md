@@ -20,6 +20,37 @@ that a whole upgrade is safe.
 - The MariaDB Operator project check uses embedded knowledge by default. An
   explicit local knowledge store may be selected for supported rules.
 
+## Known issues in v0.1.0-beta.0
+
+That release carries the withdrawn rules in its embedded knowledge and cannot
+read the current knowledge feed, so a knowledge update does not correct it.
+
+- v0.1.0-beta.0 reports a scoped PASS for etcd 3.5.17 to 3.6.0 although upstream
+  requires every etcd member to run 3.5.32 or later first. Upgrade the client; do
+  not rely on that answer.
+- v0.1.0-beta.0 reports a scoped PASS for Harbor 2.10.3 to 2.15.2 and 2.11.2 to
+  2.15.2 although the upstream upgrade guide for the target release covers 2.12.0
+  and later only. Upgrade the client; do not rely on those answers.
+- v0.1.0-beta.0 reports a scoped PASS for Contour 1.19.0 to 1.20.0 although
+  upstream says to upgrade to 1.19.1 first. Upgrade the client; do not rely on
+  that answer.
+- v0.1.0-beta.0 reports a scoped PASS for Cilium 1.18.6 to 1.19.0 and 1.18.13 to
+  1.19.7 without saying that the upstream guide says to update to the latest patch
+  release of the current version first. Do that before upgrading.
+- v0.1.0-beta.0 decides the removed CiliumNodeConfig v2alpha1 version for Cilium
+  1.19.0 to 1.20.0 without saying that the upstream guide says to update to the
+  latest patch release of the current version first. Do that before upgrading; the
+  removal itself is still real.
+
+## Blockers no longer reported
+
+- Inputs that the withdrawn rules reported as `BLOCKED` are now `UNKNOWN`, which
+  is not a pass. Check those changes by hand.
+- The removal of CiliumNodeConfig v2alpha1 for Cilium 1.19.0 to 1.20.0 is no
+  longer reported as a blocker. A `scan --fail-on blocked` of such a manifest,
+  blocked while the rule was active, now exits successfully with a note that this
+  is not a PASS. Do not use that exit status as clearance; migrate the manifest.
+
 ## What changed in this release
 
 <!-- release-notes:begin -->
