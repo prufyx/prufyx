@@ -10,11 +10,23 @@ import json
 import os
 import sys
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 spec = importlib.util.spec_from_file_location("intake_status", os.path.join(HERE, "intake-status.py"))
 S = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(S)
+
+NO_NETWORK = mock.patch.object(S, "_opener", side_effect=AssertionError("network disabled in tests"))
+
+
+def setUpModule():
+    NO_NETWORK.start()
+
+
+def tearDownModule():
+    NO_NETWORK.stop()
+
 
 NOW = datetime.datetime(2026, 11, 20, 12, 0, 0, tzinfo=datetime.timezone.utc)
 GEN = "2026-11-20T11:50:00Z"
@@ -60,7 +72,7 @@ class FakeApi:
 
     def request(self, method, path, body=None):
         self.calls.append((method, path, body))
-        if not any(m == method and rx.match(path) for m, rx in S._ALLOWED):
+        if not any(m == method and rx.fullmatch(path) for m, rx in S._ALLOWED):
             raise PermissionError("outside allow-list")
         parts = path.split("?")[0].split("/")
         if method == "GET" and parts[-2] == "issues":
@@ -90,7 +102,7 @@ class FakeApi:
 
 def run_main(fetch_bytes, api, token="t"):
     return S.main(env={"GITHUB_REPOSITORY": "prufyx/prufyx", "GH_TOKEN": token}, fetch=lambda: fetch_bytes,
-                  api_factory=lambda tok: api, now=NOW)
+                  api_factory=lambda tok: api, clock=lambda: NOW)
 
 
 class ValidateFeed(unittest.TestCase):
@@ -106,6 +118,17 @@ class ValidateFeed(unittest.TestCase):
         got = self.ok(feed([item(3, 30, 300), item(5, 50, 500, "refused", "repo-is-fork"), item(7, 70, 700, "accepted", "", "sample")]))
         self.assertEqual([i["issueNumber"] for i in got], [3, 5, 7])
         self.assertEqual(self.ok(feed([])), [])
+
+    def test_admission_reasons(self):
+        for state, reason in (("refused", "no-invite"), ("refused", "proof-ambiguous"),
+                              ("parked", "maintainer-changed"), ("parked", "proof-expired")):
+            got = self.ok(feed([item(3, 30, 300, state, reason)]))
+            self.assertEqual(got[0]["reason"], reason)
+            self.assertIn("Reason code: " + reason, S.comment_body(got[0]))
+        self.bad(feed([item(3, 30, 300, "held", "no-invite")]))        # a reason of another state
+        self.bad(feed([item(3, 30, 300, "refused", "proof-expired")]))
+        self.bad(feed([item(3, 30, 300, "parked", "no-invite")]))
+        self.bad(feed([item(3, 30, 300, "refused", "proof-unknown")]))  # unknown stays refused
 
     def test_bad_schema(self):
         base = [item(3, 30, 300)]
@@ -168,6 +191,19 @@ class ValidateFeed(unittest.TestCase):
     def test_stale_and_future(self):
         self.bad(feed([], generatedAt="2026-11-20T10:00:00Z"), S.FeedStale)
         self.bad(feed([], generatedAt="2026-11-20T13:00:00Z"), S.FeedStale)
+        self.assertEqual(self.ok(feed([], generatedAt="2026-11-20T11:00:00Z")), [])
+        self.assertEqual(self.ok(feed([], generatedAt="2026-11-20T12:05:00Z")), [])
+        self.bad(feed([], generatedAt="2026-11-20T10:59:59Z"), S.FeedStale)
+        self.bad(feed([], generatedAt="2026-11-20T12:05:01Z"), S.FeedStale)
+
+    def test_terminal_newlines_are_refused(self):
+        for project in ("sample\n", "sample\r\n"):
+            with self.subTest(project=repr(project)):
+                self.bad(feed([item(3, 30, 300, project=project)]))
+        self.bad(feed([], generatedAt=GEN + "\n"))
+        it = item(3, 30, 300)
+        it["updatedAt"] += "\n"
+        self.bad(feed([it]))
 
     def test_comment_text_is_closed(self):
         for state in S.STATES:
@@ -186,6 +222,69 @@ class Process(unittest.TestCase):
         self.api = FakeApi()
         self.api.add_issue(3, 30, 300)
         self.items = [item(3, 30, 300, "accepted", "", "sample")]
+
+    def test_project_terminal_newline_writes_nothing(self):
+        self.items[0]["project"] = "sample\n"
+        self.assertEqual(run_main(raw(feed(self.items)), self.api), 1)
+        self.assertEqual(self.api.calls, [])
+
+    def run_expiring(self, expire_at, editing=False):
+        current = [NOW]
+        expired = NOW + datetime.timedelta(hours=1)
+        data = raw(feed(self.items))
+        request = self.api.request
+        if editing:
+            self.api.add_comment(3, S.marker(3) + "\nprevious status")
+
+        def fetch():
+            if expire_at == "fetch":
+                current[0] = expired
+            return data
+
+        def advancing_request(method, path, body=None):
+            result = request(method, path, body)
+            if ((expire_at == "comments" and method == "GET" and "/comments?" in path)
+                    or (expire_at == "write" and method in ("POST", "PATCH"))):
+                current[0] = expired
+            return result
+
+        with mock.patch.object(S.datetime, "datetime", wraps=datetime.datetime) as dt, \
+                mock.patch.object(self.api, "request", side_effect=advancing_request), \
+                mock.patch("builtins.print") as printed:
+            dt.now.side_effect = lambda tz: current[0]
+            code = S.main(env={"GITHUB_REPOSITORY": S.REPO, "GH_TOKEN": "t"}, fetch=fetch,
+                          api_factory=lambda token: self.api)
+        self.assertEqual(code, 0)
+        logs = "\n".join(c.args[0] for c in printed.call_args_list)
+        self.assertIn("feed-stale", logs)
+        return logs
+
+    def test_expiry_during_fetch_writes_nothing(self):
+        self.run_expiring("fetch")
+        self.assertEqual(self.api.calls, [])
+
+    def test_expiry_during_comment_read_stops_create_and_edit(self):
+        for editing in (False, True):
+            with self.subTest(editing=editing):
+                self.api = FakeApi()
+                self.api.add_issue(3, 30, 300)
+                logs = self.run_expiring("comments", editing=editing)
+                self.assertEqual(self.api.writes(), [])
+                self.assertIn("created=0 edited=0 errors=0 same=0 skipped=1", logs)
+
+    def test_expiry_between_writes_preserves_partial_counts(self):
+        for editing in (False, True):
+            with self.subTest(editing=editing):
+                self.api = FakeApi()
+                self.api.add_issue(3, 30, 300)
+                self.api.add_issue(4, 40, 400)
+                self.api.add_issue(5, 50, 500)
+                self.items = [item(3, 30, 300), item(4, 40, 400), item(5, 50, 500)]
+                logs = self.run_expiring("write", editing=editing)
+                self.assertEqual([c[0] for c in self.api.writes()], ["PATCH" if editing else "POST"])
+                expected = "created=0 edited=1" if editing else "created=1 edited=0"
+                self.assertIn(expected + " errors=0 same=0 skipped=2", logs)
+
 
     def test_creates_one_comment(self):
         self.assertEqual(run_main(raw(feed(self.items)), self.api), 0)
@@ -306,12 +405,12 @@ class Process(unittest.TestCase):
     def test_unreachable_feed_and_missing_token_fail(self):
         def boom():
             raise OSError("down")
-        self.assertEqual(S.main(env={"GITHUB_REPOSITORY": "prufyx/prufyx", "GH_TOKEN": "t"}, fetch=boom, api_factory=lambda t: self.api, now=NOW), 1)
-        self.assertEqual(S.main(env={"GITHUB_REPOSITORY": "prufyx/prufyx"}, fetch=lambda: raw(feed(self.items)), now=NOW), 1)
+        self.assertEqual(S.main(env={"GITHUB_REPOSITORY": "prufyx/prufyx", "GH_TOKEN": "t"}, fetch=boom, api_factory=lambda t: self.api, clock=lambda: NOW), 1)
+        self.assertEqual(S.main(env={"GITHUB_REPOSITORY": "prufyx/prufyx"}, fetch=lambda: raw(feed(self.items)), clock=lambda: NOW), 1)
 
     def test_runs_only_in_the_main_repository(self):
         self.assertEqual(S.main(env={"GITHUB_REPOSITORY": "someone/fork", "GH_TOKEN": "t"}, fetch=lambda: raw(feed(self.items)),
-                                api_factory=lambda t: self.api, now=NOW), 1)
+                                api_factory=lambda t: self.api, clock=lambda: NOW), 1)
         self.assertEqual(self.api.calls, [])
 
     def test_failed_write_is_an_error(self):
@@ -324,8 +423,97 @@ class Process(unittest.TestCase):
         api.add_issue(3, 30, 300)
         self.assertEqual(run_main(raw(feed(self.items)), api), 1)
 
+    def test_issue_read_status_errors_and_absence(self):
+        for status in (401, 403, 429, 500, 503, 404):
+            with self.subTest(status=status), \
+                    mock.patch.object(self.api, "request", return_value=(status, None)) as request, \
+                    mock.patch("builtins.print") as printed:
+                self.assertEqual(run_main(raw(feed(self.items)), self.api), 0 if status == 404 else 1)
+                request.assert_called_once_with("GET", "/repos/prufyx/prufyx/issues/3")
+                logs = "\n".join(c.args[0] for c in printed.call_args_list)
+                counts = "errors=0 same=0 skipped=1" if status == 404 else "errors=1 same=0 skipped=0"
+                self.assertIn("created=0 edited=0 " + counts, logs)
+
+    def test_issue_read_operational_failure_is_an_error(self):
+        with mock.patch.object(self.api, "request", side_effect=OSError(HOSTILE)) as request, \
+                mock.patch("builtins.print") as printed:
+            self.assertEqual(run_main(raw(feed(self.items)), self.api), 1)
+            request.assert_called_once_with("GET", "/repos/prufyx/prufyx/issues/3")
+            logs = "\n".join(c.args[0] for c in printed.call_args_list)
+            self.assertIn("created=0 edited=0 errors=1 same=0 skipped=0", logs)
+            self.assertNotIn(HOSTILE, logs)
+
+    def test_malformed_issue_response_is_an_error(self):
+        responses = [[], {}, {"number": 3}, {"id": 30}]
+        for key in ("number", "id"):
+            for value in (None, True, "3", 3.0):
+                obj = copy.deepcopy(self.api.issues[3])
+                obj[key] = value
+                responses.append(obj)
+        for index, obj in enumerate(responses):
+            with self.subTest(index=index), mock.patch.object(self.api, "request", return_value=(200, obj)) as request, \
+                    mock.patch("builtins.print") as printed:
+                self.assertEqual(run_main(raw(feed(self.items)), self.api), 1)
+                request.assert_called_once_with("GET", "/repos/prufyx/prufyx/issues/3")
+                logs = "\n".join(c.args[0] for c in printed.call_args_list)
+                self.assertIn("created=0 edited=0 errors=1 same=0 skipped=0", logs)
+
+    def test_different_issue_identity_is_skipped(self):
+        for key, value in (("number", 4), ("id", 31)):
+            obj = copy.deepcopy(self.api.issues[3])
+            obj[key] = value
+            with self.subTest(key=key), mock.patch.object(self.api, "request", return_value=(200, obj)) as request, \
+                    mock.patch("builtins.print") as printed:
+                self.assertEqual(run_main(raw(feed(self.items)), self.api), 0)
+                request.assert_called_once_with("GET", "/repos/prufyx/prufyx/issues/3")
+                logs = "\n".join(c.args[0] for c in printed.call_args_list)
+                self.assertIn("created=0 edited=0 errors=0 same=0 skipped=1", logs)
+
+    def assert_issue_response(self, obj, error):
+        with mock.patch.object(self.api, "request", return_value=(200, obj)) as request, \
+                mock.patch("builtins.print") as printed:
+            self.assertEqual(run_main(raw(feed(self.items)), self.api), int(error))
+            request.assert_called_once_with("GET", "/repos/prufyx/prufyx/issues/3")
+            logs = "\n".join(c.args[0] for c in printed.call_args_list)
+            counts = "errors=1 same=0 skipped=0" if error else "errors=0 same=0 skipped=1"
+            self.assertIn("created=0 edited=0 " + counts, logs)
+            self.assertNotIn(HOSTILE, logs)
+
+    def test_malformed_issue_eligibility_fields_are_errors(self):
+        base = self.api.issues[3]
+        changes = (("user", None), ("user", {}), ("user", {"id": 300}),
+                   ("user", {"type": "User"}), ("user", {"id": True, "type": "User"}),
+                   ("user", {"id": "300", "type": "User"}), ("user", {"id": 300, "type": None}),
+                   ("state", None), ("state", 1), ("locked", None), ("locked", 0),
+                   ("labels", None), ("labels", {}), ("labels", [None]), ("labels", [{}]),
+                   ("labels", [{"name": True}]), ("labels", [{"name": S.LABEL}, {}]))
+        responses = [{**base, key: value} for key, value in changes]
+        responses.extend({k: v for k, v in base.items() if k != key}
+                         for key in ("user", "state", "locked", "labels"))
+        for index, obj in enumerate(responses):
+            with self.subTest(index=index):
+                self.assert_issue_response(obj, error=True)
+
+    def test_valid_ineligible_issue_fields_are_skipped(self):
+        for index, change in enumerate(({"state": "closed"}, {"locked": True}, {"labels": []},
+                                        {"labels": [{"name": "bug"}]}, {"user": {"id": 301, "type": "User"}},
+                                        {"user": {"id": 300, "type": "Bot"}}, {"pull_request": {}})):
+            with self.subTest(index=index):
+                self.assert_issue_response({**self.api.issues[3], **change}, error=False)
+
 
 class Transport(unittest.TestCase):
+    def test_api_paths_with_terminal_newlines_are_refused(self):
+        for method, path in (("GET", "/repos/prufyx/prufyx/issues/3"),
+                             ("GET", "/repos/prufyx/prufyx/issues/3/comments?per_page=100&page=1"),
+                             ("POST", "/repos/prufyx/prufyx/issues/3/comments"),
+                             ("PATCH", "/repos/prufyx/prufyx/issues/comments/9001")):
+            with self.subTest(method=method, path=path), \
+                    mock.patch.object(S, "_opener", side_effect=AssertionError("network disabled in tests")) as opener:
+                with self.assertRaises(PermissionError):
+                    S.Api("t").request(method, path + "\n")
+                opener.assert_not_called()
+
     def test_feed_url_is_fixed_https(self):
         self.assertTrue(S.FEED_URL.startswith("https://"))
         self.assertNotIn("FEED_URL", os.environ.get("X", ""))
