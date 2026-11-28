@@ -235,22 +235,17 @@ func TestArgoWorkflowsLatestFiveOriginScopedResults(t *testing.T) {
 
 func TestCephCurrentSideScopedResult(t *testing.T) {
 	now := testclock.Floor(time.Date(2026, 9, 11, 21, 0, 0, 0, time.UTC))
-	for _, tc := range []struct {
-		store string
-		want  int
-	}{
-		{"filestore", 10},
-		{"bluestore", 0},
-	} {
-		prepared, err := projectprepare.PrepareSelectedOSDMetadata(projectprepare.CephProject, []byte(`{"id":7,"osd_objectstore":"`+tc.store+`"}`), "7", projectprepare.CephFrom, projectprepare.CephTo, true)
+	// The rule of this pair is withdrawn: neither backend is decided.
+	for _, store := range []string{"filestore", "bluestore"} {
+		prepared, err := projectprepare.PrepareSelectedOSDMetadata(projectprepare.CephProject, []byte(`{"id":7,"osd_objectstore":"`+store+`"}`), "7", projectprepare.CephFrom, projectprepare.CephTo, true)
 		if err != nil {
 			t.Fatal(err)
 		}
 		report, err := Check(projectprepare.CephProject, prepared.CanonicalInputJSON, now)
-		if err != nil || ClaimExit(report) != tc.want || len(report.Check.Claims) != 1 {
-			t.Fatalf("store=%s report=%+v err=%v", tc.store, report, err)
+		if err != nil || ClaimExit(report) != 11 || len(report.Check.Claims) != 1 {
+			t.Fatalf("store=%s report=%+v err=%v", store, report, err)
 		}
-		if report.Check.Claims[0].RuleID != "ceph.selected-osd-filestore.17-2-to-18-2" {
+		if report.Check.Claims[0].RuleID != "ceph.selected-osd-filestore.17-2-to-18-2" || report.Check.Claims[0].ReasonCode != "RULE_EVIDENCE_WITHDRAWN" {
 			t.Fatalf("unexpected claim %+v", report.Check.Claims[0])
 		}
 	}
