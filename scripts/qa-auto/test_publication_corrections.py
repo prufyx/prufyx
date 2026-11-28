@@ -16,6 +16,7 @@ import crd_oracle as crd
 import k8s_oracle as k8s
 import qalib as q
 import corpus
+import source_floors
 
 
 HERE = Path(__file__).resolve().parent
@@ -143,7 +144,9 @@ def publication_runner():
         path = Path(args[args.index("--input") + 1])
         code = 0 if mode == "rules-pass" and path.stem == "v0" else 10
         return subprocess.CompletedProcess(args, code, "", "")
-    with patch.object(q, "SRC", str(source)), patch.object(q, "TMP", str(out / "tmp")), patch.object(
+    # The synthetic rules hold none of the shipped source floors' components; the floors have their own tests.
+    with patch.object(source_floors, "cases", return_value=[]), patch.object(
+            q, "SRC", str(source)), patch.object(q, "TMP", str(out / "tmp")), patch.object(
             corpus, "variants", return_value=[dict(id="enc.control", data=b"{}", project=None)]), patch.object(
             subprocess, "run", side_effect=rule_command), patch("sys.argv", ["rules_oracle.py", "--out",
             str(out / "rules.cases.json"), "--allow", str(rules_allow)]):
