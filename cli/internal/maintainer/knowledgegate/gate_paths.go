@@ -61,6 +61,10 @@ func defaultGatePaths() []string {
 		"go.work",
 		"go.work.sum",
 		"cli/internal/maintainer/knowledgegate/",
+		// The renewal predicates, one of which the gate applies, and the tool
+		// that writes a renewal, with its command.
+		"cli/internal/maintainer/changelogrenew/",
+		"cli/cmd/prufyx-maintainer/changelog_renewal.go",
 		"cli/internal/maintainer/mergepolicy/",
 		"cli/internal/maintainer/releasedocs/",
 		"cli/internal/maintainer/verifyprworkflow/",

@@ -562,6 +562,10 @@ func Verify(ctx context.Context, opts Options) (*Report, error) {
 					c.fail(err.Error())
 					continue
 				}
+				if err := changelogRenewalPre(c); err != nil {
+					c.fail(err.Error())
+					continue
+				}
 				if err := freshRecordDerivation(c.rhead, opts.Now); err != nil {
 					c.fail(err.Error())
 					continue
