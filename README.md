@@ -477,7 +477,7 @@ Fluent Bit, Grafana, Grafana Loki, Kibana, MariaDB, MariaDB Operator and
 OpenSearch (community projects), and named checks and profiles for cert-manager, Prometheus, SPIFFE
 X.509-SVID, CloudEvents and TiKV.
 
-CNCF projects with rules include Argo CD, Cilium, containerd, Contour, CoreDNS,
+CNCF projects with rules include Argo CD, Cilium, containerd, Contour (its one rule is withdrawn), CoreDNS,
 Cortex, CRI-O (its one rule is withdrawn), Crossplane, Envoy, etcd, Falco, Flux, Harbor, Helm, Istio,
 Jaeger, Karmada, KEDA, Knative, KubeEdge, KubeVirt, Kyverno, Linkerd, Longhorn,
 MetalLB, OPA, OpenTelemetry, Prometheus, Rook, SPIRE, Strimzi, Tekton, Thanos,
