@@ -531,6 +531,15 @@ func (st *onboardingState) check(rec OnboardingRecord, batchPath string) []strin
 	}
 	wantAdded := map[string]bool{}
 	for _, p := range rec.Projects {
+		// The claims counts are the proposal's own. They are required here,
+		// of a batch under decision, and not in validate: batches already
+		// merged without a confirmed claim must keep loading as history.
+		if p.Proof.Claims.Confirmed < 1 {
+			bad("O4: %s: the proposal reports no confirmed claim", logSafe(p.Slug))
+		}
+		if n := p.Proof.Claims.Refuted; n != 0 {
+			bad("O4: %s: the proposal reports %d refuted claims; a batch admits a project with none", logSafe(p.Slug), n)
+		}
 		problems = append(problems, st.checkProject(p, baseRows, headRows, groupOwners)...)
 		if p.Kind == OnboardingKindNew {
 			if row, ok := headRows[p.Slug]; ok {
