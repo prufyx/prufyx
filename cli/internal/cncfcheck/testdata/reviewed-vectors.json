@@ -1731,7 +1731,7 @@
             ]
           }
         },
-        "status": "PASS"
+        "status": "UNKNOWN"
       },
       {
         "name": "complete-nonempty-set",
@@ -1763,7 +1763,7 @@
             ]
           }
         },
-        "status": "BLOCKED"
+        "status": "UNKNOWN"
       },
       {
         "name": "insufficient-missing-set",
@@ -1922,7 +1922,7 @@
             ]
           }
         },
-        "status": "PASS"
+        "status": "UNKNOWN"
       },
       {
         "name": "blocked",
@@ -1954,7 +1954,7 @@
             ]
           }
         },
-        "status": "BLOCKED"
+        "status": "UNKNOWN"
       },
       {
         "name": "missing",

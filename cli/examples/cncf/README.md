@@ -1353,9 +1353,7 @@ printf 'Cilium preparation exit: %s\n' "$prepare_exit"
 ```
 
 Add `--complete-cnp-ccnp-set true` only when that local document represents the
-complete relevant set. Leave the flag out when completeness is unknown; a nonempty
-requires witness can still produce a scoped blocker, while a clean incomplete
-or partial set remains `UNKNOWN`.
+complete relevant set. Leave the flag out when completeness is unknown.
 
 Alternatively, copy the canonical example to a private regular file. Keep a
 prepared or copied declaration mode `0600`, then run the check from the
@@ -1376,15 +1374,12 @@ chmod 600 cilium-report.json
 printf 'Cilium check exit: %s\\n' "$status"
 ```
 
-This complete-set absence declaration returns the scoped Cilium target-schema
-`PASS` with exit `0`; a true declaration for any nonempty relevant array is
-scoped `BLOCKED` with exit `10`. Missing, partial, unsupported, or ambiguous
-operator facts and wrong version pairs remain `UNKNOWN`; malformed input keeps
-the existing invalid-input behavior. The rule records only that the pinned
-v1.19.7 CNP and CCNP CRD schemas set the relevant array `maxItems` to `0`. It
-does not establish historical support removal, API-server admission, pruning,
-startup, traffic, or whole-upgrade safety. The aggregate assessment remains
-`UNKNOWN`.
+This check returns `UNKNOWN` with exit `11` for every declaration. The rules
+for `1.18.13` to `1.19.7` and `1.18.6` to `1.19.0` are withdrawn: the upstream
+upgrade guide says to update to the latest patch release of the current version
+before an upgrade, and neither origin is that release. Wrong version pairs
+remain `UNKNOWN`; malformed input keeps the existing invalid-input behavior.
+The aggregate assessment remains `UNKNOWN`.
 
 ## Check Prometheus 2.55.1 to 3.14.0 configuration declarations
 

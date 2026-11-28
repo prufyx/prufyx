@@ -25,8 +25,8 @@ func setWallClock(t *testing.T, at time.Time) {
 
 func pinnedNowArgs(path, now string) []string {
 	return []string{
-		"check", "cncf", "--project", "cilium", "--cilium-policy", path,
-		"--from", "1.18.13", "--to", "1.19.7", "--complete-cnp-ccnp-set", "true",
+		"check", "cncf", "--project", "harbor", "--native-resource", path,
+		"--from", "2.14.4", "--to", "2.15.2",
 		"--now", now, "--format", "json",
 	}
 }
@@ -34,7 +34,7 @@ func pinnedNowArgs(path, now string) []string {
 // A pinned --now inside the validity window keeps passing after the shipped
 // knowledge has really expired: the guard must turn that PASS into UNKNOWN.
 func TestPinnedNowCannotHideWallClockExpiry(t *testing.T) {
-	path := writeCNCFFile(t, "cilium-policy.json", ciliumPolicyNativeResource(t, []any{}), 0o600)
+	path := writeCNCFFile(t, "harbor.json", harborNativeInput(true, "--with-trivy"), 0o600)
 	// The pinned time and the "inside the window" wall clock are derived from
 	// the rule data (the newest review of the shipped rules), not fixed dates.
 	start := testclock.Newest().UTC()

@@ -79,7 +79,8 @@ func TestOfflineBoundaryLinuxCommunityJourneys(t *testing.T) {
 	if strings.Contains(ciliumPrepared.Stdout, "OFFLINE-BOUNDARY-CILIUM-CANARY") {
 		t.Fatal("Cilium private canary escaped canonical input")
 	}
-	run("cilium-check", 10, "check", "cncf", "--project", "cilium", "--input", ciliumInput, "--input-digest", offlineDigest([]byte(ciliumPrepared.Stdout)), "--now", "2026-09-09T06:00:00Z", "--format", "json")
+	// The rule for this pair is withdrawn, so the check is UNKNOWN.
+	run("cilium-check", 11, "check", "cncf", "--project", "cilium", "--input", ciliumInput, "--input-digest", offlineDigest([]byte(ciliumPrepared.Stdout)), "--now", "2026-09-09T06:00:00Z", "--format", "json")
 
 	scanInput := offlineWrite(t, work, "scan-applyset.yaml", []byte("apiVersion: batch/v1beta1\nkind: CronJob\nmetadata:\n  name: OFFLINE-BOUNDARY-SCAN-CANARY\n"))
 	scanned := run("scan", 10, "scan", scanInput, "--from", "kubernetes=1.24.17", "--to", "kubernetes=1.25.3", "--distribution", "official_upstream", "--resource-scope-complete", "--target-api-apply-required", "--redact", "--now", "2026-10-04T00:00:00Z", "--format", "json")

@@ -1067,12 +1067,9 @@ chmod 600 cilium-policy.json
   --now 2026-09-19T00:00:00Z
 ```
 
-A nonempty `fromRequires`/`toRequires` entry anywhere in the selected
-document is a conclusive `BLOCKED` witness. An empty selector is a scoped
-`PASS` only when the caller also declares `--complete-cnp-ccnp-set true`
-for the one selected CNP/CCNP set; without that declaration, or with a
-partial `List` (a `continue` token or positive `remainingItemCount`), the
-result stays `UNKNOWN` rather than a negative-presence `PASS`. The adapter
+The adapter still derives the fact from the selected document (a nonempty
+entry is a witness; a false fact needs `--complete-cnp-ccnp-set true` and no
+partial `List`), but no active rule reads it for these pairs. The adapter
 never discovers set completeness from a cluster; that declaration is always
 an operator guard. Pinned source evidence is
 `Documentation/operations/upgrade.rst`. Whole-upgrade safety remains

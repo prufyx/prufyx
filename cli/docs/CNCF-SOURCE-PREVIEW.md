@@ -227,7 +227,7 @@ pipeline behavior, exporter execution, listener or scrape behavior, runtime
 behavior, and whole-upgrade safety remain `UNKNOWN`. See the [OpenTelemetry
 Collector native examples](../examples/cncf/opentelemetry-collector/README.md).
 
-Cilium project-level `prepare cncf --project cilium` adapter accepts raw policy input only for the exact `1.18.6` → `1.19.0` and `1.18.13` → `1.19.7` pairs. It derives only the existing nonempty-requires fact; a scoped false result still requires an explicit complete CNP and CCNP set declaration. A project-level prepare command never implies preparation of every exact rule pair listed for that project. The
+Cilium project-level `prepare cncf --project cilium` adapter accepts raw policy input only for the exact `1.18.6` → `1.19.0` and `1.18.13` → `1.19.7` pairs. It derives only the existing nonempty-requires fact; a false fact still requires an explicit complete CNP and CCNP set declaration. The rules for both pairs are withdrawn (the upstream upgrade guide says to update to the latest patch release first), so both checks are `UNKNOWN`. A project-level prepare command never implies preparation of every exact rule pair listed for that project. The
 catalogue's 255 identities and 30 maintainer-selected priority projects are
 separate counts and are not an adoption ranking. The table below summarizes
 selected narrow source constraints:

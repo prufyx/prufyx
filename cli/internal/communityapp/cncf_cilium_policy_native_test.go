@@ -47,9 +47,11 @@ func TestCiliumPolicyNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 		status      string
 		want        int
 	}{
-		{"legacy witness blocks", "1.18.6", "1.19.0", []any{map[string]any{}}, false, "BLOCKED", ExitBlocked},
-		{"target CRD witness blocks", "1.18.13", "1.19.7", []any{map[string]any{}}, false, "BLOCKED", ExitBlocked},
-		{"target complete clean set passes", "1.18.13", "1.19.7", []any{}, true, "PASS", ExitOK},
+		// Both rules are withdrawn: no declaration decides either pair.
+		{"legacy witness stays unknown", "1.18.6", "1.19.0", []any{map[string]any{}}, false, "UNKNOWN", ExitUnknown},
+		{"legacy complete clean set stays unknown", "1.18.6", "1.19.0", []any{}, true, "UNKNOWN", ExitUnknown},
+		{"target CRD witness stays unknown", "1.18.13", "1.19.7", []any{map[string]any{}}, false, "UNKNOWN", ExitUnknown},
+		{"target complete clean set stays unknown", "1.18.13", "1.19.7", []any{}, true, "UNKNOWN", ExitUnknown},
 		{"target incomplete clean set unknown", "1.18.13", "1.19.7", []any{}, false, "UNKNOWN", ExitUnknown},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -63,14 +65,14 @@ func TestCiliumPolicyNativeCheck_BoundedOutcomesAndPrivacy(t *testing.T) {
 	}
 }
 
-// The aggregate gate is unchanged by this route: even a scoped PASS keeps the
-// whole-upgrade assessment UNKNOWN.
+// The aggregate gate is unchanged by this route: the whole-upgrade assessment
+// stays UNKNOWN.
 func TestCiliumPolicyNativeCheck_KeepsWholeUpgradeAggregateUnknown(t *testing.T) {
 	t.Parallel()
 	raw := ciliumPolicyNativeResource(t, []any{})
 	path := writeCNCFFile(t, "cilium-policy-clean.json", raw, 0o600)
 	code, stdout, stderr := runCNCFCLI(t, ciliumPolicyNativeArgs(path, "1.18.13", "1.19.7", true)...)
-	if code != ExitOK || stderr != "" || !strings.Contains(stdout, `"status":"PASS"`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
+	if code != ExitUnknown || stderr != "" || !strings.Contains(stdout, "RULE_EVIDENCE_WITHDRAWN") || strings.Contains(stdout, `"status":"PASS"`) || !strings.Contains(stdout, `"assessment":"UNKNOWN"`) {
 		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
 	if !strings.Contains(stdout, "WHOLE_UPGRADE_COMPATIBILITY_NOT_EVALUATED") {
@@ -114,11 +116,11 @@ func TestCiliumPolicyPrepareFeedsNativeCheckEquivalently(t *testing.T) {
 	}
 	prepared := writeCNCFFile(t, "cilium-policy-canonical.json", []byte(canonical), 0o600)
 	code, report, stderr := runCNCFCLI(t, "check", "cncf", "--project", "cilium", "--input", prepared, "--input-digest", cncfDigest([]byte(canonical)), "--now", "2026-09-19T00:00:00Z", "--format", "json")
-	if code != ExitBlocked || stderr != "" || !strings.Contains(report, `"status":"BLOCKED"`) {
+	if code != ExitUnknown || stderr != "" || !strings.Contains(report, "RULE_EVIDENCE_WITHDRAWN") {
 		t.Fatalf("check code=%d stdout=%q stderr=%q", code, report, stderr)
 	}
 	nativeCode, nativeReport, nativeErr := runCNCFCLI(t, ciliumPolicyNativeArgs(path, "1.18.6", "1.19.0", false)...)
-	if nativeCode != code || nativeErr != "" || !strings.Contains(nativeReport, `"status":"BLOCKED"`) {
+	if nativeCode != code || nativeErr != "" || !strings.Contains(nativeReport, "RULE_EVIDENCE_WITHDRAWN") {
 		t.Fatalf("native code=%d stdout=%q stderr=%q", nativeCode, nativeReport, nativeErr)
 	}
 }
